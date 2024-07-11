@@ -11,10 +11,10 @@ func CreateDirectory(dir string) {
 	if os.IsNotExist(err) {
 		err := os.MkdirAll(dir, 0777)
 		if err != nil {
-			logging.Log.Errorf("Falha ao criar diretorio: %s. Erro: %s.", dir, err.Error())
+			logging.Log.Errorf("Failed to create directory: %s. Error: %s.", dir, err.Error())
 		}
 
-		logging.Log.Infof("Sucesso ao criar diretorio: %s.", dir)
+		logging.Log.Infof("Successfully created directory: %s.", dir)
 	}
 }
 
@@ -22,15 +22,15 @@ func MoveFileToDestination(srcFile, dstFile string) string {
 	err := os.Rename(srcFile, dstFile)
 
 	if err != nil {
-		logging.Log.Errorf("Falha ao mover o arquivo: %s. Erro: %s.", srcFile, err.Error())
+		logging.Log.Errorf("Failed to move the file: %s. Error: %s.", srcFile, err.Error())
 		return "ERROR"
 	}
 
-	logging.Log.Infof("Sucesso ao mover o arquivo: %s.", srcFile)
+	logging.Log.Infof("Successfully moved the file: %s.", srcFile)
 	return "SUCCESS"
 }
 
-// Converte um número inteiro que representa um tamanho em bytes (como o tamanho de um arquivo) em uma string legível por humanos
+// Converts an integer number representing a size in bytes (such as file size) into a human-readable string.
 func ByteCountDecimal(b int64) string {
 	const unit = 1024
 	if b < unit {

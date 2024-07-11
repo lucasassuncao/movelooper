@@ -22,13 +22,13 @@ func getConfSections() (*configparser.Configuration, []string) {
 
 	config, err := configparser.Read(types.ConfigFile)
 	if err != nil {
-		logging.Log.Errorf("Falha ao ler arquivo de configuracao: %s. Erro: %s.", types.ConfigFile, err.Error())
+		logging.Log.Errorf("Failed to read configuration file: %s. Error: %s.", types.ConfigFile, err.Error())
 	}
 
 	sections, err := config.AllSections()
 
 	if err != nil {
-		logging.Log.Errorf("Não foi possível ler as Secoes do arquivo de configuracao. Erro: %s.", err.Error())
+		logging.Log.Errorf("Unable to read sections from the configuration file. Error: %s.", err.Error())
 		return nil, nil
 	}
 
@@ -40,7 +40,7 @@ func getConfSections() (*configparser.Configuration, []string) {
 }
 
 func moveFileAndAddLineToTabbyLog(files []fs.DirEntry, t *tabby.Tabby, entry, src string) {
-	t.AddHeader("DATA", "HORA", "TIPO", "ORIGEM", "DESTINO", "NOME", "TAMANHO", "STATUS")
+	t.AddHeader("DATE", "TIME", "TYPE", "SOURCE", "DESTINATION", "NAME", "SIZE", "STATUS")
 	for _, file := range files {
 		fileInfo, _ := file.Info()
 
@@ -74,7 +74,7 @@ func main() {
 		section, err := config.Section(sectionName)
 
 		if err != nil {
-			logging.Log.Errorf("Falha ao obter seção. Erro: %s", err.Error())
+			logging.Log.Errorf("Failed to fetch section. Error: %s", err.Error())
 		}
 
 		src, dst := section.ValueOf("source"), section.ValueOf("destination")
@@ -88,7 +88,7 @@ func main() {
 			files, err := os.ReadDir(src)
 
 			if err != nil {
-				logging.Log.Errorf("Falha ao ler o diretorio: %s. Erro: %s.", src, err.Error())
+				logging.Log.Errorf("Failed to read directory: %s. Error: %s.", src, err.Error())
 			}
 
 			var countFiles int = 0
@@ -102,17 +102,17 @@ func main() {
 
 			switch countFiles {
 			case 0:
-				logging.Log.Infof(aurora.Sprintf("Nenhum arquivo .%s para mover", aurora.Yellow(entry)))
+				logging.Log.Infof(aurora.Sprintf("No .%s file to move.", aurora.Yellow(entry)))
 			case 1:
-				logging.Log.Infof(aurora.Sprintf("%d arquivo .%s para mover", aurora.Yellow(countFiles), aurora.Yellow(entry)))
+				logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
 				moveFileAndAddLineToTabbyLog(files, t, entry, src)
 			default:
-				logging.Log.Infof(aurora.Sprintf("%d arquivos .%s para mover", aurora.Yellow(countFiles), aurora.Yellow(entry)))
+				logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
 				moveFileAndAddLineToTabbyLog(files, t, entry, src)
 			}
 		}
 
 	}
-	// fmt.Print("Aperte 'Enter' para continuar...")
+	// fmt.Print("Press 'Enter' to continue...")
 	// bufio.NewReader(os.Stdin).ReadBytes('\n')
 }

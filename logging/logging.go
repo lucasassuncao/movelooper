@@ -3,6 +3,7 @@ package logging
 import (
 	"io"
 	"log"
+	"movelooper/types"
 	"os"
 
 	"github.com/logrusorgru/aurora/v4"
@@ -20,12 +21,33 @@ type Logger struct {
 
 func GetLogger(prefix string) *Logger {
 	// Initialize Logger
-	Log = NewLogger(prefix)
+	Log, err := NewLogger(prefix, types.LogType)
+	if err != nil {
+		return nil
+	}
 	return Log
 }
 
-func NewLogger(prefix string) *Logger {
-	writer := io.Writer(os.Stdout)
+func NewLogger(prefix, typ string) (*Logger, error) {
+
+	var file *os.File
+	var writer io.Writer
+	var err error
+
+	switch typ {
+	case "logs":
+		// Open log file for appending, create if it doesn't exist
+		file, err = os.OpenFile(types.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return nil, err
+		}
+		writer = io.Writer(file)
+	case "terminal":
+		writer = io.Writer(os.Stdout)
+	default:
+		writer = io.Writer(os.Stdout)
+	}
+
 	format := log.Ldate | log.Ltime | log.Lmsgprefix
 	logger := log.New(writer, prefix, format)
 
@@ -35,7 +57,7 @@ func NewLogger(prefix string) *Logger {
 		warning: log.New(writer, aurora.Sprintf(aurora.Yellow("[WARNING] ")), logger.Flags()),
 		err:     log.New(writer, aurora.Sprintf(aurora.Red("[ERROR] ")), logger.Flags()),
 		writer:  writer,
-	}
+	}, nil
 }
 
 // Return non-formatted logs
