@@ -21,41 +21,52 @@ type Logger struct {
 
 func GetLogger(prefix string) *Logger {
 	// Initialize Logger
-	Log, err := NewLogger(prefix, types.LogType)
+	Log, err := NewLogger(prefix)
 	if err != nil {
 		return nil
 	}
 	return Log
 }
 
-func NewLogger(prefix, typ string) (*Logger, error) {
+func NewLogger(prefix string) (*Logger, error) {
 
 	var file *os.File
 	var writer io.Writer
 	var err error
+	var debugFormat, infoFormat, warningFormat, errFormat *log.Logger
 
-	switch typ {
-	case "logs":
+	format := log.Ldate | log.Ltime | log.Lmsgprefix
+	logger := log.New(writer, prefix, format)
+
+	if types.LogType == "logs" {
 		// Open log file for appending, create if it doesn't exist
 		file, err = os.OpenFile(types.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return nil, err
 		}
+
+		defer file.Close()
 		writer = io.Writer(file)
-	case "terminal":
+
+		debugFormat = log.New(writer, "[DEBUG] ", logger.Flags())
+		infoFormat = log.New(writer, "[INFO] ", logger.Flags())
+		warningFormat = log.New(writer, "[WARNING] ", logger.Flags())
+		errFormat = log.New(writer, "[ERROR] ", logger.Flags())
+
+	} else {
 		writer = io.Writer(os.Stdout)
-	default:
-		writer = io.Writer(os.Stdout)
+
+		debugFormat = log.New(writer, aurora.Sprintf(aurora.Blue("[DEBUG] ")), logger.Flags())
+		infoFormat = log.New(writer, aurora.Sprintf(aurora.Green("[INFO] ")), logger.Flags())
+		warningFormat = log.New(writer, aurora.Sprintf(aurora.Yellow("[WARNING] ")), logger.Flags())
+		errFormat = log.New(writer, aurora.Sprintf(aurora.Red("[ERROR] ")), logger.Flags())
 	}
 
-	format := log.Ldate | log.Ltime | log.Lmsgprefix
-	logger := log.New(writer, prefix, format)
-
 	return &Logger{
-		debug:   log.New(writer, aurora.Sprintf(aurora.Blue("[DEBUG] ")), logger.Flags()),
-		info:    log.New(writer, aurora.Sprintf(aurora.Green("[INFO] ")), logger.Flags()),
-		warning: log.New(writer, aurora.Sprintf(aurora.Yellow("[WARNING] ")), logger.Flags()),
-		err:     log.New(writer, aurora.Sprintf(aurora.Red("[ERROR] ")), logger.Flags()),
+		debug:   debugFormat,
+		info:    infoFormat,
+		warning: warningFormat,
+		err:     errFormat,
 		writer:  writer,
 	}, nil
 }

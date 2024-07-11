@@ -69,8 +69,6 @@ func main() {
 			continue
 		}
 
-		// logging.Log.Infof(aurora.Sprintf("Processando seção: %s", aurora.Yellow(sectionName)))
-
 		section, err := config.Section(sectionName)
 
 		if err != nil {
@@ -102,17 +100,27 @@ func main() {
 
 			switch countFiles {
 			case 0:
-				logging.Log.Infof(aurora.Sprintf("No .%s file to move.", aurora.Yellow(entry)))
+				if types.LogType == "logs" {
+					logging.Log.Infof("No .%s file(s) to move.", entry)
+				} else {
+					logging.Log.Infof(aurora.Sprintf("No .%s file(s) to move.", aurora.Yellow(entry)))
+				}
 			case 1:
-				logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
+				if types.LogType == "logs" {
+					logging.Log.Infof("%d file .%s to move", countFiles, entry)
+				} else {
+					logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
+				}
 				moveFileAndAddLineToTabbyLog(files, t, entry, src)
 			default:
-				logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
+				if types.LogType == "logs" {
+					logging.Log.Infof("%d files .%s to move", countFiles, entry)
+				} else {
+					logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
+				}
 				moveFileAndAddLineToTabbyLog(files, t, entry, src)
 			}
 		}
 
 	}
-	// fmt.Print("Press 'Enter' to continue...")
-	// bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
