@@ -1,37 +1,9 @@
-# github.com/Delta456/box-cli-maker/v2 v2.3.0
-## explicit; go 1.15
-github.com/Delta456/box-cli-maker/v2
 # github.com/alyu/configparser v0.0.0-20191103060215-744e9a66e7bc
 ## explicit; go 1.13
 github.com/alyu/configparser
 # github.com/cheynewallace/tabby v1.1.1
 ## explicit
 github.com/cheynewallace/tabby
-# github.com/gookit/color v1.5.2
-## explicit; go 1.16
-github.com/gookit/color
-# github.com/huandu/xstrings v1.3.2
-## explicit; go 1.12
-github.com/huandu/xstrings
-# github.com/mattn/go-runewidth v0.0.14
-## explicit; go 1.9
-github.com/mattn/go-runewidth
-# github.com/muesli/reflow v0.3.0
-## explicit; go 1.13
-github.com/muesli/reflow/ansi
-github.com/muesli/reflow/wrap
-# github.com/rivo/uniseg v0.2.0
-## explicit; go 1.12
-github.com/rivo/uniseg
-# github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
+# github.com/logrusorgru/aurora/v4 v4.0.0
 ## explicit; go 1.19
-github.com/xo/terminfo
-# golang.org/x/sys v0.1.0
-## explicit; go 1.17
-golang.org/x/sys/internal/unsafeheader
-golang.org/x/sys/plan9
-golang.org/x/sys/unix
-golang.org/x/sys/windows
-# golang.org/x/term v0.0.0-20221017184919-83659145692c
-## explicit; go 1.17
-golang.org/x/term
+github.com/logrusorgru/aurora/v4
