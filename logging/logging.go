@@ -45,14 +45,12 @@ func NewLogger(prefix string) (*Logger, error) {
 			return nil, err
 		}
 
-		defer file.Close()
 		writer = io.Writer(file)
 
 		debugFormat = log.New(writer, "[DEBUG] ", logger.Flags())
 		infoFormat = log.New(writer, "[INFO] ", logger.Flags())
 		warningFormat = log.New(writer, "[WARNING] ", logger.Flags())
 		errFormat = log.New(writer, "[ERROR] ", logger.Flags())
-
 	} else {
 		writer = io.Writer(os.Stdout)
 
