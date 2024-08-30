@@ -1,7 +1,7 @@
 package types
 
 var (
-	LogType = "logs" // We can set up as "logs" or "terminal"
+	LogType = "terminal" // We can set up as "logs" or "terminal"
 )
 
 const (

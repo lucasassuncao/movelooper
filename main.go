@@ -24,6 +24,12 @@ type ConfigurationManager struct {
 	LogType      string
 }
 
+type SectionFields struct {
+	Entries     []string
+	Source      string
+	Destination string
+}
+
 func NewConfigManager(tabbyFile, logType string) (*ConfigurationManager, error) {
 	config, sectionNames := getConfSections()
 
@@ -68,9 +74,9 @@ func getConfSections() (*configparser.Configuration, []string) {
 
 func (cm *ConfigurationManager) moveFileAndAddLineToTabbyLog(files []fs.DirEntry, entry, src string) {
 	cm.TabbyWriter.AddHeader("DATE", "TIME", "TYPE", "SOURCE", "DESTINATION", "NAME", "SIZE", "STATUS")
+
 	for _, file := range files {
 		fileInfo, _ := file.Info()
-
 		if strings.HasSuffix(file.Name(), strings.ToUpper("."+entry)) || strings.HasSuffix(file.Name(), strings.ToLower("."+entry)) {
 			status := helper.MoveFileToDestination(
 				src+file.Name(),
@@ -93,6 +99,9 @@ func (cm *ConfigurationManager) moveFileAndAddLineToTabbyLog(files []fs.DirEntry
 }
 
 func (cm *ConfigurationManager) processSections() {
+
+	sf := &SectionFields{} // Set up a pointer to a SectionFields initialized with ZERO Values
+
 	for _, sectionName := range cm.SectionNames {
 		if strings.Contains(sectionName, "global") {
 			continue
@@ -104,16 +113,17 @@ func (cm *ConfigurationManager) processSections() {
 			continue
 		}
 
-		src, dst := section.ValueOf("source"), section.ValueOf("destination")
-		entries := strings.Split(section.ValueOf("entries"), ",")
+		sf.Source = section.ValueOf("source")
+		sf.Destination = section.ValueOf("destination")
+		sf.Entries = strings.Split(section.ValueOf("entries"), ",")
 
-		for _, entry := range entries {
-			cm.Dir = dst + entry
+		for _, entry := range sf.Entries {
+			cm.Dir = sf.Destination + entry
 			helper.CreateDirectory(cm.Dir)
 
-			files, err := os.ReadDir(src)
+			files, err := os.ReadDir(sf.Source)
 			if err != nil {
-				logging.Log.Errorf("Failed to read directory: %s. Error: %s.", src, err.Error())
+				logging.Log.Errorf("Failed to read directory: %s. Error: %s.", sf.Source, err.Error())
 				continue
 			}
 
@@ -139,14 +149,14 @@ func (cm *ConfigurationManager) processSections() {
 				} else {
 					logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
 				}
-				cm.moveFileAndAddLineToTabbyLog(files, entry, src)
+				cm.moveFileAndAddLineToTabbyLog(files, entry, sf.Source)
 			default:
 				if cm.LogType == "logs" {
 					logging.Log.Infof("%d files .%s to move", countFiles, entry)
 				} else {
 					logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
 				}
-				cm.moveFileAndAddLineToTabbyLog(files, entry, src)
+				cm.moveFileAndAddLineToTabbyLog(files, entry, sf.Source)
 			}
 		}
 	}
