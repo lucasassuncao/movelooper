@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"log"
 	"movelooper/types"
 	"os"
 
@@ -30,7 +31,7 @@ func ConfigureLogger(config LoggerConfig) *pterm.Logger {
 	case "log":
 		logFile, err := os.OpenFile(types.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
-			logger.Warn("Could not open log file, logging will be to console only.")
+			log.Fatal("Could not open log file. Exiting...")
 		}
 		logger = logger.WithWriter(logFile)
 	case "terminal":
