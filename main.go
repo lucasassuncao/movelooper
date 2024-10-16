@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"movelooper/helper"
 	"movelooper/logging"
@@ -13,6 +14,7 @@ import (
 	"github.com/alyu/configparser"
 	"github.com/cheynewallace/tabby"
 	"github.com/logrusorgru/aurora/v4"
+	"github.com/pterm/pterm"
 )
 
 type ConfigurationManager struct {
@@ -21,7 +23,6 @@ type ConfigurationManager struct {
 	TabbyWriter  *tabby.Tabby
 	TabbyFile    string
 	Dir          string
-	LogType      string
 }
 
 type SectionFields struct {
@@ -30,7 +31,7 @@ type SectionFields struct {
 	Destination string
 }
 
-func NewConfigManager(tabbyFile, logType string) (*ConfigurationManager, error) {
+func NewConfigManager(tabbyFile string) (*ConfigurationManager, error) {
 	config, sectionNames := getConfSections()
 
 	fd, err := os.OpenFile(tabbyFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -46,7 +47,6 @@ func NewConfigManager(tabbyFile, logType string) (*ConfigurationManager, error) 
 		SectionNames: sectionNames,
 		TabbyWriter:  t,
 		TabbyFile:    tabbyFile,
-		LogType:      logType,
 	}, nil
 }
 
@@ -55,13 +55,13 @@ func getConfSections() (*configparser.Configuration, []string) {
 
 	config, err := configparser.Read(types.ConfigFile)
 	if err != nil {
-		logging.Log.Errorf("Failed to read configuration file: %s. Error: %s.", types.ConfigFile, err.Error())
+		logging.Logger.Error(fmt.Sprintf("Failed to read configuration file: %s. Error: %s.", types.ConfigFile, err.Error()))
 		return nil, nil
 	}
 
 	sections, err := config.AllSections()
 	if err != nil {
-		logging.Log.Errorf("Unable to read sections from the configuration file. Error: %s.", err.Error())
+		logging.Logger.Error(fmt.Sprintf("Unable to read sections from the configuration file. Error: %s.", err.Error()))
 		return nil, nil
 	}
 
@@ -109,7 +109,7 @@ func (cm *ConfigurationManager) processSections() {
 
 		section, err := cm.Config.Section(sectionName)
 		if err != nil {
-			logging.Log.Errorf("Failed to fetch section. Error: %s", err.Error())
+			logging.Logger.Error(fmt.Sprintf("Failed to fetch section. Error: %s", err.Error()))
 			continue
 		}
 
@@ -123,7 +123,7 @@ func (cm *ConfigurationManager) processSections() {
 
 			files, err := os.ReadDir(sf.Source)
 			if err != nil {
-				logging.Log.Errorf("Failed to read directory: %s. Error: %s.", sf.Source, err.Error())
+				logging.Logger.Error(fmt.Sprintf("Failed to read directory: %s. Error: %s.", sf.Source, err.Error()))
 				continue
 			}
 
@@ -138,24 +138,12 @@ func (cm *ConfigurationManager) processSections() {
 
 			switch countFiles {
 			case 0:
-				if cm.LogType == "logs" {
-					logging.Log.Infof("No .%s file(s) to move.", entry)
-				} else {
-					logging.Log.Infof(aurora.Sprintf("No .%s file(s) to move.", aurora.Yellow(entry)))
-				}
+				logging.Logger.Info(aurora.Sprintf("No .%s file(s) to move.", aurora.Yellow(entry)))
 			case 1:
-				if cm.LogType == "logs" {
-					logging.Log.Infof("%d file .%s to move", countFiles, entry)
-				} else {
-					logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
-				}
+				logging.Logger.Info(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
 				cm.moveFileAndAddLineToTabbyLog(files, entry, sf.Source)
 			default:
-				if cm.LogType == "logs" {
-					logging.Log.Infof("%d files .%s to move", countFiles, entry)
-				} else {
-					logging.Log.Infof(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
-				}
+				logging.Logger.Info(aurora.Sprintf("%d files .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
 				cm.moveFileAndAddLineToTabbyLog(files, entry, sf.Source)
 			}
 		}
@@ -163,11 +151,18 @@ func (cm *ConfigurationManager) processSections() {
 }
 
 func main() {
-	logging.Log = logging.GetLogger("main")
+	// Initialize the logger with custom configuration
+	config := logging.LoggerConfig{
+		LogType:       "terminal",
+		LogLevel:      pterm.LogLevelInfo,
+		IncludeCaller: false,
+	}
 
-	configManager, err := NewConfigManager(types.TabbyFile, types.LogType)
+	logging.Logger = logging.ConfigureLogger(config)
+
+	configManager, err := NewConfigManager(types.TabbyFile)
 	if err != nil {
-		logging.Log.Errorf("Failed to initialize ConfigManager. Error: %s", err.Error())
+		logging.Logger.Error(fmt.Sprintf("failed to initialize configManager. Error: %s", err.Error()))
 		return
 	}
 
