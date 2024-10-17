@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/fs"
 	"movelooper/helper"
 	"movelooper/logging"
@@ -55,13 +54,13 @@ func getConfSections() (*configparser.Configuration, []string) {
 
 	config, err := configparser.Read(types.ConfigFile)
 	if err != nil {
-		logging.Logger.Error(fmt.Sprintf("Failed to read configuration file: %s. Error: %s.", types.ConfigFile, err.Error()))
+		logging.Logger.Error(aurora.Sprintf("Failed to read configuration file: %s. Error: %s", types.ConfigFile, err.Error()))
 		return nil, nil
 	}
 
 	sections, err := config.AllSections()
 	if err != nil {
-		logging.Logger.Error(fmt.Sprintf("Unable to read sections from the configuration file. Error: %s.", err.Error()))
+		logging.Logger.Error(aurora.Sprintf("Unable to read sections from the configuration file. Error: %s", err.Error()))
 		return nil, nil
 	}
 
@@ -109,7 +108,7 @@ func (cm *ConfigurationManager) processSections() {
 
 		section, err := cm.Config.Section(sectionName)
 		if err != nil {
-			logging.Logger.Error(fmt.Sprintf("Failed to fetch section. Error: %s", err.Error()))
+			logging.Logger.Error(aurora.Sprintf("Failed to fetch section. Error: %s", err.Error()))
 			continue
 		}
 
@@ -123,7 +122,7 @@ func (cm *ConfigurationManager) processSections() {
 
 			files, err := os.ReadDir(sf.Source)
 			if err != nil {
-				logging.Logger.Error(fmt.Sprintf("Failed to read directory: %s. Error: %s.", sf.Source, err.Error()))
+				logging.Logger.Error(aurora.Sprintf("Failed to read directory: %s. Error: %s", sf.Source, err.Error()))
 				continue
 			}
 
@@ -138,7 +137,7 @@ func (cm *ConfigurationManager) processSections() {
 
 			switch countFiles {
 			case 0:
-				logging.Logger.Info(aurora.Sprintf("No .%s file(s) to move.", aurora.Yellow(entry)))
+				logging.Logger.Info(aurora.Sprintf("No .%s file(s) to move", aurora.Yellow(entry)))
 			case 1:
 				logging.Logger.Info(aurora.Sprintf("%d file .%s to move", aurora.Yellow(countFiles), aurora.Yellow(entry)))
 				cm.moveFileAndAddLineToTabbyLog(files, entry, sf.Source)
@@ -162,7 +161,7 @@ func main() {
 
 	configManager, err := NewConfigManager(types.TabbyFile)
 	if err != nil {
-		logging.Logger.Error(fmt.Sprintf("failed to initialize configManager. Error: %s", err.Error()))
+		logging.Logger.Error(aurora.Sprintf("failed to initialize configManager. Error: %s", err.Error()))
 		return
 	}
 
