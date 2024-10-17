@@ -19,8 +19,13 @@ func CreateDirectory(dir string) {
 }
 
 func MoveFileToDestination(srcFile, dstFile string) string {
-	err := os.Rename(srcFile, dstFile)
+	_, err := os.Stat(dstFile)
+	if err == nil {
+		logging.Logger.Warn(fmt.Sprintf("Destination file already exists: %s.", dstFile))
+		return "WARNING"
+	}
 
+	err = os.Rename(srcFile, dstFile)
 	if err != nil {
 		logging.Logger.Error(fmt.Sprintf("Failed to move the file: %s. Error: %s.", srcFile, err.Error()))
 		return "ERROR"
