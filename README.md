@@ -1,5 +1,10 @@
 # Movelooper
 
+`movelooper` is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories. The tool supports two main commands:
+
+- **Preview:** A dry-run to show what files would be moved without actually performing the operation.
+- **Move:** Actually moves files from source directories to destination directories, placing them in subdirectories based on their extensions.
+
 ## Requirements
 
 You need a configuration file named `movelooper.yaml` in the same directory as movelooper.
@@ -133,3 +138,19 @@ Use "movelooper [command] --help" for more information about a command.
    1. PreviewCmd(m): Preview functionality.
    2. MoveCmd(m): Move functionality.
 6. The configured movelooper command is returned and ready to execute.
+
+### Subcommand Workflow
+
+1. **Preview Command:**
+  - **Objective:** Displays a preview of the files that would be moved without making any changes.
+  - **Process:**
+    - The tool scans the source directories for each configured category.
+    - For each category, it checks for files matching the specified extensions.
+    - It counts the matching files and logs the number of files to be moved for each extension.
+    - This command doesn't perform the file movement; it’s a verification step.
+2. **Move Command:**
+  - **Objective:** Actually moves the files to the corresponding destination directories.
+  - **Process:**
+    - Similar to the preview command, it scans the source directories for files matching the specified extensions.
+    - For each extension, it moves the files into subdirectories named after their extensions within the destination directory.
+    - The tool creates the necessary destination directories if they don’t exist.
