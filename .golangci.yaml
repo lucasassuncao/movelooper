@@ -1,0 +1,35 @@
+linters:
+  disable-all: false
+  enable:
+    - gofmt
+    - whitespace
+    - dupl
+    - gocognit
+    - unparam
+    - gocyclo
+    - gocritic
+    - nakedret
+    - asciicheck
+    - dogsled
+    - misspell
+    - nestif
+    - nolintlint
+    - stylecheck
+    - errcheck # Check for unchecked errors
+    - lll
+    - govet # Go vet
+    - gosimple # Simplify code
+    - staticcheck # Advanced static analysis
+
+run:
+  timeout: 15m # Set timeout
+
+linters-settings:
+  lll:
+    line-length: 240
+  gci:
+    sections:
+      - standard
+      - default
+      - blank
+    skip-generated: true

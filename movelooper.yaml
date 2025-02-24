@@ -1,0 +1,46 @@
+configuration:
+  output: console
+  log-file: "C:\\Users\\lucas\\Desktop\\newMoveLooper.log"
+  log-level: debug
+  show-caller: false
+
+categories:
+  images:
+    extensions: ["jpg", "jpeg", "png", "gif", "webp"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Media\\Images\\"
+
+  audio:
+    extensions: ["mp3"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Media\\Audio\\"
+
+  video:
+    extensions: ["mp4"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Media\\Video\\"
+
+  documents:
+    extensions: ["pdf", "txt", "docx", "pptx"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Documents\\"
+
+  zipped:
+    extensions: ["zip", "rar", "7z"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Compressed\\"
+
+  installers:
+    extensions: ["exe", "msi", "apk", "pkg"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Installers\\"
+
+  others:
+    extensions: ["iso"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Others\\"
+
+  fonts:
+    extensions: ["ttf", "otf"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Others\\fonts\\"

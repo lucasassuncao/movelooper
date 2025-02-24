@@ -1,84 +1,135 @@
-# movelooper
+# Movelooper
 
-Movelooper is a small application written in Go to organize files by extension
+## Requirements
 
-In essence, files with extensions listed in `entries` will be moved from `source` to `destination`, each within a corresponding folder named after its extension.
+You need a configuration file named `movelooper.yaml` in the same directory as movelooper.
+
+### Example: Config file (movelooper.yaml) 
+
+```yaml
+
+configuration:
+  output: console # Default is console (console, log or file)
+  log-file: "<path_to_logfile>"
+  log-level: debug # trace, debug, info, warn/warning, error or fatal
+  show-caller: false
+
+categories:
+  images:
+    extensions: ["jpg", "jpeg", "png", "gif", "webp"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Media\\Images\\"
+
+  audio:
+    extensions: ["mp3"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Media\\Audio\\"
+
+   # Add more categories as you want
 
 ```
-entries = jpg,jpeg,png,gif,webp
-source = C:\Users\lucas\Downloads\
-destination = C:\Users\lucas\Downloads\Media\Images\
+
+### Example: Help
+
+```bash
+
+root ➜ /workspaces/movelooper (main) $ go run .
+Long description of newMoveLooper
+
+Usage:
+  movelooper [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  move        Moves files to their respective destination directories based on configured categories
+  preview     Displays a preview of files to be moved based on configured categories
+
+Flags:
+  -h, --help               help for movelooper
+  -l, --log-level string   Specify the log level
+  -o, --output string      Specify the output (console, log or file)
+      --show-caller        Show caller information
+
+Use "movelooper [command] --help" for more information about a command.
+
 ```
 
-## Example:
+### Example: Usage
 
-Giving the following configuration file:
-
-<details>
-  <summary>Click to expand</summary>
-
-  ```powershell
-    [documents]
-    entries = pdf,txt,docx,pptx
-    source = C:\Users\lucas\Downloads\
-    destination = C:\Users\lucas\Downloads\Documents\
-  ```
-</details>
-
-Movelooper will create all the structure defined in the `destination` to hold your files, this includes the creation of subdirectories per file extension as you can see below
-
-<details>
-  <summary>Click to expand</summary>
-  
+#### Previewing files
 ```powershell
-💀 lucas@Blackhole 📂 C:\Users\lucas\Downloads PS> tree /A .
-C:\USERS\LUCAS\DOWNLOADS
-+---Documents
-|   +---docx
-|   +---pdf
-|   +---pptx
-|   \---txt
+
+💀 lucas@Milkyway 📂 C:\Users\lucas\go\src\movelooper>.\movelooper.exe preview -o console -l debug
+2025-02-24 19:17:17 INFO  Starting newMoveLooper
+2025-02-24 19:17:17 INFO  No .jpg file(s) to move
+2025-02-24 19:17:17 INFO  No .jpeg file(s) to move
+2025-02-24 19:17:17 INFO  No .png file(s) to move
+2025-02-24 19:17:17 INFO  No .gif file(s) to move
+2025-02-24 19:17:17 INFO  No .webp file(s) to move
+2025-02-24 19:17:17 WARN  1 file .mp3 to move
+2025-02-24 19:17:17 INFO  No .mp4 file(s) to move
+2025-02-24 19:17:17 INFO  No .pdf file(s) to move
+2025-02-24 19:17:17 INFO  No .txt file(s) to move
+2025-02-24 19:17:17 INFO  No .docx file(s) to move
+2025-02-24 19:17:17 INFO  No .pptx file(s) to move
+2025-02-24 19:17:17 INFO  No .zip file(s) to move
+2025-02-24 19:17:17 INFO  No .rar file(s) to move
+2025-02-24 19:17:17 INFO  No .7z file(s) to move
+2025-02-24 19:17:17 INFO  No .exe file(s) to move
+2025-02-24 19:17:17 INFO  No .msi file(s) to move
+2025-02-24 19:17:17 INFO  No .apk file(s) to move
+2025-02-24 19:17:17 INFO  No .pkg file(s) to move
+2025-02-24 19:17:17 INFO  No .iso file(s) to move
+2025-02-24 19:17:17 INFO  No .ttf file(s) to move
+2025-02-24 19:17:17 INFO  No .otf file(s) to move
+
 ```
-</details>
 
-
-## Output Example:
-
-<details>
-  <summary>Click to expand</summary>
-  
+#### Moving files
 ```powershell
-💀 lucas@Blackhole 📂 C:\Users\lucas PS> movelooper.exe
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .jpg para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .jpeg para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .png para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .gif para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .webp para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .mp3 para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .mp4 para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .pdf para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .txt para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .docx para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .pptx para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .zip para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .rar para mover
-2024/07/10 22:01:10 [INFO] 3 arquivos .7z para mover
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\FFMQ_PT-BR_V1_0.7z.
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\NSudo_Launcher_Installer_AIO.7z.
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\geek.7z.
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .exe para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .msi para mover
-2024/07/10 22:01:10 [INFO] 7 arquivos .apk para mover
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\AdAway-6.1.3-20240706.apk.
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\JoiPlay-1.20.027-a320fc05.apk.
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\RPGMPlugin-1.20.28-2d33a054.apk.
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\halo-1-4.apk.
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\malody-4-3-7.apk.
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\melobeat-1-7-10.apk.
-2024/07/10 22:01:10 [INFO] Sucesso ao mover o arquivo: C:\Users\lucas\Downloads\rom-toolbox-lite-6-5-3-0.apk.
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .pkg para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .iso para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .ttf para mover
-2024/07/10 22:01:10 [INFO] Nenhum arquivo .otf para mover
+
+💀 lucas@Milkyway 📂 C:\Users\lucas\go\src\movelooper>.\movelooper.exe move -o console -l debug
+2025-02-24 19:18:25 INFO  Starting newMoveLooper
+2025-02-24 19:18:25 INFO  No .pdf file(s) to move
+2025-02-24 19:18:25 INFO  No .txt file(s) to move
+2025-02-24 19:18:25 INFO  No .docx file(s) to move
+2025-02-24 19:18:25 INFO  No .pptx file(s) to move
+2025-02-24 19:18:25 INFO  No .zip file(s) to move
+2025-02-24 19:18:25 INFO  No .rar file(s) to move
+2025-02-24 19:18:25 INFO  No .7z file(s) to move
+2025-02-24 19:18:25 INFO  No .exe file(s) to move
+2025-02-24 19:18:25 INFO  No .msi file(s) to move
+2025-02-24 19:18:25 INFO  No .apk file(s) to move
+2025-02-24 19:18:25 INFO  No .pkg file(s) to move
+2025-02-24 19:18:25 INFO  No .iso file(s) to move
+2025-02-24 19:18:25 INFO  No .ttf file(s) to move
+2025-02-24 19:18:25 INFO  No .otf file(s) to move
+2025-02-24 19:18:25 INFO  No .jpg file(s) to move
+2025-02-24 19:18:25 INFO  No .jpeg file(s) to move
+2025-02-24 19:18:25 INFO  No .png file(s) to move
+2025-02-24 19:18:25 INFO  No .gif file(s) to move
+2025-02-24 19:18:25 INFO  No .webp file(s) to move
+2025-02-24 19:18:25 WARN  1 file .mp3 to move
+2025-02-24 19:18:25 INFO  successfully moved file
+                      ├ source: C:\Users\lucas\Downloads\Please take everything I have.mp3
+                      └ destination: C:\Users\lucas\Downloads\Media\Audio\mp3\Please take everything I have.mp3
+2025-02-24 19:18:25 INFO  No .mp4 file(s) to move
+
 ```
-</details>
+
+## Execution Flow
+
+1. Initialize Command (RootCmd):
+   1. Sets up a movelooper command with descriptions and a PersistentPreRun function.
+2. In PersistentPreRun:
+   1. Loads settings from a movelooper.yaml file.
+   2. If no logger exists, it sets up a logger.
+   3. Ensures flags (output, show-caller, log-level) are correctly set, either from the command line or the config file.
+3. Defines persistent flags for the command:
+   1. show-caller, log-level, and output.
+4. Links flags to Viper keys for configuration support.
+5. Adds two subcommands to the root command:
+   1. PreviewCmd(m): Preview functionality.
+   2. MoveCmd(m): Move functionality.
+6. The configured movelooper command is returned and ready to execute.

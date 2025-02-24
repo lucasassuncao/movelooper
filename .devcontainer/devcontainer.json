@@ -1,0 +1,74 @@
+{
+  "name": "DevContainerMaker",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "shutdownAction": "stopContainer",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": "false",
+      "upgradePackages": "false",
+      "userGid": "automatic",
+      "userUid": "automatic",
+      "username": "none"
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "ppa": "true",
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "golangciLintVersion": "latest",
+      "version": "1.23.3"
+    },
+    "ghcr.io/devcontainers/features/powershell:1": {
+      "version": "latest"
+    },
+    "ghcr.io/eitsupi/devcontainer-features/jq-likes:2.1.0": {
+      "jqVersion": "latest",
+      "yqVersion": "latest"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "eamodio.gitlens",
+        "ms-vscode.PowerShell",
+        "tamasfe.even-better-toml",
+        "zainchen.json",
+        "shd101wyy.markdown-preview-enhanced",
+        "gitlab.gitlab-workflow",
+        "redhat.vscode-yaml",
+        "ms-vscode.makefile-tools"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "files.autoSave": "afterDelay",
+        "go.enableCodeLens": {
+          "runtest": true
+        },
+        "go.inlayHints.assignVariableTypes": true,
+        "go.inlayHints.compositeLiteralFields": true,
+        "go.inlayHints.compositeLiteralTypes": true,
+        "go.inlayHints.constantValues": true,
+        "go.inlayHints.functionTypeParameters": true,
+        "go.inlayHints.parameterNames": true,
+        "go.inlayHints.rangeVariableTypes": true,
+        "go.lintFlags": [
+          "--fast"
+        ],
+        "go.lintOnSave": "file",
+        "go.lintTool": "golangci-lint",
+        "go.toolsManagement.checkForUpdates": "off",
+        "go.useLanguageServer": true,
+        "goTestExplorer.profiler.showCodeLens": true,
+        "gopls": {
+          "build.buildFlags": [],
+          "ui.diagnostic.staticcheck": true
+        },
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}
