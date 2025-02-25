@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Vai rodar quando você criar uma tag que comece com "v" (ex: v1.0.0)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.23'  # Versão do Go que você está usando
+
+    - name: Cache Go modules
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/go-build
+        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.mod') }}
+        restore-keys: |
+          ${{ runner.os }}-go-mod-
+
+    - name: Install GoReleaser
+      run: |
+        curl -sSL https://github.com/goreleaser/goreleaser/releases/download/v1.19.1/goreleaser_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin
+
+    - name: Run Goreleaser
+      run: |
+        goreleaser release --rm-dist --skip-publish
+
+    - name: Upload release assets
+      uses: actions/upload-artifact@v2
+      with:
+        name: release-assets
+        path: dist/*
