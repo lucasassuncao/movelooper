@@ -32,7 +32,7 @@ lint: deps
 	golangci-lint -v run ./...
 
 build: deps
-	goreleaser build --skip=validate --single-target --snapshot --clean
+	goreleaser build --skip=validate --snapshot --clean
 
 release: deps
 	goreleaser release --timeout 360s
