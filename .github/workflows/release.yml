@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'  # Trigger on tag push (e.g., v1.0.0)
 
 jobs:
   build:
@@ -24,10 +24,20 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -o dist/movelooper-windows-amd64.exe .
           GOOS=darwin GOARCH=amd64 go build -o dist/movelooper-darwin-amd64 .
 
-      - name: Upload binaries to release
+      - name: Create GitHub release
+        id: create_release
+        run: |
+          RELEASE_TAG=${GITHUB_REF##*/}
+          echo "Creating release for ${RELEASE_TAG}"
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"tag_name\":\"${RELEASE_TAG}\",\"name\":\"Release ${RELEASE_TAG}\"}" \
+            https://api.github.com/repos/${{ github.repository }}/releases
+
+      - name: Upload Linux binary to release
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/movelooper-linux-amd64
           asset_name: movelooper-linux-amd64
           asset_content_type: application/octet-stream
@@ -35,7 +45,7 @@ jobs:
       - name: Upload Windows binary to release
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/movelooper-windows-amd64.exe
           asset_name: movelooper-windows-amd64.exe
           asset_content_type: application/octet-stream
@@ -43,7 +53,7 @@ jobs:
       - name: Upload macOS binary to release
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/movelooper-darwin-amd64
           asset_name: movelooper-darwin-amd64
           asset_content_type: application/octet-stream
