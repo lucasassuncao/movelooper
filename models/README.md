@@ -16,17 +16,16 @@ import "movelooper/models"
 
 
 <a name="MediaConfig"></a>
-## type [MediaConfig](<https://github.com/lucasassuncao/movelooper/blob/main/models/movelooper.go#L15-L21>)
+## type [MediaConfig](<https://github.com/lucasassuncao/movelooper/blob/main/models/movelooper.go#L15-L20>)
 
 
 
 ```go
 type MediaConfig struct {
-    AllCategories []string
-    Category      string
-    Extensions    []string
-    Source        string
-    Destination   string
+    CategoryName string   `mapstructure:"name"`
+    Extensions   []string `mapstructure:"extensions"`
+    Source       string   `mapstructure:"source"`
+    Destination  string   `mapstructure:"destination"`
 }
 ```
 
@@ -40,7 +39,7 @@ type Movelooper struct {
     Logger      *pterm.Logger
     Viper       *viper.Viper
     Flags       *PersistentFlags
-    MediaConfig *MediaConfig
+    MediaConfig []*MediaConfig
 }
 ```
 

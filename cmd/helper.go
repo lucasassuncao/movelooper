@@ -5,20 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/spf13/viper"
 )
-
-// getCategories retrieves the category names from the Viper configuration and returns them as a slice.
-func getCategories(v *viper.Viper) []string {
-	var categories = make([]string, 0)
-
-	for key := range v.GetStringMap("categories.name") {
-		categories = append(categories, key)
-	}
-
-	return categories
-}
 
 // createDirectory checks if the specified directory exists, and if not, creates it with full permissions.
 func createDirectory(m *models.Movelooper, dir string) {

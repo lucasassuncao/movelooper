@@ -1,5 +1,5 @@
 {
-  "name": "DevContainerMaker",
+  "name": "Movelooper",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "."
@@ -19,7 +19,7 @@
     },
     "ghcr.io/devcontainers/features/go:1": {
       "golangciLintVersion": "latest",
-      "version": "1.23.3"
+      "version": "1.23.6"
     },
     "ghcr.io/devcontainers/features/powershell:1": {
       "version": "latest"
