@@ -3,39 +3,47 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'  # Vai rodar quando você criar uma tag que comece com "v" (ex: v1.0.0)
+      - 'v*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: '1.23'  # Versão do Go que você está usando
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
 
-    - name: Cache Go modules
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/go-build
-        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.mod') }}
-        restore-keys: |
-          ${{ runner.os }}-go-mod-
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -o dist/movelooper-linux-amd64 .
+          GOOS=windows GOARCH=amd64 go build -o dist/movelooper-windows-amd64.exe .
+          GOOS=darwin GOARCH=amd64 go build -o dist/movelooper-darwin-amd64 .
 
-    - name: Install GoReleaser
-      run: |
-        curl -sSL https://github.com/goreleaser/goreleaser/releases/download/v1.19.1/goreleaser_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin
+      - name: Upload binaries to release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/movelooper-linux-amd64
+          asset_name: movelooper-linux-amd64
+          asset_content_type: application/octet-stream
 
-    - name: Run Goreleaser
-      run: |
-        goreleaser release --rm-dist --skip-publish
+      - name: Upload Windows binary to release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/movelooper-windows-amd64.exe
+          asset_name: movelooper-windows-amd64.exe
+          asset_content_type: application/octet-stream
 
-    - name: Upload release assets
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-assets
-        path: dist/*
+      - name: Upload macOS binary to release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/movelooper-darwin-amd64
+          asset_name: movelooper-darwin-amd64
+          asset_content_type: application/octet-stream

@@ -1,15 +1,18 @@
 project_name: movelooper
+
 builds:
-  - main: .
+  - main: ./main.go
     goos:
       - linux
-      - windows
       - darwin
+      - windows
     goarch:
       - amd64
-      - arm64
+    env:
+      - CGO_ENABLED=0
+
 archives:
   - format: tar.gz
+    files:
+      - ./dist/*
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
-release:
-  skip_upload: true
