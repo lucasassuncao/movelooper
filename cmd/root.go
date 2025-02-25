@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"movelooper/config"
 	"movelooper/models"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -17,24 +19,27 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 		Short: "Short description of newMoveLooper",
 		Long:  "Long description of newMoveLooper",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			ex, err := os.Executable()
+			if err != nil {
+				log.Fatalf("error getting executable: %v", err)
+			}
+
 			options := []config.ViperOptions{
 				config.WithConfigName("movelooper"),
 				config.WithConfigType("yaml"),
-				config.WithConfigPath("."),
+				config.WithConfigPath(filepath.Dir(ex)), // Get the directory where the binary is located
 			}
 
 			if m.Viper != nil {
-				if err := config.InitConfig(m.Viper, options...); err != nil {
-					fmt.Println(err)
+				if err = config.InitConfig(m.Viper, options...); err != nil {
+					log.Fatalf("error initializing configuration: %v", err)
 				}
 			}
 
-			var err error
 			if m.Logger == nil {
 				m.Logger, err = config.ConfigureLogger()
 				if err != nil {
-					fmt.Println(err)
-					os.Exit(1)
+					log.Fatalf("error configuring logger: %v", err)
 				}
 			}
 
@@ -61,7 +66,7 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 func setPersistentFlags(cmd *cobra.Command) *models.PersistentFlags {
 	return &models.PersistentFlags{
 		ShowCaller: cmd.PersistentFlags().Bool("show-caller", false, "Show caller information"),
-		LogLevel:   cmd.PersistentFlags().StringP("log-level", "l", "", "Specify the log level"),
+		LogLevel:   cmd.PersistentFlags().StringP("log-level", "l", "", "Specify the log level (trace, debug, info, warn/warning, error, fatal)"),
 		Output:     cmd.PersistentFlags().StringP("output", "o", "", "Specify the output (console, log or file)"),
 	}
 }
