@@ -13,7 +13,7 @@ import (
 func getCategories(v *viper.Viper) []string {
 	var categories = make([]string, 0)
 
-	for key := range v.GetStringMap("categories") {
+	for key := range v.GetStringMap("categories.name") {
 		categories = append(categories, key)
 	}
 
@@ -67,12 +67,12 @@ func validateFiles(files []os.DirEntry, extension string) int {
 
 // moveFile moves files with the specified extension from the source directory to the destination directory.
 // The destination path includes a subdirectory named after the extension.
-func moveFile(m *models.Movelooper, files []os.DirEntry, extension string) {
+func moveFile(m *models.Movelooper, category *models.MediaConfig, files []os.DirEntry, extension string) {
 	var ext = "." + extension
 
 	for _, file := range files {
-		sourceFile := filepath.Join(m.MediaConfig.Source, file.Name())
-		destinationFile := filepath.Join(m.MediaConfig.Destination, extension, file.Name())
+		sourceFile := filepath.Join(category.Source, file.Name())
+		destinationFile := filepath.Join(category.Destination, extension, file.Name())
 
 		if strings.HasSuffix(file.Name(), strings.ToUpper(ext)) || strings.HasSuffix(file.Name(), strings.ToLower(ext)) {
 			_, err := os.Stat(destinationFile)

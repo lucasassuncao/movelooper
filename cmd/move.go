@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"movelooper/config"
 	"movelooper/models"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
 
+// MoveCmd represents the move command
 func MoveCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "move",
@@ -18,32 +20,27 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		m.Logger.Info("Starting newMoveLooper")
-		m.MediaConfig.AllCategories = getCategories(m.Viper)
+		m.Logger.Info("Starting move mode")
 
-		for _, category := range m.MediaConfig.AllCategories {
-			m.MediaConfig.Category = category
+		m.MediaConfig = config.UnmarshalConfig(m)
 
-			m.MediaConfig.Extensions = m.Viper.GetStringSlice(fmt.Sprintf("categories.%s.extensions", category))
-			m.MediaConfig.Source = m.Viper.GetString(fmt.Sprintf("categories.%s.source", category))
-			m.MediaConfig.Destination = m.Viper.GetString(fmt.Sprintf("categories.%s.destination", category))
+		for _, category := range m.MediaConfig {
+			for _, extension := range category.Extensions {
+				createDirectory(m, filepath.Join(category.Destination, extension))
 
-			for _, extension := range m.MediaConfig.Extensions {
-				createDirectory(m, filepath.Join(m.MediaConfig.Destination, extension))
-
-				files := readDirectory(m, m.MediaConfig.Source)
+				files := readDirectory(m, category.Source)
 				count := validateFiles(files, extension)
 
 				switch count {
 				case 0:
-					m.Logger.Info(fmt.Sprintf("No .%s file(s) to move", extension))
-					moveFile(m, files, extension)
+					m.Logger.Info(fmt.Sprintf("No %s file(s) to move", extension))
+					moveFile(m, category, files, extension)
 				case 1:
-					m.Logger.Warn(fmt.Sprintf("%d file .%s to move", count, extension))
-					moveFile(m, files, extension)
+					m.Logger.Warn(fmt.Sprintf("%d file %s to move", count, extension))
+					moveFile(m, category, files, extension)
 				default:
-					m.Logger.Warn(fmt.Sprintf("%d files .%s to move", count, extension))
-					moveFile(m, files, extension)
+					m.Logger.Warn(fmt.Sprintf("%d files %s to move", count, extension))
+					moveFile(m, category, files, extension)
 				}
 			}
 		}

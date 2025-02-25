@@ -14,18 +14,18 @@ You need a configuration file named `movelooper.yaml` in the same directory as m
 ```yaml
 
 configuration:
-  output: console # Default is console (console, log or file)
-  log-file: "<path_to_logfile>"
-  log-level: debug # trace, debug, info, warn/warning, error or fatal
+  output: console
+  log-file: "C:\\Users\\lucas\\Desktop\\newMoveLooper.log"
+  log-level: debug
   show-caller: false
 
 categories:
-  images:
+  - name: "images"
     extensions: ["jpg", "jpeg", "png", "gif", "webp"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Images\\"
 
-  audio:
+  - name: "audio"
     extensions: ["mp3"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Audio\\"
@@ -66,28 +66,28 @@ Use "movelooper [command] --help" for more information about a command.
 ```powershell
 
 💀 lucas@Milkyway 📂 C:\Users\lucas\go\src\movelooper>.\movelooper.exe preview -o console -l debug
-2025-02-24 19:17:17 INFO  Starting newMoveLooper
-2025-02-24 19:17:17 INFO  No .jpg file(s) to move
-2025-02-24 19:17:17 INFO  No .jpeg file(s) to move
-2025-02-24 19:17:17 INFO  No .png file(s) to move
-2025-02-24 19:17:17 INFO  No .gif file(s) to move
-2025-02-24 19:17:17 INFO  No .webp file(s) to move
-2025-02-24 19:17:17 WARN  1 file .mp3 to move
-2025-02-24 19:17:17 INFO  No .mp4 file(s) to move
-2025-02-24 19:17:17 INFO  No .pdf file(s) to move
-2025-02-24 19:17:17 INFO  No .txt file(s) to move
-2025-02-24 19:17:17 INFO  No .docx file(s) to move
-2025-02-24 19:17:17 INFO  No .pptx file(s) to move
-2025-02-24 19:17:17 INFO  No .zip file(s) to move
-2025-02-24 19:17:17 INFO  No .rar file(s) to move
-2025-02-24 19:17:17 INFO  No .7z file(s) to move
-2025-02-24 19:17:17 INFO  No .exe file(s) to move
-2025-02-24 19:17:17 INFO  No .msi file(s) to move
-2025-02-24 19:17:17 INFO  No .apk file(s) to move
-2025-02-24 19:17:17 INFO  No .pkg file(s) to move
-2025-02-24 19:17:17 INFO  No .iso file(s) to move
-2025-02-24 19:17:17 INFO  No .ttf file(s) to move
-2025-02-24 19:17:17 INFO  No .otf file(s) to move
+2025-02-24 22:27:12 INFO  Starting preview mode 
+2025-02-24 22:27:12 INFO  No jpg file(s) to move 
+2025-02-24 22:27:12 INFO  No jpeg file(s) to move 
+2025-02-24 22:27:12 INFO  No png file(s) to move 
+2025-02-24 22:27:12 INFO  No gif file(s) to move 
+2025-02-24 22:27:12 INFO  No webp file(s) to move 
+2025-02-24 22:27:12 INFO  No mp3 file(s) to move 
+2025-02-24 22:27:12 INFO  No mp4 file(s) to move 
+2025-02-24 22:27:12 INFO  No pdf file(s) to move 
+2025-02-24 22:27:12 INFO  No txt file(s) to move
+2025-02-24 22:27:12 INFO  No docx file(s) to move
+2025-02-24 22:27:12 INFO  No pptx file(s) to move
+2025-02-24 22:27:12 INFO  No zip file(s) to move
+2025-02-24 22:27:12 INFO  No rar file(s) to move
+2025-02-24 22:27:12 INFO  No 7z file(s) to move
+2025-02-24 22:27:12 INFO  No exe file(s) to move
+2025-02-24 22:27:12 WARN  1 file msi to move
+2025-02-24 22:27:12 INFO  No apk file(s) to move
+2025-02-24 22:27:12 INFO  No pkg file(s) to move
+2025-02-24 22:27:12 INFO  No iso file(s) to move
+2025-02-24 22:27:12 INFO  No ttf file(s) to move
+2025-02-24 22:27:12 INFO  No otf file(s) to move
 
 ```
 
@@ -95,31 +95,31 @@ Use "movelooper [command] --help" for more information about a command.
 ```powershell
 
 💀 lucas@Milkyway 📂 C:\Users\lucas\go\src\movelooper>.\movelooper.exe move -o console -l debug
-2025-02-24 19:18:25 INFO  Starting newMoveLooper
-2025-02-24 19:18:25 INFO  No .pdf file(s) to move
-2025-02-24 19:18:25 INFO  No .txt file(s) to move
-2025-02-24 19:18:25 INFO  No .docx file(s) to move
-2025-02-24 19:18:25 INFO  No .pptx file(s) to move
-2025-02-24 19:18:25 INFO  No .zip file(s) to move
-2025-02-24 19:18:25 INFO  No .rar file(s) to move
-2025-02-24 19:18:25 INFO  No .7z file(s) to move
-2025-02-24 19:18:25 INFO  No .exe file(s) to move
-2025-02-24 19:18:25 INFO  No .msi file(s) to move
-2025-02-24 19:18:25 INFO  No .apk file(s) to move
-2025-02-24 19:18:25 INFO  No .pkg file(s) to move
-2025-02-24 19:18:25 INFO  No .iso file(s) to move
-2025-02-24 19:18:25 INFO  No .ttf file(s) to move
-2025-02-24 19:18:25 INFO  No .otf file(s) to move
-2025-02-24 19:18:25 INFO  No .jpg file(s) to move
-2025-02-24 19:18:25 INFO  No .jpeg file(s) to move
-2025-02-24 19:18:25 INFO  No .png file(s) to move
-2025-02-24 19:18:25 INFO  No .gif file(s) to move
-2025-02-24 19:18:25 INFO  No .webp file(s) to move
-2025-02-24 19:18:25 WARN  1 file .mp3 to move
-2025-02-24 19:18:25 INFO  successfully moved file
-                      ├ source: C:\Users\lucas\Downloads\Please take everything I have.mp3
-                      └ destination: C:\Users\lucas\Downloads\Media\Audio\mp3\Please take everything I have.mp3
-2025-02-24 19:18:25 INFO  No .mp4 file(s) to move
+2025-02-24 22:27:19 INFO  Starting move mode
+2025-02-24 22:27:19 INFO  No jpg file(s) to move
+2025-02-24 22:27:19 INFO  No jpeg file(s) to move
+2025-02-24 22:27:19 INFO  No png file(s) to move
+2025-02-24 22:27:19 INFO  No gif file(s) to move
+2025-02-24 22:27:19 INFO  No webp file(s) to move
+2025-02-24 22:27:19 INFO  No mp3 file(s) to move
+2025-02-24 22:27:19 INFO  No mp4 file(s) to move
+2025-02-24 22:27:19 INFO  No pdf file(s) to move
+2025-02-24 22:27:19 INFO  No txt file(s) to move
+2025-02-24 22:27:19 INFO  No docx file(s) to move
+2025-02-24 22:27:19 INFO  No pptx file(s) to move
+2025-02-24 22:27:19 INFO  No zip file(s) to move
+2025-02-24 22:27:19 INFO  No rar file(s) to move
+2025-02-24 22:27:19 INFO  No 7z file(s) to move
+2025-02-24 22:27:19 INFO  No exe file(s) to move
+2025-02-24 22:27:19 WARN  1 file msi to move
+2025-02-24 22:27:19 INFO  successfully moved file
+                      ├ source: C:\Users\lucas\Downloads\PowerShell-7.5.0-win-x64.msi
+                      └ destination: C:\Users\lucas\Downloads\Installers\msi\PowerShell-7.5.0-win-x64.msi
+2025-02-24 22:27:19 INFO  No apk file(s) to move
+2025-02-24 22:27:19 INFO  No pkg file(s) to move
+2025-02-24 22:27:19 INFO  No iso file(s) to move
+2025-02-24 22:27:19 INFO  No ttf file(s) to move
+2025-02-24 22:27:19 INFO  No otf file(s) to move
 
 ```
 

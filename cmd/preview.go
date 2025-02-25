@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
+	"movelooper/config"
 	"movelooper/models"
+
+	"github.com/spf13/cobra"
 )
 
+// PreviewCmd represents the preview command
 func PreviewCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview",
@@ -16,26 +19,23 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		m.Logger.Info("Starting newMoveLooper")
-		m.MediaConfig.AllCategories = getCategories(m.Viper)
+		m.Logger.Info("Starting preview mode")
 
-		for _, category := range m.MediaConfig.AllCategories {
-			m.MediaConfig.Category = category
+		m.MediaConfig = config.UnmarshalConfig(m)
 
-			m.MediaConfig.Extensions = m.Viper.GetStringSlice(fmt.Sprintf("categories.%s.extensions", category))
-			m.MediaConfig.Source = m.Viper.GetString(fmt.Sprintf("categories.%s.source", category))
+		for _, category := range m.MediaConfig {
+			for _, extension := range category.Extensions {
 
-			for _, extension := range m.MediaConfig.Extensions {
-				files := readDirectory(m, m.MediaConfig.Source)
+				files := readDirectory(m, category.Source)
 				count := validateFiles(files, extension)
 
 				switch count {
 				case 0:
-					m.Logger.Info(fmt.Sprintf("No .%s file(s) to move", extension))
+					m.Logger.Info(fmt.Sprintf("No %s file(s) to move", extension))
 				case 1:
-					m.Logger.Warn(fmt.Sprintf("%d file .%s to move", count, extension))
+					m.Logger.Warn(fmt.Sprintf("%d file %s to move", count, extension))
 				default:
-					m.Logger.Warn(fmt.Sprintf("%d files .%s to move", count, extension))
+					m.Logger.Warn(fmt.Sprintf("%d files %s to move", count, extension))
 				}
 			}
 		}

@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/spf13/viper"
 	"movelooper/cmd"
 	"movelooper/models"
 	"os"
+
+	"github.com/spf13/viper"
 )
 
 func main() {
@@ -20,7 +21,7 @@ func main() {
 		Viper:       v,
 		Logger:      nil,
 		Flags:       &models.PersistentFlags{},
-		MediaConfig: &models.MediaConfig{},
+		MediaConfig: nil,
 	}
 
 	root := cmd.RootCmd(m)

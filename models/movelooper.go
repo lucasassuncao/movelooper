@@ -9,13 +9,12 @@ type Movelooper struct {
 	Logger      *pterm.Logger
 	Viper       *viper.Viper
 	Flags       *PersistentFlags
-	MediaConfig *MediaConfig
+	MediaConfig []*MediaConfig
 }
 
 type MediaConfig struct {
-	AllCategories []string
-	Category      string
-	Extensions    []string
-	Source        string
-	Destination   string
+	CategoryName string   `mapstructure:"name"`
+	Extensions   []string `mapstructure:"extensions"`
+	Source       string   `mapstructure:"source"`
+	Destination  string   `mapstructure:"destination"`
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// RootCmd represents the base command when called without any subcommands
 func RootCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "movelooper",

@@ -5,42 +5,42 @@ configuration:
   show-caller: false
 
 categories:
-  images:
+  - name: "images"
     extensions: ["jpg", "jpeg", "png", "gif", "webp"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Images\\"
 
-  audio:
+  - name: "audio"
     extensions: ["mp3"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Audio\\"
 
-  video:
+  - name: "video"
     extensions: ["mp4"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Video\\"
 
-  documents:
+  - name: "documents"
     extensions: ["pdf", "txt", "docx", "pptx"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Documents\\"
 
-  zipped:
+  - name: "compressed"
     extensions: ["zip", "rar", "7z"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Compressed\\"
 
-  installers:
+  - name: "installers"
     extensions: ["exe", "msi", "apk", "pkg"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Installers\\"
 
-  others:
+  - name: "others"
     extensions: ["iso"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Others\\"
 
-  fonts:
+  - name: "fonts"
     extensions: ["ttf", "otf"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Others\\fonts\\"
