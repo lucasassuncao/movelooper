@@ -1,5 +1,5 @@
 configuration:
-  output: console
+  output: both
   log-file: "C:\\Users\\lucas\\Desktop\\newMoveLooper.log"
   log-level: debug
   show-caller: false

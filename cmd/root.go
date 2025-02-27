@@ -27,7 +27,8 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 			options := []config.ViperOptions{
 				config.WithConfigName("movelooper"),
 				config.WithConfigType("yaml"),
-				config.WithConfigPath(filepath.Dir(ex)), // Get the directory where the binary is located
+				config.WithConfigPath(filepath.Dir(ex)),
+				config.WithConfigPath(filepath.Join(filepath.Dir(ex), "conf")),
 			}
 
 			if m.Viper != nil {
@@ -37,7 +38,7 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 			}
 
 			if m.Logger == nil {
-				m.Logger, err = config.ConfigureLogger()
+				m.Logger, err = config.ConfigureLogger(m.Viper)
 				if err != nil {
 					log.Fatalf("error configuring logger: %v", err)
 				}
