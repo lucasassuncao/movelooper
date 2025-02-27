@@ -48,7 +48,7 @@ Available Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
   move        Moves files to their respective destination directories based on configured categories
-  preview     (dry-run) Displays a preview of files to be moved based on configured categories
+  preview     Displays a preview of files to be moved based on configured categories (dry-run)
 
 Flags:
   -h, --help               help for movelooper
