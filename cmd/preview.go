@@ -12,8 +12,8 @@ import (
 func PreviewCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview",
-		Short: "Displays a preview of files to be moved based on configured categories",
-		Long: "Displays a preview of files to be moved based on configured categories\n" +
+		Short: "(dry-run) Displays a preview of files to be moved based on configured categories",
+		Long: "(dry-run) Displays a preview of files to be moved based on configured categories\n" +
 			"It scans the source directories for each configured category and lists the number of files that match the specified extensions\n" +
 			"This command does not perform any file movement, serving only as a dry-run for verification",
 	}

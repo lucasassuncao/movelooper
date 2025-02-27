@@ -39,7 +39,7 @@ categories:
 ```bash
 
 root ➜ /workspaces/movelooper (main) $ go run .
-Long description of newMoveLooper
+movelooper is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories
 
 Usage:
   movelooper [command]
@@ -48,12 +48,12 @@ Available Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
   move        Moves files to their respective destination directories based on configured categories
-  preview     Displays a preview of files to be moved based on configured categories
+  preview     (dry-run) Displays a preview of files to be moved based on configured categories
 
 Flags:
   -h, --help               help for movelooper
-  -l, --log-level string   Specify the log level
-  -o, --output string      Specify the output (console, log or file)
+  -l, --log-level string   Specify the log level (trace, debug, info, warn/warning, error, fatal)
+  -o, --output string      Specify the output (console, log/file or both)
       --show-caller        Show caller information
 
 Use "movelooper [command] --help" for more information about a command.

@@ -17,7 +17,7 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "movelooper",
 		Short: "movelooper is a CLI tool for organizing and moving files",
-		Long:  "movelooper is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories.",
+		Long:  "movelooper is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			ex, err := os.Executable()
 			if err != nil {
