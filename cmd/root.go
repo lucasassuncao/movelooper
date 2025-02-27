@@ -16,8 +16,8 @@ import (
 func RootCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "movelooper",
-		Short: "Short description of newMoveLooper",
-		Long:  "Long description of newMoveLooper",
+		Short: "movelooper is a CLI tool for organizing and moving files",
+		Long:  "movelooper is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories.",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			ex, err := os.Executable()
 			if err != nil {
@@ -68,7 +68,7 @@ func setPersistentFlags(cmd *cobra.Command) *models.PersistentFlags {
 	return &models.PersistentFlags{
 		ShowCaller: cmd.PersistentFlags().Bool("show-caller", false, "Show caller information"),
 		LogLevel:   cmd.PersistentFlags().StringP("log-level", "l", "", "Specify the log level (trace, debug, info, warn/warning, error, fatal)"),
-		Output:     cmd.PersistentFlags().StringP("output", "o", "", "Specify the output (console, log or file)"),
+		Output:     cmd.PersistentFlags().StringP("output", "o", "", "Specify the output (console, log/file or both)"),
 	}
 }
 
