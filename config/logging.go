@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -9,47 +10,64 @@ import (
 	"github.com/spf13/viper"
 )
 
-func ConfigureLogger() (*pterm.Logger, error) {
-	switch viper.GetString("configuration.output") {
+func ConfigureLogger(v *viper.Viper) (*pterm.Logger, error) {
+	switch v.GetString("configuration.output") {
 	default:
 		fallthrough
 	case "console":
-		return configurePTermLogger()
+		return configurePTermLogger(v)
 	case "file", "log":
-		return configureFileLogger()
+		return configureFileLogger(v)
+	case "both":
+		return configureMultiWriterLogger(v)
 	}
 }
 
-func configurePTermLogger() (*pterm.Logger, error) {
-	l := viper.GetString("configuration.log-level")
-	s := viper.GetBool("configuration.show-caller")
+func configurePTermLogger(v *viper.Viper) (*pterm.Logger, error) {
+	l := v.GetString("configuration.log-level")
+	s := v.GetBool("configuration.show-caller")
 
 	return pterm.DefaultLogger.WithCaller(s).WithLevel(logLevel(l)).WithWriter(os.Stdout), nil
 }
 
-func configureFileLogger() (*pterm.Logger, error) {
-	f, err := openLogFile()
+func configureFileLogger(v *viper.Viper) (*pterm.Logger, error) {
+	f, err := openLogFile(v)
 	if err != nil {
 		return nil, err
 	}
 
-	l := viper.GetString("configuration.log-level")
-	s := viper.GetBool("configuration.show-caller")
+	l := v.GetString("configuration.log-level")
+	s := v.GetBool("configuration.show-caller")
 
 	return pterm.DefaultLogger.WithCaller(s).WithLevel(logLevel(l)).WithWriter(f), nil
 }
 
-func openLogFile() (*os.File, error) {
-	file := viper.GetString("configuration.log-file")
+func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, error) {
+	f, err := openLogFile(v)
+	if err != nil {
+		return nil, err
+	}
 
-	_, err := os.Stat(file)
-	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("the log file \"%s\" doesn't exist", file)
+	l := v.GetString("configuration.log-level")
+	s := v.GetBool("configuration.show-caller")
+
+	multiWriter := io.MultiWriter(os.Stdout, f)
+
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(logLevel(l)).WithWriter(multiWriter), nil
+}
+
+func openLogFile(v *viper.Viper) (*os.File, error) {
+	file := v.GetString("configuration.log-file")
+
+	dir := filepath.Dir(file)
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("couldn't create log directory: %w", err)
 	}
 
 	logFile, err := os.OpenFile(filepath.Clean(file), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0660)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't open the log file. %w", err)
+		return nil, fmt.Errorf("couldn't open the log file: %w", err)
 	}
 
 	return logFile, nil
