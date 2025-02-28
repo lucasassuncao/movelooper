@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"movelooper/config"
-	"movelooper/models"
+	"movelooper/internal/config"
+	"movelooper/internal/models"
 	"os"
 	"path/filepath"
 
@@ -42,6 +42,10 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 				if err != nil {
 					log.Fatalf("error configuring logger: %v", err)
 				}
+			}
+
+			if m.Flags == nil {
+				log.Fatalf("error configuring flags: %v", err)
 			}
 
 			checkFlags(cmd, m.Flags, "output")

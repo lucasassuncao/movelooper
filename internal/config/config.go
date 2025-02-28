@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
-	"movelooper/models"
+	"movelooper/internal/models"
 
 	"github.com/spf13/viper"
 )

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"movelooper/models"
+	"movelooper/internal/models"
 	"os"
 	"path/filepath"
 	"strings"

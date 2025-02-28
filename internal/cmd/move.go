@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"movelooper/config"
-	"movelooper/models"
+	"movelooper/internal/config"
+	"movelooper/internal/models"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -20,6 +20,10 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if m.Logger == nil {
+			return fmt.Errorf("logger is not initialized")
+		}
+
 		m.Logger.Info("Starting move mode")
 
 		m.MediaConfig = config.UnmarshalConfig(m)
