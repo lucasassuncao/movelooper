@@ -1,6 +1,6 @@
 configuration:
   output: both
-  log-file: "C:\\Users\\lucas\\Desktop\\newMoveLooper.log"
+  log-file: "D:\\Scripts\\go\\logs\\movelooper.log"
   log-level: debug
   show-caller: false
 
@@ -16,7 +16,7 @@ categories:
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Audio\\"
 
   - name: "video"
-    extensions: ["mp4"]
+    extensions: ["mp4", "mkv"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Video\\"
 

@@ -3,10 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"movelooper/internal/config"
 	"movelooper/internal/models"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -19,33 +16,8 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 		Short: "movelooper is a CLI tool for organizing and moving files",
 		Long:  "movelooper is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			ex, err := os.Executable()
-			if err != nil {
-				log.Fatalf("error getting executable: %v", err)
-			}
-
-			options := []config.ViperOptions{
-				config.WithConfigName("movelooper"),
-				config.WithConfigType("yaml"),
-				config.WithConfigPath(filepath.Dir(ex)),
-				config.WithConfigPath(filepath.Join(filepath.Dir(ex), "conf")),
-			}
-
-			if m.Viper != nil {
-				if err = config.InitConfig(m.Viper, options...); err != nil {
-					log.Fatalf("error initializing configuration: %v", err)
-				}
-			}
-
-			if m.Logger == nil {
-				m.Logger, err = config.ConfigureLogger(m.Viper)
-				if err != nil {
-					log.Fatalf("error configuring logger: %v", err)
-				}
-			}
-
 			if m.Flags == nil {
-				log.Fatalf("error configuring flags: %v", err)
+				log.Fatalf("error configuring flags")
 			}
 
 			checkFlags(cmd, m.Flags, "output")
