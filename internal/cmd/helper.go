@@ -8,31 +8,26 @@ import (
 )
 
 // createDirectory checks if the specified directory exists, and if not, creates it with full permissions.
-func createDirectory(m *models.Movelooper, dir string) {
+func createDirectory(dir string) error {
 	_, err := os.Stat(dir)
 	if os.IsNotExist(err) {
 		err := os.MkdirAll(dir, 0777)
 		if err != nil {
-			m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-			return
+			return err
 		}
-		m.Logger.Info("successfully created directory", m.Logger.Args("directory", dir))
-		return
+		return nil
 	}
+	return err
 }
 
 // readDirectory reads the contents of a given directory and returns the files.
-func readDirectory(m *models.Movelooper, path string) []os.DirEntry {
+func readDirectory(path string) ([]os.DirEntry, error) {
 	files, err := os.ReadDir(path)
 	if err != nil {
-		m.Logger.Error("failed to read directory",
-			m.Logger.Args("path", path),
-			m.Logger.Args("error", err.Error()),
-		)
-		return nil
+		return nil, err
 	}
 
-	return files
+	return files, nil
 }
 
 // validateFiles checks each file in the provided list to see if it is a regular file

@@ -13,9 +13,9 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview",
 		Short: "Displays a preview of files to be moved based on configured categories (dry-run)",
-		Long: "Displays a preview of files to be moved based on configured categories\n" +
-			"It scans the source directories for each configured category and lists the number of files that match the specified extensions\n" +
-			"This command does not perform any file movement, serving only as a dry-run for verification",
+		Long: "Displays a preview of files to be moved based on configured categories.\n" +
+			"It scans the source directories for each configured category and lists the number of files that match the specified extensions.\n" +
+			"This command does not perform any file movement, serving only as a dry-run for verification.",
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -29,8 +29,15 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 
 		for _, category := range m.MediaConfig {
 			for _, extension := range category.Extensions {
+				files, err := readDirectory(category.Source)
+				if err != nil {
+					m.Logger.Error("failed to read directory",
+						m.Logger.Args("path", category.Source),
+						m.Logger.Args("error", err.Error()),
+					)
+					continue
+				}
 
-				files := readDirectory(m, category.Source)
 				count := validateFiles(files, extension)
 
 				switch count {

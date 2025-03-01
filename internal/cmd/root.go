@@ -3,10 +3,12 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"movelooper/internal/config"
 	"movelooper/internal/models"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -16,24 +18,52 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 		Short: "movelooper is a CLI tool for organizing and moving files",
 		Long:  "movelooper is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if m.Flags == nil {
-				log.Fatalf("error configuring flags")
+			ex, err := os.Executable()
+			if err != nil {
+				log.Fatalf("error getting executable: %v", err)
+				return
 			}
 
-			checkFlags(cmd, m.Flags, "output")
-			checkFlags(cmd, m.Flags, "show-caller")
-			checkFlags(cmd, m.Flags, "log-level")
+			options := []config.ViperOptions{
+				config.WithConfigName("movelooper"),
+				config.WithConfigType("yaml"),
+				config.WithConfigPath("."), // This is being used to debug the application
+				config.WithConfigPath(filepath.Dir(ex)),
+				config.WithConfigPath(filepath.Join(filepath.Dir(ex), "conf")),
+			}
+
+			if err = config.InitConfig(m.Viper, options...); err != nil {
+				log.Fatalf("error initializing configuration: %v", err)
+				return
+			}
+
+			logger, err := config.ConfigureLogger(m.Viper)
+			if err != nil {
+				fmt.Printf("failed to configure logger: %v\n", err)
+				return
+			}
+
+			m.Logger = logger
+
+			if m.Flags == nil {
+				m.Logger.Error("error configuring flags")
+			}
+
+			checkFlags(cmd, m, m.Flags, "output")
+			checkFlags(cmd, m, m.Flags, "show-caller")
+			checkFlags(cmd, m, m.Flags, "log-level")
 		},
 	}
 
 	m.Flags = setPersistentFlags(cmd)
 
-	bindPersistentFlag(cmd, "output")
-	bindPersistentFlag(cmd, "log-level")
-	bindPersistentFlag(cmd, "show-caller")
+	bindPersistentFlag(cmd, m, "output")
+	bindPersistentFlag(cmd, m, "log-level")
+	bindPersistentFlag(cmd, m, "show-caller")
 
 	cmd.AddCommand(PreviewCmd(m))
 	cmd.AddCommand(MoveCmd(m))
+	cmd.AddCommand(BaseConfigCmd(m))
 
 	return cmd
 }
@@ -49,25 +79,25 @@ func setPersistentFlags(cmd *cobra.Command) *models.PersistentFlags {
 }
 
 // bindPersistentFlag links a CLI flag to a Viper key to enable configuration file support
-func bindPersistentFlag(cmd *cobra.Command, flagName string) {
+func bindPersistentFlag(cmd *cobra.Command, m *models.Movelooper, flagName string) {
 	// Bind the flag to a Viper key and handle any binding errors
-	err := viper.BindPFlag(fmt.Sprintf("configuration.%s", flagName), cmd.PersistentFlags().Lookup(flagName))
+	err := m.Viper.BindPFlag(fmt.Sprintf("configuration.%s", flagName), cmd.PersistentFlags().Lookup(flagName))
 	if err != nil {
-		_ = fmt.Errorf("error binding flag %s: %w", flagName, err)
+		m.Logger.Error("error binding flag", m.Logger.Args("flag", flagName, "error", err))
 	}
 }
 
 // checkFlags ensures that the flags are set correctly, either from the command-line or from the Viper configuration
-func checkFlags(cmd *cobra.Command, flags *models.PersistentFlags, flagName string) {
+func checkFlags(cmd *cobra.Command, m *models.Movelooper, flags *models.PersistentFlags, flagName string) {
 	// If the flag was not changed by the user, check Viper and set it if needed
-	if !cmd.PersistentFlags().Changed(flagName) && viper.IsSet(fmt.Sprintf("configuration.%s", flagName)) {
+	if !cmd.PersistentFlags().Changed(flagName) && m.Viper.IsSet(fmt.Sprintf("configuration.%s", flagName)) {
 		switch flagName {
 		case "output":
-			*flags.Output = viper.GetString(fmt.Sprintf("configuration.%s", flagName))
+			*flags.Output = m.Viper.GetString(fmt.Sprintf("configuration.%s", flagName))
 		case "log-level":
-			*flags.LogLevel = viper.GetString(fmt.Sprintf("configuration.%s", flagName))
+			*flags.LogLevel = m.Viper.GetString(fmt.Sprintf("configuration.%s", flagName))
 		case "show-caller":
-			*flags.ShowCaller = viper.GetBool(fmt.Sprintf("configuration.%s", flagName))
+			*flags.ShowCaller = m.Viper.GetBool(fmt.Sprintf("configuration.%s", flagName))
 		}
 	}
 }

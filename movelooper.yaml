@@ -21,7 +21,7 @@ categories:
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Video\\"
 
   - name: "documents"
-    extensions: ["pdf", "txt", "docx", "pptx"]
+    extensions: ["pdf", "txt", "doc", "docx", "pptx"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Documents\\"
 
