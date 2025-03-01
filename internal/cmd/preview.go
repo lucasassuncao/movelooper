@@ -18,13 +18,24 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 			"This command does not perform any file movement, serving only as a dry-run for verification.",
 	}
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		if m.Logger == nil {
 			return fmt.Errorf("logger is not initialized")
 		}
 
 		m.Logger.Info("Starting preview mode")
+		m.Logger.Debug("Using Configuration",
+			m.Logger.Args("output", *m.Flags.Output),
+			m.Logger.Args("show-caller", *m.Flags.ShowCaller),
+			m.Logger.Args("log-level", *m.Flags.LogLevel),
+			m.Logger.Args("log-file", m.Viper.GetString("configuration.log-file")),
+			m.Logger.Args("config-file", m.Viper.ConfigFileUsed()),
+		)
 
+		return nil
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		m.MediaConfig = config.UnmarshalConfig(m)
 
 		for _, category := range m.MediaConfig {

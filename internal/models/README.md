@@ -5,18 +5,71 @@
 # models
 
 ```go
-import "movelooper/models"
+import "movelooper/internal/models"
 ```
 
 ## Index
 
+- [func NewConfig\(path string\) error](<#NewConfig>)
+- [type Category](<#Category>)
+- [type Config](<#Config>)
+- [type Configuration](<#Configuration>)
 - [type MediaConfig](<#MediaConfig>)
 - [type Movelooper](<#Movelooper>)
 - [type PersistentFlags](<#PersistentFlags>)
 
 
+<a name="NewConfig"></a>
+## func [NewConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L30>)
+
+```go
+func NewConfig(path string) error
+```
+
+
+
+<a name="Category"></a>
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L23-L28>)
+
+
+
+```go
+type Category struct {
+    Name        string   `yaml:"name"`
+    Extensions  []string `yaml:"extensions"`
+    Source      string   `yaml:"source"`
+    Destination string   `yaml:"destination"`
+}
+```
+
+<a name="Config"></a>
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L11-L14>)
+
+
+
+```go
+type Config struct {
+    Configuration Configuration `yaml:"configuration"`
+    Categories    []Category    `yaml:"categories"`
+}
+```
+
+<a name="Configuration"></a>
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L16-L21>)
+
+
+
+```go
+type Configuration struct {
+    Output     string `yaml:"output"`
+    LogFile    string `yaml:"log-file"`
+    LogLevel   string `yaml:"log-level"`
+    ShowCaller bool   `yaml:"show-caller"`
+}
+```
+
 <a name="MediaConfig"></a>
-## type [MediaConfig](<https://github.com/lucasassuncao/movelooper/blob/main/models/movelooper.go#L15-L20>)
+## type [MediaConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L15-L20>)
 
 
 
@@ -30,7 +83,7 @@ type MediaConfig struct {
 ```
 
 <a name="Movelooper"></a>
-## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/models/movelooper.go#L8-L13>)
+## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L8-L13>)
 
 
 
@@ -44,7 +97,7 @@ type Movelooper struct {
 ```
 
 <a name="PersistentFlags"></a>
-## type [PersistentFlags](<https://github.com/lucasassuncao/movelooper/blob/main/models/flags.go#L3-L7>)
+## type [PersistentFlags](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/flags.go#L3-L7>)
 
 
 

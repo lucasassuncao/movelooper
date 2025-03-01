@@ -5,18 +5,28 @@
 # cmd
 
 ```go
-import "movelooper/cmd"
+import "movelooper/internal/cmd"
 ```
 
 ## Index
 
+- [func BaseConfigCmd\(m \*models.Movelooper\) \*cobra.Command](<#BaseConfigCmd>)
 - [func MoveCmd\(m \*models.Movelooper\) \*cobra.Command](<#MoveCmd>)
 - [func PreviewCmd\(m \*models.Movelooper\) \*cobra.Command](<#PreviewCmd>)
 - [func RootCmd\(m \*models.Movelooper\) \*cobra.Command](<#RootCmd>)
 
 
+<a name="BaseConfigCmd"></a>
+## func [BaseConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/baseconfig.go#L13>)
+
+```go
+func BaseConfigCmd(m *models.Movelooper) *cobra.Command
+```
+
+BaseConfigCmd generates a base configuration file
+
 <a name="MoveCmd"></a>
-## func [MoveCmd](<https://github.com/lucasassuncao/movelooper/blob/main/cmd/move.go#L13>)
+## func [MoveCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/move.go#L13>)
 
 ```go
 func MoveCmd(m *models.Movelooper) *cobra.Command
@@ -25,7 +35,7 @@ func MoveCmd(m *models.Movelooper) *cobra.Command
 MoveCmd represents the move command
 
 <a name="PreviewCmd"></a>
-## func [PreviewCmd](<https://github.com/lucasassuncao/movelooper/blob/main/cmd/preview.go#L12>)
+## func [PreviewCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/preview.go#L12>)
 
 ```go
 func PreviewCmd(m *models.Movelooper) *cobra.Command
@@ -34,7 +44,7 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command
 PreviewCmd represents the preview command
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/cmd/root.go#L14>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L15>)
 
 ```go
 func RootCmd(m *models.Movelooper) *cobra.Command

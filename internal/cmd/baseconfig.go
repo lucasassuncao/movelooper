@@ -19,13 +19,24 @@ func BaseConfigCmd(m *models.Movelooper) *cobra.Command {
 			"If the base configuration file already exists, it will not be overwritten.",
 	}
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		if m.Logger == nil {
 			return fmt.Errorf("logger is not initialized")
 		}
 
 		m.Logger.Info("Creating a base configuration file")
+		m.Logger.Debug("Using Configuration",
+			m.Logger.Args("output", *m.Flags.Output),
+			m.Logger.Args("show-caller", *m.Flags.ShowCaller),
+			m.Logger.Args("log-level", *m.Flags.LogLevel),
+			m.Logger.Args("log-file", m.Viper.GetString("configuration.log-file")),
+			m.Logger.Args("config-file", m.Viper.ConfigFileUsed()),
+		)
 
+		return nil
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ex, err := os.Executable()
 		if err != nil {
 			m.Logger.Error("error getting executable", m.Logger.Args("error", err))

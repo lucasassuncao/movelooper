@@ -47,9 +47,9 @@ func validateFiles(files []os.DirEntry, extension string) int {
 	return count
 }
 
-// moveFile moves files with the specified extension from the source directory to the destination directory.
+// moveFiles moves files with the specified extension from the source directory to the destination directory.
 // The destination path includes a subdirectory named after the extension.
-func moveFile(m *models.Movelooper, category *models.MediaConfig, files []os.DirEntry, extension string) {
+func moveFiles(m *models.Movelooper, category *models.MediaConfig, files []os.DirEntry, extension string) {
 	var ext = "." + extension
 
 	for _, file := range files {
