@@ -1,4 +1,6 @@
 # IDEs
-.vscode
 .idea
+.vscode
+conf
 dist
+movelooper.exe
