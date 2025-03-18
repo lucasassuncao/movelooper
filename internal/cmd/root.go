@@ -7,6 +7,7 @@ import (
 	"movelooper/internal/models"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -27,14 +28,16 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 			options := []config.ViperOptions{
 				config.WithConfigName("movelooper"),
 				config.WithConfigType("yaml"),
-				config.WithConfigPath("."), // This is being used to debug the application
+				//config.WithConfigPath("."), // This is being used to debug the application
 				config.WithConfigPath(filepath.Dir(ex)),
 				config.WithConfigPath(filepath.Join(filepath.Dir(ex), "conf")),
 			}
 
-			if err = config.InitConfig(m.Viper, options...); err != nil {
-				log.Fatalf("error initializing configuration: %v", err)
-				return
+			err = config.InitConfig(m.Viper, options...)
+			if err != nil {
+				fmt.Printf("failed to initialize config: %v\nlaunching baseconfig to create a new config file", err)
+				time.Sleep(2 * time.Second)
+				BaseConfigCmd(m).Execute()
 			}
 
 			logger, err := config.ConfigureLogger(m.Viper)

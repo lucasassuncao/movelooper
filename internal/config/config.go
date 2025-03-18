@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// ViperOptions is a function that takes a viper instance and applies options to it
 type ViperOptions func(*viper.Viper)
 
 // InitConfig initializes Viper to read from movelooper.yaml

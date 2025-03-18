@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"movelooper/internal/config"
+	"movelooper/internal/helper"
 	"movelooper/internal/models"
 	"path/filepath"
 
@@ -42,12 +43,12 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 		for _, category := range m.MediaConfig {
 			for _, extension := range category.Extensions {
 				dirPath := filepath.Join(category.Destination, extension)
-				if err := createDirectory(dirPath); err != nil {
+				if err := helper.CreateDirectory(dirPath); err != nil {
 					m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
 					continue
 				}
 
-				files, err := readDirectory(category.Source)
+				files, err := helper.ReadDirectory(category.Source)
 				if err != nil {
 					m.Logger.Error("failed to read directory",
 						m.Logger.Args("path", category.Source),
@@ -56,7 +57,7 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 					continue
 				}
 
-				count := validateFiles(files, extension)
+				count := helper.ValidateFiles(files, extension)
 
 				switch count {
 				case 0:
@@ -67,7 +68,7 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 					m.Logger.Warn(fmt.Sprintf("%d files %s to move", count, extension))
 				}
 
-				moveFiles(m, category, files, extension)
+				helper.MoveFiles(m, category, files, extension)
 			}
 		}
 		return nil

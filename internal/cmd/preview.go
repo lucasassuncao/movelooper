@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"movelooper/internal/config"
+	"movelooper/internal/helper"
 	"movelooper/internal/models"
 
 	"github.com/spf13/cobra"
@@ -40,7 +41,7 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 
 		for _, category := range m.MediaConfig {
 			for _, extension := range category.Extensions {
-				files, err := readDirectory(category.Source)
+				files, err := helper.ReadDirectory(category.Source)
 				if err != nil {
 					m.Logger.Error("failed to read directory",
 						m.Logger.Args("path", category.Source),
@@ -49,7 +50,7 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 					continue
 				}
 
-				count := validateFiles(files, extension)
+				count := helper.ValidateFiles(files, extension)
 
 				switch count {
 				case 0:

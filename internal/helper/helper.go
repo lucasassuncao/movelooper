@@ -1,4 +1,4 @@
-package cmd
+package helper
 
 import (
 	"movelooper/internal/models"
@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// createDirectory checks if the specified directory exists, and if not, creates it with full permissions.
-func createDirectory(dir string) error {
+// CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.
+func CreateDirectory(dir string) error {
 	_, err := os.Stat(dir)
 	if os.IsNotExist(err) {
 		err := os.MkdirAll(dir, 0777)
@@ -20,8 +20,8 @@ func createDirectory(dir string) error {
 	return err
 }
 
-// readDirectory reads the contents of a given directory and returns the files.
-func readDirectory(path string) ([]os.DirEntry, error) {
+// ReadDirectory reads the contents of a given directory and returns the files.
+func ReadDirectory(path string) ([]os.DirEntry, error) {
 	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -30,9 +30,9 @@ func readDirectory(path string) ([]os.DirEntry, error) {
 	return files, nil
 }
 
-// validateFiles checks each file in the provided list to see if it is a regular file
+// ValidateFiles checks each file in the provided list to see if it is a regular file
 // and has the specified extension (case-insensitive). It returns the count of matching files.
-func validateFiles(files []os.DirEntry, extension string) int {
+func ValidateFiles(files []os.DirEntry, extension string) int {
 	var count int
 	var ext = "." + extension
 
@@ -47,9 +47,9 @@ func validateFiles(files []os.DirEntry, extension string) int {
 	return count
 }
 
-// moveFiles moves files with the specified extension from the source directory to the destination directory.
+// MoveFiles moves files with the specified extension from the source directory to the destination directory.
 // The destination path includes a subdirectory named after the extension.
-func moveFiles(m *models.Movelooper, category *models.MediaConfig, files []os.DirEntry, extension string) {
+func MoveFiles(m *models.Movelooper, category *models.MediaConfig, files []os.DirEntry, extension string) {
 	var ext = "." + extension
 
 	for _, file := range files {

@@ -2,12 +2,15 @@ package cmd
 
 import (
 	"fmt"
+	"movelooper/internal/helper"
 	"movelooper/internal/models"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
+
+var interactive bool
 
 // BaseConfigCmd generates a base configuration file
 func BaseConfigCmd(m *models.Movelooper) *cobra.Command {
@@ -43,21 +46,36 @@ func BaseConfigCmd(m *models.Movelooper) *cobra.Command {
 			return err
 		}
 
-		path := filepath.Join(filepath.Dir(ex), "conf", "base")
+		configPath := filepath.Join(filepath.Dir(ex), "conf")
+		baseconfigPath := filepath.Join(filepath.Dir(ex), "conf", "base")
 
-		err = createDirectory(path)
+		err = helper.CreateDirectory(baseconfigPath)
 		if err != nil {
 			m.Logger.Error("error creating directory for base config", m.Logger.Args("error", err))
 		}
 
-		err = models.NewConfig(path)
+		var options = []models.ConfigOption{}
+
+		if interactive {
+			options = append(options, models.WithOutput())
+			options = append(options, models.WithLogFile())
+			options = append(options, models.WithLogLevel())
+			options = append(options, models.WithShowCaller())
+			options = append(options, models.WithCategory())
+
+		}
+
+		err = models.NewConfig(configPath, baseconfigPath, interactive, options...)
 		if err != nil {
 			m.Logger.Error("error creating base configuration file", m.Logger.Args("error", err))
 		}
 
-		m.Logger.Info("Base configuration file created", m.Logger.Args("path", path))
+		m.Logger.Info("Base configuration file created", m.Logger.Args("path", baseconfigPath))
 
 		return nil
 	}
+
+	cmd.Flags().BoolVar(&interactive, "interactive", false, "Interactive mode for creating a base configuration file")
+
 	return cmd
 }
