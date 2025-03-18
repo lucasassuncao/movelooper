@@ -49,7 +49,7 @@ func WithOutput() ConfigOption {
 // WithLogFile prompts the user to specify the log file
 func WithLogFile() ConfigOption {
 	clearScreen()
-	logFile, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Specify the log file").WithDefaultValue("C:\\logs\\gopaper.log").Show()
+	logFile, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Specify the log file").WithDefaultValue("C:\\logs\\movelooper.log").Show()
 
 	return func(c *Config) {
 		c.Configuration.LogFile = logFile
