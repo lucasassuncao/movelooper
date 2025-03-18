@@ -19,25 +19,8 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 			"It scans the source directories for each configured category, identifies files matching the specified extensions, and moves them to their corresponding destination directories.\n" +
 			"Each file is placed inside a subdirectory named after its extension.",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return preRunHandler(cmd, args, m)
+			return preRunHandler(cmd, m)
 		},
-	}
-
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		if m.Logger == nil {
-			return fmt.Errorf("logger is not initialized")
-		}
-
-		m.Logger.Info("Starting move mode")
-		m.Logger.Debug("Using Configuration",
-			m.Logger.Args("output", *m.Flags.Output),
-			m.Logger.Args("show-caller", *m.Flags.ShowCaller),
-			m.Logger.Args("log-level", *m.Flags.LogLevel),
-			m.Logger.Args("log-file", m.Viper.GetString("configuration.log-file")),
-			m.Logger.Args("config-file", m.Viper.ConfigFileUsed()),
-		)
-
-		return nil
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

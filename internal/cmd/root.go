@@ -6,6 +6,7 @@ import (
 	"movelooper/internal/models"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -17,7 +18,7 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 		Short: "movelooper is a CLI tool for organizing and moving files",
 		Long:  "movelooper is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return preRunHandler(cmd, args, m)
+			return preRunHandler(cmd, m)
 		},
 	}
 
@@ -68,10 +69,11 @@ func checkFlags(cmd *cobra.Command, m *models.Movelooper, flags *models.Flags, f
 }
 
 // preRunHandler executa a configuração necessária antes da execução do comando
-func preRunHandler(cmd *cobra.Command, args []string, m *models.Movelooper) error {
+func preRunHandler(cmd *cobra.Command, m *models.Movelooper) error {
 	ex, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("error getting executable: %v", err)
+
 	}
 
 	options := []config.ViperOptions{
@@ -83,7 +85,12 @@ func preRunHandler(cmd *cobra.Command, args []string, m *models.Movelooper) erro
 
 	err = config.InitConfig(m.Viper, options...)
 	if err != nil {
-		return fmt.Errorf("failed to initialize config: %v\nlaunching baseconfig to create a new config file then run the app again", err)
+		fmt.Printf("failed to initialize config: %v\nlaunching baseconfig to create a new config file then run the app again", err)
+		time.Sleep(5 * time.Second)
+		cmd := BaseConfigCmd()
+		cmd.SetArgs([]string{"--interactive"})
+		cmd.Execute()
+		_ = config.InitConfig(m.Viper, options...)
 	}
 
 	logger, err := config.ConfigureLogger(m.Viper)
