@@ -13,7 +13,7 @@ import (
 var interactive bool
 
 // BaseConfigCmd generates a base configuration file
-func BaseConfigCmd(m *models.Movelooper) *cobra.Command {
+func BaseConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "baseconfig",
 		Short: "Generates a base configuration file",

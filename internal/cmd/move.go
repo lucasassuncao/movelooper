@@ -18,6 +18,9 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 		Long: "Moves files to their respective destination directories based on configured categories.\n" +
 			"It scans the source directories for each configured category, identifies files matching the specified extensions, and moves them to their corresponding destination directories.\n" +
 			"Each file is placed inside a subdirectory named after its extension.",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return preRunHandler(cmd, args, m)
+		},
 	}
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
@@ -73,5 +76,12 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 		}
 		return nil
 	}
+
+	m.Flags = setFlags(cmd)
+
+	bindFlag(cmd, m, "output")
+	bindFlag(cmd, m, "log-level")
+	bindFlag(cmd, m, "show-caller")
+
 	return cmd
 }

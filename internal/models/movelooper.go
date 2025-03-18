@@ -9,7 +9,7 @@ import (
 type Movelooper struct {
 	Logger      *pterm.Logger
 	Viper       *viper.Viper
-	Flags       *PersistentFlags
+	Flags       *Flags
 	MediaConfig []*MediaConfig
 }
 

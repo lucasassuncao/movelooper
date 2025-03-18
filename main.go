@@ -20,7 +20,7 @@ func main() {
 	m := &models.Movelooper{
 		Viper:       v,
 		Logger:      nil,
-		Flags:       &models.PersistentFlags{},
+		Flags:       &models.Flags{},
 		MediaConfig: make([]*models.MediaConfig, 0),
 	}
 
