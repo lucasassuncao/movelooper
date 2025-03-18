@@ -22,27 +22,10 @@ func BaseConfigCmd(m *models.Movelooper) *cobra.Command {
 			"If the base configuration file already exists, it will not be overwritten.",
 	}
 
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		if m.Logger == nil {
-			return fmt.Errorf("logger is not initialized")
-		}
-
-		m.Logger.Info("Creating a base configuration file")
-		m.Logger.Debug("Using Configuration",
-			m.Logger.Args("output", *m.Flags.Output),
-			m.Logger.Args("show-caller", *m.Flags.ShowCaller),
-			m.Logger.Args("log-level", *m.Flags.LogLevel),
-			m.Logger.Args("log-file", m.Viper.GetString("configuration.log-file")),
-			m.Logger.Args("config-file", m.Viper.ConfigFileUsed()),
-		)
-
-		return nil
-	}
-
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ex, err := os.Executable()
 		if err != nil {
-			m.Logger.Error("error getting executable", m.Logger.Args("error", err))
+			fmt.Printf("error getting executable: %v\n", err)
 			return err
 		}
 
@@ -51,7 +34,7 @@ func BaseConfigCmd(m *models.Movelooper) *cobra.Command {
 
 		err = helper.CreateDirectory(baseconfigPath)
 		if err != nil {
-			m.Logger.Error("error creating directory for base config", m.Logger.Args("error", err))
+			fmt.Printf("error creating directory for base config: %v\n", err)
 		}
 
 		var options = []models.ConfigOption{}
@@ -67,10 +50,8 @@ func BaseConfigCmd(m *models.Movelooper) *cobra.Command {
 
 		err = models.NewConfig(configPath, baseconfigPath, interactive, options...)
 		if err != nil {
-			m.Logger.Error("error creating base configuration file", m.Logger.Args("error", err))
+			fmt.Printf("error creating base configuration file: %v\n", err)
 		}
-
-		m.Logger.Info("Base configuration file created", m.Logger.Args("path", baseconfigPath))
 
 		return nil
 	}

@@ -25,7 +25,7 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 			return fmt.Errorf("logger is not initialized")
 		}
 
-		m.Logger.Info("Starting preview mode")
+		m.Logger.Info("Starting move mode")
 		m.Logger.Debug("Using Configuration",
 			m.Logger.Args("output", *m.Flags.Output),
 			m.Logger.Args("show-caller", *m.Flags.ShowCaller),

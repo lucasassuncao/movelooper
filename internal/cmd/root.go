@@ -28,16 +28,18 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 			options := []config.ViperOptions{
 				config.WithConfigName("movelooper"),
 				config.WithConfigType("yaml"),
-				//config.WithConfigPath("."), // This is being used to debug the application
 				config.WithConfigPath(filepath.Dir(ex)),
 				config.WithConfigPath(filepath.Join(filepath.Dir(ex), "conf")),
 			}
 
 			err = config.InitConfig(m.Viper, options...)
 			if err != nil {
-				fmt.Printf("failed to initialize config: %v\nlaunching baseconfig to create a new config file", err)
-				time.Sleep(2 * time.Second)
-				BaseConfigCmd(m).Execute()
+				fmt.Printf("failed to initialize config: %v\nlaunching baseconfig to create a new config file then run the app again", err)
+				time.Sleep(5 * time.Second)
+				cmd := BaseConfigCmd(m)
+				cmd.SetArgs([]string{"--interactive"})
+				cmd.Execute()
+				_ = config.InitConfig(m.Viper, options...)
 			}
 
 			logger, err := config.ConfigureLogger(m.Viper)
