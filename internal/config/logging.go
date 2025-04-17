@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+const maxWidth = 70
+
 // ConfigureLogger configures the logger based on the configuration
 func ConfigureLogger(v *viper.Viper) (*pterm.Logger, error) {
 	switch v.GetString("configuration.output") {
@@ -29,7 +31,7 @@ func configurePTermLogger(v *viper.Viper) (*pterm.Logger, error) {
 	l := v.GetString("configuration.log-level")
 	s := v.GetBool("configuration.show-caller")
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(os.Stdout), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(os.Stdout).WithMaxWidth(maxWidth), nil
 }
 
 // configureFileLogger configures the logger to write to a file
@@ -42,7 +44,7 @@ func configureFileLogger(v *viper.Viper) (*pterm.Logger, error) {
 	l := v.GetString("configuration.log-level")
 	s := v.GetBool("configuration.show-caller")
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(f), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(f).WithMaxWidth(maxWidth), nil
 }
 
 // configureMultiWriterLogger configures the logger to write to both the console and a file
@@ -57,7 +59,7 @@ func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, error) {
 
 	multiWriter := io.MultiWriter(os.Stdout, f)
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(multiWriter), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(multiWriter).WithMaxWidth(maxWidth), nil
 }
 
 // openLogFile opens the log file for writing

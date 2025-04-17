@@ -43,9 +43,9 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 
 				switch count {
 				case 0:
-					m.Logger.Info(fmt.Sprintf("No %s files to move", extension))
+					m.Logger.Info(fmt.Sprintf("No .%s files to move", extension))
 				default:
-					message := fmt.Sprintf("%d %s files to move", count, extension)
+					message := fmt.Sprintf("%d .%s files to move", count, extension)
 					if previewShowFiles && len(logArgs) > 0 {
 						m.Logger.Warn(message, m.Logger.Args(logArgs...))
 					} else {
