@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var previewShowFiles bool
+
 // PreviewCmd represents the preview command
 func PreviewCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
@@ -37,14 +39,18 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 				}
 
 				count := helper.ValidateFiles(files, extension)
+				logArgs := helper.GenerateLogArgs(files, extension)
 
 				switch count {
 				case 0:
-					m.Logger.Info(fmt.Sprintf("No %s file(s) to move", extension))
-				case 1:
-					m.Logger.Warn(fmt.Sprintf("%d file %s to move", count, extension))
+					m.Logger.Info(fmt.Sprintf("No %s files to move", extension))
 				default:
-					m.Logger.Warn(fmt.Sprintf("%d files %s to move", count, extension))
+					message := fmt.Sprintf("%d %s files to move", count, extension)
+					if previewShowFiles && len(logArgs) > 0 {
+						m.Logger.Warn(message, m.Logger.Args(logArgs...))
+					} else {
+						m.Logger.Warn(message)
+					}
 				}
 			}
 		}
@@ -56,6 +62,8 @@ func PreviewCmd(m *models.Movelooper) *cobra.Command {
 	bindFlag(cmd, m, "output")
 	bindFlag(cmd, m, "log-level")
 	bindFlag(cmd, m, "show-caller")
+
+	cmd.Flags().BoolVar(&previewShowFiles, "show-files", false, "Interactive mode for creating a base configuration file")
 
 	return cmd
 }

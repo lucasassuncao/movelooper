@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var moveShowFiles bool
+
 // MoveCmd represents the move command
 func MoveCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{
@@ -44,14 +46,18 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 				}
 
 				count := helper.ValidateFiles(files, extension)
+				logArgs := helper.GenerateLogArgs(files, extension)
 
 				switch count {
 				case 0:
 					m.Logger.Info(fmt.Sprintf("No %s file(s) to move", extension))
-				case 1:
-					m.Logger.Warn(fmt.Sprintf("%d file %s to move", count, extension))
 				default:
-					m.Logger.Warn(fmt.Sprintf("%d files %s to move", count, extension))
+					message := fmt.Sprintf("%d %s files to move", count, extension)
+					if moveShowFiles && len(logArgs) > 0 {
+						m.Logger.Warn(message, m.Logger.Args(logArgs...))
+					} else {
+						m.Logger.Warn(message)
+					}
 				}
 
 				helper.MoveFiles(m, category, files, extension)
@@ -65,6 +71,8 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 	bindFlag(cmd, m, "output")
 	bindFlag(cmd, m, "log-level")
 	bindFlag(cmd, m, "show-caller")
+
+	cmd.Flags().BoolVar(&moveShowFiles, "show-files", false, "Interactive mode for creating a base configuration file")
 
 	return cmd
 }
