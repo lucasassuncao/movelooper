@@ -26,9 +26,9 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		m.MediaConfig = config.UnmarshalConfig(m)
+		m.CategoryConfig = config.UnmarshalConfig(m)
 
-		for _, category := range m.MediaConfig {
+		for _, category := range m.CategoryConfig {
 			for _, extension := range category.Extensions {
 				dirPath := filepath.Join(category.Destination, extension)
 				if err := helper.CreateDirectory(dirPath); err != nil {

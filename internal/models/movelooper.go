@@ -7,14 +7,14 @@ import (
 
 // Movelooper is a struct that holds the logger, viper, flags and media config
 type Movelooper struct {
-	Logger      *pterm.Logger
-	Viper       *viper.Viper
-	Flags       *Flags
-	MediaConfig []*MediaConfig
+	Logger         *pterm.Logger
+	Viper          *viper.Viper
+	Flags          *Flags
+	CategoryConfig []*CategoryConfig
 }
 
 // PersistentFlags is a struct that holds the persistent flags that are used by the CLI
-type MediaConfig struct {
+type CategoryConfig struct {
 	CategoryName string   `mapstructure:"name"`
 	Extensions   []string `mapstructure:"extensions"`
 	Source       string   `mapstructure:"source"`
