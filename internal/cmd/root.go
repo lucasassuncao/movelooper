@@ -68,7 +68,7 @@ func checkFlags(cmd *cobra.Command, m *models.Movelooper, flags *models.Flags, f
 	}
 }
 
-// preRunHandler executa a configuração necessária antes da execução do comando
+// preRunHandler handles the necessary configuration before command execution
 func preRunHandler(cmd *cobra.Command, m *models.Movelooper) error {
 	ex, err := os.Executable()
 	if err != nil {

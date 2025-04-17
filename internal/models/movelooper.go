@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Movelooper is a struct that holds the logger, viper, flags and media config
+// Movelooper is a struct that holds the logger, viper, flags and category config
 type Movelooper struct {
 	Logger         *pterm.Logger
 	Viper          *viper.Viper
@@ -13,7 +13,7 @@ type Movelooper struct {
 	CategoryConfig []*CategoryConfig
 }
 
-// PersistentFlags is a struct that holds the persistent flags that are used by the CLI
+// CategoryConfig is a struct that holds the category configuration
 type CategoryConfig struct {
 	CategoryName string   `mapstructure:"name"`
 	Extensions   []string `mapstructure:"extensions"`

@@ -29,7 +29,7 @@ func configurePTermLogger(v *viper.Viper) (*pterm.Logger, error) {
 	l := v.GetString("configuration.log-level")
 	s := v.GetBool("configuration.show-caller")
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(logLevel(l)).WithWriter(os.Stdout), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(os.Stdout), nil
 }
 
 // configureFileLogger configures the logger to write to a file
@@ -42,7 +42,7 @@ func configureFileLogger(v *viper.Viper) (*pterm.Logger, error) {
 	l := v.GetString("configuration.log-level")
 	s := v.GetBool("configuration.show-caller")
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(logLevel(l)).WithWriter(f), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(f), nil
 }
 
 // configureMultiWriterLogger configures the logger to write to both the console and a file
@@ -57,7 +57,7 @@ func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, error) {
 
 	multiWriter := io.MultiWriter(os.Stdout, f)
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(logLevel(l)).WithWriter(multiWriter), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(multiWriter), nil
 }
 
 // openLogFile opens the log file for writing
@@ -78,8 +78,8 @@ func openLogFile(v *viper.Viper) (*os.File, error) {
 	return logFile, nil
 }
 
-// logLevel returns the pterm log level based on the string level
-func logLevel(level string) pterm.LogLevel {
+// parseLogLevel returns the pterm log level based on the string level
+func parseLogLevel(level string) pterm.LogLevel {
 	switch level {
 	case "trace":
 		return pterm.LogLevelTrace

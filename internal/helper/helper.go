@@ -68,12 +68,14 @@ func MoveFiles(m *models.Movelooper, category *models.CategoryConfig, files []os
 	}
 }
 
+// HasExtension checks if a file has a given extension (case-insensitive).
 func HasExtension(file os.DirEntry, extension string) bool {
 	var ext = "." + extension
 
 	return strings.HasSuffix(file.Name(), strings.ToUpper(ext)) || strings.HasSuffix(file.Name(), strings.ToLower(ext))
 }
 
+// GenerateLogArgs generates log arguments for a given extension.
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{} {
 	var logArgs []interface{}
 	for _, file := range files {
