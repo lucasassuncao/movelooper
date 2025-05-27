@@ -32,13 +32,15 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 			for _, extension := range category.Extensions {
 				dirPath := filepath.Join(category.Destination, extension)
 				if err := helper.CreateDirectory(dirPath); err != nil {
-					m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+					m.Logger.Error("failed to create directory",
+						m.Logger.Args("directory", dirPath),
+						m.Logger.Args("error", err.Error()))
 					continue
 				}
 
 				files, err := helper.ReadDirectory(category.Source)
 				if err != nil {
-					m.Logger.Error("failed to read directory",
+					m.Logger.Error("failed to read source directory",
 						m.Logger.Args("path", category.Source),
 						m.Logger.Args("error", err.Error()),
 					)
@@ -46,17 +48,27 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 				}
 
 				count := helper.ValidateFiles(files, extension)
-				logArgs := helper.GenerateLogArgs(files, extension)
+				logArgs := helper.GenerateLogArgs(files, extension) // This contains pairs of "name", fileName
 
-				switch count {
-				case 0:
-					m.Logger.Info(fmt.Sprintf("No .%s file(s) to move", extension))
-				default:
-					message := fmt.Sprintf("%d .%s files to move", count, extension)
+				if count == 0 {
+					m.Logger.Info("no files to move",
+						m.Logger.Args("extension", extension),
+						m.Logger.Args("source_directory", category.Source),
+					)
+				} else {
+					baseMessage := "files to move"
+					args := []interface{}{
+						"count", count,
+						"extension", extension,
+						"source_directory", category.Source,
+						"destination_directory", dirPath,
+					}
 					if moveShowFiles && len(logArgs) > 0 {
-						m.Logger.Warn(message, m.Logger.Args(logArgs...))
+						// logArgs is already a slice of interface{}, e.g., ["name", "file1.txt", "name", "file2.txt"]
+						args = append(args, logArgs...)
+						m.Logger.Info(baseMessage, m.Logger.Args(args...))
 					} else {
-						m.Logger.Warn(message)
+						m.Logger.Info(baseMessage, m.Logger.Args(args...))
 					}
 				}
 
