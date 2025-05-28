@@ -72,7 +72,7 @@ func MoveCmd(m *models.Movelooper) *cobra.Command {
 	bindFlag(cmd, m, "log-level")
 	bindFlag(cmd, m, "show-caller")
 
-	cmd.Flags().BoolVar(&moveShowFiles, "show-files", false, "Interactive mode for creating a base configuration file")
+	cmd.Flags().BoolVar(&moveShowFiles, "show-files", false, "Show the list of files that would be moved (dry-run mode)")
 
 	return cmd
 }

@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"fmt"
 	"movelooper/internal/models"
 	"os"
 	"path/filepath"
@@ -45,34 +46,58 @@ func ValidateFiles(files []os.DirEntry, extension string) int {
 }
 
 // MoveFiles moves files with the specified extension from the source directory to the destination directory.
-// The destination path includes a subdirectory named after the extension.
+// The destination path includes a subdirectory named after the extension, avoiding overwriting files.
 func MoveFiles(m *models.Movelooper, category *models.CategoryConfig, files []os.DirEntry, extension string) {
 	for _, file := range files {
-		sourceFile := filepath.Join(category.Source, file.Name())
-		destinationFile := filepath.Join(category.Destination, extension, file.Name())
-
-		if HasExtension(file, extension) {
-			_, err := os.Stat(destinationFile)
-			if err == nil {
-				m.Logger.Warn("destination file already exists",
-					m.Logger.Args("file", destinationFile))
-			}
-
-			err = os.Rename(sourceFile, destinationFile)
-			if err != nil {
-				m.Logger.Error("failed to move file", m.Logger.Args("file", sourceFile), m.Logger.Args("error", err.Error()))
-			}
-
-			m.Logger.Info("successfully moved file", m.Logger.Args("source", sourceFile), m.Logger.Args("destination", destinationFile))
+		if !HasExtension(file, extension) {
+			continue
 		}
+
+		sourcePath := filepath.Join(category.Source, file.Name())
+		destDir := filepath.Join(category.Destination, extension)
+
+		finalDestPath := getUniqueDestinationPath(destDir, file.Name())
+
+		err := moveFile(sourcePath, finalDestPath)
+		if err != nil {
+			m.Logger.Error("failed to move file", m.Logger.Args("file", sourcePath), m.Logger.Args("error", err.Error()))
+			continue
+		}
+
+		m.Logger.Info("successfully moved file", m.Logger.Args("source", sourcePath), m.Logger.Args("destination", finalDestPath))
 	}
 }
 
-// HasExtension checks if a file has a given extension (case-insensitive).
-func HasExtension(file os.DirEntry, extension string) bool {
-	var ext = "." + extension
+// moveFile attempts to move a file from source to destination
+func moveFile(src, dst string) error {
+	return os.Rename(src, dst)
+}
 
-	return strings.HasSuffix(file.Name(), strings.ToUpper(ext)) || strings.HasSuffix(file.Name(), strings.ToLower(ext))
+// getUniqueDestinationPath ensures no file is overwritten by appending (n) if needed
+func getUniqueDestinationPath(destDir, fileName string) string {
+	ext := filepath.Ext(fileName)
+	nameOnly := strings.TrimSuffix(fileName, ext)
+
+	destPath := filepath.Join(destDir, fileName)
+	counter := 1
+
+	for {
+		if _, err := os.Stat(destPath); os.IsNotExist(err) {
+			break
+		}
+		newName := fmt.Sprintf("%s(%d)%s", nameOnly, counter, ext)
+		destPath = filepath.Join(destDir, newName)
+		counter++
+	}
+
+	return destPath
+}
+
+// HasExtension checks if a file has a given extension (case-insensitive)
+func HasExtension(file os.DirEntry, extension string) bool {
+	ext := "." + extension
+	fileExt := strings.ToLower(filepath.Ext(file.Name()))
+	return fileExt == strings.ToLower(ext)
 }
 
 // GenerateLogArgs generates log arguments for a given extension.
