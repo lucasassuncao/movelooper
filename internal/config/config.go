@@ -3,7 +3,8 @@ package config
 import (
 	"fmt"
 	"log"
-	"movelooper/internal/models"
+
+	"github.com/lucasassuncao/movelooper/internal/models"
 
 	"github.com/spf13/viper"
 )

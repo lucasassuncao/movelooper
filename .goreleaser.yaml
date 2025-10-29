@@ -1,18 +1,39 @@
+version: 2
+
 project_name: movelooper
 
 builds:
-  - main: ./main.go
+  - main: .
+    id: movelooper
+    binary: movelooper
     goos:
       - linux
-      - darwin
       - windows
+      - darwin
     goarch:
       - amd64
-    env:
-      - CGO_ENABLED=0
+      - arm64
+    ldflags:
+      - "-s -w"
 
 archives:
-  - format: tar.gz
-    files:
-      - ./dist/*
-    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  - format: binary
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files: []
+
+release:
+  github:
+    owner: lucasassuncao
+    name: movelooper
+  draft: false
+  prerelease: auto
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"

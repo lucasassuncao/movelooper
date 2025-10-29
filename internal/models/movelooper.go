@@ -1,3 +1,4 @@
+// Package models defines the data structures and functions related to application configuration.
 package models
 
 import (

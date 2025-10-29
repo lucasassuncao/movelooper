@@ -1,11 +1,13 @@
+// Package helper provides utility functions for file and directory operations.
 package helper
 
 import (
 	"fmt"
-	"movelooper/internal/models"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
 // CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.

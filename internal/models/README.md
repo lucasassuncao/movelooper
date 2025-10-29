@@ -5,33 +5,35 @@
 # models
 
 ```go
-import "movelooper/internal/models"
+import "github.com/lucasassuncao/movelooper/internal/models"
 ```
+
+Package models defines the data structures and functions related to application configuration.
+
+Package models defines the data structures and functions related to application configuration.
+
+Package models defines the data structures and functions related to application configuration.
 
 ## Index
 
-- [func NewConfig\(path string\) error](<#NewConfig>)
 - [type Category](<#Category>)
+- [type CategoryConfig](<#CategoryConfig>)
 - [type Config](<#Config>)
+- [type ConfigOption](<#ConfigOption>)
+  - [func WithCategory\(\) ConfigOption](<#WithCategory>)
+  - [func WithLogFile\(\) ConfigOption](<#WithLogFile>)
+  - [func WithLogLevel\(\) ConfigOption](<#WithLogLevel>)
+  - [func WithOutput\(\) ConfigOption](<#WithOutput>)
+  - [func WithShowCaller\(\) ConfigOption](<#WithShowCaller>)
 - [type Configuration](<#Configuration>)
-- [type MediaConfig](<#MediaConfig>)
+- [type Flags](<#Flags>)
 - [type Movelooper](<#Movelooper>)
-- [type PersistentFlags](<#PersistentFlags>)
-
-
-<a name="NewConfig"></a>
-## func [NewConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L30>)
-
-```go
-func NewConfig(path string) error
-```
-
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L23-L28>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L27-L32>)
 
-
+Category represents a category of files to move
 
 ```go
 type Category struct {
@@ -42,10 +44,24 @@ type Category struct {
 }
 ```
 
+<a name="CategoryConfig"></a>
+## type [CategoryConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L18-L23>)
+
+CategoryConfig is a struct that holds the category configuration
+
+```go
+type CategoryConfig struct {
+    CategoryName string   `mapstructure:"name"`
+    Extensions   []string `mapstructure:"extensions"`
+    Source       string   `mapstructure:"source"`
+    Destination  string   `mapstructure:"destination"`
+}
+```
+
 <a name="Config"></a>
-## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L11-L14>)
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L13-L16>)
 
-
+Config represents the full configuration of the application
 
 ```go
 type Config struct {
@@ -54,10 +70,64 @@ type Config struct {
 }
 ```
 
+<a name="ConfigOption"></a>
+## type [ConfigOption](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L35>)
+
+ConfigOption is a function that modifies the configuration
+
+```go
+type ConfigOption func(*Config)
+```
+
+<a name="WithCategory"></a>
+### func [WithCategory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L79>)
+
+```go
+func WithCategory() ConfigOption
+```
+
+WithCategory adds a category to the configuration The user is prompted to enter the category name, source directory, destination directory, and extensions
+
+<a name="WithLogFile"></a>
+### func [WithLogFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L48>)
+
+```go
+func WithLogFile() ConfigOption
+```
+
+WithLogFile prompts the user to specify the log file
+
+<a name="WithLogLevel"></a>
+### func [WithLogLevel](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L58>)
+
+```go
+func WithLogLevel() ConfigOption
+```
+
+WithLogLevel prompts the user to specify the log level
+
+<a name="WithOutput"></a>
+### func [WithOutput](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L38>)
+
+```go
+func WithOutput() ConfigOption
+```
+
+WithOutput prompts the user to specify the output
+
+<a name="WithShowCaller"></a>
+### func [WithShowCaller](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L68>)
+
+```go
+func WithShowCaller() ConfigOption
+```
+
+WithShowCaller prompts the user to show the caller information
+
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L16-L21>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L19-L24>)
 
-
+Configuration represents the configuration of the application
 
 ```go
 type Configuration struct {
@@ -68,44 +138,30 @@ type Configuration struct {
 }
 ```
 
-<a name="MediaConfig"></a>
-## type [MediaConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L15-L20>)
+<a name="Flags"></a>
+## type [Flags](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/flags.go#L5-L9>)
 
-
+Flags is a struct that holds the persistent flags that are used by the CLI
 
 ```go
-type MediaConfig struct {
-    CategoryName string   `mapstructure:"name"`
-    Extensions   []string `mapstructure:"extensions"`
-    Source       string   `mapstructure:"source"`
-    Destination  string   `mapstructure:"destination"`
+type Flags struct {
+    Output     *string
+    LogLevel   *string
+    ShowCaller *bool
 }
 ```
 
 <a name="Movelooper"></a>
-## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L8-L13>)
+## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L10-L15>)
 
-
+Movelooper is a struct that holds the logger, viper, flags and category config
 
 ```go
 type Movelooper struct {
-    Logger      *pterm.Logger
-    Viper       *viper.Viper
-    Flags       *PersistentFlags
-    MediaConfig []*MediaConfig
-}
-```
-
-<a name="PersistentFlags"></a>
-## type [PersistentFlags](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/flags.go#L3-L7>)
-
-
-
-```go
-type PersistentFlags struct {
-    Output     *string
-    LogLevel   *string
-    ShowCaller *bool
+    Logger         *pterm.Logger
+    Viper          *viper.Viper
+    Flags          *Flags
+    CategoryConfig []*CategoryConfig
 }
 ```
 

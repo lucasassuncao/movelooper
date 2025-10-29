@@ -1,4 +1,4 @@
-module movelooper
+module github.com/lucasassuncao/movelooper
 
 go 1.23.6
 

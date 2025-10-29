@@ -1,14 +1,12 @@
+// Package models defines the data structures and functions related to application configuration.
 package models
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 
 	"github.com/pterm/pterm"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // Config represents the full configuration of the application
@@ -122,61 +120,6 @@ func WithCategory() ConfigOption {
 
 	return func(c *Config) {
 		c.Categories = append(c.Categories, categories...)
-	}
-}
-
-// NewConfig generates a base configuration file
-func NewConfig(configPath, baseconfigPath string, interactive bool, configOptions ...ConfigOption) error {
-	baseConfig := Config{
-		Configuration: Configuration{
-			Output:     "",
-			LogFile:    "",
-			LogLevel:   "",
-			ShowCaller: false,
-		},
-		Categories: []Category{},
-	}
-
-	if interactive {
-		applyConfigOptions(&baseConfig, configOptions)
-	}
-
-	if len(baseConfig.Categories) == 0 {
-		baseConfig.Categories = append(baseConfig.Categories, Category{
-			Name:        "images",
-			Source:      "C:\\wallpapers",
-			Destination: "C:\\wallpapers\\moved",
-			Extensions:  []string{"jpg", "png", "gif"},
-		})
-	}
-
-	// Serialize the base config to yaml
-	data, err := yaml.Marshal(&baseConfig)
-	if err != nil {
-		return fmt.Errorf("failed to serialize yaml: %w", err)
-	}
-
-	// Write the base config to the base config path
-	if err := os.WriteFile(filepath.Join(baseconfigPath, "movelooper.yaml"), data, 0644); err != nil {
-		return fmt.Errorf("failed to generate base config file: %w", err)
-	}
-
-	// Move the base config to the config path if it doesn't exist
-	oldPath := filepath.Join(baseconfigPath, "movelooper.yaml")
-	newPath := filepath.Join(configPath, "movelooper.yaml")
-
-	if _, err := os.Stat(newPath); os.IsNotExist(err) {
-		os.Rename(oldPath, newPath)
-	}
-
-	clearScreen()
-	return nil
-}
-
-// applyConfigOptions applies the options to the config instance
-func applyConfigOptions(c *Config, configOptions []ConfigOption) {
-	for _, option := range configOptions {
-		option(c)
 	}
 }
 

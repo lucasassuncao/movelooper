@@ -5,28 +5,33 @@
 # cmd
 
 ```go
-import "movelooper/internal/cmd"
+import "github.com/lucasassuncao/movelooper/internal/cmd"
 ```
+
+Package cmd contains the command line interface commands for the Movelooper application
+
+### Package cmd contains the command line interface commands for the Movelooper application
+
+Package cmd contains the command line interface commands for the Movelooper application
 
 ## Index
 
-- [func BaseConfigCmd\(m \*models.Movelooper\) \*cobra.Command](<#BaseConfigCmd>)
+- [func InitCmd\(\) \*cobra.Command](<#InitCmd>)
 - [func MoveCmd\(m \*models.Movelooper\) \*cobra.Command](<#MoveCmd>)
-- [func PreviewCmd\(m \*models.Movelooper\) \*cobra.Command](<#PreviewCmd>)
 - [func RootCmd\(m \*models.Movelooper\) \*cobra.Command](<#RootCmd>)
 
 
-<a name="BaseConfigCmd"></a>
-## func [BaseConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/baseconfig.go#L13>)
+<a name="InitCmd"></a>
+## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L25>)
 
 ```go
-func BaseConfigCmd(m *models.Movelooper) *cobra.Command
+func InitCmd() *cobra.Command
 ```
 
-BaseConfigCmd generates a base configuration file
+InitCmd generates a configuration file
 
 <a name="MoveCmd"></a>
-## func [MoveCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/move.go#L13>)
+## func [MoveCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/move.go#L16>)
 
 ```go
 func MoveCmd(m *models.Movelooper) *cobra.Command
@@ -34,17 +39,8 @@ func MoveCmd(m *models.Movelooper) *cobra.Command
 
 MoveCmd represents the move command
 
-<a name="PreviewCmd"></a>
-## func [PreviewCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/preview.go#L12>)
-
-```go
-func PreviewCmd(m *models.Movelooper) *cobra.Command
-```
-
-PreviewCmd represents the preview command
-
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L15>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L16>)
 
 ```go
 func RootCmd(m *models.Movelooper) *cobra.Command

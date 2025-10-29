@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"movelooper/internal/cmd"
-	"movelooper/internal/models"
 	"os"
+
+	"github.com/lucasassuncao/movelooper/internal/cmd"
+	"github.com/lucasassuncao/movelooper/internal/models"
 
 	"github.com/spf13/viper"
 )

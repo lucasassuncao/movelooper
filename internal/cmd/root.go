@@ -1,24 +1,53 @@
+// Package cmd contains the command line interface commands for the Movelooper application
 package cmd
 
 import (
 	"fmt"
-	"movelooper/internal/config"
-	"movelooper/internal/models"
 	"os"
 	"path/filepath"
-	"time"
+
+	"github.com/lucasassuncao/movelooper/internal/config"
+	"github.com/lucasassuncao/movelooper/internal/models"
 
 	"github.com/spf13/cobra"
 )
 
 // RootCmd represents the base command when called without any subcommands
 func RootCmd(m *models.Movelooper) *cobra.Command {
+	var (
+		dryRun    bool
+		showFiles bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "movelooper",
 		Short: "movelooper is a CLI tool for organizing and moving files",
-		Long:  "movelooper is a CLI tool for organizing and moving files from source directories to destination directories, based on configurable categories",
+		Long: `movelooper organizes and moves files from source directories to destination directories,
+based on configurable categories.
+
+By default, it runs the move command automatically.
+Use -p / --preview / --dry-run for a dry-run preview, and --show-files to display filenames.`,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return preRunHandler(cmd, m)
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Reuse MoveCmd behavior
+			moveCmd := MoveCmd(m)
+
+			// Transfer root flags to MoveCmd
+			moveArgs := []string{}
+			if dryRun {
+				moveArgs = append(moveArgs, "--dry-run")
+			}
+			if showFiles {
+				moveArgs = append(moveArgs, "--show-files")
+			}
+
+			// Preserve any extra args the user may have passed
+			moveArgs = append(moveArgs, args...)
+			moveCmd.SetArgs(moveArgs)
+
+			return moveCmd.Execute()
 		},
 	}
 
@@ -28,9 +57,14 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 	bindFlag(cmd, m, "log-level")
 	bindFlag(cmd, m, "show-caller")
 
-	cmd.AddCommand(PreviewCmd(m))
+	// Add subcommands
+	cmd.AddCommand(InitCmd())
 	cmd.AddCommand(MoveCmd(m))
-	cmd.AddCommand(BaseConfigCmd())
+
+	// Register move-related flags here too
+	cmd.Flags().BoolVarP(&dryRun, "preview", "p", false, "Run in dry-run (preview) mode without moving files")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Alias for --preview")
+	cmd.Flags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
 
 	return cmd
 }
@@ -73,7 +107,6 @@ func preRunHandler(cmd *cobra.Command, m *models.Movelooper) error {
 	ex, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("error getting executable: %v", err)
-
 	}
 
 	options := []config.ViperOptions{
@@ -85,12 +118,7 @@ func preRunHandler(cmd *cobra.Command, m *models.Movelooper) error {
 
 	err = config.InitConfig(m.Viper, options...)
 	if err != nil {
-		fmt.Printf("failed to initialize config: %v\nlaunching baseconfig to create a new config file then run the app again", err)
-		time.Sleep(5 * time.Second)
-		cmd := BaseConfigCmd()
-		cmd.SetArgs([]string{"--interactive"})
-		cmd.Execute()
-		_ = config.InitConfig(m.Viper, options...)
+		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
 	}
 
 	logger, err := config.ConfigureLogger(m.Viper)
