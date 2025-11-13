@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
+	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
 	"github.com/spf13/cobra"
@@ -25,99 +26,107 @@ func RootCmd(m *models.Movelooper) *cobra.Command {
 		Long: `movelooper organizes and moves files from source directories to destination directories,
 based on configurable categories.
 
-By default, it runs the move command automatically.
+By default, it runs the move operation automatically.
 Use -p / --preview / --dry-run for a dry-run preview, and --show-files to display filenames.`,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return preRunHandler(cmd, m)
+			configPath, _ := cmd.Flags().GetString("config")
+			return preRunHandler(m, configPath)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Reuse MoveCmd behavior
-			moveCmd := MoveCmd(m)
+			m.CategoryConfig = config.UnmarshalConfig(m)
 
-			// Transfer root flags to MoveCmd
-			moveArgs := []string{}
+			for _, category := range m.CategoryConfig {
+				for _, extension := range category.Extensions {
+					files, err := helper.ReadDirectory(category.Source)
+					if err != nil {
+						m.Logger.Error("failed to read directory",
+							m.Logger.Args("path", category.Source),
+							m.Logger.Args("error", err.Error()),
+						)
+						continue
+					}
+
+					count := helper.ValidateFiles(files, extension)
+					logArgs := helper.GenerateLogArgs(files, extension)
+
+					switch count {
+					case 0:
+						m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
+					default:
+						message := fmt.Sprintf("%d .%s files to move", count, extension)
+						if showFiles && len(logArgs) > 0 {
+							m.Logger.Warn(message, m.Logger.Args(logArgs...))
+						} else {
+							m.Logger.Warn(message)
+						}
+					}
+
+					// Only move files if not in dry-run mode
+					if !dryRun {
+						dirPath := filepath.Join(category.Destination, extension)
+						if err := helper.CreateDirectory(dirPath); err != nil {
+							m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+							continue
+						}
+						helper.MoveFiles(m, category, files, extension)
+					}
+				}
+			}
+
 			if dryRun {
-				moveArgs = append(moveArgs, "--dry-run")
-			}
-			if showFiles {
-				moveArgs = append(moveArgs, "--show-files")
+				m.Logger.Info("Dry-run complete (no files were moved).")
 			}
 
-			// Preserve any extra args the user may have passed
-			moveArgs = append(moveArgs, args...)
-			moveCmd.SetArgs(moveArgs)
-
-			return moveCmd.Execute()
+			return nil
 		},
 	}
 
-	m.Flags = setFlags(cmd)
-
-	bindFlag(cmd, m, "output")
-	bindFlag(cmd, m, "log-level")
-	bindFlag(cmd, m, "show-caller")
-
-	// Add subcommands
-	cmd.AddCommand(InitCmd())
-	cmd.AddCommand(MoveCmd(m))
-
-	// Register move-related flags here too
+	cmd.Flags().StringP("config", "c", "", "Path to configuration file (e.g., /path/to/movelooper.yaml)")
 	cmd.Flags().BoolVarP(&dryRun, "preview", "p", false, "Run in dry-run (preview) mode without moving files")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Alias for --preview")
 	cmd.Flags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
 
+	// Add subcommands
+	cmd.AddCommand(InitCmd())
+
 	return cmd
 }
 
-// setFlags sets the flags for a Cobra command
-func setFlags(cmd *cobra.Command) *models.Flags {
-	return &models.Flags{
-		ShowCaller: cmd.Flags().Bool("show-caller", false, "Show caller information"),
-		LogLevel:   cmd.Flags().StringP("log-level", "l", "", "Specify the log level (trace, debug, info, warn/warning, error, fatal)"),
-		Output:     cmd.Flags().StringP("output", "o", "", "Specify the output (console, log/file or both)"),
-	}
-}
+// preRunHandler handles the necessary configuration before command execution
+func preRunHandler(m *models.Movelooper, configPath string) error {
+	var options []config.ViperOptions
 
-// bindFlag links a CLI flag to a Viper key to enable configuration file support
-func bindFlag(cmd *cobra.Command, m *models.Movelooper, flagName string) {
-	// Bind the flag to a Viper key and handle any binding errors
-	err := m.Viper.BindPFlag(fmt.Sprintf("configuration.%s", flagName), cmd.Flags().Lookup(flagName))
-	if err != nil {
-		m.Logger.Error("error binding flag", m.Logger.Args("flag", flagName, "error", err))
-	}
-}
+	if configPath != "" {
+		// Se um caminho específico foi fornecido, use-o
+		dir := filepath.Dir(configPath)
+		filename := filepath.Base(configPath)
+		ext := filepath.Ext(filename)
+		nameWithoutExt := filename[:len(filename)-len(ext)]
 
-// checkFlags ensures that the flags are set correctly, either from the command-line or from the Viper configuration
-func checkFlags(cmd *cobra.Command, m *models.Movelooper, flags *models.Flags, flagName string) {
-	// If the flag was not changed by the user, check Viper and set it if needed
-	if !cmd.Flags().Changed(flagName) && m.Viper.IsSet(fmt.Sprintf("configuration.%s", flagName)) {
-		switch flagName {
-		case "output":
-			*flags.Output = m.Viper.GetString(fmt.Sprintf("configuration.%s", flagName))
-		case "log-level":
-			*flags.LogLevel = m.Viper.GetString(fmt.Sprintf("configuration.%s", flagName))
-		case "show-caller":
-			*flags.ShowCaller = m.Viper.GetBool(fmt.Sprintf("configuration.%s", flagName))
+		options = []config.ViperOptions{
+			config.WithConfigName(nameWithoutExt),
+			config.WithConfigType(ext[1:]),
+			config.WithConfigPath(dir),
+		}
+	} else {
+		ex, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("error getting executable: %v", err)
+		}
+
+		options = []config.ViperOptions{
+			config.WithConfigName("movelooper"),
+			config.WithConfigType("yaml"),
+			config.WithConfigPath(filepath.Dir(ex)),
+			config.WithConfigPath(filepath.Join(filepath.Dir(ex), "conf")),
 		}
 	}
-}
 
-// preRunHandler handles the necessary configuration before command execution
-func preRunHandler(cmd *cobra.Command, m *models.Movelooper) error {
-	ex, err := os.Executable()
+	err := config.InitConfig(m.Viper, options...)
 	if err != nil {
-		return fmt.Errorf("error getting executable: %v", err)
-	}
-
-	options := []config.ViperOptions{
-		config.WithConfigName("movelooper"),
-		config.WithConfigType("yaml"),
-		config.WithConfigPath(filepath.Dir(ex)),
-		config.WithConfigPath(filepath.Join(filepath.Dir(ex), "conf")),
-	}
-
-	err = config.InitConfig(m.Viper, options...)
-	if err != nil {
+		if configPath != "" {
+			return fmt.Errorf("configuration file not found at '%s'", configPath)
+		}
 		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
 	}
 
@@ -127,14 +136,6 @@ func preRunHandler(cmd *cobra.Command, m *models.Movelooper) error {
 	}
 
 	m.Logger = logger
-
-	if m.Flags == nil {
-		m.Logger.Error("error configuring flags")
-	}
-
-	checkFlags(cmd, m, m.Flags, "output")
-	checkFlags(cmd, m, m.Flags, "show-caller")
-	checkFlags(cmd, m, m.Flags, "log-level")
 
 	return nil
 }
