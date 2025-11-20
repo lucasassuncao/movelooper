@@ -2,7 +2,9 @@
 package helper
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,18 +58,112 @@ func MoveFiles(m *models.Movelooper, category *models.CategoryConfig, files []os
 		}
 
 		sourcePath := filepath.Join(category.Source, file.Name())
+		// O diretório de destino base (ex: .../Images/jpg/)
 		destDir := filepath.Join(category.Destination, extension)
+		// O caminho final pretendido
+		destPath := filepath.Join(destDir, file.Name())
 
-		finalDestPath := getUniqueDestinationPath(destDir, file.Name())
+		// Define estratégia padrão se estiver vazia
+		strategy := category.ConflictStrategy
+		if strategy == "" {
+			strategy = "rename"
+		}
 
-		err := moveFile(sourcePath, finalDestPath)
+		// Verifica se já existe arquivo no destino
+		if _, err := os.Stat(destPath); err == nil {
+			// ARQUIVO EXISTE: Resolver conflito
+			resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, file.Name())
+			if err != nil {
+				m.Logger.Error("error to solve conflicts", m.Logger.Args("file", file.Name()), m.Logger.Args("error", err.Error()))
+				continue
+			}
+
+			if !shouldMove {
+				if strategy == "skip" {
+					m.Logger.Info("file skipped due to conflict strategy", m.Logger.Args("file", file.Name()))
+				}
+
+				if strategy == "hash_check" {
+					m.Logger.Info("file identical, source removed", m.Logger.Args("file", file.Name()))
+				}
+				continue
+			}
+			destPath = resolvedPath
+		}
+
+		// Executa a movimentação
+		err := moveFile(sourcePath, destPath)
 		if err != nil {
 			m.Logger.Error("failed to move file", m.Logger.Args("file", sourcePath), m.Logger.Args("error", err.Error()))
 			continue
 		}
 
-		m.Logger.Info("successfully moved file", m.Logger.Args("source", sourcePath), m.Logger.Args("destination", finalDestPath))
+		m.Logger.Info("successfully moved file", m.Logger.Args("source", sourcePath), m.Logger.Args("destination", destPath))
 	}
+}
+
+// resolveConflict handles file name conflicts based on the specified strategy.
+func resolveConflict(strategy, src, dst, destDir, fileName string) (string, bool, error) {
+	switch strategy {
+	case "overwrite":
+		// Removes the destination file to allow overwrite
+		if err := os.Remove(dst); err != nil {
+			return "", false, fmt.Errorf("failed to remove destination file for overwrite: %w", err)
+		}
+		return dst, true, nil
+
+	case "skip":
+		return "", false, nil
+
+	case "hash_check":
+		match, err := compareFileHashes(src, dst)
+		if err != nil {
+			return "", false, err
+		}
+		if match {
+			if err := os.Remove(src); err != nil {
+				return "", false, fmt.Errorf("failed to remove duplicate source file: %w", err)
+			}
+			return "", false, nil
+		}
+		// If contents are different but names are the same, fall through to default (rename)
+		fallthrough
+
+	case "rename":
+		fallthrough
+	default:
+		// Gera nome único: arquivo(1).jpg
+		return getUniqueDestinationPath(destDir, fileName), true, nil
+	}
+}
+
+// compareFileHashes compares the SHA-256 hashes of two files to determine if they are identical
+func compareFileHashes(file1, file2 string) (bool, error) {
+	h1, err := calculateHash(file1)
+	if err != nil {
+		return false, err
+	}
+	h2, err := calculateHash(file2)
+	if err != nil {
+		return false, err
+	}
+	return h1 == h2, nil
+}
+
+// calculateHash computes the SHA-256 hash of a file's contents
+func calculateHash(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 // moveFile attempts to move a file from source to destination

@@ -16,8 +16,9 @@ type Movelooper struct {
 
 // CategoryConfig is a struct that holds the category configuration
 type CategoryConfig struct {
-	CategoryName string   `mapstructure:"name"`
-	Extensions   []string `mapstructure:"extensions"`
-	Source       string   `mapstructure:"source"`
-	Destination  string   `mapstructure:"destination"`
+	CategoryName     string   `mapstructure:"name"`
+	Extensions       []string `mapstructure:"extensions"`
+	Source           string   `mapstructure:"source"`
+	Destination      string   `mapstructure:"destination"`
+	ConflictStrategy string   `mapstructure:"conflict_strategy"`
 }

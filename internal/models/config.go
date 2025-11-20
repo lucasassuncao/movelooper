@@ -25,10 +25,11 @@ type Configuration struct {
 
 // Category represents a category of files to move
 type Category struct {
-	Name        string   `yaml:"name"`
-	Extensions  []string `yaml:"extensions"`
-	Source      string   `yaml:"source"`
-	Destination string   `yaml:"destination"`
+	Name             string   `yaml:"name"`
+	Extensions       []string `yaml:"extensions"`
+	Source           string   `yaml:"source"`
+	Destination      string   `yaml:"destination"`
+	ConflictStrategy string   `yaml:"conflict_strategy"`
 }
 
 // ConfigOption is a function that modifies the configuration

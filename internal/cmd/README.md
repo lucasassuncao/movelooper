@@ -10,14 +10,11 @@ import "github.com/lucasassuncao/movelooper/internal/cmd"
 
 Package cmd contains the command line interface commands for the Movelooper application
 
-### Package cmd contains the command line interface commands for the Movelooper application
-
 Package cmd contains the command line interface commands for the Movelooper application
 
 ## Index
 
 - [func InitCmd\(\) \*cobra.Command](<#InitCmd>)
-- [func MoveCmd\(m \*models.Movelooper\) \*cobra.Command](<#MoveCmd>)
 - [func RootCmd\(m \*models.Movelooper\) \*cobra.Command](<#RootCmd>)
 
 
@@ -30,17 +27,8 @@ func InitCmd() *cobra.Command
 
 InitCmd generates a configuration file
 
-<a name="MoveCmd"></a>
-## func [MoveCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/move.go#L16>)
-
-```go
-func MoveCmd(m *models.Movelooper) *cobra.Command
-```
-
-MoveCmd represents the move command
-
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L16>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L17>)
 
 ```go
 func RootCmd(m *models.Movelooper) *cobra.Command

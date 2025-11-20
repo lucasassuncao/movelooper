@@ -54,14 +54,12 @@ The configuration file will be created at: <executable_dir>/conf/movelooper.yaml
 		configPath := filepath.Join(filepath.Dir(ex), "conf")
 		configFile := filepath.Join(configPath, "movelooper.yaml")
 
-		// Check if config already exists
 		if _, err := os.Stat(configFile); err == nil && !initForce {
 			pterm.Error.Printf("Configuration file already exists at: %s\n", configFile)
 			pterm.Info.Println("Use --force to overwrite")
 			return nil
 		}
 
-		// Create config directory
 		if err := helper.CreateDirectory(configPath); err != nil {
 			return fmt.Errorf("error creating config directory: %v", err)
 		}
@@ -112,7 +110,6 @@ func generateInteractiveConfig() *models.Config {
 		Categories:    []models.Category{},
 	}
 
-	// 1. Output configuration
 	pterm.DefaultSection.Println("Logging Configuration")
 	output, _ := pterm.DefaultInteractiveSelect.
 		WithOptions([]string{"console", "log", "file", "both"}).
@@ -121,7 +118,6 @@ func generateInteractiveConfig() *models.Config {
 		Show()
 	config.Configuration.Output = output
 
-	// 2. Log file (if needed)
 	if output == "log" || output == "file" || output == "both" {
 		defaultLogPath := getDefaultLogPath()
 		logFile, _ := pterm.DefaultInteractiveTextInput.
@@ -131,7 +127,6 @@ func generateInteractiveConfig() *models.Config {
 		config.Configuration.LogFile = logFile
 	}
 
-	// 3. Log level
 	logLevel, _ := pterm.DefaultInteractiveSelect.
 		WithOptions([]string{"trace", "debug", "info", "warn", "error", "fatal"}).
 		WithDefaultText("Log level").
@@ -140,14 +135,12 @@ func generateInteractiveConfig() *models.Config {
 		Show()
 	config.Configuration.LogLevel = logLevel
 
-	// 4. Show caller
 	showCaller, _ := pterm.DefaultInteractiveConfirm.
 		WithDefaultText("Show caller information in logs?").
 		WithDefaultValue(false).
 		Show()
 	config.Configuration.ShowCaller = showCaller
 
-	// 5. Categories
 	clearScreen()
 	pterm.DefaultSection.Println("Categories Configuration")
 	pterm.Info.Println("Categories define how files are organized")
@@ -179,9 +172,8 @@ func collectCategories() []models.Category {
 		pterm.DefaultHeader.WithFullWidth().Printf("Category #%d", len(categories)+1)
 		pterm.Println()
 
-		// Category name
 		name, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("Category name (e.g., images, documents, videos)").
+			WithDefaultText("Category name (e.g., images, documents)").
 			Show()
 
 		if name == "" {
@@ -189,26 +181,30 @@ func collectCategories() []models.Category {
 			continue
 		}
 
-		// Source directory
+		strategy, _ := pterm.DefaultInteractiveSelect.
+			WithOptions([]string{"rename", "hash_check", "overwrite", "skip"}).
+			WithDefaultText("Conflict strategy (if file exists)").
+			WithDefaultOption("rename").
+			Show()
+
 		source, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("Source directory (where files are located)").
+			WithDefaultText("Source directory").
 			WithDefaultValue(getDefaultSourcePath()).
 			Show()
 
-		// Destination directory
 		destination, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("Destination directory (where files will be moved)").
+			WithDefaultText("Destination directory").
 			WithDefaultValue(getDefaultDestinationPath(name)).
 			Show()
 
-		// Extensions
 		extensions := collectExtensions(name)
 
 		category := models.Category{
-			Name:        name,
-			Extensions:  extensions,
-			Source:      source,
-			Destination: destination,
+			Name:             name,
+			Extensions:       extensions,
+			Source:           source,
+			Destination:      destination,
+			ConflictStrategy: strategy, // Preenchendo o novo campo
 		}
 
 		categories = append(categories, category)
@@ -229,7 +225,6 @@ func collectCategories() []models.Category {
 			break
 		}
 	}
-
 	return categories
 }
 
@@ -274,17 +269,18 @@ func collectExtensions(categoryName string) []string {
 			}
 		}
 	}
-
 	return extensions
 }
 
+// getDefaultCategory returns a default category configuration
 func getDefaultCategory() models.Category {
 	source := getDefaultSourcePath()
 	return models.Category{
-		Name:        "images",
-		Extensions:  []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
-		Source:      source,
-		Destination: filepath.Join(source, "images"),
+		Name:             "images",
+		Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
+		Source:           source,
+		Destination:      filepath.Join(source, "images"),
+		ConflictStrategy: "rename",
 	}
 }
 
@@ -306,8 +302,7 @@ func getTemplateConfig(template string) *models.Config {
 	return templateFunc()
 }
 
-// Template functions
-
+// getBasicTemplate returns the basic configuration template
 func getBasicTemplate() *models.Config {
 	return &models.Config{
 		Configuration: models.Configuration{
@@ -317,15 +312,17 @@ func getBasicTemplate() *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:        "images",
-				Extensions:  []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
-				Source:      getDefaultSourcePath(),
-				Destination: filepath.Join(getDefaultSourcePath(), "images"),
+				Name:             "images",
+				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
+				Source:           getDefaultSourcePath(),
+				Destination:      filepath.Join(getDefaultSourcePath(), "images"),
+				ConflictStrategy: "rename",
 			},
 		},
 	}
 }
 
+// getMediaTemplate returns the media configuration template
 func getMediaTemplate() *models.Config {
 	basePath := getDefaultSourcePath()
 	return &models.Config{
@@ -337,27 +334,31 @@ func getMediaTemplate() *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:        "images",
-				Extensions:  []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "tiff"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "images"),
+				Name:             "images",
+				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "images"),
+				ConflictStrategy: "hash_check",
 			},
 			{
-				Name:        "videos",
-				Extensions:  []string{"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "videos"),
+				Name:             "videos",
+				Extensions:       []string{"mp4", "avi", "mkv", "mov"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "videos"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "audio",
-				Extensions:  []string{"mp3", "wav", "flac", "aac", "ogg", "wma", "m4a"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "audio"),
+				Name:             "audio",
+				Extensions:       []string{"mp3", "wav", "flac"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "audio"),
+				ConflictStrategy: "rename",
 			},
 		},
 	}
 }
 
+// getMediaTemplate returns the media configuration template
 func getDevTemplate() *models.Config {
 	basePath := getDefaultSourcePath()
 	return &models.Config{
@@ -369,33 +370,38 @@ func getDevTemplate() *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:        "source-code",
-				Extensions:  []string{"go", "py", "js", "ts", "java", "cpp", "c", "rs", "rb"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "code"),
+				Name:             "source-code",
+				Extensions:       []string{"go", "py", "js", "ts", "java", "cpp", "c", "rs", "rb"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "code"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "documentation",
-				Extensions:  []string{"md", "txt", "pdf", "doc", "docx"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "docs"),
+				Name:             "documentation",
+				Extensions:       []string{"md", "txt", "pdf", "doc", "docx"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "docs"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "configs",
-				Extensions:  []string{"yaml", "yml", "json", "toml", "xml", "ini", "conf"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "configs"),
+				Name:             "configs",
+				Extensions:       []string{"yaml", "yml", "json", "toml", "xml", "ini", "conf"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "configs"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "archives",
-				Extensions:  []string{"zip", "tar", "gz", "rar", "7z"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "archives"),
+				Name:             "archives",
+				Extensions:       []string{"zip", "tar", "gz", "rar", "7z"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "archives"),
+				ConflictStrategy: "hash_check",
 			},
 		},
 	}
 }
 
+// getFullTemplate returns the full configuration template
 func getFullTemplate() *models.Config {
 	basePath := getDefaultSourcePath()
 	return &models.Config{
@@ -407,59 +413,66 @@ func getFullTemplate() *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:        "images",
-				Extensions:  []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "images"),
+				Name:             "images",
+				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "images"),
+				ConflictStrategy: "hash_check",
 			},
 			{
-				Name:        "videos",
-				Extensions:  []string{"mp4", "avi", "mkv", "mov", "wmv"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "videos"),
+				Name:             "videos",
+				Extensions:       []string{"mp4", "avi", "mkv", "mov", "wmv"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "videos"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "audio",
-				Extensions:  []string{"mp3", "wav", "flac", "aac"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "audio"),
+				Name:             "audio",
+				Extensions:       []string{"mp3", "wav", "flac", "aac"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "audio"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "documents",
-				Extensions:  []string{"pdf", "doc", "docx", "txt", "md"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "documents"),
+				Name:             "documents",
+				Extensions:       []string{"pdf", "doc", "docx", "txt", "md"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "documents"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "spreadsheets",
-				Extensions:  []string{"xls", "xlsx", "csv"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "spreadsheets"),
+				Name:             "spreadsheets",
+				Extensions:       []string{"xls", "xlsx", "csv"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "spreadsheets"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "presentations",
-				Extensions:  []string{"ppt", "pptx"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "presentations"),
+				Name:             "presentations",
+				Extensions:       []string{"ppt", "pptx"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "presentations"),
+				ConflictStrategy: "rename",
 			},
 			{
-				Name:        "archives",
-				Extensions:  []string{"zip", "tar", "gz", "rar", "7z"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "archives"),
+				Name:             "archives",
+				Extensions:       []string{"zip", "tar", "gz", "rar", "7z"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "archives"),
+				ConflictStrategy: "hash_check",
 			},
 			{
-				Name:        "executables",
-				Extensions:  []string{"exe", "msi", "dmg", "app"},
-				Source:      basePath,
-				Destination: filepath.Join(basePath, "executables"),
+				Name:             "executables",
+				Extensions:       []string{"exe", "msi", "dmg", "app"},
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "executables"),
+				ConflictStrategy: "overwrite",
 			},
 		},
 	}
 }
 
-// Helper functions
-
+// getDefaultSourcePath returns the default source path (Downloads folder)
 func getDefaultSourcePath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -468,11 +481,13 @@ func getDefaultSourcePath() string {
 	return filepath.Join(homeDir, "Downloads")
 }
 
+// getDefaultDestinationPath returns the default destination path for a category
 func getDefaultDestinationPath(categoryName string) string {
 	source := getDefaultSourcePath()
 	return filepath.Join(source, categoryName)
 }
 
+// getDefaultLogPath returns the default log file path
 func getDefaultLogPath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -481,6 +496,7 @@ func getDefaultLogPath() string {
 	return filepath.Join(homeDir, ".movelooper", "logs", "movelooper.log")
 }
 
+// getExtensionSuggestions provides extension suggestions based on category name
 func getExtensionSuggestions(categoryName string) []string {
 	suggestions := map[string][]string{
 		"image":        {"jpg", "jpeg", "png", "gif", "bmp", "webp"},
@@ -512,14 +528,16 @@ func getExtensionSuggestions(categoryName string) []string {
 	return nil
 }
 
+// printCategorySummary prints a summary of the category configuration
 func printCategorySummary(category models.Category) {
 	pterm.Printf("  Name:        %s\n", pterm.Cyan(category.Name))
+	pterm.Printf("  Strategy:    %s\n", pterm.Magenta(category.ConflictStrategy))
 	pterm.Printf("  Source:      %s\n", pterm.Yellow(category.Source))
 	pterm.Printf("  Destination: %s\n", pterm.Yellow(category.Destination))
 	pterm.Printf("  Extensions:  %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
 }
 
+// clearScreen clears the terminal screen
 func clearScreen() {
-	// Reutiliza a função do models.Config se existir, ou implementa aqui
 	pterm.Println()
 }

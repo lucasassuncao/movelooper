@@ -21,7 +21,7 @@ Package helper provides utility functions for file and directory operations.
 
 
 <a name="CreateDirectory"></a>
-## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L14>)
+## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L16>)
 
 ```go
 func CreateDirectory(dir string) error
@@ -30,7 +30,7 @@ func CreateDirectory(dir string) error
 CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.
 
 <a name="GenerateLogArgs"></a>
-## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L106>)
+## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L202>)
 
 ```go
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
@@ -39,7 +39,7 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
 GenerateLogArgs generates log arguments for a given extension.
 
 <a name="HasExtension"></a>
-## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L99>)
+## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L195>)
 
 ```go
 func HasExtension(file os.DirEntry, extension string) bool
@@ -48,7 +48,7 @@ func HasExtension(file os.DirEntry, extension string) bool
 HasExtension checks if a file has a given extension \(case\-insensitive\)
 
 <a name="MoveFiles"></a>
-## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L52>)
+## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L54>)
 
 ```go
 func MoveFiles(m *models.Movelooper, category *models.CategoryConfig, files []os.DirEntry, extension string)
@@ -57,7 +57,7 @@ func MoveFiles(m *models.Movelooper, category *models.CategoryConfig, files []os
 MoveFiles moves files with the specified extension from the source directory to the destination directory. The destination path includes a subdirectory named after the extension, avoiding overwriting files.
 
 <a name="ReadDirectory"></a>
-## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L27>)
+## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L29>)
 
 ```go
 func ReadDirectory(path string) ([]os.DirEntry, error)
@@ -66,7 +66,7 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ReadDirectory reads the contents of a given directory and returns the files.
 
 <a name="ValidateFiles"></a>
-## func [ValidateFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L38>)
+## func [ValidateFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L40>)
 
 ```go
 func ValidateFiles(files []os.DirEntry, extension string) int

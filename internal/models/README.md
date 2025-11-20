@@ -31,30 +31,32 @@ Package models defines the data structures and functions related to application 
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L27-L32>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L27-L33>)
 
 Category represents a category of files to move
 
 ```go
 type Category struct {
-    Name        string   `yaml:"name"`
-    Extensions  []string `yaml:"extensions"`
-    Source      string   `yaml:"source"`
-    Destination string   `yaml:"destination"`
+    Name             string   `yaml:"name"`
+    Extensions       []string `yaml:"extensions"`
+    Source           string   `yaml:"source"`
+    Destination      string   `yaml:"destination"`
+    ConflictStrategy string   `yaml:"conflict_strategy"`
 }
 ```
 
 <a name="CategoryConfig"></a>
-## type [CategoryConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L18-L23>)
+## type [CategoryConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L18-L24>)
 
 CategoryConfig is a struct that holds the category configuration
 
 ```go
 type CategoryConfig struct {
-    CategoryName string   `mapstructure:"name"`
-    Extensions   []string `mapstructure:"extensions"`
-    Source       string   `mapstructure:"source"`
-    Destination  string   `mapstructure:"destination"`
+    CategoryName     string   `mapstructure:"name"`
+    Extensions       []string `mapstructure:"extensions"`
+    Source           string   `mapstructure:"source"`
+    Destination      string   `mapstructure:"destination"`
+    ConflictStrategy string   `mapstructure:"conflict_strategy"`
 }
 ```
 
@@ -71,7 +73,7 @@ type Config struct {
 ```
 
 <a name="ConfigOption"></a>
-## type [ConfigOption](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L35>)
+## type [ConfigOption](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L36>)
 
 ConfigOption is a function that modifies the configuration
 
@@ -80,7 +82,7 @@ type ConfigOption func(*Config)
 ```
 
 <a name="WithCategory"></a>
-### func [WithCategory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L79>)
+### func [WithCategory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L80>)
 
 ```go
 func WithCategory() ConfigOption
@@ -89,7 +91,7 @@ func WithCategory() ConfigOption
 WithCategory adds a category to the configuration The user is prompted to enter the category name, source directory, destination directory, and extensions
 
 <a name="WithLogFile"></a>
-### func [WithLogFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L48>)
+### func [WithLogFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L49>)
 
 ```go
 func WithLogFile() ConfigOption
@@ -98,7 +100,7 @@ func WithLogFile() ConfigOption
 WithLogFile prompts the user to specify the log file
 
 <a name="WithLogLevel"></a>
-### func [WithLogLevel](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L58>)
+### func [WithLogLevel](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L59>)
 
 ```go
 func WithLogLevel() ConfigOption
@@ -107,7 +109,7 @@ func WithLogLevel() ConfigOption
 WithLogLevel prompts the user to specify the log level
 
 <a name="WithOutput"></a>
-### func [WithOutput](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L38>)
+### func [WithOutput](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L39>)
 
 ```go
 func WithOutput() ConfigOption
@@ -116,7 +118,7 @@ func WithOutput() ConfigOption
 WithOutput prompts the user to specify the output
 
 <a name="WithShowCaller"></a>
-### func [WithShowCaller](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L68>)
+### func [WithShowCaller](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L69>)
 
 ```go
 func WithShowCaller() ConfigOption
