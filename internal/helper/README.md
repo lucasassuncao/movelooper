@@ -15,7 +15,7 @@ Package helper provides utility functions for file and directory operations.
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
 - [func GenerateLogArgs\(files \[\]os.DirEntry, extension string\) \[\]interface\{\}](<#GenerateLogArgs>)
 - [func HasExtension\(file os.DirEntry, extension string\) bool](<#HasExtension>)
-- [func MoveFiles\(m \*models.Movelooper, category \*models.CategoryConfig, files \[\]os.DirEntry, extension string\)](<#MoveFiles>)
+- [func MoveFiles\(m \*models.Movelooper, category \*models.Category, files \[\]os.DirEntry, extension string\)](<#MoveFiles>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
 - [func ValidateFiles\(files \[\]os.DirEntry, extension string\) int](<#ValidateFiles>)
 
@@ -51,7 +51,7 @@ HasExtension checks if a file has a given extension \(case\-insensitive\)
 ## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L54>)
 
 ```go
-func MoveFiles(m *models.Movelooper, category *models.CategoryConfig, files []os.DirEntry, extension string)
+func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension string)
 ```
 
 MoveFiles moves files with the specified extension from the source directory to the destination directory. The destination path includes a subdirectory named after the extension, avoiding overwriting files.

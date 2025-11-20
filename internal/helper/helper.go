@@ -51,7 +51,7 @@ func ValidateFiles(files []os.DirEntry, extension string) int {
 
 // MoveFiles moves files with the specified extension from the source directory to the destination directory.
 // The destination path includes a subdirectory named after the extension, avoiding overwriting files.
-func MoveFiles(m *models.Movelooper, category *models.CategoryConfig, files []os.DirEntry, extension string) {
+func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension string) {
 	for _, file := range files {
 		if !HasExtension(file, extension) {
 			continue

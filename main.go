@@ -19,10 +19,10 @@ func main() {
 	}
 
 	m := &models.Movelooper{
-		Viper:          v,
-		Logger:         nil,
-		Flags:          &models.Flags{},
-		CategoryConfig: make([]*models.CategoryConfig, 0),
+		Viper:      v,
+		Logger:     nil,
+		Flags:      &models.Flags{},
+		Categories: make([]*models.Category, 0),
 	}
 
 	root := cmd.RootCmd(m)

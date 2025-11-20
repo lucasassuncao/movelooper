@@ -51,8 +51,8 @@ func WithConfigPath(path string) ViperOptions {
 }
 
 // UnmarshalConfig unmarshals the config file into a struct
-func UnmarshalConfig(m *models.Movelooper) []*models.CategoryConfig {
-	var categories []*models.CategoryConfig
+func UnmarshalConfig(m *models.Movelooper) []*models.Category {
+	var categories []*models.Category
 	if err := m.Viper.UnmarshalKey("categories", &categories); err != nil {
 		log.Fatalf("Unable to decode into struct: %v", err)
 	}

@@ -12,7 +12,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 - [func ConfigureLogger\(v \*viper.Viper\) \(\*pterm.Logger, error\)](<#ConfigureLogger>)
 - [func InitConfig\(v \*viper.Viper, options ...ViperOptions\) error](<#InitConfig>)
-- [func UnmarshalConfig\(m \*models.Movelooper\) \[\]\*models.CategoryConfig](<#UnmarshalConfig>)
+- [func UnmarshalConfig\(m \*models.Movelooper\) \[\]\*models.Category](<#UnmarshalConfig>)
 - [type ViperOptions](<#ViperOptions>)
   - [func WithConfigName\(name string\) ViperOptions](<#WithConfigName>)
   - [func WithConfigPath\(path string\) ViperOptions](<#WithConfigPath>)
@@ -41,7 +41,7 @@ InitConfig initializes Viper to read from movelooper.yaml
 ## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L54>)
 
 ```go
-func UnmarshalConfig(m *models.Movelooper) []*models.CategoryConfig
+func UnmarshalConfig(m *models.Movelooper) []*models.Category
 ```
 
 UnmarshalConfig unmarshals the config file into a struct

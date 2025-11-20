@@ -33,9 +33,9 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 			return preRunHandler(m, configPath)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m.CategoryConfig = config.UnmarshalConfig(m)
+			m.Categories = config.UnmarshalConfig(m)
 
-			for _, category := range m.CategoryConfig {
+			for _, category := range m.Categories {
 				for _, extension := range category.Extensions {
 					files, err := helper.ReadDirectory(category.Source)
 					if err != nil {
