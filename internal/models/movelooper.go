@@ -30,7 +30,7 @@ type Configuration struct {
 	LogFile    string        `yaml:"log-file" mapstructure:"log-file"`
 	LogLevel   string        `yaml:"log-level" mapstructure:"log-level"`
 	ShowCaller bool          `yaml:"show-caller" mapstructure:"show-caller"`
-	WatchDelay time.Duration `yaml:"watch_delay" mapstructure:"watch_delay"` // Adicionado para o modo Watch
+	WatchDelay time.Duration `yaml:"watch_delay" mapstructure:"watch_delay"`
 }
 
 // Category represents a file category with its properties

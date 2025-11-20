@@ -88,6 +88,7 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 
 	// Add subcommands
 	cmd.AddCommand(InitCmd())
+	cmd.AddCommand(WatchCmd(m))
 
 	return cmd
 }
