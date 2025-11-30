@@ -165,52 +165,45 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 			continue
 		}
 
-		// Verifica a data de modificação real do arquivo
-		// Se (Agora - ModTime) > 5 minutos => O arquivo está estável
-
 		// Verifies if the file has stabilized based on its ModTime
 		if now.Sub(info.ModTime()) > threshold {
-
-			// Tries to find a category for this file
-			ext := strings.TrimPrefix(filepath.Ext(path), ".")
-			moved := false
-
-			// Iterate through categories to find the destination
-			// (Note: This can be optimized with a reverse map if there are many categories)
-			for _, cat := range m.Categories {
-				// Verifies if the file is in the correct source folder for this category
-				// filepath.Dir(path) must equal cat.Source (or equivalent)
-				if filepath.Clean(filepath.Dir(path)) != filepath.Clean(cat.Source) {
-					continue
-				}
-
-				for _, catExt := range cat.Extensions {
-					if strings.EqualFold(catExt, ext) {
-						files, _ := helper.ReadDirectory(cat.Source)
-						var targetFile os.DirEntry
-						for _, f := range files {
-							if f.Name() == filepath.Base(path) {
-								targetFile = f
-								break
-							}
-						}
-
-						if targetFile != nil {
-							helper.MoveFiles(m, cat, []os.DirEntry{targetFile}, ext)
-							moved = true
-						}
-						break
-					}
-				}
-				if moved {
-					break
-				}
-			}
-
-			// If moved or no category found (ignored file), remove from tracking
-			// If there was an error in MoveFiles, it already logs the error. We remove it from the list to avoid retrying forever
-			// or we could keep it if we want to retry. Here, we remove it to avoid infinite loops in case of permission errors.
+			attemptMoveFile(m, path)
+			// Remove from tracking after attempt (whether moved or ignored)
 			delete(tracker.files, path)
 		}
 	}
+}
+
+// attemptMoveFile tries to find a matching category and move the file
+func attemptMoveFile(m *models.Movelooper, path string) bool {
+	ext := strings.TrimPrefix(filepath.Ext(path), ".")
+
+	for _, cat := range m.Categories {
+		// Verifies if the file is in the correct source folder for this category
+		if filepath.Clean(filepath.Dir(path)) != filepath.Clean(cat.Source) {
+			continue
+		}
+
+		for _, catExt := range cat.Extensions {
+			if strings.EqualFold(catExt, ext) {
+				// We need to get the DirEntry to pass to MoveFiles.
+				// Reading the directory is safe to ensure we get the current state.
+				files, _ := helper.ReadDirectory(cat.Source)
+				var targetFile os.DirEntry
+				for _, f := range files {
+					if f.Name() == filepath.Base(path) {
+						targetFile = f
+						break
+					}
+				}
+
+				if targetFile != nil {
+					helper.MoveFiles(m, cat, []os.DirEntry{targetFile}, ext)
+					return true
+				}
+				return false
+			}
+		}
+	}
+	return false
 }
