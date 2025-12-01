@@ -51,11 +51,15 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 
 					switch count {
 					case 0:
-						m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
+						if category.Regex != "" && !category.UseExtensionSubfolder {
+							m.Logger.Info(fmt.Sprintf("No .%s files from category %s found", extension, category.Name))
+						} else {
+							m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
+						}
 					default:
 						var message string
 						if category.Regex != "" && !category.UseExtensionSubfolder {
-							message = fmt.Sprintf("%d files from category %s to move", count, category.Name)
+							message = fmt.Sprintf("%d .%s files from category %s to move", count, extension, category.Name)
 						} else {
 							message = fmt.Sprintf("%d .%s files to move", count, extension)
 						}
@@ -69,12 +73,15 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 
 					// Only move files if not in dry-run mode
 					if !dryRun {
-						dirPath := filepath.Join(category.Destination, extension)
-						if err := helper.CreateDirectory(dirPath); err != nil {
-							m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-							continue
+						if category.Regex != "" && !category.UseExtensionSubfolder {
+							helper.MoveFiles(m, category, files, extension)
+						} else {
+							dirPath := filepath.Join(category.Destination, extension)
+							if err := helper.CreateDirectory(dirPath); err != nil {
+								m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+							}
+							helper.MoveFiles(m, category, files, extension)
 						}
-						helper.MoveFiles(m, category, files, extension)
 					}
 				}
 			}
