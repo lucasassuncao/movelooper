@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/huh"
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
@@ -86,8 +88,10 @@ The configuration file will be created at: <executable_dir>/conf/movelooper.yaml
 		pterm.Success.Printf("Configuration file created at: %s\n", configFile)
 		pterm.Info.Println("\nNext steps:")
 		pterm.Info.Println("  1. Edit the configuration file to customize categories")
-		pterm.Info.Println("  2. Run 'movelooper preview' to see what would be moved")
-		pterm.Info.Println("  3. Run 'movelooper move' to organize your files")
+		pterm.Info.Println("  2. Run 'movelooper' to organize your files")
+		pterm.Info.Println("  3. Run 'movelooper --dry-run' to see what would be moved")
+		pterm.Info.Println("  4. Run 'movelooper watch' to continuously watch for file changes and move them")
+		pterm.Info.Println("  5. Run 'movelooper --help' to see all available commands")
 
 		return nil
 	}
@@ -102,54 +106,111 @@ The configuration file will be created at: <executable_dir>/conf/movelooper.yaml
 // generateInteractiveConfig creates configuration through interactive prompts
 func generateInteractiveConfig() *models.Config {
 	clearScreen()
-	pterm.DefaultHeader.WithFullWidth().Println("Movelooper Configuration Generator")
-	pterm.Println()
-
 	config := &models.Config{
 		Configuration: models.Configuration{},
 		Categories:    []models.Category{},
 	}
 
 	pterm.DefaultSection.Println("Logging Configuration")
-	output, _ := pterm.DefaultInteractiveSelect.
-		WithOptions([]string{"console", "log", "file", "both"}).
-		WithDefaultText("Where should logs be output?").
-		WithMaxHeight(10).
-		Show()
+
+	var output string
+	err := huh.NewSelect[string]().
+		Title("Where should logs be output?").
+		Options(
+			huh.NewOption("Console", "console"),
+			huh.NewOption("Log File", "log"),
+			huh.NewOption("File", "file"),
+			huh.NewOption("Both", "both"),
+		).
+		Value(&output).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
 	config.Configuration.Output = output
 
 	if output == "log" || output == "file" || output == "both" {
 		defaultLogPath := getDefaultLogPath()
-		logFile, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("Log file path").
-			WithDefaultValue(defaultLogPath).
-			Show()
+		var logFile string
+		err := huh.NewInput().
+			Title("Log file path").
+			Value(&logFile).
+			Placeholder(defaultLogPath).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+
+		if logFile == "" {
+			logFile = defaultLogPath
+		}
 		config.Configuration.LogFile = logFile
 	}
 
-	logLevel, _ := pterm.DefaultInteractiveSelect.
-		WithOptions([]string{"trace", "debug", "info", "warn", "error", "fatal"}).
-		WithDefaultText("Log level").
-		WithDefaultOption("info").
-		WithMaxHeight(10).
-		Show()
+	var logLevel string
+	err = huh.NewSelect[string]().
+		Title("Log level").
+		Options(
+			huh.NewOption("Trace", "trace"),
+			huh.NewOption("Debug", "debug"),
+			huh.NewOption("Info", "info"),
+			huh.NewOption("Warn", "warn"),
+			huh.NewOption("Error", "error"),
+			huh.NewOption("Fatal", "fatal"),
+		).
+		Value(&logLevel).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
 	config.Configuration.LogLevel = logLevel
 
-	showCaller, _ := pterm.DefaultInteractiveConfirm.
-		WithDefaultText("Show caller information in logs?").
-		WithDefaultValue(false).
-		Show()
+	var showCaller bool
+	err = huh.NewConfirm().
+		Title("Show caller information in logs?").
+		Value(&showCaller).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
 	config.Configuration.ShowCaller = showCaller
+
+	var watchDelayStr string
+	err = huh.NewInput().
+		Title("Watch delay (e.g., 5m, 30s) - This is the delay between file changes before moving files").
+		Value(&watchDelayStr).
+		Placeholder("5m").
+		Validate(func(str string) error {
+			if str == "" {
+				return nil
+			}
+			_, err := time.ParseDuration(str)
+			return err
+		}).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	if watchDelayStr == "" {
+		watchDelayStr = "5m"
+	}
+	watchDelay, _ := time.ParseDuration(watchDelayStr)
+	config.Configuration.WatchDelay = watchDelay
 
 	clearScreen()
 	pterm.DefaultSection.Println("Categories Configuration")
 	pterm.Info.Println("Categories define how files are organized")
 	pterm.Println()
 
-	addCategories, _ := pterm.DefaultInteractiveConfirm.
-		WithDefaultText("Do you want to add categories now?").
-		WithDefaultValue(true).
-		Show()
+	var addCategories bool
+	err = huh.NewConfirm().
+		Title("Do you want to add categories now?").
+		Value(&addCategories).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
 
 	if addCategories {
 		config.Categories = collectCategories()
@@ -169,33 +230,63 @@ func collectCategories() []models.Category {
 
 	for {
 		clearScreen()
-		pterm.DefaultHeader.WithFullWidth().Printf("Category #%d", len(categories)+1)
-		pterm.Println()
-
-		name, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("Category name (e.g., images, documents)").
-			Show()
-
-		if name == "" {
-			pterm.Warning.Println("Category name is required")
-			continue
+		var name string
+		err := huh.NewInput().
+			Title("Category name (e.g., images, documents)").
+			Value(&name).
+			Validate(func(str string) error {
+				if str == "" {
+					return fmt.Errorf("category name is required")
+				}
+				return nil
+			}).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
 		}
 
-		strategy, _ := pterm.DefaultInteractiveSelect.
-			WithOptions([]string{"rename", "hash_check", "overwrite", "skip"}).
-			WithDefaultText("Conflict strategy (if file exists)").
-			WithDefaultOption("rename").
-			Show()
+		var strategy string
+		err = huh.NewSelect[string]().
+			Title("Conflict strategy (if file exists)").
+			Options(
+				huh.NewOption("Rename", "rename"),
+				huh.NewOption("Hash Check", "hash_check"),
+				huh.NewOption("Overwrite", "overwrite"),
+				huh.NewOption("Skip", "skip"),
+			).
+			Value(&strategy).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
 
-		source, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("Source directory").
-			WithDefaultValue(getDefaultSourcePath()).
-			Show()
+		var source string
+		err = huh.NewInput().
+			Title("Source directory").
+			Value(&source).
+			Placeholder(getDefaultSourcePath()).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
 
-		destination, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("Destination directory").
-			WithDefaultValue(getDefaultDestinationPath(name)).
-			Show()
+		if source == "" {
+			source = getDefaultSourcePath()
+		}
+
+		var destination string
+		err = huh.NewInput().
+			Title("Destination directory").
+			Value(&destination).
+			Placeholder(getDefaultDestinationPath(name)).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+
+		if destination == "" {
+			destination = getDefaultDestinationPath(name)
+		}
 
 		extensions := collectExtensions(name)
 
@@ -216,10 +307,14 @@ func collectCategories() []models.Category {
 		pterm.Println()
 
 		// Add more?
-		addMore, _ := pterm.DefaultInteractiveConfirm.
-			WithDefaultText("Add another category?").
-			WithDefaultValue(false).
-			Show()
+		var addMore bool
+		err = huh.NewConfirm().
+			Title("Add another category?").
+			Value(&addMore).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
 
 		if !addMore {
 			break
@@ -235,10 +330,14 @@ func collectExtensions(categoryName string) []string {
 	suggestions := getExtensionSuggestions(categoryName)
 	if len(suggestions) > 0 {
 		pterm.Info.Printf("Suggested extensions for '%s': %s\n", categoryName, strings.Join(suggestions, ", "))
-		useSuggestions, _ := pterm.DefaultInteractiveConfirm.
-			WithDefaultText("Use suggested extensions?").
-			WithDefaultValue(true).
-			Show()
+		var useSuggestions bool
+		err := huh.NewConfirm().
+			Title("Use suggested extensions?").
+			Value(&useSuggestions).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
 
 		if useSuggestions {
 			return suggestions
@@ -248,9 +347,14 @@ func collectExtensions(categoryName string) []string {
 	pterm.Info.Println("Enter file extensions (without the dot, e.g., 'jpg' not '.jpg')")
 
 	for {
-		extension, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("File extension").
-			Show()
+		var extension string
+		err := huh.NewInput().
+			Title("File extension").
+			Value(&extension).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
 
 		if extension != "" {
 			// Remove dot if user added it
@@ -259,10 +363,14 @@ func collectExtensions(categoryName string) []string {
 		}
 
 		if len(extensions) > 0 {
-			addMore, _ := pterm.DefaultInteractiveConfirm.
-				WithDefaultText("Add another extension?").
-				WithDefaultValue(false).
-				Show()
+			var addMore bool
+			err := huh.NewConfirm().
+				Title("Add another extension?").
+				Value(&addMore).
+				Run()
+			if err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
 
 			if !addMore {
 				break
@@ -309,6 +417,7 @@ func getBasicTemplate() *models.Config {
 			Output:     "console",
 			LogLevel:   "info",
 			ShowCaller: false,
+			WatchDelay: 5 * time.Minute,
 		},
 		Categories: []models.Category{
 			{
@@ -331,6 +440,7 @@ func getMediaTemplate() *models.Config {
 			LogFile:    getDefaultLogPath(),
 			LogLevel:   "info",
 			ShowCaller: false,
+			WatchDelay: 5 * time.Minute,
 		},
 		Categories: []models.Category{
 			{
@@ -367,6 +477,7 @@ func getDevTemplate() *models.Config {
 			LogFile:    getDefaultLogPath(),
 			LogLevel:   "debug",
 			ShowCaller: true,
+			WatchDelay: 5 * time.Minute,
 		},
 		Categories: []models.Category{
 			{
@@ -410,6 +521,7 @@ func getFullTemplate() *models.Config {
 			LogFile:    getDefaultLogPath(),
 			LogLevel:   "info",
 			ShowCaller: true,
+			WatchDelay: 5 * time.Minute,
 		},
 		Categories: []models.Category{
 			{

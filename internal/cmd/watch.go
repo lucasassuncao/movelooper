@@ -32,7 +32,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 			}
 			m.Categories = config.UnmarshalConfig(m)
 
-			stabilityThreshold := m.Viper.GetDuration("configuration.watch_delay")
+			stabilityThreshold := m.Viper.GetDuration("configuration.watch-delay")
 			if stabilityThreshold == 0 {
 				stabilityThreshold = 5 * time.Minute
 			}

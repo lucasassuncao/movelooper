@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/charmbracelet/huh"
 	"github.com/pterm/pterm"
 	"github.com/spf13/viper"
 )
@@ -31,7 +32,7 @@ type Configuration struct {
 	LogFile    string        `yaml:"log-file" mapstructure:"log-file"`
 	LogLevel   string        `yaml:"log-level" mapstructure:"log-level"`
 	ShowCaller bool          `yaml:"show-caller" mapstructure:"show-caller"`
-	WatchDelay time.Duration `yaml:"watch_delay" mapstructure:"watch_delay"`
+	WatchDelay time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
 }
 
 // Category represents a file category with its properties
@@ -49,7 +50,20 @@ type ConfigOption func(*Config)
 // WithOutput prompts the user to specify the output
 func WithOutput() ConfigOption {
 	clearScreen()
-	output, _ := pterm.DefaultInteractiveSelect.WithOptions([]string{"console", "log", "file", "both"}).WithDefaultText("Specify the output").WithMaxHeight(10).Show()
+	var output string
+	err := huh.NewSelect[string]().
+		Title("Specify the output").
+		Options(
+			huh.NewOption("Console", "console"),
+			huh.NewOption("Log File", "log"),
+			huh.NewOption("File", "file"),
+			huh.NewOption("Both", "both"),
+		).
+		Value(&output).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
 
 	return func(c *Config) {
 		c.Configuration.Output = output
@@ -64,7 +78,19 @@ func WithLogFile() ConfigOption {
 		defaultLog = filepath.Join(home, "movelooper.log")
 	}
 
-	logFile, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Specify the log file").WithDefaultValue(defaultLog).Show()
+	var logFile string
+	err := huh.NewInput().
+		Title("Specify the log file").
+		Value(&logFile).
+		Placeholder(defaultLog).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	if logFile == "" {
+		logFile = defaultLog
+	}
 
 	return func(c *Config) {
 		c.Configuration.LogFile = logFile
@@ -74,7 +100,23 @@ func WithLogFile() ConfigOption {
 // WithLogLevel prompts the user to specify the log level
 func WithLogLevel() ConfigOption {
 	clearScreen()
-	logLevel, _ := pterm.DefaultInteractiveSelect.WithOptions([]string{"trace", "debug", "info", "warn", "warning", "error", "fatal"}).WithDefaultText("Specify the log level").WithMaxHeight(10).Show()
+	var logLevel string
+	err := huh.NewSelect[string]().
+		Title("Specify the log level").
+		Options(
+			huh.NewOption("Trace", "trace"),
+			huh.NewOption("Debug", "debug"),
+			huh.NewOption("Info", "info"),
+			huh.NewOption("Warn", "warn"),
+			huh.NewOption("Warning", "warning"),
+			huh.NewOption("Error", "error"),
+			huh.NewOption("Fatal", "fatal"),
+		).
+		Value(&logLevel).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
 
 	return func(c *Config) {
 		c.Configuration.LogLevel = logLevel
@@ -84,7 +126,14 @@ func WithLogLevel() ConfigOption {
 // WithShowCaller prompts the user to show the caller information
 func WithShowCaller() ConfigOption {
 	clearScreen()
-	showCaller, _ := pterm.DefaultInteractiveConfirm.WithDefaultText("Show caller?").Show()
+	var showCaller bool
+	err := huh.NewConfirm().
+		Title("Show caller?").
+		Value(&showCaller).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
 
 	return func(c *Config) {
 		c.Configuration.ShowCaller = showCaller
@@ -97,24 +146,48 @@ func WithCategory() ConfigOption {
 	clearScreen()
 	var categories []Category
 
-	want, _ := pterm.DefaultInteractiveConfirm.WithDefaultText("Do you want to add categories?").Show()
+	var want bool
+	err := huh.NewConfirm().
+		Title("Do you want to add categories?").
+		Value(&want).
+		Run()
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
 
 	if want {
 		for {
 			clearScreen()
 			var extensions []string
+			var name, source, destination string
 
-			name, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Specify the category name").Show()
-			source, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Specify the source directory").Show()
-			destination, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Specify the destination directory").Show()
+			if err := huh.NewInput().Title("Specify the category name").Value(&name).Run(); err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
+			if err := huh.NewInput().Title("Specify the source directory").Value(&source).Run(); err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
+			if err := huh.NewInput().Title("Specify the destination directory").Value(&destination).Run(); err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
 
-			wantExtensions, _ := pterm.DefaultInteractiveConfirm.WithDefaultText("Do you want to add extensions?").Show()
+			var wantExtensions bool
+			if err := huh.NewConfirm().Title("Do you want to add extensions?").Value(&wantExtensions).Run(); err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
+
 			if wantExtensions {
 				for {
-					extension, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Specify the extension").Show()
+					var extension string
+					if err := huh.NewInput().Title("Specify the extension").Value(&extension).Run(); err == huh.ErrUserAborted {
+						os.Exit(0)
+					}
 					extensions = append(extensions, extension)
 
-					addMore, _ := pterm.DefaultInteractiveConfirm.WithDefaultText("Do you want to add another extension?").Show()
+					var addMore bool
+					if err := huh.NewConfirm().Title("Do you want to add another extension?").Value(&addMore).Run(); err == huh.ErrUserAborted {
+						os.Exit(0)
+					}
 					if !addMore {
 						break
 					}
@@ -128,7 +201,10 @@ func WithCategory() ConfigOption {
 				Destination: destination,
 			})
 
-			addMore, _ := pterm.DefaultInteractiveConfirm.WithDefaultText("Do you want to add another category?").Show()
+			var addMore bool
+			if err := huh.NewConfirm().Title("Do you want to add another category?").Value(&addMore).Run(); err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
 			if !addMore {
 				break
 			}

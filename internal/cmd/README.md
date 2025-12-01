@@ -20,7 +20,7 @@ Package cmd contains the command line interface commands for the Movelooper appl
 
 
 <a name="InitCmd"></a>
-## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L25>)
+## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L27>)
 
 ```go
 func InitCmd() *cobra.Command
