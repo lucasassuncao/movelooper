@@ -53,7 +53,13 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 					case 0:
 						m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
 					default:
-						message := fmt.Sprintf("%d .%s files to move", count, extension)
+						var message string
+						if category.Regex != "" && !category.UseExtensionSubfolder {
+							message = fmt.Sprintf("%d files from category %s to move", count, category.Name)
+						} else {
+							message = fmt.Sprintf("%d .%s files to move", count, extension)
+						}
+
 						if showFiles && len(logArgs) > 0 {
 							m.Logger.Warn(message, m.Logger.Args(logArgs...))
 						} else {

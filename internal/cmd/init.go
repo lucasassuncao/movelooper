@@ -288,14 +288,47 @@ func collectCategories() []models.Category {
 			destination = getDefaultDestinationPath(name)
 		}
 
-		extensions := collectExtensions(name)
+		var useRegex, useSubfolder bool
+		var regex string
+		var extensions []string
+
+		err = huh.NewConfirm().
+			Title("Do you want to use Regex for filtering?").
+			Value(&useRegex).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+
+		if useRegex {
+			err = huh.NewInput().
+				Title("Specify the Regex pattern").
+				Value(&regex).
+				Run()
+			if err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
+		} else {
+			extensions = collectExtensions(name)
+		}
+
+		err = huh.NewConfirm().
+			Title("Create subfolders for extensions?").
+			Description("If yes, files will be moved to Destination/Extension/File.ext").
+			Value(&useSubfolder).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
 
 		category := models.Category{
-			Name:             name,
-			Extensions:       extensions,
-			Source:           source,
-			Destination:      destination,
-			ConflictStrategy: strategy, // Preenchendo o novo campo
+			Name:                  name,
+			Extensions:            extensions,
+			Regex:                 regex,
+			Source:                source,
+			Destination:           destination,
+			ConflictStrategy:      strategy,
+			UseExtensionSubfolder: useSubfolder,
 		}
 
 		categories = append(categories, category)
@@ -395,10 +428,15 @@ func getDefaultCategory() models.Category {
 // getTemplateConfig returns a predefined template configuration
 func getTemplateConfig(template string) *models.Config {
 	templates := map[string]func() *models.Config{
-		"basic": getBasicTemplate,
-		"media": getMediaTemplate,
-		"dev":   getDevTemplate,
-		"full":  getFullTemplate,
+		"basic":      getBasicTemplate,
+		"music":      getMusicTemplate,
+		"video":      getVideoTemplate,
+		"books":      getBooksTemplate,
+		"images":     getImagesTemplate,
+		"archives":   getArchivesTemplate,
+		"installers": getInstallersTemplate,
+		"regex":      getRegexTemplate,
+		"full":       getFullTemplate,
 	}
 
 	templateFunc, exists := templates[template]
@@ -421,92 +459,166 @@ func getBasicTemplate() *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:             "images",
-				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "images"),
-				ConflictStrategy: "rename",
+				Name:                  "images",
+				Extensions:            []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
+				Source:                getDefaultSourcePath(),
+				Destination:           filepath.Join(getDefaultSourcePath(), "images"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
 			},
 		},
 	}
 }
 
-// getMediaTemplate returns the media configuration template
-func getMediaTemplate() *models.Config {
-	basePath := getDefaultSourcePath()
+// getMusicTemplate returns the music configuration template
+func getMusicTemplate() *models.Config {
 	return &models.Config{
 		Configuration: models.Configuration{
-			Output:     "both",
-			LogFile:    getDefaultLogPath(),
+			Output:     "console",
 			LogLevel:   "info",
 			ShowCaller: false,
 			WatchDelay: 5 * time.Minute,
 		},
 		Categories: []models.Category{
 			{
-				Name:             "images",
-				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "images"),
-				ConflictStrategy: "hash_check",
-			},
-			{
-				Name:             "videos",
-				Extensions:       []string{"mp4", "avi", "mkv", "mov"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "videos"),
-				ConflictStrategy: "rename",
-			},
-			{
-				Name:             "audio",
-				Extensions:       []string{"mp3", "wav", "flac"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "audio"),
-				ConflictStrategy: "rename",
+				Name:                  "music",
+				Extensions:            []string{"mp3", "wav", "flac", "aac"},
+				Source:                getDefaultSourcePath(),
+				Destination:           filepath.Join(getDefaultSourcePath(), "music"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
 			},
 		},
 	}
 }
 
-// getMediaTemplate returns the media configuration template
-func getDevTemplate() *models.Config {
-	basePath := getDefaultSourcePath()
+// getVideoTemplate returns the video configuration template
+func getVideoTemplate() *models.Config {
 	return &models.Config{
 		Configuration: models.Configuration{
-			Output:     "both",
-			LogFile:    getDefaultLogPath(),
-			LogLevel:   "debug",
-			ShowCaller: true,
+			Output:     "console",
+			LogLevel:   "info",
+			ShowCaller: false,
 			WatchDelay: 5 * time.Minute,
 		},
 		Categories: []models.Category{
 			{
-				Name:             "source-code",
-				Extensions:       []string{"go", "py", "js", "ts", "java", "cpp", "c", "rs", "rb"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "code"),
-				ConflictStrategy: "rename",
+				Name:                  "videos",
+				Extensions:            []string{"mp4", "avi", "mkv", "mov", "wmv"},
+				Source:                getDefaultSourcePath(),
+				Destination:           filepath.Join(getDefaultSourcePath(), "videos"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
 			},
+		},
+	}
+}
+
+// getImagesTemplate returns the images configuration template
+func getImagesTemplate() *models.Config {
+	return &models.Config{
+		Configuration: models.Configuration{
+			Output:     "console",
+			LogLevel:   "info",
+			ShowCaller: false,
+			WatchDelay: 5 * time.Minute,
+		},
+		Categories: []models.Category{
 			{
-				Name:             "documentation",
-				Extensions:       []string{"md", "txt", "pdf", "doc", "docx"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "docs"),
-				ConflictStrategy: "rename",
+				Name:                  "images",
+				Extensions:            []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
+				Source:                getDefaultSourcePath(),
+				Destination:           filepath.Join(getDefaultSourcePath(), "images"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
 			},
+		},
+	}
+}
+
+// getBooksTemplate returns the books configuration template
+func getBooksTemplate() *models.Config {
+	return &models.Config{
+		Configuration: models.Configuration{
+			Output:     "console",
+			LogLevel:   "info",
+			ShowCaller: false,
+			WatchDelay: 5 * time.Minute,
+		},
+		Categories: []models.Category{
 			{
-				Name:             "configs",
-				Extensions:       []string{"yaml", "yml", "json", "toml", "xml", "ini", "conf"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "configs"),
-				ConflictStrategy: "rename",
+				Name:                  "books",
+				Extensions:            []string{"pdf", "epub", "mobi", "azw3", "doc", "docx"},
+				Source:                getDefaultSourcePath(),
+				Destination:           filepath.Join(getDefaultSourcePath(), "books"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
 			},
+		},
+	}
+}
+
+// getArchivesTemplate returns the archives configuration template
+func getArchivesTemplate() *models.Config {
+	return &models.Config{
+		Configuration: models.Configuration{
+			Output:     "console",
+			LogLevel:   "info",
+			ShowCaller: false,
+			WatchDelay: 5 * time.Minute,
+		},
+		Categories: []models.Category{
 			{
-				Name:             "archives",
-				Extensions:       []string{"zip", "tar", "gz", "rar", "7z"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "archives"),
-				ConflictStrategy: "hash_check",
+				Name:                  "archives",
+				Extensions:            []string{"zip", "tar", "gz", "bz2", "rar", "7z"},
+				Source:                getDefaultSourcePath(),
+				Destination:           filepath.Join(getDefaultSourcePath(), "archives"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
+			},
+		},
+	}
+}
+
+// getInstallersTemplate returns the installers configuration template
+func getInstallersTemplate() *models.Config {
+	return &models.Config{
+		Configuration: models.Configuration{
+			Output:     "console",
+			LogLevel:   "info",
+			ShowCaller: false,
+			WatchDelay: 5 * time.Minute,
+		},
+		Categories: []models.Category{
+			{
+				Name:                  "installers",
+				Extensions:            []string{"exe", "msi", "apk"},
+				Source:                getDefaultSourcePath(),
+				Destination:           filepath.Join(getDefaultSourcePath(), "installers"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
+			},
+		},
+	}
+}
+
+// getRegexTemplate returns the regex configuration template
+func getRegexTemplate() *models.Config {
+	return &models.Config{
+		Configuration: models.Configuration{
+			Output:     "console",
+			LogLevel:   "info",
+			ShowCaller: false,
+			WatchDelay: 5 * time.Minute,
+		},
+		Categories: []models.Category{
+			{
+				Name:                  "regex",
+				Regex:                 ".*",
+				Source:                getDefaultSourcePath(),
+				Destination:           filepath.Join(getDefaultSourcePath(), "regex"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
 			},
 		},
 	}
@@ -525,60 +637,60 @@ func getFullTemplate() *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:             "images",
-				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "images"),
-				ConflictStrategy: "hash_check",
+				Name:                  "images",
+				Extensions:            []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
+				Source:                basePath,
+				Destination:           filepath.Join(basePath, "images"),
+				ConflictStrategy:      "rename",
+				UseExtensionSubfolder: true,
 			},
 			{
-				Name:             "videos",
-				Extensions:       []string{"mp4", "avi", "mkv", "mov", "wmv"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "videos"),
-				ConflictStrategy: "rename",
+				Name:                  "videos",
+				Extensions:            []string{"mp4", "avi", "mkv", "mov", "wmv"},
+				Source:                basePath,
+				Destination:           filepath.Join(basePath, "videos"),
+				ConflictStrategy:      "overwrite",
+				UseExtensionSubfolder: true,
 			},
 			{
-				Name:             "audio",
-				Extensions:       []string{"mp3", "wav", "flac", "aac"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "audio"),
-				ConflictStrategy: "rename",
+				Name:                  "music",
+				Extensions:            []string{"mp3", "wav", "flac", "aac"},
+				Source:                basePath,
+				Destination:           filepath.Join(basePath, "music"),
+				ConflictStrategy:      "skip",
+				UseExtensionSubfolder: true,
 			},
 			{
-				Name:             "documents",
-				Extensions:       []string{"pdf", "doc", "docx", "txt", "md"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "documents"),
-				ConflictStrategy: "rename",
+				Name:                  "books",
+				Extensions:            []string{"pdf", "epub", "mobi", "azw3", "doc", "docx"},
+				Source:                basePath,
+				Destination:           filepath.Join(basePath, "books"),
+				ConflictStrategy:      "hash_check",
+				UseExtensionSubfolder: true,
 			},
 			{
-				Name:             "spreadsheets",
-				Extensions:       []string{"xls", "xlsx", "csv"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "spreadsheets"),
-				ConflictStrategy: "rename",
+				Name:                  "archives",
+				Extensions:            []string{"zip", "tar", "gz", "bz2", "rar", "7z"},
+				Source:                basePath,
+				Destination:           filepath.Join(basePath, "archives"),
+				ConflictStrategy:      "hash_check",
+				UseExtensionSubfolder: true,
 			},
 			{
-				Name:             "presentations",
-				Extensions:       []string{"ppt", "pptx"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "presentations"),
-				ConflictStrategy: "rename",
+				Name:                  "installers",
+				Extensions:            []string{"exe", "msi", "apk"},
+				Source:                basePath,
+				Destination:           filepath.Join(basePath, "installers"),
+				ConflictStrategy:      "hash_check",
+				UseExtensionSubfolder: true,
 			},
 			{
-				Name:             "archives",
-				Extensions:       []string{"zip", "tar", "gz", "rar", "7z"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "archives"),
-				ConflictStrategy: "hash_check",
-			},
-			{
-				Name:             "executables",
-				Extensions:       []string{"exe", "msi", "dmg", "app"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "executables"),
-				ConflictStrategy: "overwrite",
+				Name:                  "regex",
+				Regex:                 ".*",
+				Source:                basePath,
+				Destination:           filepath.Join(basePath, "regex"),
+				ConflictStrategy:      "hash_check",
+				UseExtensionSubfolder: true,
 			},
 		},
 	}
@@ -611,23 +723,13 @@ func getDefaultLogPath() string {
 // getExtensionSuggestions provides extension suggestions based on category name
 func getExtensionSuggestions(categoryName string) []string {
 	suggestions := map[string][]string{
-		"image":        {"jpg", "jpeg", "png", "gif", "bmp", "webp"},
-		"images":       {"jpg", "jpeg", "png", "gif", "bmp", "webp"},
-		"photo":        {"jpg", "jpeg", "png", "raw", "cr2", "nef"},
-		"photos":       {"jpg", "jpeg", "png", "raw", "cr2", "nef"},
-		"video":        {"mp4", "avi", "mkv", "mov", "wmv"},
-		"videos":       {"mp4", "avi", "mkv", "mov", "wmv"},
-		"audio":        {"mp3", "wav", "flac", "aac", "ogg"},
-		"music":        {"mp3", "wav", "flac", "aac", "ogg"},
-		"document":     {"pdf", "doc", "docx", "txt", "md"},
-		"documents":    {"pdf", "doc", "docx", "txt", "md"},
-		"code":         {"go", "py", "js", "ts", "java", "cpp"},
-		"source":       {"go", "py", "js", "ts", "java", "cpp"},
-		"archive":      {"zip", "tar", "gz", "rar", "7z"},
-		"archives":     {"zip", "tar", "gz", "rar", "7z"},
-		"spreadsheet":  {"xls", "xlsx", "csv"},
-		"spreadsheets": {"xls", "xlsx", "csv"},
-		"presentation": {"ppt", "pptx"},
+		"images":     {"jpg", "jpeg", "png", "gif", "bmp", "webp"},
+		"photos":     {"jpg", "jpeg", "png", "raw", "cr2", "nef"},
+		"videos":     {"mp4", "avi", "mkv", "mov", "wmv"},
+		"music":      {"mp3", "wav", "flac", "aac", "ogg"},
+		"documents":  {"pdf", "doc", "docx", "txt", "md"},
+		"archives":   {"zip", "tar", "gz", "rar", "7z"},
+		"installers": {"exe", "msi", "apk"},
 	}
 
 	name := strings.ToLower(categoryName)

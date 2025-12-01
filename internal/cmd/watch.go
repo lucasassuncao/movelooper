@@ -176,6 +176,7 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 
 // attemptMoveFile tries to find a matching category and move the file
 func attemptMoveFile(m *models.Movelooper, path string) bool {
+	fileName := filepath.Base(path)
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 
 	for _, cat := range m.Categories {
@@ -184,26 +185,38 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 			continue
 		}
 
+		// 1. Check Regex
+		if cat.Regex != "" {
+			if helper.MatchesRegex(fileName, cat.Regex) {
+				moveFileToCategory(m, *cat, path, ext) // ext might not be relevant for regex but we pass it
+				return true
+			}
+		}
+
+		// 2. Check Extensions
 		for _, catExt := range cat.Extensions {
 			if strings.EqualFold(catExt, ext) {
-				// We need to get the DirEntry to pass to MoveFiles.
-				// Reading the directory is safe to ensure we get the current state.
-				files, _ := helper.ReadDirectory(cat.Source)
-				var targetFile os.DirEntry
-				for _, f := range files {
-					if f.Name() == filepath.Base(path) {
-						targetFile = f
-						break
-					}
-				}
-
-				if targetFile != nil {
-					helper.MoveFiles(m, cat, []os.DirEntry{targetFile}, ext)
-					return true
-				}
-				return false
+				moveFileToCategory(m, *cat, path, ext)
+				return true
 			}
 		}
 	}
 	return false
+}
+
+func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext string) {
+	// We need to get the DirEntry to pass to MoveFiles.
+	// Reading the directory is safe to ensure we get the current state.
+	files, _ := helper.ReadDirectory(cat.Source)
+	var targetFile os.DirEntry
+	for _, f := range files {
+		if f.Name() == filepath.Base(path) {
+			targetFile = f
+			break
+		}
+	}
+
+	if targetFile != nil {
+		helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext)
+	}
 }

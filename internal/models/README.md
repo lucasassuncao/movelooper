@@ -26,17 +26,19 @@ Package models defines the data structures and functions related to application 
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L39-L45>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L39-L47>)
 
 Category represents a file category with its properties
 
 ```go
 type Category struct {
-    Name             string   `yaml:"name" mapstructure:"name"`
-    Extensions       []string `yaml:"extensions" mapstructure:"extensions"`
-    Source           string   `yaml:"source" mapstructure:"source"`
-    Destination      string   `yaml:"destination" mapstructure:"destination"`
-    ConflictStrategy string   `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
+    Name                  string   `yaml:"name" mapstructure:"name"`
+    Extensions            []string `yaml:"extensions" mapstructure:"extensions"`
+    Regex                 string   `yaml:"regex" mapstructure:"regex"`
+    Source                string   `yaml:"source" mapstructure:"source"`
+    Destination           string   `yaml:"destination" mapstructure:"destination"`
+    ConflictStrategy      string   `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
+    UseExtensionSubfolder bool     `yaml:"use_extension_subfolder" mapstructure:"use_extension_subfolder"`
 }
 ```
 
@@ -53,7 +55,7 @@ type Config struct {
 ```
 
 <a name="ConfigOption"></a>
-## type [ConfigOption](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L48>)
+## type [ConfigOption](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L50>)
 
 ConfigOption is a function that modifies the configuration
 
@@ -62,7 +64,7 @@ type ConfigOption func(*Config)
 ```
 
 <a name="WithCategory"></a>
-### func [WithCategory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L145>)
+### func [WithCategory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L147>)
 
 ```go
 func WithCategory() ConfigOption
@@ -71,7 +73,7 @@ func WithCategory() ConfigOption
 WithCategory adds a category to the configuration The user is prompted to enter the category name, source directory, destination directory, and extensions
 
 <a name="WithLogFile"></a>
-### func [WithLogFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L74>)
+### func [WithLogFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L76>)
 
 ```go
 func WithLogFile() ConfigOption
@@ -80,7 +82,7 @@ func WithLogFile() ConfigOption
 WithLogFile prompts the user to specify the log file
 
 <a name="WithLogLevel"></a>
-### func [WithLogLevel](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L101>)
+### func [WithLogLevel](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L103>)
 
 ```go
 func WithLogLevel() ConfigOption
@@ -89,7 +91,7 @@ func WithLogLevel() ConfigOption
 WithLogLevel prompts the user to specify the log level
 
 <a name="WithOutput"></a>
-### func [WithOutput](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L51>)
+### func [WithOutput](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L53>)
 
 ```go
 func WithOutput() ConfigOption
@@ -98,7 +100,7 @@ func WithOutput() ConfigOption
 WithOutput prompts the user to specify the output
 
 <a name="WithShowCaller"></a>
-### func [WithShowCaller](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L127>)
+### func [WithShowCaller](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L129>)
 
 ```go
 func WithShowCaller() ConfigOption

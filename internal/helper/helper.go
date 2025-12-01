@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -58,20 +59,22 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 		}
 
 		sourcePath := filepath.Join(category.Source, file.Name())
-		// O diretório de destino base (ex: .../Images/jpg/)
-		destDir := filepath.Join(category.Destination, extension)
-		// O caminho final pretendido
-		destPath := filepath.Join(destDir, file.Name())
 
-		// Define estratégia padrão se estiver vazia
+		var destDir string
+		if category.UseExtensionSubfolder {
+			destDir = filepath.Join(category.Destination, extension)
+		} else {
+			destDir = category.Destination
+		}
+
+		destPath := filepath.Join(destDir, file.Name())
 		strategy := category.ConflictStrategy
 		if strategy == "" {
 			strategy = "rename"
 		}
 
-		// Verifica se já existe arquivo no destino
+		// Check if file already exists in destination
 		if _, err := os.Stat(destPath); err == nil {
-			// ARQUIVO EXISTE: Resolver conflito
 			resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, file.Name())
 			if err != nil {
 				m.Logger.Error("error to solve conflicts", m.Logger.Args("file", file.Name()), m.Logger.Args("error", err.Error()))
@@ -91,7 +94,6 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 			destPath = resolvedPath
 		}
 
-		// Executa a movimentação
 		err := moveFile(sourcePath, destPath)
 		if err != nil {
 			m.Logger.Error("failed to move file", m.Logger.Args("file", sourcePath), m.Logger.Args("error", err.Error()))
@@ -132,7 +134,6 @@ func resolveConflict(strategy, src, dst, destDir, fileName string) (string, bool
 	case "rename":
 		fallthrough
 	default:
-		// Gera nome único: arquivo(1).jpg
 		return getUniqueDestinationPath(destDir, fileName), true, nil
 	}
 }
@@ -207,4 +208,13 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{} {
 		}
 	}
 	return logArgs
+}
+
+// MatchesRegex checks if the file name matches the provided regex pattern
+func MatchesRegex(fileName, pattern string) bool {
+	matched, err := regexp.MatchString(pattern, fileName)
+	if err != nil {
+		return false
+	}
+	return matched
 }

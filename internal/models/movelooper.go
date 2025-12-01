@@ -37,11 +37,13 @@ type Configuration struct {
 
 // Category represents a file category with its properties
 type Category struct {
-	Name             string   `yaml:"name" mapstructure:"name"`
-	Extensions       []string `yaml:"extensions" mapstructure:"extensions"`
-	Source           string   `yaml:"source" mapstructure:"source"`
-	Destination      string   `yaml:"destination" mapstructure:"destination"`
-	ConflictStrategy string   `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
+	Name                  string   `yaml:"name" mapstructure:"name"`
+	Extensions            []string `yaml:"extensions" mapstructure:"extensions"`
+	Regex                 string   `yaml:"regex" mapstructure:"regex"`
+	Source                string   `yaml:"source" mapstructure:"source"`
+	Destination           string   `yaml:"destination" mapstructure:"destination"`
+	ConflictStrategy      string   `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
+	UseExtensionSubfolder bool     `yaml:"use_extension_subfolder" mapstructure:"use_extension_subfolder"`
 }
 
 // ConfigOption is a function that modifies the configuration
@@ -159,7 +161,8 @@ func WithCategory() ConfigOption {
 		for {
 			clearScreen()
 			var extensions []string
-			var name, source, destination string
+			var name, source, destination, regex string
+			var useRegex, useSubfolder bool
 
 			if err := huh.NewInput().Title("Specify the category name").Value(&name).Run(); err == huh.ErrUserAborted {
 				os.Exit(0)
@@ -171,34 +174,50 @@ func WithCategory() ConfigOption {
 				os.Exit(0)
 			}
 
-			var wantExtensions bool
-			if err := huh.NewConfirm().Title("Do you want to add extensions?").Value(&wantExtensions).Run(); err == huh.ErrUserAborted {
+			if err := huh.NewConfirm().Title("Do you want to use Regex for filtering?").Value(&useRegex).Run(); err == huh.ErrUserAborted {
 				os.Exit(0)
 			}
 
-			if wantExtensions {
-				for {
-					var extension string
-					if err := huh.NewInput().Title("Specify the extension").Value(&extension).Run(); err == huh.ErrUserAborted {
-						os.Exit(0)
-					}
-					extensions = append(extensions, extension)
+			if useRegex {
+				if err := huh.NewInput().Title("Specify the Regex pattern").Value(&regex).Run(); err == huh.ErrUserAborted {
+					os.Exit(0)
+				}
+			} else {
+				var wantExtensions bool
+				if err := huh.NewConfirm().Title("Do you want to add extensions?").Value(&wantExtensions).Run(); err == huh.ErrUserAborted {
+					os.Exit(0)
+				}
 
-					var addMore bool
-					if err := huh.NewConfirm().Title("Do you want to add another extension?").Value(&addMore).Run(); err == huh.ErrUserAborted {
-						os.Exit(0)
-					}
-					if !addMore {
-						break
+				if wantExtensions {
+					for {
+						var extension string
+						if err := huh.NewInput().Title("Specify the extension").Value(&extension).Run(); err == huh.ErrUserAborted {
+							os.Exit(0)
+						}
+						extensions = append(extensions, extension)
+
+						var addMore bool
+						if err := huh.NewConfirm().Title("Do you want to add another extension?").Value(&addMore).Run(); err == huh.ErrUserAborted {
+							os.Exit(0)
+						}
+						if !addMore {
+							break
+						}
 					}
 				}
 			}
 
+			if err := huh.NewConfirm().Title("Create subfolders for extensions?").Description("If yes, files will be moved to Destination/Extension/File.ext").Value(&useSubfolder).Run(); err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
+
 			categories = append(categories, Category{
-				Name:        name,
-				Extensions:  extensions,
-				Source:      source,
-				Destination: destination,
+				Name:                  name,
+				Extensions:            extensions,
+				Regex:                 regex,
+				Source:                source,
+				Destination:           destination,
+				UseExtensionSubfolder: useSubfolder,
 			})
 
 			var addMore bool
