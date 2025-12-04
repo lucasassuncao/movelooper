@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
+	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
 	"github.com/spf13/cobra"
@@ -28,59 +31,112 @@ based on configurable categories.
 
 By default, it runs the move operation automatically.
 Use -p / --preview / --dry-run for a dry-run preview, and --show-files to display filenames.`,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			configPath, _ := cmd.Flags().GetString("config")
 			return preRunHandler(m, configPath)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m.Categories = config.UnmarshalConfig(m)
 
+			batchID := fmt.Sprintf("batch_%d", time.Now().Unix())
+
+			// Track moved files to avoid processing them multiple times
+			movedFiles := make(map[string]bool)
+
 			for _, category := range m.Categories {
-				for _, extension := range category.Extensions {
-					files, err := helper.ReadDirectory(category.Source)
-					if err != nil {
-						m.Logger.Error("failed to read directory",
-							m.Logger.Args("path", category.Source),
-							m.Logger.Args("error", err.Error()),
-						)
-						continue
+				files, err := helper.ReadDirectory(category.Source)
+				if err != nil {
+					m.Logger.Error("failed to read directory",
+						m.Logger.Args("path", category.Source),
+						m.Logger.Args("error", err.Error()),
+					)
+					continue
+				}
+
+				// Handle regex categories (single pass, no extensions)
+				if category.Regex != "" {
+					var filteredFiles []os.DirEntry
+					for _, file := range files {
+						filePath := filepath.Join(category.Source, file.Name())
+						// Skip if already moved
+						if movedFiles[filePath] {
+							continue
+						}
+						if helper.MatchesRegex(file.Name(), category.Regex) {
+							filteredFiles = append(filteredFiles, file)
+						}
 					}
 
-					count := helper.ValidateFiles(files, extension)
-					logArgs := helper.GenerateLogArgs(files, extension)
-
-					switch count {
-					case 0:
-						if category.Regex != "" && !category.UseExtensionSubfolder {
-							m.Logger.Info(fmt.Sprintf("No .%s files from category %s found", extension, category.Name))
-						} else {
-							m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
-						}
-					default:
-						var message string
-						if category.Regex != "" && !category.UseExtensionSubfolder {
-							message = fmt.Sprintf("%d .%s files from category %s to move", count, extension, category.Name)
-						} else {
-							message = fmt.Sprintf("%d .%s files to move", count, extension)
-						}
-
-						if showFiles && len(logArgs) > 0 {
-							m.Logger.Warn(message, m.Logger.Args(logArgs...))
+					count := len(filteredFiles)
+					if count == 0 {
+						m.Logger.Info(fmt.Sprintf("No files matching regex for category %s found", category.Name))
+					} else {
+						message := fmt.Sprintf("%d files from category %s to move", count, category.Name)
+						if showFiles {
+							var fileNames []string
+							for _, f := range filteredFiles {
+								fileNames = append(fileNames, f.Name())
+							}
+							m.Logger.Warn(message, m.Logger.Args("files", fileNames))
 						} else {
 							m.Logger.Warn(message)
 						}
-					}
 
-					// Only move files if not in dry-run mode
-					if !dryRun {
-						if category.Regex != "" && !category.UseExtensionSubfolder {
-							helper.MoveFiles(m, category, files, extension)
-						} else {
+						if !dryRun {
+							// Create destination directory for regex category
+							if err := helper.CreateDirectory(category.Destination); err != nil {
+								m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+							}
+							helper.MoveFiles(m, category, filteredFiles, "", batchID)
+							// Mark these files as moved
+							for _, f := range filteredFiles {
+								filePath := filepath.Join(category.Source, f.Name())
+								movedFiles[filePath] = true
+							}
+						}
+					}
+				} else {
+					// Handle extension categories (loop through extensions)
+					for _, extension := range category.Extensions {
+						// Filter out already moved files
+						var availableFiles []os.DirEntry
+						for _, file := range files {
+							filePath := filepath.Join(category.Source, file.Name())
+							if !movedFiles[filePath] {
+								availableFiles = append(availableFiles, file)
+							}
+						}
+
+						count := helper.ValidateFiles(availableFiles, extension)
+						logArgs := helper.GenerateLogArgs(availableFiles, extension)
+
+						switch count {
+						case 0:
+							m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
+						default:
+							message := fmt.Sprintf("%d .%s files to move", count, extension)
+							if showFiles && len(logArgs) > 0 {
+								m.Logger.Warn(message, m.Logger.Args(logArgs...))
+							} else {
+								m.Logger.Warn(message)
+							}
+						}
+
+						// Only move files if not in dry-run mode
+						if !dryRun && count > 0 {
 							dirPath := filepath.Join(category.Destination, extension)
 							if err := helper.CreateDirectory(dirPath); err != nil {
 								m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
 							}
-							helper.MoveFiles(m, category, files, extension)
+							helper.MoveFiles(m, category, availableFiles, extension, batchID)
+							// Mark moved files
+							for _, file := range availableFiles {
+								ext := strings.TrimPrefix(filepath.Ext(file.Name()), ".")
+								if strings.EqualFold(ext, extension) {
+									filePath := filepath.Join(category.Source, file.Name())
+									movedFiles[filePath] = true
+								}
+							}
 						}
 					}
 				}
@@ -94,14 +150,15 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 		},
 	}
 
-	cmd.Flags().StringP("config", "c", "", "Path to configuration file (e.g., /path/to/movelooper.yaml)")
-	cmd.Flags().BoolVarP(&dryRun, "preview", "p", false, "Run in dry-run (preview) mode without moving files")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Alias for --preview")
-	cmd.Flags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
+	cmd.PersistentFlags().StringP("config", "c", "", "Path to configuration file (e.g., /path/to/movelooper.yaml)")
+	cmd.PersistentFlags().BoolVarP(&dryRun, "preview", "p", false, "Run in dry-run (preview) mode without moving files")
+	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Alias for --preview")
+	cmd.PersistentFlags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
 
 	// Add subcommands
 	cmd.AddCommand(InitCmd())
 	cmd.AddCommand(WatchCmd(m))
+	cmd.AddCommand(UndoCmd(m))
 
 	return cmd
 }
@@ -150,6 +207,14 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 	}
 
 	m.Logger = logger
+
+	hist, err := history.NewHistory()
+	if err != nil {
+		// Log warning but don't fail app if history fails
+		m.Logger.Warn("Failed to initialize history tracking", m.Logger.Args("error", err.Error()))
+	} else {
+		m.History = hist
+	}
 
 	return nil
 }

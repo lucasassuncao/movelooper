@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/huh"
+	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/pterm/pterm"
 	"github.com/spf13/viper"
 )
@@ -18,6 +19,7 @@ type Movelooper struct {
 	Viper      *viper.Viper
 	Flags      *Flags
 	Categories []*Category
+	History    *history.History
 }
 
 // Config represents the complete structure of the movelooper.yaml file
@@ -37,13 +39,12 @@ type Configuration struct {
 
 // Category represents a file category with its properties
 type Category struct {
-	Name                  string   `yaml:"name" mapstructure:"name"`
-	Extensions            []string `yaml:"extensions" mapstructure:"extensions"`
-	Regex                 string   `yaml:"regex" mapstructure:"regex"`
-	Source                string   `yaml:"source" mapstructure:"source"`
-	Destination           string   `yaml:"destination" mapstructure:"destination"`
-	ConflictStrategy      string   `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
-	UseExtensionSubfolder bool     `yaml:"use_extension_subfolder" mapstructure:"use_extension_subfolder"`
+	Name             string   `yaml:"name" mapstructure:"name"`
+	Extensions       []string `yaml:"extensions" mapstructure:"extensions"`
+	Regex            string   `yaml:"regex" mapstructure:"regex"`
+	Source           string   `yaml:"source" mapstructure:"source"`
+	Destination      string   `yaml:"destination" mapstructure:"destination"`
+	ConflictStrategy string   `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
 }
 
 // ConfigOption is a function that modifies the configuration
@@ -162,7 +163,7 @@ func WithCategory() ConfigOption {
 			clearScreen()
 			var extensions []string
 			var name, source, destination, regex string
-			var useRegex, useSubfolder bool
+			var useRegex bool
 
 			if err := huh.NewInput().Title("Specify the category name").Value(&name).Run(); err == huh.ErrUserAborted {
 				os.Exit(0)
@@ -207,17 +208,12 @@ func WithCategory() ConfigOption {
 				}
 			}
 
-			if err := huh.NewConfirm().Title("Create subfolders for extensions?").Description("If yes, files will be moved to Destination/Extension/File.ext").Value(&useSubfolder).Run(); err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
-
 			categories = append(categories, Category{
-				Name:                  name,
-				Extensions:            extensions,
-				Regex:                 regex,
-				Source:                source,
-				Destination:           destination,
-				UseExtensionSubfolder: useSubfolder,
+				Name:        name,
+				Extensions:  extensions,
+				Regex:       regex,
+				Source:      source,
+				Destination: destination,
 			})
 
 			var addMore bool

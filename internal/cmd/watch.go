@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -217,6 +218,12 @@ func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext str
 	}
 
 	if targetFile != nil {
-		helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext)
+		batchID := fmt.Sprintf("watch_%d", time.Now().UnixNano())
+		// For regex categories, pass empty extension string
+		if cat.Regex != "" {
+			helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, "", batchID)
+		} else {
+			helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext, batchID)
+		}
 	}
 }

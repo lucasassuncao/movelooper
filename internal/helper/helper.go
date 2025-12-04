@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
@@ -52,28 +54,27 @@ func ValidateFiles(files []os.DirEntry, extension string) int {
 
 // MoveFiles moves files with the specified extension from the source directory to the destination directory.
 // The destination path includes a subdirectory named after the extension, avoiding overwriting files.
-func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension string) {
+func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension, batchID string) {
 	for _, file := range files {
-		if !HasExtension(file, extension) {
+		// For regex categories, extension is empty - skip extension check
+		if extension != "" && !HasExtension(file, extension) {
 			continue
 		}
 
 		sourcePath := filepath.Join(category.Source, file.Name())
 
 		var destDir string
-		if category.UseExtensionSubfolder {
-			destDir = filepath.Join(category.Destination, extension)
-		} else {
+		if category.Regex != "" {
 			destDir = category.Destination
+		} else {
+			destDir = filepath.Join(category.Destination, extension)
 		}
-
 		destPath := filepath.Join(destDir, file.Name())
+
 		strategy := category.ConflictStrategy
 		if strategy == "" {
 			strategy = "rename"
 		}
-
-		// Check if file already exists in destination
 		if _, err := os.Stat(destPath); err == nil {
 			resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, file.Name())
 			if err != nil {
@@ -93,11 +94,23 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 			}
 			destPath = resolvedPath
 		}
-
 		err := moveFile(sourcePath, destPath)
 		if err != nil {
 			m.Logger.Error("failed to move file", m.Logger.Args("file", sourcePath), m.Logger.Args("error", err.Error()))
 			continue
+		}
+
+		// Add to history if enabled
+		if m.History != nil {
+			err := m.History.Add(history.Entry{
+				Source:      sourcePath,
+				Destination: destPath,
+				Timestamp:   time.Now(),
+				BatchID:     batchID,
+			})
+			if err != nil {
+				m.Logger.Warn("failed to add to history", m.Logger.Args("error", err.Error()))
+			}
 		}
 
 		m.Logger.Info("successfully moved file", m.Logger.Args("source", sourcePath), m.Logger.Args("destination", destPath))

@@ -16,13 +16,13 @@ Package helper provides utility functions for file and directory operations.
 - [func GenerateLogArgs\(files \[\]os.DirEntry, extension string\) \[\]interface\{\}](<#GenerateLogArgs>)
 - [func HasExtension\(file os.DirEntry, extension string\) bool](<#HasExtension>)
 - [func MatchesRegex\(fileName, pattern string\) bool](<#MatchesRegex>)
-- [func MoveFiles\(m \*models.Movelooper, category \*models.Category, files \[\]os.DirEntry, extension string\)](<#MoveFiles>)
+- [func MoveFiles\(m \*models.Movelooper, category \*models.Category, files \[\]os.DirEntry, extension, batchID string\)](<#MoveFiles>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
 - [func ValidateFiles\(files \[\]os.DirEntry, extension string\) int](<#ValidateFiles>)
 
 
 <a name="CreateDirectory"></a>
-## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L17>)
+## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L19>)
 
 ```go
 func CreateDirectory(dir string) error
@@ -31,7 +31,7 @@ func CreateDirectory(dir string) error
 CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.
 
 <a name="GenerateLogArgs"></a>
-## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L203>)
+## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L216>)
 
 ```go
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
@@ -40,7 +40,7 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
 GenerateLogArgs generates log arguments for a given extension.
 
 <a name="HasExtension"></a>
-## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L196>)
+## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L209>)
 
 ```go
 func HasExtension(file os.DirEntry, extension string) bool
@@ -49,7 +49,7 @@ func HasExtension(file os.DirEntry, extension string) bool
 HasExtension checks if a file has a given extension \(case\-insensitive\)
 
 <a name="MatchesRegex"></a>
-## func [MatchesRegex](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L214>)
+## func [MatchesRegex](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L227>)
 
 ```go
 func MatchesRegex(fileName, pattern string) bool
@@ -58,16 +58,16 @@ func MatchesRegex(fileName, pattern string) bool
 MatchesRegex checks if the file name matches the provided regex pattern
 
 <a name="MoveFiles"></a>
-## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L55>)
+## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L57>)
 
 ```go
-func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension string)
+func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension, batchID string)
 ```
 
 MoveFiles moves files with the specified extension from the source directory to the destination directory. The destination path includes a subdirectory named after the extension, avoiding overwriting files.
 
 <a name="ReadDirectory"></a>
-## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L30>)
+## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L32>)
 
 ```go
 func ReadDirectory(path string) ([]os.DirEntry, error)
@@ -76,7 +76,7 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ReadDirectory reads the contents of a given directory and returns the files.
 
 <a name="ValidateFiles"></a>
-## func [ValidateFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L41>)
+## func [ValidateFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L43>)
 
 ```go
 func ValidateFiles(files []os.DirEntry, extension string) int
