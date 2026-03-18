@@ -320,10 +320,25 @@ func collectCategories() []models.Category {
 			extensions = collectExtensions(name)
 		}
 
+		var ignorePatterns []string
+		var addIgnore bool
+		err = huh.NewConfirm().
+			Title("Do you want to add ignore patterns?").
+			Description("Glob patterns for files to skip (e.g., *_temp.*, screenshot_*)").
+			Value(&addIgnore).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+		if addIgnore {
+			ignorePatterns = collectIgnorePatterns()
+		}
+
 		category := models.Category{
 			Name:             name,
 			Extensions:       extensions,
 			Regex:            regex,
+			Ignore:           ignorePatterns,
 			Source:           source,
 			Destination:      destination,
 			ConflictStrategy: strategy,
@@ -409,6 +424,44 @@ func collectExtensions(categoryName string) []string {
 		}
 	}
 	return extensions
+}
+
+// collectIgnorePatterns collects glob ignore patterns from user input
+func collectIgnorePatterns() []string {
+	var patterns []string
+
+	pterm.Info.Println("Enter glob patterns for files to ignore (e.g., *_temp.*, screenshot_*, *.tmp)")
+
+	for {
+		var pattern string
+		err := huh.NewInput().
+			Title("Ignore pattern").
+			Value(&pattern).
+			Run()
+		if err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+
+		if pattern != "" {
+			patterns = append(patterns, pattern)
+		}
+
+		if len(patterns) > 0 {
+			var addMore bool
+			err := huh.NewConfirm().
+				Title("Add another ignore pattern?").
+				Value(&addMore).
+				Run()
+			if err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
+
+			if !addMore {
+				break
+			}
+		}
+	}
+	return patterns
 }
 
 // getDefaultCategory returns a default category configuration
@@ -629,6 +682,7 @@ func getFullTemplate() *models.Config {
 			{
 				Name:             "images",
 				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
+				Ignore:           []string{"screenshot_*", "*_temp.*"},
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "images"),
 				ConflictStrategy: "rename",
@@ -636,6 +690,7 @@ func getFullTemplate() *models.Config {
 			{
 				Name:             "videos",
 				Extensions:       []string{"mp4", "avi", "mkv", "mov", "wmv"},
+				Ignore:           []string{"*_preview.*", "*_draft.*"},
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "videos"),
 				ConflictStrategy: "overwrite",
@@ -732,6 +787,9 @@ func printCategorySummary(category models.Category) {
 	pterm.Printf("  Source:      %s\n", pterm.Yellow(category.Source))
 	pterm.Printf("  Destination: %s\n", pterm.Yellow(category.Destination))
 	pterm.Printf("  Extensions:  %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
+	if len(category.Ignore) > 0 {
+		pterm.Printf("  Ignore:      %s\n", pterm.Red(strings.Join(category.Ignore, ", ")))
+	}
 }
 
 // clearScreen clears the terminal screen

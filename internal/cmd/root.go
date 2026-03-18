@@ -72,7 +72,7 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 						if movedFiles[filePath] {
 							continue
 						}
-						if helper.MatchesRegex(file.Name(), category.CompiledRegex) {
+						if helper.MatchesRegex(file.Name(), category.CompiledRegex) && !helper.MatchesIgnorePatterns(file.Name(), category.Ignore) {
 							filteredFiles = append(filteredFiles, file)
 						}
 					}
@@ -112,7 +112,7 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 						var availableFiles []os.DirEntry
 						for _, file := range files {
 							filePath := filepath.Join(category.Source, file.Name())
-							if !movedFiles[filePath] {
+							if !movedFiles[filePath] && !helper.MatchesIgnorePatterns(file.Name(), category.Ignore) {
 								availableFiles = append(availableFiles, file)
 							}
 						}

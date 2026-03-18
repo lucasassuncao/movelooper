@@ -21,6 +21,20 @@ func MatchesRegex(fileName string, re *regexp.Regexp) bool {
 	return re.MatchString(fileName)
 }
 
+// MatchesIgnorePatterns reports whether fileName matches any of the provided
+// glob patterns. Matching is case-insensitive. Patterns follow filepath.Match
+// syntax: * matches any sequence of characters, ? matches one character.
+func MatchesIgnorePatterns(fileName string, patterns []string) bool {
+	lower := strings.ToLower(fileName)
+	for _, pattern := range patterns {
+		matched, err := filepath.Match(strings.ToLower(pattern), lower)
+		if err == nil && matched {
+			return true
+		}
+	}
+	return false
+}
+
 // CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.
 func CreateDirectory(dir string) error {
 	_, err := os.Stat(dir)

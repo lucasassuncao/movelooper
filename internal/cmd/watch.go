@@ -174,7 +174,7 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 				}
 			}
 
-			if matches {
+			if matches && !helper.MatchesIgnorePatterns(file.Name(), cat.Ignore) {
 				fullPath := filepath.Join(cat.Source, file.Name())
 				// The Ticker will check the real ModTime of the file.
 				// If the file is old, ModTime will be old and it will be moved on the first tick.
@@ -225,6 +225,11 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 	for _, cat := range m.Categories {
 		// Verifies if the file is in the correct source folder for this category
 		if filepath.Clean(filepath.Dir(path)) != filepath.Clean(cat.Source) {
+			continue
+		}
+
+		// Skip files matching the category's ignore patterns
+		if helper.MatchesIgnorePatterns(fileName, cat.Ignore) {
 			continue
 		}
 
