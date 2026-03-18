@@ -93,6 +93,35 @@ func (h *History) prune() {
 	h.Entries = newEntries
 }
 
+// BatchSummary holds a brief description of a batch for listing purposes
+type BatchSummary struct {
+	BatchID   string
+	Count     int
+	Timestamp time.Time
+}
+
+// GetAllBatches returns one summary per batch, ordered oldest → newest
+func (h *History) GetAllBatches() []BatchSummary {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	seen := make(map[string]*BatchSummary)
+	var order []string
+	for _, e := range h.Entries {
+		if _, ok := seen[e.BatchID]; !ok {
+			seen[e.BatchID] = &BatchSummary{BatchID: e.BatchID, Timestamp: e.Timestamp}
+			order = append(order, e.BatchID)
+		}
+		seen[e.BatchID].Count++
+	}
+
+	summaries := make([]BatchSummary, 0, len(order))
+	for _, id := range order {
+		summaries = append(summaries, *seen[id])
+	}
+	return summaries
+}
+
 // GetLastBatchID returns the ID of the most recent batch
 func (h *History) GetLastBatchID() (string, error) {
 	h.mu.Lock()
