@@ -16,15 +16,16 @@ import (
 )
 
 // RootCmd represents the base command when called without any subcommands
-func RootCmd(m *models.Movelooper) *cobra.Command {
+func RootCmd(m *models.Movelooper, version string) *cobra.Command {
 	var (
 		dryRun    bool
 		showFiles bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "movelooper",
-		Short: "movelooper is a CLI tool for organizing and moving files",
+		Use:     "movelooper",
+		Short:   "movelooper is a CLI tool for organizing and moving files",
+		Version: version,
 		Long: `movelooper organizes and moves files from source directories to destination directories,
 based on configurable categories.
 

@@ -1,9 +1,13 @@
 .PHONY: help build build-all release install fmt lint test test-coverage deps docs run clean
 
 # Tool versions
-GORELEASER_VERSION := v2@latest
 GOLANGCI_LINT_VERSION := v2.5.0
 GOMARKDOC_VERSION := latest
+
+# Tools invoked via `go run` — no global install required
+GORELEASER  := go run github.com/goreleaser/goreleaser/v2@latest
+GOLANGCI    := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+GOMARKDOC   := go run github.com/princjef/gomarkdoc/cmd/gomarkdoc@$(GOMARKDOC_VERSION)
 
 # Project variables
 BINARY_NAME := movelooper
@@ -15,18 +19,15 @@ help: ## Show this help message
 
 build: ## Build binary with goreleaser (current platform only)
 	@echo "Building..."
-	@go install github.com/goreleaser/goreleaser/$(GORELEASER_VERSION)
-	@goreleaser build --skip=validate --single-target --snapshot --clean
+	@$(GORELEASER) build --skip=validate --single-target --snapshot --clean
 
 build-all: ## Build binaries for all platforms
 	@echo "Building for all platforms..."
-	@go install github.com/goreleaser/goreleaser/$(GORELEASER_VERSION)
-	@goreleaser build --skip=validate --snapshot --clean
+	@$(GORELEASER) build --skip=validate --snapshot --clean
 
 release: ## Create a release with goreleaser
 	@echo "Creating release..."
-	@go install github.com/goreleaser/goreleaser/$(GORELEASER_VERSION)
-	@goreleaser release --timeout 360s
+	@$(GORELEASER) release --timeout 360s
 
 install: ## Install binary globally
 	@go install
@@ -35,8 +36,7 @@ fmt: ## Format code
 	@go fmt ./...
 
 lint: ## Run linter checks
-	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-	@golangci-lint -v run ./...
+	@$(GOLANGCI) -v run ./...
 
 test: ## Run tests
 	@go test -v ./...
@@ -50,8 +50,7 @@ deps: ## Download and tidy dependencies
 	@go mod tidy
 
 docs: ## Generate documentation with gomarkdoc
-	@go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@$(GOMARKDOC_VERSION)
-	@gomarkdoc -e -o '{{.Dir}}/README.md' ./...
+	@$(GOMARKDOC) -e -o '{{.Dir}}/README.md' ./...
 
 run: ## Run the application
 	@go run $(MAIN_PATH)

@@ -11,6 +11,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// version is set at build time via -ldflags "-X main.version=<tag>"
+var version = "dev"
+
 func main() {
 	v := viper.GetViper()
 	if v == nil {
@@ -25,7 +28,7 @@ func main() {
 		Categories: make([]*models.Category, 0),
 	}
 
-	root := cmd.RootCmd(m)
+	root := cmd.RootCmd(m, version)
 
 	err := root.ExecuteContext(context.Background())
 	if err != nil {
