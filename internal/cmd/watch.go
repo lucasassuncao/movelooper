@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -16,6 +17,16 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/spf13/cobra"
 )
+
+// fileInfoDirEntry wraps an os.FileInfo to satisfy the os.DirEntry interface.
+type fileInfoDirEntry struct {
+	info os.FileInfo
+}
+
+func (e fileInfoDirEntry) Name() string               { return e.info.Name() }
+func (e fileInfoDirEntry) IsDir() bool                { return e.info.IsDir() }
+func (e fileInfoDirEntry) Type() fs.FileMode          { return e.info.Mode().Type() }
+func (e fileInfoDirEntry) Info() (fs.FileInfo, error) { return e.info, nil }
 
 // fileTracker keeps track of files detected by the watcher
 type fileTracker struct {
@@ -172,24 +183,33 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 
 // processPendingFiles checks which files have "stabilized" (not used for the threshold duration) and attempts to move them
 func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold time.Duration) {
-	tracker.mu.Lock()
-	defer tracker.mu.Unlock()
-
 	now := time.Now()
 
-	for path := range tracker.files {
+	// Snapshot tracked paths under lock to keep I/O outside the critical section
+	tracker.mu.Lock()
+	paths := make([]string, 0, len(tracker.files))
+	for p := range tracker.files {
+		paths = append(paths, p)
+	}
+	tracker.mu.Unlock()
+
+	for _, path := range paths {
 		// Verify if the file still exists (it may have been deleted or moved manually)
 		info, err := os.Stat(path)
 		if os.IsNotExist(err) {
+			tracker.mu.Lock()
 			delete(tracker.files, path)
+			tracker.mu.Unlock()
 			continue
 		}
 
 		// Verifies if the file has stabilized based on its ModTime
-		if now.Sub(info.ModTime()) > threshold {
+		if err == nil && now.Sub(info.ModTime()) > threshold {
 			attemptMoveFile(m, path)
 			// Remove from tracking after attempt (whether moved or ignored)
+			tracker.mu.Lock()
 			delete(tracker.files, path)
+			tracker.mu.Unlock()
 		}
 	}
 }
@@ -225,24 +245,16 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 }
 
 func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext string) {
-	// We need to get the DirEntry to pass to MoveFiles.
-	// Reading the directory is safe to ensure we get the current state.
-	files, _ := helper.ReadDirectory(cat.Source)
-	var targetFile os.DirEntry
-	for _, f := range files {
-		if f.Name() == filepath.Base(path) {
-			targetFile = f
-			break
-		}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return
 	}
 
-	if targetFile != nil {
-		batchID := fmt.Sprintf("watch_%d", time.Now().UnixNano())
-		// For regex categories, pass empty extension string
-		if cat.Regex != "" {
-			helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, "", batchID)
-		} else {
-			helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext, batchID)
-		}
+	targetFile := fileInfoDirEntry{info: info}
+	batchID := fmt.Sprintf("watch_%d", time.Now().UnixNano())
+	if cat.Regex != "" {
+		helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, "", batchID)
+	} else {
+		helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext, batchID)
 	}
 }

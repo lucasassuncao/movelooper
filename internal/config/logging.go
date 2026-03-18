@@ -12,8 +12,10 @@ import (
 
 const maxWidth = 70
 
-// ConfigureLogger configures the logger based on the configuration
-func ConfigureLogger(v *viper.Viper) (*pterm.Logger, error) {
+// ConfigureLogger configures the logger based on the configuration.
+// Returns the logger, a Closer that must be called on exit (non-nil only when
+// writing to a file), and any error.
+func ConfigureLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error) {
 	switch v.GetString("configuration.output") {
 	default:
 		fallthrough
@@ -27,31 +29,31 @@ func ConfigureLogger(v *viper.Viper) (*pterm.Logger, error) {
 }
 
 // configurePTermLogger configures the logger to write to the console
-func configurePTermLogger(v *viper.Viper) (*pterm.Logger, error) {
+func configurePTermLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error) {
 	l := v.GetString("configuration.log-level")
 	s := v.GetBool("configuration.show-caller")
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(os.Stdout).WithMaxWidth(maxWidth), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(os.Stdout).WithMaxWidth(maxWidth), nil, nil
 }
 
 // configureFileLogger configures the logger to write to a file
-func configureFileLogger(v *viper.Viper) (*pterm.Logger, error) {
+func configureFileLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error) {
 	f, err := openLogFile(v)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	l := v.GetString("configuration.log-level")
 	s := v.GetBool("configuration.show-caller")
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(f).WithMaxWidth(maxWidth), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(f).WithMaxWidth(maxWidth), f, nil
 }
 
 // configureMultiWriterLogger configures the logger to write to both the console and a file
-func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, error) {
+func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error) {
 	f, err := openLogFile(v)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	l := v.GetString("configuration.log-level")
@@ -59,7 +61,7 @@ func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, error) {
 
 	multiWriter := io.MultiWriter(os.Stdout, f)
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(multiWriter).WithMaxWidth(maxWidth), nil
+	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(multiWriter).WithMaxWidth(maxWidth), f, nil
 }
 
 // openLogFile opens the log file for writing

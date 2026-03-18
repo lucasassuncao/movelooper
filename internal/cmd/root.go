@@ -35,6 +35,12 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 			configPath, _ := cmd.Flags().GetString("config")
 			return preRunHandler(m, configPath)
 		},
+		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+			if m.LogCloser != nil {
+				return m.LogCloser.Close()
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			categories, err := config.UnmarshalConfig(m)
 			if err != nil {
@@ -205,12 +211,13 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
 	}
 
-	logger, err := config.ConfigureLogger(m.Viper)
+	logger, closer, err := config.ConfigureLogger(m.Viper)
 	if err != nil {
 		return fmt.Errorf("failed to configure logger: %v", err)
 	}
 
 	m.Logger = logger
+	m.LogCloser = closer
 
 	hist, err := history.NewHistory()
 	if err != nil {

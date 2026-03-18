@@ -1,6 +1,7 @@
 package models
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +22,7 @@ type Movelooper struct {
 	Flags      *Flags
 	Categories []*Category
 	History    *history.History
+	LogCloser  io.Closer // non-nil when logging to a file; closed on exit
 }
 
 // Config represents the complete structure of the movelooper.yaml file

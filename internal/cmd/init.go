@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -288,7 +289,7 @@ func collectCategories() []models.Category {
 			destination = getDefaultDestinationPath(name)
 		}
 
-		var useRegex, useSubfolder bool
+		var useRegex bool
 		var regex string
 		var extensions []string
 
@@ -304,21 +305,19 @@ func collectCategories() []models.Category {
 			err = huh.NewInput().
 				Title("Specify the Regex pattern").
 				Value(&regex).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("regex pattern is required")
+					}
+					_, err := regexp.Compile(s)
+					return err
+				}).
 				Run()
 			if err == huh.ErrUserAborted {
 				os.Exit(0)
 			}
 		} else {
 			extensions = collectExtensions(name)
-		}
-
-		err = huh.NewConfirm().
-			Title("Create subfolders for extensions?").
-			Description("If yes, files will be moved to Destination/Extension/File.ext").
-			Value(&useSubfolder).
-			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
 		}
 
 		category := models.Category{
