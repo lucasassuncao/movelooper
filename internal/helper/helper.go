@@ -35,6 +35,51 @@ func MatchesIgnorePatterns(fileName string, patterns []string) bool {
 	return false
 }
 
+// MatchesGlob reports whether fileName matches the glob pattern.
+// Supports brace expansion: *.{jpg,png} expands to *.jpg and *.png.
+// Matching is case-insensitive.
+func MatchesGlob(fileName, pattern string) bool {
+	lower := strings.ToLower(fileName)
+	for _, p := range expandGlobPattern(strings.ToLower(pattern)) {
+		matched, err := filepath.Match(p, lower)
+		if err == nil && matched {
+			return true
+		}
+	}
+	return false
+}
+
+// expandGlobPattern expands a single {a,b,c} group into multiple patterns.
+// For example, "*.{jpg,png}" becomes ["*.jpg", "*.png"].
+// Only the first brace group is expanded; nested braces are not supported.
+func expandGlobPattern(pattern string) []string {
+	start := strings.Index(pattern, "{")
+	end := strings.Index(pattern, "}")
+	if start == -1 || end == -1 || end < start {
+		return []string{pattern}
+	}
+
+	prefix := pattern[:start]
+	suffix := pattern[end+1:]
+	alternatives := strings.Split(pattern[start+1:end], ",")
+
+	expanded := make([]string, 0, len(alternatives))
+	for _, alt := range alternatives {
+		expanded = append(expanded, prefix+strings.TrimSpace(alt)+suffix)
+	}
+	return expanded
+}
+
+// ValidateGlob checks that pattern is syntactically valid after brace expansion.
+func ValidateGlob(pattern string) error {
+	for _, p := range expandGlobPattern(pattern) {
+		if _, err := filepath.Match(p, ""); err != nil {
+			return fmt.Errorf("invalid glob pattern %q: %w", p, err)
+		}
+	}
+	return nil
+}
+
 // CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.
 func CreateDirectory(dir string) error {
 	_, err := os.Stat(dir)
@@ -76,19 +121,13 @@ func ValidateFiles(files []os.DirEntry, extension string) int {
 // The destination path includes a subdirectory named after the extension, avoiding overwriting files.
 func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension, batchID string) {
 	for _, file := range files {
-		// For regex categories, extension is empty - skip extension check
-		if extension != "" && !HasExtension(file, extension) {
+		if !HasExtension(file, extension) {
 			continue
 		}
 
 		sourcePath := filepath.Join(category.Source, file.Name())
 
-		var destDir string
-		if category.Regex != "" {
-			destDir = category.Destination
-		} else {
-			destDir = filepath.Join(category.Destination, extension)
-		}
+		destDir := filepath.Join(category.Destination, extension)
 		destPath := filepath.Join(destDir, file.Name())
 
 		strategy := category.ConflictStrategy

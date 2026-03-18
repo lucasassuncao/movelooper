@@ -45,6 +45,7 @@ type Category struct {
 	Name             string         `yaml:"name" mapstructure:"name"`
 	Extensions       []string       `yaml:"extensions" mapstructure:"extensions"`
 	Regex            string         `yaml:"regex" mapstructure:"regex"`
+	Glob             string         `yaml:"glob" mapstructure:"glob"`
 	Ignore           []string       `yaml:"ignore" mapstructure:"ignore"`
 	Source           string         `yaml:"source" mapstructure:"source"`
 	Destination      string         `yaml:"destination" mapstructure:"destination"`

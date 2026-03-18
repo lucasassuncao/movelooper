@@ -289,19 +289,28 @@ func collectCategories() []models.Category {
 			destination = getDefaultDestinationPath(name)
 		}
 
-		var useRegex bool
-		var regex string
-		var extensions []string
+		extensions := collectExtensions(name)
 
-		err = huh.NewConfirm().
-			Title("Do you want to use Regex for filtering?").
-			Value(&useRegex).
+		var filterType string
+		var regex string
+		var glob string
+
+		err = huh.NewSelect[string]().
+			Title("Add an optional name filter?").
+			Description("Extensions already define the file type; this further filters by name").
+			Options(
+				huh.NewOption("None", "none"),
+				huh.NewOption("Glob pattern (e.g., report_*.pdf, invoice_*.{pdf,docx})", "glob"),
+				huh.NewOption("Regex pattern (e.g., ^report_\\d{4}\\.pdf$)", "regex"),
+			).
+			Value(&filterType).
 			Run()
 		if err == huh.ErrUserAborted {
 			os.Exit(0)
 		}
 
-		if useRegex {
+		switch filterType {
+		case "regex":
 			err = huh.NewInput().
 				Title("Specify the Regex pattern").
 				Value(&regex).
@@ -316,8 +325,21 @@ func collectCategories() []models.Category {
 			if err == huh.ErrUserAborted {
 				os.Exit(0)
 			}
-		} else {
-			extensions = collectExtensions(name)
+		case "glob":
+			err = huh.NewInput().
+				Title("Specify the Glob pattern").
+				Description("Use * for any characters, ? for one character, {a,b} for alternatives").
+				Value(&glob).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("glob pattern is required")
+					}
+					return helper.ValidateGlob(s)
+				}).
+				Run()
+			if err == huh.ErrUserAborted {
+				os.Exit(0)
+			}
 		}
 
 		var ignorePatterns []string
@@ -338,6 +360,7 @@ func collectCategories() []models.Category {
 			Name:             name,
 			Extensions:       extensions,
 			Regex:            regex,
+			Glob:             glob,
 			Ignore:           ignorePatterns,
 			Source:           source,
 			Destination:      destination,
@@ -658,7 +681,8 @@ func getRegexTemplate() *models.Config {
 		Categories: []models.Category{
 			{
 				Name:             "regex",
-				Regex:            ".*",
+				Extensions:       []string{"pdf", "txt", "log"},
+				Regex:            `^\d{4}-\d{2}-\d{2}_.*`,
 				Source:           getDefaultSourcePath(),
 				Destination:      filepath.Join(getDefaultSourcePath(), "regex"),
 				ConflictStrategy: "rename",
@@ -724,11 +748,20 @@ func getFullTemplate() *models.Config {
 				ConflictStrategy: "hash_check",
 			},
 			{
-				Name:             "regex",
-				Regex:            ".*",
+				Name:             "dated-docs",
+				Extensions:       []string{"pdf", "txt", "log"},
+				Regex:            `^\d{4}-\d{2}-\d{2}_.*`,
 				Source:           basePath,
-				Destination:      filepath.Join(basePath, "regex"),
+				Destination:      filepath.Join(basePath, "dated"),
 				ConflictStrategy: "hash_check",
+			},
+			{
+				Name:             "reports",
+				Extensions:       []string{"pdf", "docx"},
+				Glob:             "report_*",
+				Source:           basePath,
+				Destination:      filepath.Join(basePath, "reports"),
+				ConflictStrategy: "rename",
 			},
 		},
 	}
@@ -786,7 +819,13 @@ func printCategorySummary(category models.Category) {
 	pterm.Printf("  Strategy:    %s\n", pterm.Magenta(category.ConflictStrategy))
 	pterm.Printf("  Source:      %s\n", pterm.Yellow(category.Source))
 	pterm.Printf("  Destination: %s\n", pterm.Yellow(category.Destination))
-	pterm.Printf("  Extensions:  %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
+	if category.Regex != "" {
+		pterm.Printf("  Regex:       %s\n", pterm.Green(category.Regex))
+	} else if category.Glob != "" {
+		pterm.Printf("  Glob:        %s\n", pterm.Green(category.Glob))
+	} else {
+		pterm.Printf("  Extensions:  %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
+	}
 	if len(category.Ignore) > 0 {
 		pterm.Printf("  Ignore:      %s\n", pterm.Red(strings.Join(category.Ignore, ", ")))
 	}

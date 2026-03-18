@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
 	"github.com/spf13/viper"
@@ -59,12 +60,26 @@ func UnmarshalConfig(m *models.Movelooper) ([]*models.Category, error) {
 	}
 
 	for _, cat := range categories {
+		if len(cat.Extensions) == 0 {
+			return nil, fmt.Errorf("category %q: extensions are required", cat.Name)
+		}
+
+		if cat.Regex != "" && cat.Glob != "" {
+			return nil, fmt.Errorf("category %q: regex and glob are mutually exclusive; use only one", cat.Name)
+		}
+
 		if cat.Regex != "" {
 			compiled, err := regexp.Compile(cat.Regex)
 			if err != nil {
 				return nil, fmt.Errorf("invalid regex in category %q: %w", cat.Name, err)
 			}
 			cat.CompiledRegex = compiled
+		}
+
+		if cat.Glob != "" {
+			if err := helper.ValidateGlob(cat.Glob); err != nil {
+				return nil, fmt.Errorf("category %q: %w", cat.Name, err)
+			}
 		}
 	}
 

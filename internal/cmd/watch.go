@@ -158,20 +158,21 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 				continue
 			}
 
+			// Extensions are mandatory; check extension first
+			fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Name()), "."))
 			matches := false
-
-			if cat.CompiledRegex != nil {
-				// Regex category: check the pattern directly
-				matches = helper.MatchesRegex(file.Name(), cat.CompiledRegex)
-			} else {
-				// Extension category: check if the file extension matches any configured extension
-				fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Name()), "."))
-				for _, ext := range cat.Extensions {
-					if strings.ToLower(ext) == fileExt {
-						matches = true
-						break
-					}
+			for _, ext := range cat.Extensions {
+				if strings.ToLower(ext) == fileExt {
+					matches = true
+					break
 				}
+			}
+			// Apply optional regex/glob name filter
+			if matches && cat.CompiledRegex != nil {
+				matches = helper.MatchesRegex(file.Name(), cat.CompiledRegex)
+			}
+			if matches && cat.Glob != "" {
+				matches = helper.MatchesGlob(file.Name(), cat.Glob)
 			}
 
 			if matches && !helper.MatchesIgnorePatterns(file.Name(), cat.Ignore) {
@@ -233,20 +234,19 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 			continue
 		}
 
-		// 1. Check Regex
-		if cat.Regex != "" {
-			if helper.MatchesRegex(fileName, cat.CompiledRegex) {
-				moveFileToCategory(m, *cat, path, ext) // ext might not be relevant for regex but we pass it
-				return true
-			}
-		}
-
-		// 2. Check Extensions
+		// Extensions are mandatory; regex/glob are additional name filters
 		for _, catExt := range cat.Extensions {
-			if strings.EqualFold(catExt, ext) {
-				moveFileToCategory(m, *cat, path, ext)
-				return true
+			if !strings.EqualFold(catExt, ext) {
+				continue
 			}
+			if cat.CompiledRegex != nil && !helper.MatchesRegex(fileName, cat.CompiledRegex) {
+				continue
+			}
+			if cat.Glob != "" && !helper.MatchesGlob(fileName, cat.Glob) {
+				continue
+			}
+			moveFileToCategory(m, *cat, path, ext)
+			return true
 		}
 	}
 	return false
@@ -260,9 +260,5 @@ func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext str
 
 	targetFile := fileInfoDirEntry{info: info}
 	batchID := fmt.Sprintf("watch_%d", time.Now().UnixNano())
-	if cat.Regex != "" {
-		helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, "", batchID)
-	} else {
-		helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext, batchID)
-	}
+	helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext, batchID)
 }

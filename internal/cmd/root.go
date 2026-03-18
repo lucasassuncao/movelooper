@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
@@ -63,90 +62,58 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 					continue
 				}
 
-				// Handle regex categories (single pass, no extensions)
-				if category.Regex != "" {
+				// Extensions are mandatory; regex/glob act as additional name filters
+				for _, extension := range category.Extensions {
+					// Build candidate list: not already moved, not ignored, matches extension
 					var filteredFiles []os.DirEntry
 					for _, file := range files {
 						filePath := filepath.Join(category.Source, file.Name())
-						// Skip if already moved
 						if movedFiles[filePath] {
 							continue
 						}
-						if helper.MatchesRegex(file.Name(), category.CompiledRegex) && !helper.MatchesIgnorePatterns(file.Name(), category.Ignore) {
-							filteredFiles = append(filteredFiles, file)
+						if helper.MatchesIgnorePatterns(file.Name(), category.Ignore) {
+							continue
 						}
+						if !helper.HasExtension(file, extension) || !file.Type().IsRegular() {
+							continue
+						}
+						// Apply optional regex/glob name filter
+						if category.Regex != "" && !helper.MatchesRegex(file.Name(), category.CompiledRegex) {
+							continue
+						}
+						if category.Glob != "" && !helper.MatchesGlob(file.Name(), category.Glob) {
+							continue
+						}
+						filteredFiles = append(filteredFiles, file)
 					}
 
 					count := len(filteredFiles)
-					if count == 0 {
-						m.Logger.Info(fmt.Sprintf("No files matching regex for category %s found", category.Name))
-					} else {
-						message := fmt.Sprintf("%d files from category %s to move", count, category.Name)
+					switch count {
+					case 0:
+						m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
+					default:
+						message := fmt.Sprintf("%d .%s files to move", count, extension)
 						if showFiles {
-							var fileNames []string
-							for _, f := range filteredFiles {
-								fileNames = append(fileNames, f.Name())
-							}
-							m.Logger.Warn(message, m.Logger.Args("files", fileNames))
-						} else {
-							m.Logger.Warn(message)
-						}
-
-						if !dryRun {
-							// Create destination directory for regex category
-							if err := helper.CreateDirectory(category.Destination); err != nil {
-								m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-							}
-							helper.MoveFiles(m, category, filteredFiles, "", batchID)
-							// Mark these files as moved
-							for _, f := range filteredFiles {
-								filePath := filepath.Join(category.Source, f.Name())
-								movedFiles[filePath] = true
-							}
-						}
-					}
-				} else {
-					// Handle extension categories (loop through extensions)
-					for _, extension := range category.Extensions {
-						// Filter out already moved files
-						var availableFiles []os.DirEntry
-						for _, file := range files {
-							filePath := filepath.Join(category.Source, file.Name())
-							if !movedFiles[filePath] && !helper.MatchesIgnorePatterns(file.Name(), category.Ignore) {
-								availableFiles = append(availableFiles, file)
-							}
-						}
-
-						count := helper.ValidateFiles(availableFiles, extension)
-						logArgs := helper.GenerateLogArgs(availableFiles, extension)
-
-						switch count {
-						case 0:
-							m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
-						default:
-							message := fmt.Sprintf("%d .%s files to move", count, extension)
-							if showFiles && len(logArgs) > 0 {
+							logArgs := helper.GenerateLogArgs(filteredFiles, extension)
+							if len(logArgs) > 0 {
 								m.Logger.Warn(message, m.Logger.Args(logArgs...))
 							} else {
 								m.Logger.Warn(message)
 							}
+						} else {
+							m.Logger.Warn(message)
 						}
+					}
 
-						// Only move files if not in dry-run mode
-						if !dryRun && count > 0 {
-							dirPath := filepath.Join(category.Destination, extension)
-							if err := helper.CreateDirectory(dirPath); err != nil {
-								m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-							}
-							helper.MoveFiles(m, category, availableFiles, extension, batchID)
-							// Mark moved files
-							for _, file := range availableFiles {
-								ext := strings.TrimPrefix(filepath.Ext(file.Name()), ".")
-								if strings.EqualFold(ext, extension) {
-									filePath := filepath.Join(category.Source, file.Name())
-									movedFiles[filePath] = true
-								}
-							}
+					if !dryRun && count > 0 {
+						dirPath := filepath.Join(category.Destination, extension)
+						if err := helper.CreateDirectory(dirPath); err != nil {
+							m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+						}
+						helper.MoveFiles(m, category, filteredFiles, extension, batchID)
+						for _, file := range filteredFiles {
+							filePath := filepath.Join(category.Source, file.Name())
+							movedFiles[filePath] = true
 						}
 					}
 				}
