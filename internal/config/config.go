@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 
@@ -50,12 +51,23 @@ func WithConfigPath(path string) ViperOptions {
 	}
 }
 
-// UnmarshalConfig unmarshals the config file into a struct
-func UnmarshalConfig(m *models.Movelooper) []*models.Category {
+// UnmarshalConfig unmarshals the config file into a struct and pre-compiles regex patterns.
+// Returns an error if any category has an invalid regex.
+func UnmarshalConfig(m *models.Movelooper) ([]*models.Category, error) {
 	var categories []*models.Category
 	if err := m.Viper.UnmarshalKey("categories", &categories); err != nil {
 		log.Fatalf("Unable to decode into struct: %v", err)
 	}
 
-	return categories
+	for _, cat := range categories {
+		if cat.Regex != "" {
+			compiled, err := regexp.Compile(cat.Regex)
+			if err != nil {
+				return nil, fmt.Errorf("invalid regex in category %q: %w", cat.Name, err)
+			}
+			cat.CompiledRegex = compiled
+		}
+	}
+
+	return categories, nil
 }

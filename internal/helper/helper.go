@@ -15,6 +15,11 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
+// MatchesRegex checks if the file name matches a pre-compiled regex pattern
+func MatchesRegex(fileName string, re *regexp.Regexp) bool {
+	return re.MatchString(fileName)
+}
+
 // CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.
 func CreateDirectory(dir string) error {
 	_, err := os.Stat(dir)
@@ -223,11 +228,3 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{} {
 	return logArgs
 }
 
-// MatchesRegex checks if the file name matches the provided regex pattern
-func MatchesRegex(fileName, pattern string) bool {
-	matched, err := regexp.MatchString(pattern, fileName)
-	if err != nil {
-		return false
-	}
-	return matched
-}

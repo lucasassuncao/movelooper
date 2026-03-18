@@ -36,7 +36,11 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 			return preRunHandler(m, configPath)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m.Categories = config.UnmarshalConfig(m)
+			categories, err := config.UnmarshalConfig(m)
+			if err != nil {
+				return err
+			}
+			m.Categories = categories
 
 			batchID := fmt.Sprintf("batch_%d", time.Now().Unix())
 
@@ -62,7 +66,7 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 						if movedFiles[filePath] {
 							continue
 						}
-						if helper.MatchesRegex(file.Name(), category.Regex) {
+						if helper.MatchesRegex(file.Name(), category.CompiledRegex) {
 							filteredFiles = append(filteredFiles, file)
 						}
 					}

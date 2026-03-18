@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const maxBatches = 50
+
 // Entry represents a single file move operation
 type Entry struct {
 	Source      string    `json:"source"`
@@ -58,7 +60,37 @@ func (h *History) Add(entry Entry) error {
 	defer h.mu.Unlock()
 
 	h.Entries = append(h.Entries, entry)
+	h.prune()
 	return h.save()
+}
+
+// prune removes the oldest batches, keeping at most maxBatches
+func (h *History) prune() {
+	seen := make(map[string]bool)
+	var batchOrder []string
+	for _, e := range h.Entries {
+		if !seen[e.BatchID] {
+			seen[e.BatchID] = true
+			batchOrder = append(batchOrder, e.BatchID)
+		}
+	}
+
+	if len(batchOrder) <= maxBatches {
+		return
+	}
+
+	toRemove := make(map[string]bool)
+	for _, id := range batchOrder[:len(batchOrder)-maxBatches] {
+		toRemove[id] = true
+	}
+
+	var newEntries []Entry
+	for _, e := range h.Entries {
+		if !toRemove[e.BatchID] {
+			newEntries = append(newEntries, e)
+		}
+	}
+	h.Entries = newEntries
 }
 
 // GetLastBatchID returns the ID of the most recent batch

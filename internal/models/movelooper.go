@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"time"
 
@@ -39,12 +40,13 @@ type Configuration struct {
 
 // Category represents a file category with its properties
 type Category struct {
-	Name             string   `yaml:"name" mapstructure:"name"`
-	Extensions       []string `yaml:"extensions" mapstructure:"extensions"`
-	Regex            string   `yaml:"regex" mapstructure:"regex"`
-	Source           string   `yaml:"source" mapstructure:"source"`
-	Destination      string   `yaml:"destination" mapstructure:"destination"`
-	ConflictStrategy string   `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
+	Name             string         `yaml:"name" mapstructure:"name"`
+	Extensions       []string       `yaml:"extensions" mapstructure:"extensions"`
+	Regex            string         `yaml:"regex" mapstructure:"regex"`
+	Source           string         `yaml:"source" mapstructure:"source"`
+	Destination      string         `yaml:"destination" mapstructure:"destination"`
+	ConflictStrategy string         `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
+	CompiledRegex    *regexp.Regexp `yaml:"-" mapstructure:"-"` // CompiledRegex is used internally to store the compiled regular expression
 }
 
 // ConfigOption is a function that modifies the configuration

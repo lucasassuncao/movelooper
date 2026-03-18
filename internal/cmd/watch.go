@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -31,7 +33,11 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 			if err := preRunHandler(m, configPath); err != nil {
 				return err
 			}
-			m.Categories = config.UnmarshalConfig(m)
+			categories, err := config.UnmarshalConfig(m)
+			if err != nil {
+				return err
+			}
+			m.Categories = categories
 
 			stabilityThreshold := m.Viper.GetDuration("configuration.watch-delay")
 			if stabilityThreshold == 0 {
@@ -92,11 +98,24 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 			ticker := time.NewTicker(5 * time.Second)
 			defer ticker.Stop()
 
-			done := make(chan bool)
+			done := make(chan struct{})
+
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+			go func() {
+				<-sigChan
+				m.Logger.Info("Shutting down watch mode...")
+				close(done)
+			}()
 
 			go func() {
-				for range ticker.C {
-					processPendingFiles(m, tracker, stabilityThreshold)
+				for {
+					select {
+					case <-ticker.C:
+						processPendingFiles(m, tracker, stabilityThreshold)
+					case <-done:
+						return
+					}
 				}
 			}()
 
@@ -188,7 +207,7 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 
 		// 1. Check Regex
 		if cat.Regex != "" {
-			if helper.MatchesRegex(fileName, cat.Regex) {
+			if helper.MatchesRegex(fileName, cat.CompiledRegex) {
 				moveFileToCategory(m, *cat, path, ext) // ext might not be relevant for regex but we pass it
 				return true
 			}
