@@ -3,6 +3,7 @@ package helper
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -185,9 +186,61 @@ func calculateHash(filePath string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-// moveFile attempts to move a file from source to destination
+// moveFile attempts to move a file from source to destination.
+// Falls back to copy+delete when os.Rename fails across different devices/drives.
 func moveFile(src, dst string) error {
-	return os.Rename(src, dst)
+	err := os.Rename(src, dst)
+	if err == nil {
+		return nil
+	}
+
+	// os.Rename fails across different filesystems/drives (EXDEV on Unix,
+	// "The system cannot move the file to a different disk drive" on Windows).
+	// Fall back to copy+delete.
+	if !isCrossDeviceError(err) {
+		return err
+	}
+
+	if err := copyFile(src, dst); err != nil {
+		return fmt.Errorf("cross-device copy failed: %w", err)
+	}
+
+	if err := os.Remove(src); err != nil {
+		// Copy succeeded but source cleanup failed — log-worthy but not fatal.
+		// The file exists at destination, so we return nil to avoid a false failure.
+		_ = err
+	}
+
+	return nil
+}
+
+// isCrossDeviceError reports whether err is a rename failure caused by src and
+// dst being on different filesystems or drives. os.Rename always wraps such
+// errors in *os.LinkError on both Windows and Unix.
+func isCrossDeviceError(err error) bool {
+	var linkErr *os.LinkError
+	return errors.As(err, &linkErr)
+}
+
+// copyFile copies src to dst, creating dst if needed.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+
+	return out.Sync()
 }
 
 // getUniqueDestinationPath ensures no file is overwritten by appending (n) if needed

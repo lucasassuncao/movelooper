@@ -81,6 +81,8 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 			m.Logger.Info("Performing initial scan for existing files...")
 			performInitialScan(m, tracker)
 
+			done := make(chan struct{})
+
 			// Event Loop (Goroutine)
 			// It captures fsnotify events and updates the tracker
 			go func() {
@@ -100,6 +102,8 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 							return
 						}
 						m.Logger.Error("Watcher error", m.Logger.Args("error", err.Error()))
+					case <-done:
+						return
 					}
 				}
 			}()
@@ -108,8 +112,6 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 			// It periodically checks the tracker for stable files to move
 			ticker := time.NewTicker(5 * time.Second)
 			defer ticker.Stop()
-
-			done := make(chan struct{})
 
 			sigChan := make(chan os.Signal, 1)
 			signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -156,25 +158,26 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 				continue
 			}
 
-			// Verifies if the extension is relevant for this category before tracking
-			// This avoids filling memory with files we won't move
-			matchExtension := false
-			fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Name()), "."))
+			matches := false
 
-			for _, ext := range cat.Extensions {
-				if strings.ToLower(ext) == fileExt {
-					matchExtension = true
-					break
+			if cat.CompiledRegex != nil {
+				// Regex category: check the pattern directly
+				matches = helper.MatchesRegex(file.Name(), cat.CompiledRegex)
+			} else {
+				// Extension category: check if the file extension matches any configured extension
+				fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Name()), "."))
+				for _, ext := range cat.Extensions {
+					if strings.ToLower(ext) == fileExt {
+						matches = true
+						break
+					}
 				}
 			}
 
-			if matchExtension {
+			if matches {
 				fullPath := filepath.Join(cat.Source, file.Name())
-
-				// Adds the file to the tracker
 				// The Ticker will check the real ModTime of the file.
-				// If the file is old (.exe sitting there), ModTime will be old,
-				// and it will be moved on the first Ticker tick.
+				// If the file is old, ModTime will be old and it will be moved on the first tick.
 				tracker.files[fullPath] = time.Now()
 			}
 		}

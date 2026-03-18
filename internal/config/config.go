@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -56,7 +55,7 @@ func WithConfigPath(path string) ViperOptions {
 func UnmarshalConfig(m *models.Movelooper) ([]*models.Category, error) {
 	var categories []*models.Category
 	if err := m.Viper.UnmarshalKey("categories", &categories); err != nil {
-		log.Fatalf("Unable to decode into struct: %v", err)
+		return nil, fmt.Errorf("unable to decode categories: %w", err)
 	}
 
 	for _, cat := range categories {
