@@ -70,27 +70,73 @@ movelooper init -f
 
 ## Config File Reference (`movelooper.yaml`)
 
+### `configuration` block
+
+| Field         | Type     | Required | Default  | Description                                              |
+|---------------|----------|----------|----------|----------------------------------------------------------|
+| `output`      | string   | no       | `console`| Where to write logs: `console`, `file`, or `both`       |
+| `log-file`    | string   | no       | —        | Path to the log file (required when `output` is `file` or `both`) |
+| `log-level`   | string   | no       | `info`   | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal` |
+| `show-caller` | bool     | no       | `false`  | Include the source location in log lines                 |
+| `watch-delay` | duration | no       | `5m`     | How long a file must be stable before `watch` moves it (e.g. `30s`, `5m`) |
+
+### `categories` block
+
+Each entry in the `categories` list accepts the following fields:
+
+| Field               | Type       | Required | Default  | Description                                              |
+|---------------------|------------|----------|----------|----------------------------------------------------------|
+| `name`              | string     | yes      | —        | Label for the category (used in logs)                    |
+| `source`            | string     | yes      | —        | Directory to scan for files                              |
+| `destination`       | string     | yes      | —        | Root directory where files are moved (organized into `<destination>/<extension>/`) |
+| `extensions`        | []string   | yes      | —        | List of file extensions to match (without the dot)       |
+| `conflict_strategy` | string     | no       | `rename` | What to do when the destination file already exists (see below) |
+| `regex`             | string     | no       | —        | Optional regex filter applied to the filename. Mutually exclusive with `glob` |
+| `glob`              | string     | no       | —        | Optional glob filter applied to the filename. Mutually exclusive with `regex` |
+| `ignore`            | []string   | no       | —        | Glob patterns for filenames to skip (case-insensitive)   |
+
+#### Conflict strategies
+
+| Value        | Behavior                                                                 |
+|--------------|--------------------------------------------------------------------------|
+| `rename`     | Appends `(1)`, `(2)`, … to the filename until it is unique (default)    |
+| `overwrite`  | Deletes the existing destination file and replaces it                    |
+| `skip`       | Leaves the source file untouched                                         |
+| `hash_check` | Compares SHA-256 hashes; deletes source if identical, renames if different |
+
+#### Filename filters (`regex` and `glob`)
+
+Both fields narrow which files within a category are matched, in addition to `extensions`.
+**They are mutually exclusive** — defining both in the same category is a configuration error.
+
+- `regex` accepts any valid Go regular expression and is matched against the full filename.
+- `glob` accepts a shell-style pattern (`*`, `?`) and supports brace expansion (`report_{2024,2025}_*`).
+  Matching is case-insensitive.
+- `ignore` uses the same glob syntax as `glob` and is always evaluated independently of both.
+
+### Full example
+
 ```yaml
 configuration:
-  output: both                        # console | file | both
+  output: both
   log-file: ~/.movelooper/logs/movelooper.log
-  log-level: info                     # trace | debug | info | warn | error | fatal
+  log-level: info
   show-caller: false
-  watch-delay: 5m                     # delay before moving a stable file in watch mode
+  watch-delay: 5m
 
 categories:
   - name: images
     source: C:\Users\johndoe\Downloads
     destination: C:\Users\johndoe\images
     extensions: [jpg, jpeg, png, gif, bmp, webp]
-    conflict_strategy: rename         # rename | overwrite | skip | hash_check
+    conflict_strategy: rename
     ignore:
       - screenshot_*
       - "*_temp.*"
 
   - name: videos
     source: C:\Users\johndoe\Downloads
-    destination: C:\Users\johndoe\Downloads\videos
+    destination: C:\Users\johndoe\videos
     extensions: [mp4, avi, mkv, mov, wmv]
     conflict_strategy: overwrite
 
@@ -98,13 +144,13 @@ categories:
     source: C:\Users\johndoe\Downloads
     destination: C:\Users\johndoe\dated
     extensions: [pdf, txt, log]
-    regex: '^\d{4}-\d{2}-\d{2}_.*'   # optional: filter by filename regex
+    regex: '^\d{4}-\d{2}-\d{2}_.*'
 
   - name: reports
     source: C:\Users\johndoe\Downloads
     destination: C:\Users\johndoe\reports
     extensions: [pdf, docx]
-    glob: "report_*"                  # optional: filter by glob pattern
+    glob: "report_*"
 ```
 
 ## Commands and Flags
