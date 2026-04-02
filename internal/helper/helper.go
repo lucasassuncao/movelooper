@@ -384,6 +384,24 @@ func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool {
 	return info.Size() >= minSizeBytes
 }
 
+// MeetsMaxAge reports whether the file's modification time is newer than maxAge.
+// Always returns true when maxAge is zero.
+func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool {
+	if maxAge == 0 {
+		return true
+	}
+	return time.Since(info.ModTime()) <= maxAge
+}
+
+// MeetsMaxSize reports whether the file size is at most maxSizeBytes.
+// Always returns true when maxSizeBytes is zero.
+func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool {
+	if maxSizeBytes == 0 {
+		return true
+	}
+	return info.Size() <= maxSizeBytes
+}
+
 // HasExtension checks if a file has a given extension (case-insensitive)
 func HasExtension(file os.DirEntry, extension string) bool {
 	ext := "." + extension

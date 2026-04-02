@@ -10,9 +10,9 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 ## Index
 
-- [func ConfigureLogger\(v \*viper.Viper\) \(\*pterm.Logger, error\)](<#ConfigureLogger>)
+- [func ConfigureLogger\(v \*viper.Viper\) \(\*pterm.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func InitConfig\(v \*viper.Viper, options ...ViperOptions\) error](<#InitConfig>)
-- [func UnmarshalConfig\(m \*models.Movelooper\) \[\]\*models.Category](<#UnmarshalConfig>)
+- [func UnmarshalConfig\(m \*models.Movelooper\) \(\[\]\*models.Category, error\)](<#UnmarshalConfig>)
 - [type ViperOptions](<#ViperOptions>)
   - [func WithConfigName\(name string\) ViperOptions](<#WithConfigName>)
   - [func WithConfigPath\(path string\) ViperOptions](<#WithConfigPath>)
@@ -20,16 +20,16 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 
 <a name="ConfigureLogger"></a>
-## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L16>)
+## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L18>)
 
 ```go
-func ConfigureLogger(v *viper.Viper) (*pterm.Logger, error)
+func ConfigureLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error)
 ```
 
-ConfigureLogger configures the logger based on the configuration
+ConfigureLogger configures the logger based on the configuration. Returns the logger, a Closer that must be called on exit \(non\-nil only when writing to a file\), and any error.
 
 <a name="InitConfig"></a>
-## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L16>)
+## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L17>)
 
 ```go
 func InitConfig(v *viper.Viper, options ...ViperOptions) error
@@ -38,16 +38,16 @@ func InitConfig(v *viper.Viper, options ...ViperOptions) error
 InitConfig initializes Viper to read from movelooper.yaml
 
 <a name="UnmarshalConfig"></a>
-## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L54>)
+## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L56>)
 
 ```go
-func UnmarshalConfig(m *models.Movelooper) []*models.Category
+func UnmarshalConfig(m *models.Movelooper) ([]*models.Category, error)
 ```
 
-UnmarshalConfig unmarshals the config file into a struct
+UnmarshalConfig unmarshals the config file into a struct and pre\-compiles regex patterns. Returns an error if any category has an invalid regex.
 
 <a name="ViperOptions"></a>
-## type [ViperOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L13>)
+## type [ViperOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L14>)
 
 ViperOptions is a function that takes a viper instance and applies options to it
 
@@ -56,7 +56,7 @@ type ViperOptions func(*viper.Viper)
 ```
 
 <a name="WithConfigName"></a>
-### func [WithConfigName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L33>)
+### func [WithConfigName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L34>)
 
 ```go
 func WithConfigName(name string) ViperOptions
@@ -65,7 +65,7 @@ func WithConfigName(name string) ViperOptions
 WithConfigName sets the name of the config file
 
 <a name="WithConfigPath"></a>
-### func [WithConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L47>)
+### func [WithConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L48>)
 
 ```go
 func WithConfigPath(path string) ViperOptions
@@ -74,7 +74,7 @@ func WithConfigPath(path string) ViperOptions
 WithConfigPath sets the path of the config file
 
 <a name="WithConfigType"></a>
-### func [WithConfigType](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L40>)
+### func [WithConfigType](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L41>)
 
 ```go
 func WithConfigType(configType string) ViperOptions

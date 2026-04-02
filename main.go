@@ -7,6 +7,7 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/cmd"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/updater"
 
 	"github.com/spf13/viper"
 )
@@ -15,6 +16,8 @@ import (
 var version = "dev"
 
 func main() {
+	updater.CleanOldBinary()
+
 	v := viper.GetViper()
 	if v == nil {
 		fmt.Println("viper couldn't be initialized")
@@ -32,7 +35,7 @@ func main() {
 
 	err := root.ExecuteContext(context.Background())
 	if err != nil {
-		fmt.Printf("failed to run the app. %v\n", err)
+		fmt.Printf("Failed to run the app. %v\n", err)
 		os.Exit(1)
 	}
 }

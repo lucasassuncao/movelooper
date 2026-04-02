@@ -1,4 +1,4 @@
-.PHONY: help build build-all release install fmt lint test test-coverage deps docs run clean
+.PHONY: help build build-all release tag install fmt lint test test-coverage deps docs run clean
 
 # Tool versions
 GOLANGCI_LINT_VERSION := v2.5.0
@@ -29,6 +29,14 @@ release: ## Create a release with goreleaser
 	@echo "Creating release..."
 	@$(GORELEASER) release --timeout 360s
 
+tag: ## Create and push an annotated git tag (usage: make tag VERSION=v1.2.3)
+ifndef VERSION
+	$(error Usage: make tag VERSION=v1.2.3)
+endif
+	git diff --exit-code --quiet
+	git tag -a $(VERSION) -m "Release $(VERSION)"
+	git push origin $(VERSION)
+
 install: ## Install binary globally
 	@go install
 
@@ -50,7 +58,7 @@ deps: ## Download and tidy dependencies
 	@go mod tidy
 
 docs: ## Generate documentation with gomarkdoc
-	@$(GOMARKDOC) -e -o '{{.Dir}}/README.md' ./...
+	@$(GOMARKDOC) -e -o '{{.Dir}}/README.md' ./internal/...
 
 run: ## Run the application
 	@go run $(MAIN_PATH)

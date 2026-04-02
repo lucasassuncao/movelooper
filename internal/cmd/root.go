@@ -30,7 +30,7 @@ func RootCmd(m *models.Movelooper, version string) *cobra.Command {
 based on configurable categories.
 
 By default, it runs the move operation automatically.
-Use -p / --preview / --dry-run for a dry-run preview, and --show-files to display filenames.`,
+Use --dry-run for a preview without moving files, and --show-files to display filenames.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			configPath, _ := cmd.Flags().GetString("config")
 			return preRunHandler(m, configPath)
@@ -47,8 +47,7 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 	}
 
 	cmd.PersistentFlags().StringP("config", "c", "", "Path to configuration file (e.g., /path/to/movelooper.yaml)")
-	cmd.PersistentFlags().BoolVarP(&dryRun, "preview", "p", false, "Run in dry-run (preview) mode without moving files")
-	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Alias for --preview")
+	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Preview mode! It shows what would be moved without moving files")
 	cmd.PersistentFlags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
 
 	// Add subcommands
@@ -56,6 +55,7 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 	cmd.AddCommand(WatchCmd(m))
 	cmd.AddCommand(UndoCmd(m))
 	cmd.AddCommand(ConfigCmd(m))
+	cmd.AddCommand(SelfUpdateCmd())
 
 	return cmd
 }
@@ -94,7 +94,7 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, movedF
 
 	for _, extension := range category.Extensions {
 		filteredFiles := filterFilesForExtension(category, files, movedFiles, extension)
-		logExtensionResult(m, filteredFiles, extension, showFiles)
+		logExtensionResult(m, filteredFiles, category.Name, extension, showFiles)
 
 		if !dryRun && len(filteredFiles) > 0 {
 			dirPath := filepath.Join(category.Destination, extension)
@@ -126,16 +126,16 @@ func matchesCategory(category *models.Category, file os.DirEntry, movedFiles map
 	if movedFiles[filePath] {
 		return false
 	}
-	if helper.MatchesIgnorePatterns(file.Name(), category.Ignore) {
+	if helper.MatchesIgnorePatterns(file.Name(), category.Filter.Ignore) {
 		return false
 	}
 	if !helper.HasExtension(file, extension) || !file.Type().IsRegular() {
 		return false
 	}
-	if category.Regex != "" && !helper.MatchesRegex(file.Name(), category.CompiledRegex) {
+	if category.Filter.Regex != "" && !helper.MatchesRegex(file.Name(), category.Filter.CompiledRegex) {
 		return false
 	}
-	if category.Glob != "" && !helper.MatchesGlob(file.Name(), category.Glob) {
+	if category.Filter.Glob != "" && !helper.MatchesGlob(file.Name(), category.Filter.Glob) {
 		return false
 	}
 	return meetsAgeSizeFilters(category, file)
@@ -143,24 +143,28 @@ func matchesCategory(category *models.Category, file os.DirEntry, movedFiles map
 
 // meetsAgeSizeFilters reports whether a file satisfies the min-age and min-size constraints.
 func meetsAgeSizeFilters(category *models.Category, file os.DirEntry) bool {
-	if category.MinAge == 0 && category.MinSizeBytes == 0 {
+	f := category.Filter
+	if f.MinAge == 0 && f.MaxAge == 0 && f.MinSizeBytes == 0 && f.MaxSizeBytes == 0 {
 		return true
 	}
 	info, err := file.Info()
 	if err != nil {
 		return false
 	}
-	return helper.MeetsMinAge(info, category.MinAge) && helper.MeetsMinSize(info, category.MinSizeBytes)
+	return helper.MeetsMinAge(info, f.MinAge) &&
+		helper.MeetsMaxAge(info, f.MaxAge) &&
+		helper.MeetsMinSize(info, f.MinSizeBytes) &&
+		helper.MeetsMaxSize(info, f.MaxSizeBytes)
 }
 
 // logExtensionResult logs a summary of files found for an extension.
-func logExtensionResult(m *models.Movelooper, files []os.DirEntry, extension string, showFiles bool) {
+func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName, extension string, showFiles bool) {
 	count := len(files)
 	if count == 0 {
-		m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
+		m.Logger.Info(fmt.Sprintf("[%s] No .%s files found", categoryName, extension))
 		return
 	}
-	message := fmt.Sprintf("%d .%s files to move", count, extension)
+	message := fmt.Sprintf("[%s] %d .%s files to move", categoryName, count, extension)
 	if showFiles {
 		logArgs := helper.GenerateLogArgs(files, extension)
 		if len(logArgs) > 0 {

@@ -33,10 +33,15 @@ func InitCmd() *cobra.Command {
 		Long: `Initialize movelooper configuration file with predefined templates or interactive mode.
 		
 Available templates:
-  - basic:    Simple configuration with one category (images)
-  - media:    Configuration for organizing media files (images, videos, audio)
-  - dev:      Configuration for organizing development files (code, docs, configs)
-  - full:     Complete example with multiple categories
+  - basic:       Simple configuration with one category (images)
+  - images:      Configuration for organizing image files
+  - music:       Configuration for organizing music files
+  - video:       Configuration for organizing video files
+  - books:       Configuration for organizing book/document files
+  - archives:    Configuration for organizing archive files
+  - installers:  Configuration for organizing installer files
+  - regex:       Example using regex name filtering
+  - full:        Complete example with multiple categories and all options
   
 The configuration file will be created at: <executable_dir>/conf/movelooper.yaml`,
 		Example: `  # Interactive mode (recommended for first time)
@@ -100,7 +105,7 @@ The configuration file will be created at: <executable_dir>/conf/movelooper.yaml
 
 	cmd.Flags().BoolVarP(&initForce, "force", "f", false, "Overwrite existing configuration file")
 	cmd.Flags().BoolVarP(&initInteractive, "interactive", "i", false, "Interactive mode with prompts")
-	cmd.Flags().StringVarP(&initTemplate, "template", "t", "basic", "Template to use (basic, media, dev, full)")
+	cmd.Flags().StringVarP(&initTemplate, "template", "t", "basic", "Template to use (basic, images, music, video, books, archives, installers, regex, full)")
 
 	return cmd
 }
@@ -290,16 +295,24 @@ func promptOneCategory() models.Category {
 	extensions := collectExtensions(name)
 	regex, glob := promptNameFilter()
 	ignorePatterns := promptIgnorePatterns()
+	minAge, maxAge := promptAgeFilter()
+	minSize, maxSize := promptSizeFilter()
 
 	return models.Category{
 		Name:             name,
 		Extensions:       extensions,
-		Regex:            regex,
-		Glob:             glob,
-		Ignore:           ignorePatterns,
 		Source:           source,
 		Destination:      destination,
 		ConflictStrategy: strategy,
+		Filter: models.CategoryFilter{
+			Regex:   regex,
+			Glob:    glob,
+			Ignore:  ignorePatterns,
+			MinAge:  minAge,
+			MaxAge:  maxAge,
+			MinSize: minSize,
+			MaxSize: maxSize,
+		},
 	}
 }
 
@@ -431,6 +444,64 @@ func collectExtensions(categoryName string) []string {
 		}
 	}
 	return extensions
+}
+
+// promptAgeFilter asks the user for optional min-age and max-age filters.
+func promptAgeFilter() (minAge, maxAge time.Duration) {
+	validateDuration := func(s string) error {
+		if s == "" {
+			return nil
+		}
+		_, err := time.ParseDuration(s)
+		return err
+	}
+
+	var minAgeStr string
+	if err := huh.NewInput().
+		Title("Minimum file age before moving (e.g., 24h, 168h) — leave blank to disable").
+		Description("Only files older than this duration will be moved").
+		Value(&minAgeStr).
+		Validate(validateDuration).
+		Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	var maxAgeStr string
+	if err := huh.NewInput().
+		Title("Maximum file age before moving (e.g., 720h, 8760h) — leave blank to disable").
+		Description("Only files newer than this duration will be moved").
+		Value(&maxAgeStr).
+		Validate(validateDuration).
+		Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	if minAgeStr != "" {
+		minAge, _ = time.ParseDuration(minAgeStr)
+	}
+	if maxAgeStr != "" {
+		maxAge, _ = time.ParseDuration(maxAgeStr)
+	}
+	return minAge, maxAge
+}
+
+// promptSizeFilter asks the user for optional min-size and max-size filters.
+func promptSizeFilter() (minSize, maxSize string) {
+	if err := huh.NewInput().
+		Title("Minimum file size before moving (e.g., 1MB, 500KB) — leave blank to disable").
+		Description("Only files larger than this size will be moved").
+		Value(&minSize).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	if err := huh.NewInput().
+		Title("Maximum file size before moving (e.g., 10MB, 1GB) — leave blank to disable").
+		Description("Only files smaller than this size will be moved").
+		Value(&maxSize).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	return minSize, maxSize
 }
 
 // collectIgnorePatterns collects glob ignore patterns from user input
@@ -666,10 +737,12 @@ func getRegexTemplate() *models.Config {
 			{
 				Name:             "regex",
 				Extensions:       []string{"pdf", "txt", "log"},
-				Regex:            `^\d{4}-\d{2}-\d{2}_.*`,
 				Source:           getDefaultSourcePath(),
 				Destination:      filepath.Join(getDefaultSourcePath(), "regex"),
 				ConflictStrategy: "rename",
+				Filter: models.CategoryFilter{
+					Regex: `^\d{4}-\d{2}-\d{2}_.*`,
+				},
 			},
 		},
 	}
@@ -690,18 +763,24 @@ func getFullTemplate() *models.Config {
 			{
 				Name:             "images",
 				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
-				Ignore:           []string{"screenshot_*", "*_temp.*"},
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "images"),
 				ConflictStrategy: "rename",
+				Filter: models.CategoryFilter{
+					Ignore: []string{"screenshot_*", "*_temp.*"},
+					MinAge: 24 * time.Hour,
+				},
 			},
 			{
 				Name:             "videos",
 				Extensions:       []string{"mp4", "avi", "mkv", "mov", "wmv"},
-				Ignore:           []string{"*_preview.*", "*_draft.*"},
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "videos"),
 				ConflictStrategy: "overwrite",
+				Filter: models.CategoryFilter{
+					Ignore:  []string{"*_preview.*", "*_draft.*"},
+					MinSize: "100MB",
+				},
 			},
 			{
 				Name:             "music",
@@ -716,6 +795,9 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "books"),
 				ConflictStrategy: "hash_check",
+				Filter: models.CategoryFilter{
+					MinSize: "1MB",
+				},
 			},
 			{
 				Name:             "archives",
@@ -734,18 +816,22 @@ func getFullTemplate() *models.Config {
 			{
 				Name:             "dated-docs",
 				Extensions:       []string{"pdf", "txt", "log"},
-				Regex:            `^\d{4}-\d{2}-\d{2}_.*`,
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "dated"),
 				ConflictStrategy: "hash_check",
+				Filter: models.CategoryFilter{
+					Regex: `^\d{4}-\d{2}-\d{2}_.*`,
+				},
 			},
 			{
 				Name:             "reports",
 				Extensions:       []string{"pdf", "docx"},
-				Glob:             "report_*",
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "reports"),
 				ConflictStrategy: "rename",
+				Filter: models.CategoryFilter{
+					Glob: "report_*",
+				},
 			},
 		},
 	}
@@ -803,15 +889,26 @@ func printCategorySummary(category models.Category) {
 	pterm.Printf("  Strategy:    %s\n", pterm.Magenta(category.ConflictStrategy))
 	pterm.Printf("  Source:      %s\n", pterm.Yellow(category.Source))
 	pterm.Printf("  Destination: %s\n", pterm.Yellow(category.Destination))
-	switch {
-	case category.Regex != "":
-		pterm.Printf("  Regex:       %s\n", pterm.Green(category.Regex))
-	case category.Glob != "":
-		pterm.Printf("  Glob:        %s\n", pterm.Green(category.Glob))
-	default:
-		pterm.Printf("  Extensions:  %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
+	pterm.Printf("  Extensions:  %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
+	if category.Filter.Regex != "" {
+		pterm.Printf("  Regex:       %s\n", pterm.Green(category.Filter.Regex))
 	}
-	if len(category.Ignore) > 0 {
-		pterm.Printf("  Ignore:      %s\n", pterm.Red(strings.Join(category.Ignore, ", ")))
+	if category.Filter.Glob != "" {
+		pterm.Printf("  Glob:        %s\n", pterm.Green(category.Filter.Glob))
+	}
+	if len(category.Filter.Ignore) > 0 {
+		pterm.Printf("  Ignore:      %s\n", pterm.Red(strings.Join(category.Filter.Ignore, ", ")))
+	}
+	if category.Filter.MinAge > 0 {
+		pterm.Printf("  Min Age:     %s\n", pterm.Yellow(category.Filter.MinAge.String()))
+	}
+	if category.Filter.MaxAge > 0 {
+		pterm.Printf("  Max Age:     %s\n", pterm.Yellow(category.Filter.MaxAge.String()))
+	}
+	if category.Filter.MinSize != "" {
+		pterm.Printf("  Min Size:    %s\n", pterm.Yellow(category.Filter.MinSize))
+	}
+	if category.Filter.MaxSize != "" {
+		pterm.Printf("  Max Size:    %s\n", pterm.Yellow(category.Filter.MaxSize))
 	}
 }

@@ -91,12 +91,20 @@ Each entry in the `categories` list accepts the following fields:
 | `source`            | string     | yes      | —        | Directory to scan for files                              |
 | `destination`       | string     | yes      | —        | Root directory where files are moved (organized into `<destination>/<extension>/`) |
 | `extensions`        | []string   | yes      | —        | List of file extensions to match (without the dot)       |
-| `conflict_strategy` | string     | no       | `rename` | What to do when the destination file already exists (see below) |
-| `regex`             | string     | no       | —        | Optional regex filter applied to the filename. Mutually exclusive with `glob` |
-| `glob`              | string     | no       | —        | Optional glob filter applied to the filename. Mutually exclusive with `regex` |
-| `ignore`            | []string   | no       | —        | Glob patterns for filenames to skip (case-insensitive)   |
-| `min-age`           | duration   | no       | —        | Only move files whose modification time is older than this value (e.g. `24h`, `168h`) |
-| `min-size`          | string     | no       | —        | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`)  |
+| `conflict-strategy` | string     | no       | `rename` | What to do when the destination file already exists (see below) |
+| `filter`            | object     | no       | —        | Optional block grouping all secondary filters (see below) |
+
+#### `filter` block
+
+| Field      | Type      | Description                                                                        |
+|------------|-----------|------------------------------------------------------------------------------------|
+| `regex`    | string    | Regex filter applied to the filename after extension match. Mutually exclusive with `glob` |
+| `glob`     | string    | Glob filter applied to the filename after extension match. Mutually exclusive with `regex` |
+| `ignore`   | []string  | Glob patterns for filenames to skip (case-insensitive)                             |
+| `min-age`  | duration  | Only move files older than this value (e.g. `24h`, `168h`)                        |
+| `max-age`  | duration  | Only move files newer than this value (e.g. `720h`, `8760h`)                      |
+| `min-size` | string    | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`)                 |
+| `max-size` | string    | Only move files at most this large (e.g. `10MB`, `1GB`)                           |
 
 #### Conflict strategies
 
@@ -107,15 +115,15 @@ Each entry in the `categories` list accepts the following fields:
 | `skip`       | Leaves the source file untouched                                         |
 | `hash_check` | Compares SHA-256 hashes; deletes source if identical, renames if different |
 
-#### Filename filters (`regex` and `glob`)
+#### Filename filters (`filter.regex` and `filter.glob`)
 
 Both fields narrow which files within a category are matched, in addition to `extensions`.
 **They are mutually exclusive** — defining both in the same category is a configuration error.
 
-- `regex` accepts any valid Go regular expression and is matched against the full filename.
-- `glob` accepts a shell-style pattern (`*`, `?`) and supports brace expansion (`report_{2024,2025}_*`).
+- `filter.regex` accepts any valid Go regular expression and is matched against the full filename.
+- `filter.glob` accepts a shell-style pattern (`*`, `?`) and supports brace expansion (`report_{2024,2025}_*`).
   Matching is case-insensitive.
-- `ignore` uses the same glob syntax as `glob` and is always evaluated independently of both.
+- `filter.ignore` uses the same glob syntax as `filter.glob` and is always evaluated independently of both.
 
 ### Full example
 
@@ -132,28 +140,34 @@ categories:
     source: C:\Users\johndoe\Downloads
     destination: C:\Users\johndoe\images
     extensions: [jpg, jpeg, png, gif, bmp, webp]
-    conflict_strategy: rename
-    ignore:
-      - screenshot_*
-      - "*_temp.*"
+    conflict-strategy: rename
+    filter:
+      ignore:
+        - screenshot_*
+        - "*_temp.*"
+      min-age: 24h
 
   - name: videos
     source: C:\Users\johndoe\Downloads
     destination: C:\Users\johndoe\videos
     extensions: [mp4, avi, mkv, mov, wmv]
-    conflict_strategy: overwrite
+    conflict-strategy: overwrite
+    filter:
+      min-size: 100MB
 
   - name: dated-docs
     source: C:\Users\johndoe\Downloads
     destination: C:\Users\johndoe\dated
     extensions: [pdf, txt, log]
-    regex: '^\d{4}-\d{2}-\d{2}_.*'
+    filter:
+      regex: '^\d{4}-\d{2}-\d{2}_.*'
 
   - name: reports
     source: C:\Users\johndoe\Downloads
     destination: C:\Users\johndoe\reports
     extensions: [pdf, docx]
-    glob: "report_*"
+    filter:
+      glob: "report_*"
 ```
 
 ## Commands and Flags

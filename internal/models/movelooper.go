@@ -39,20 +39,28 @@ type Configuration struct {
 	WatchDelay time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
 }
 
+// CategoryFilter holds the optional filtering rules for a category
+type CategoryFilter struct {
+	Regex         string         `yaml:"regex" mapstructure:"regex"`
+	Glob          string         `yaml:"glob" mapstructure:"glob"`
+	Ignore        []string       `yaml:"ignore" mapstructure:"ignore"`
+	MinAge        time.Duration  `yaml:"min-age" mapstructure:"min-age"`
+	MaxAge        time.Duration  `yaml:"max-age" mapstructure:"max-age"`
+	MinSize       string         `yaml:"min-size" mapstructure:"min-size"`
+	MaxSize       string         `yaml:"max-size" mapstructure:"max-size"`
+	CompiledRegex *regexp.Regexp `yaml:"-" mapstructure:"-"` // compiled from Regex
+	MinSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MinSize
+	MaxSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MaxSize
+}
+
 // Category represents a file category with its properties
 type Category struct {
 	Name             string         `yaml:"name" mapstructure:"name"`
 	Extensions       []string       `yaml:"extensions" mapstructure:"extensions"`
-	Regex            string         `yaml:"regex" mapstructure:"regex"`
-	Glob             string         `yaml:"glob" mapstructure:"glob"`
-	Ignore           []string       `yaml:"ignore" mapstructure:"ignore"`
 	Source           string         `yaml:"source" mapstructure:"source"`
 	Destination      string         `yaml:"destination" mapstructure:"destination"`
-	ConflictStrategy string         `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
-	MinAge           time.Duration  `yaml:"min-age" mapstructure:"min-age"`
-	MinSize          string         `yaml:"min-size" mapstructure:"min-size"`
-	CompiledRegex    *regexp.Regexp `yaml:"-" mapstructure:"-"` // compiled from Regex
-	MinSizeBytes     int64          `yaml:"-" mapstructure:"-"` // parsed from MinSize
+	ConflictStrategy string         `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+	Filter           CategoryFilter `yaml:"filter" mapstructure:"filter"`
 }
 
 // ConfigOption is a function that modifies the configuration
@@ -213,9 +221,11 @@ func promptCategoryEntry() Category {
 	return Category{
 		Name:        name,
 		Extensions:  extensions,
-		Regex:       regex,
 		Source:      source,
 		Destination: destination,
+		Filter: CategoryFilter{
+			Regex: regex,
+		},
 	}
 }
 

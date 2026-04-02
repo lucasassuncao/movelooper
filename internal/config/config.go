@@ -64,30 +64,46 @@ func UnmarshalConfig(m *models.Movelooper) ([]*models.Category, error) {
 			return nil, fmt.Errorf("category %q: extensions are required", cat.Name)
 		}
 
-		if cat.Regex != "" && cat.Glob != "" {
+		if cat.Filter.Regex != "" && cat.Filter.Glob != "" {
 			return nil, fmt.Errorf("category %q: regex and glob are mutually exclusive; use only one", cat.Name)
 		}
 
-		if cat.Regex != "" {
-			compiled, err := regexp.Compile(cat.Regex)
+		if cat.Filter.Regex != "" {
+			compiled, err := regexp.Compile(cat.Filter.Regex)
 			if err != nil {
 				return nil, fmt.Errorf("invalid regex in category %q: %w", cat.Name, err)
 			}
-			cat.CompiledRegex = compiled
+			cat.Filter.CompiledRegex = compiled
 		}
 
-		if cat.Glob != "" {
-			if err := helper.ValidateGlob(cat.Glob); err != nil {
+		if cat.Filter.Glob != "" {
+			if err := helper.ValidateGlob(cat.Filter.Glob); err != nil {
 				return nil, fmt.Errorf("category %q: %w", cat.Name, err)
 			}
 		}
 
-		if cat.MinSize != "" {
-			bytes, err := helper.ParseSize(cat.MinSize)
+		if cat.Filter.MinSize != "" {
+			bytes, err := helper.ParseSize(cat.Filter.MinSize)
 			if err != nil {
-				return nil, fmt.Errorf("category %q: invalid min-size %q: %w", cat.Name, cat.MinSize, err)
+				return nil, fmt.Errorf("category %q: invalid min-size %q: %w", cat.Name, cat.Filter.MinSize, err)
 			}
-			cat.MinSizeBytes = bytes
+			cat.Filter.MinSizeBytes = bytes
+		}
+
+		if cat.Filter.MaxSize != "" {
+			bytes, err := helper.ParseSize(cat.Filter.MaxSize)
+			if err != nil {
+				return nil, fmt.Errorf("category %q: invalid max-size %q: %w", cat.Name, cat.Filter.MaxSize, err)
+			}
+			cat.Filter.MaxSizeBytes = bytes
+		}
+
+		if cat.Filter.MinSize != "" && cat.Filter.MaxSize != "" && cat.Filter.MinSizeBytes > cat.Filter.MaxSizeBytes {
+			return nil, fmt.Errorf("category %q: min-size (%s) must be less than max-size (%s)", cat.Name, cat.Filter.MinSize, cat.Filter.MaxSize)
+		}
+
+		if cat.Filter.MinAge != 0 && cat.Filter.MaxAge != 0 && cat.Filter.MinAge > cat.Filter.MaxAge {
+			return nil, fmt.Errorf("category %q: min-age (%s) must be less than max-age (%s)", cat.Name, cat.Filter.MinAge, cat.Filter.MaxAge)
 		}
 	}
 

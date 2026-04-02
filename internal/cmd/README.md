@@ -14,14 +14,34 @@ Package cmd contains the command line interface commands for the Movelooper appl
 
 ## Index
 
+- [Variables](<#variables>)
+- [func ConfigCmd\(m \*models.Movelooper\) \*cobra.Command](<#ConfigCmd>)
 - [func InitCmd\(\) \*cobra.Command](<#InitCmd>)
-- [func RootCmd\(m \*models.Movelooper\) \*cobra.Command](<#RootCmd>)
+- [func RootCmd\(m \*models.Movelooper, version string\) \*cobra.Command](<#RootCmd>)
+- [func SelfUpdateCmd\(\) \*cobra.Command](<#SelfUpdateCmd>)
 - [func UndoCmd\(m \*models.Movelooper\) \*cobra.Command](<#UndoCmd>)
 - [func WatchCmd\(m \*models.Movelooper\) \*cobra.Command](<#WatchCmd>)
 
 
+## Variables
+
+<a name="DefaultRepo"></a>DefaultRepo is set at build time via ldflags.
+
+```go
+var DefaultRepo = ""
+```
+
+<a name="ConfigCmd"></a>
+## func [ConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/config.go#L14>)
+
+```go
+func ConfigCmd(m *models.Movelooper) *cobra.Command
+```
+
+ConfigCmd returns the "config" command group
+
 <a name="InitCmd"></a>
-## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L27>)
+## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L29>)
 
 ```go
 func InitCmd() *cobra.Command
@@ -30,25 +50,34 @@ func InitCmd() *cobra.Command
 InitCmd generates a configuration file
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L20>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L19>)
 
 ```go
-func RootCmd(m *models.Movelooper) *cobra.Command
+func RootCmd(m *models.Movelooper, version string) *cobra.Command
 ```
 
 RootCmd represents the base command when called without any subcommands
 
+<a name="SelfUpdateCmd"></a>
+## func [SelfUpdateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/selfupdate.go#L12>)
+
+```go
+func SelfUpdateCmd() *cobra.Command
+```
+
+SelfUpdateCmd returns the self\-update command
+
 <a name="UndoCmd"></a>
-## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L14>)
+## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L15>)
 
 ```go
 func UndoCmd(m *models.Movelooper) *cobra.Command
 ```
 
-UndoCmd reverts the last batch of file moves
+UndoCmd reverts a batch of file moves
 
 <a name="WatchCmd"></a>
-## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L25>)
+## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L38>)
 
 ```go
 func WatchCmd(m *models.Movelooper) *cobra.Command

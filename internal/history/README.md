@@ -10,17 +10,32 @@ import "github.com/lucasassuncao/movelooper/internal/history"
 
 ## Index
 
+- [type BatchSummary](<#BatchSummary>)
 - [type Entry](<#Entry>)
 - [type History](<#History>)
-  - [func NewHistory\(\) \(\*History, error\)](<#NewHistory>)
+  - [func NewHistory\(limit int\) \(\*History, error\)](<#NewHistory>)
   - [func \(h \*History\) Add\(entry Entry\) error](<#History.Add>)
+  - [func \(h \*History\) GetAllBatches\(\) \[\]BatchSummary](<#History.GetAllBatches>)
   - [func \(h \*History\) GetBatch\(batchID string\) \[\]Entry](<#History.GetBatch>)
   - [func \(h \*History\) GetLastBatchID\(\) \(string, error\)](<#History.GetLastBatchID>)
   - [func \(h \*History\) RemoveBatch\(batchID string\) error](<#History.RemoveBatch>)
 
 
+<a name="BatchSummary"></a>
+## type [BatchSummary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L104-L108>)
+
+BatchSummary holds a brief description of a batch for listing purposes
+
+```go
+type BatchSummary struct {
+    BatchID   string
+    Count     int
+    Timestamp time.Time
+}
+```
+
 <a name="Entry"></a>
-## type [Entry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L13-L18>)
+## type [Entry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L15-L20>)
 
 Entry represents a single file move operation
 
@@ -34,7 +49,7 @@ type Entry struct {
 ```
 
 <a name="History"></a>
-## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L21-L25>)
+## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L23-L28>)
 
 History manages the log of file operations
 
@@ -46,16 +61,16 @@ type History struct {
 ```
 
 <a name="NewHistory"></a>
-### func [NewHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L28>)
+### func [NewHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L32>)
 
 ```go
-func NewHistory() (*History, error)
+func NewHistory(limit int) (*History, error)
 ```
 
-NewHistory creates a new History manager
+NewHistory creates a new History manager. limit controls the maximum number of batches retained; values less than 1 fall back to defaultMaxBatches.
 
 <a name="History.Add"></a>
-### func \(\*History\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L56>)
+### func \(\*History\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L65>)
 
 ```go
 func (h *History) Add(entry Entry) error
@@ -63,8 +78,17 @@ func (h *History) Add(entry Entry) error
 
 Add appends a new entry to the history
 
+<a name="History.GetAllBatches"></a>
+### func \(\*History\) [GetAllBatches](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L111>)
+
+```go
+func (h *History) GetAllBatches() []BatchSummary
+```
+
+GetAllBatches returns one summary per batch, ordered oldest → newest
+
 <a name="History.GetBatch"></a>
-### func \(\*History\) [GetBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L77>)
+### func \(\*History\) [GetBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L145>)
 
 ```go
 func (h *History) GetBatch(batchID string) []Entry
@@ -73,7 +97,7 @@ func (h *History) GetBatch(batchID string) []Entry
 GetBatch returns all entries for a given batch ID
 
 <a name="History.GetLastBatchID"></a>
-### func \(\*History\) [GetLastBatchID](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L65>)
+### func \(\*History\) [GetLastBatchID](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L133>)
 
 ```go
 func (h *History) GetLastBatchID() (string, error)
@@ -82,7 +106,7 @@ func (h *History) GetLastBatchID() (string, error)
 GetLastBatchID returns the ID of the most recent batch
 
 <a name="History.RemoveBatch"></a>
-### func \(\*History\) [RemoveBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L91>)
+### func \(\*History\) [RemoveBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L159>)
 
 ```go
 func (h *History) RemoveBatch(batchID string) error

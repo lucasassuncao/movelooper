@@ -40,14 +40,26 @@ func validateCmd(m *models.Movelooper) *cobra.Command {
 				pterm.Printf("  Dest     : %s\n", pterm.Yellow(cat.Destination))
 				pterm.Printf("  Exts     : %s\n", pterm.Green(strings.Join(cat.Extensions, ", ")))
 
-				if cat.Regex != "" {
-					pterm.Printf("  Regex    : %s\n", pterm.Magenta(cat.Regex))
+				if cat.Filter.Regex != "" {
+					pterm.Printf("  Regex    : %s\n", pterm.Magenta(cat.Filter.Regex))
 				}
-				if cat.Glob != "" {
-					pterm.Printf("  Glob     : %s\n", pterm.Magenta(cat.Glob))
+				if cat.Filter.Glob != "" {
+					pterm.Printf("  Glob     : %s\n", pterm.Magenta(cat.Filter.Glob))
 				}
-				if len(cat.Ignore) > 0 {
-					pterm.Printf("  Ignore   : %s\n", pterm.Red(strings.Join(cat.Ignore, ", ")))
+				if len(cat.Filter.Ignore) > 0 {
+					pterm.Printf("  Ignore   : %s\n", pterm.Red(strings.Join(cat.Filter.Ignore, ", ")))
+				}
+				if cat.Filter.MinAge > 0 {
+					pterm.Printf("  Min Age  : %s\n", pterm.Yellow(cat.Filter.MinAge.String()))
+				}
+				if cat.Filter.MaxAge > 0 {
+					pterm.Printf("  Max Age  : %s\n", pterm.Yellow(cat.Filter.MaxAge.String()))
+				}
+				if cat.Filter.MinSize != "" {
+					pterm.Printf("  Min Size : %s\n", pterm.Yellow(cat.Filter.MinSize))
+				}
+				if cat.Filter.MaxSize != "" {
+					pterm.Printf("  Max Size : %s\n", pterm.Yellow(cat.Filter.MaxSize))
 				}
 				if cat.ConflictStrategy != "" {
 					pterm.Printf("  Strategy : %s\n", cat.ConflictStrategy)
