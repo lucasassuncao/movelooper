@@ -42,89 +42,7 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			categories, err := config.UnmarshalConfig(m)
-			if err != nil {
-				return err
-			}
-			m.Categories = categories
-
-			batchID := fmt.Sprintf("batch_%d", time.Now().Unix())
-
-			// Track moved files to avoid processing them multiple times
-			movedFiles := make(map[string]bool)
-
-			for _, category := range m.Categories {
-				files, err := helper.ReadDirectory(category.Source)
-				if err != nil {
-					m.Logger.Error("failed to read directory",
-						m.Logger.Args("path", category.Source),
-						m.Logger.Args("error", err.Error()),
-					)
-					continue
-				}
-
-				// Extensions are mandatory; regex/glob act as additional name filters
-				for _, extension := range category.Extensions {
-					// Build candidate list: not already moved, not ignored, matches extension
-					var filteredFiles []os.DirEntry
-					for _, file := range files {
-						filePath := filepath.Join(category.Source, file.Name())
-						if movedFiles[filePath] {
-							continue
-						}
-						if helper.MatchesIgnorePatterns(file.Name(), category.Ignore) {
-							continue
-						}
-						if !helper.HasExtension(file, extension) || !file.Type().IsRegular() {
-							continue
-						}
-						// Apply optional regex/glob name filter
-						if category.Regex != "" && !helper.MatchesRegex(file.Name(), category.CompiledRegex) {
-							continue
-						}
-						if category.Glob != "" && !helper.MatchesGlob(file.Name(), category.Glob) {
-							continue
-						}
-						filteredFiles = append(filteredFiles, file)
-					}
-
-					count := len(filteredFiles)
-					switch count {
-					case 0:
-						m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
-					default:
-						message := fmt.Sprintf("%d .%s files to move", count, extension)
-						if showFiles {
-							logArgs := helper.GenerateLogArgs(filteredFiles, extension)
-							if len(logArgs) > 0 {
-								m.Logger.Warn(message, m.Logger.Args(logArgs...))
-							} else {
-								m.Logger.Warn(message)
-							}
-						} else {
-							m.Logger.Warn(message)
-						}
-					}
-
-					if !dryRun && count > 0 {
-						dirPath := filepath.Join(category.Destination, extension)
-						if err := helper.CreateDirectory(dirPath); err != nil {
-							m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-						}
-						helper.MoveFiles(m, category, filteredFiles, extension, batchID)
-						for _, file := range filteredFiles {
-							filePath := filepath.Join(category.Source, file.Name())
-							movedFiles[filePath] = true
-						}
-					}
-				}
-			}
-
-			if dryRun {
-				m.Logger.Info("Dry-run complete (no files were moved).")
-			}
-
-			return nil
+			return runMove(m, dryRun, showFiles)
 		},
 	}
 
@@ -137,8 +55,120 @@ Use -p / --preview / --dry-run for a dry-run preview, and --show-files to displa
 	cmd.AddCommand(InitCmd())
 	cmd.AddCommand(WatchCmd(m))
 	cmd.AddCommand(UndoCmd(m))
+	cmd.AddCommand(ConfigCmd(m))
 
 	return cmd
+}
+
+// runMove executes the default move operation across all configured categories.
+func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
+	categories, err := config.UnmarshalConfig(m)
+	if err != nil {
+		return err
+	}
+	m.Categories = categories
+
+	batchID := fmt.Sprintf("batch_%d", time.Now().Unix())
+	movedFiles := make(map[string]bool)
+
+	for _, category := range m.Categories {
+		processCategoryMove(m, category, movedFiles, batchID, dryRun, showFiles)
+	}
+
+	if dryRun {
+		m.Logger.Info("Dry-run complete (no files were moved).")
+	}
+	return nil
+}
+
+// processCategoryMove handles all extensions for a single category.
+func processCategoryMove(m *models.Movelooper, category *models.Category, movedFiles map[string]bool, batchID string, dryRun, showFiles bool) {
+	files, err := helper.ReadDirectory(category.Source)
+	if err != nil {
+		m.Logger.Error("failed to read directory",
+			m.Logger.Args("path", category.Source),
+			m.Logger.Args("error", err.Error()),
+		)
+		return
+	}
+
+	for _, extension := range category.Extensions {
+		filteredFiles := filterFilesForExtension(category, files, movedFiles, extension)
+		logExtensionResult(m, filteredFiles, extension, showFiles)
+
+		if !dryRun && len(filteredFiles) > 0 {
+			dirPath := filepath.Join(category.Destination, extension)
+			if err := helper.CreateDirectory(dirPath); err != nil {
+				m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+			}
+			helper.MoveFiles(m, category, filteredFiles, extension, batchID)
+			for _, file := range filteredFiles {
+				movedFiles[filepath.Join(category.Source, file.Name())] = true
+			}
+		}
+	}
+}
+
+// filterFilesForExtension returns the files that match all criteria for a given extension.
+func filterFilesForExtension(category *models.Category, files []os.DirEntry, movedFiles map[string]bool, extension string) []os.DirEntry {
+	var filtered []os.DirEntry
+	for _, file := range files {
+		if matchesCategory(category, file, movedFiles, extension) {
+			filtered = append(filtered, file)
+		}
+	}
+	return filtered
+}
+
+// matchesCategory reports whether a file passes all filters defined by the category.
+func matchesCategory(category *models.Category, file os.DirEntry, movedFiles map[string]bool, extension string) bool {
+	filePath := filepath.Join(category.Source, file.Name())
+	if movedFiles[filePath] {
+		return false
+	}
+	if helper.MatchesIgnorePatterns(file.Name(), category.Ignore) {
+		return false
+	}
+	if !helper.HasExtension(file, extension) || !file.Type().IsRegular() {
+		return false
+	}
+	if category.Regex != "" && !helper.MatchesRegex(file.Name(), category.CompiledRegex) {
+		return false
+	}
+	if category.Glob != "" && !helper.MatchesGlob(file.Name(), category.Glob) {
+		return false
+	}
+	return meetsAgeSizeFilters(category, file)
+}
+
+// meetsAgeSizeFilters reports whether a file satisfies the min-age and min-size constraints.
+func meetsAgeSizeFilters(category *models.Category, file os.DirEntry) bool {
+	if category.MinAge == 0 && category.MinSizeBytes == 0 {
+		return true
+	}
+	info, err := file.Info()
+	if err != nil {
+		return false
+	}
+	return helper.MeetsMinAge(info, category.MinAge) && helper.MeetsMinSize(info, category.MinSizeBytes)
+}
+
+// logExtensionResult logs a summary of files found for an extension.
+func logExtensionResult(m *models.Movelooper, files []os.DirEntry, extension string, showFiles bool) {
+	count := len(files)
+	if count == 0 {
+		m.Logger.Info(fmt.Sprintf("No .%s files found", extension))
+		return
+	}
+	message := fmt.Sprintf("%d .%s files to move", count, extension)
+	if showFiles {
+		logArgs := helper.GenerateLogArgs(files, extension)
+		if len(logArgs) > 0 {
+			m.Logger.Warn(message, m.Logger.Args(logArgs...))
+			return
+		}
+	}
+	m.Logger.Warn(message)
 }
 
 // preRunHandler handles the necessary configuration before command execution
@@ -187,7 +217,8 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 	m.Logger = logger
 	m.LogCloser = closer
 
-	hist, err := history.NewHistory()
+	historyLimit := m.Viper.GetInt("configuration.history-limit")
+	hist, err := history.NewHistory(historyLimit)
 	if err != nil {
 		// Log warning but don't fail app if history fails
 		m.Logger.Warn("Failed to initialize history tracking", m.Logger.Args("error", err.Error()))

@@ -134,25 +134,11 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 		if strategy == "" {
 			strategy = "rename"
 		}
-		if _, err := os.Stat(destPath); err == nil {
-			resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, file.Name())
-			if err != nil {
-				m.Logger.Error("error to solve conflicts", m.Logger.Args("file", file.Name()), m.Logger.Args("error", err.Error()))
-				continue
-			}
-
-			if !shouldMove {
-				if strategy == "skip" {
-					m.Logger.Info("file skipped due to conflict strategy", m.Logger.Args("file", file.Name()))
-				}
-
-				if strategy == "hash_check" {
-					m.Logger.Info("file identical, source removed", m.Logger.Args("file", file.Name()))
-				}
-				continue
-			}
-			destPath = resolvedPath
+		resolved, skip := applyConflictStrategy(m, strategy, sourcePath, destPath, destDir, file.Name())
+		if skip {
+			continue
 		}
+		destPath = resolved
 		err := moveFile(sourcePath, destPath)
 		if err != nil {
 			m.Logger.Error("failed to move file", m.Logger.Args("file", sourcePath), m.Logger.Args("error", err.Error()))
@@ -174,6 +160,31 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 
 		m.Logger.Info("successfully moved file", m.Logger.Args("source", sourcePath), m.Logger.Args("destination", destPath))
 	}
+}
+
+// applyConflictStrategy checks whether destPath already exists and resolves the
+// conflict according to strategy. It returns the final destination path and
+// whether the file should be skipped entirely.
+func applyConflictStrategy(m *models.Movelooper, strategy, sourcePath, destPath, destDir, fileName string) (resolved string, skip bool) {
+	if _, err := os.Stat(destPath); err != nil {
+		// Destination does not exist — no conflict.
+		return destPath, false
+	}
+	resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, fileName)
+	if err != nil {
+		m.Logger.Error("error to solve conflicts", m.Logger.Args("file", fileName), m.Logger.Args("error", err.Error()))
+		return "", true
+	}
+	if !shouldMove {
+		switch strategy {
+		case "skip":
+			m.Logger.Info("file skipped due to conflict strategy", m.Logger.Args("file", fileName))
+		case "hash_check":
+			m.Logger.Info("file identical, source removed", m.Logger.Args("file", fileName))
+		}
+		return "", true
+	}
+	return resolvedPath, false
 }
 
 // resolveConflict handles file name conflicts based on the specified strategy.
@@ -316,6 +327,63 @@ func getUniqueDestinationPath(destDir, fileName string) string {
 	return destPath
 }
 
+// ParseSize parses a human-readable size string (e.g. "10MB", "1.5GB") into bytes.
+// Supported suffixes (case-insensitive): B, KB, MB, GB, TB.
+func ParseSize(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, fmt.Errorf("empty size string")
+	}
+
+	suffixes := []struct {
+		suffix     string
+		multiplier int64
+	}{
+		{"TB", 1 << 40},
+		{"GB", 1 << 30},
+		{"MB", 1 << 20},
+		{"KB", 1 << 10},
+		{"B", 1},
+	}
+
+	upper := strings.ToUpper(s)
+	for _, entry := range suffixes {
+		if strings.HasSuffix(upper, entry.suffix) {
+			numStr := strings.TrimSpace(s[:len(s)-len(entry.suffix)])
+			var val float64
+			if _, err := fmt.Sscanf(numStr, "%f", &val); err != nil {
+				return 0, fmt.Errorf("could not parse numeric value %q", numStr)
+			}
+			return int64(val * float64(entry.multiplier)), nil
+		}
+	}
+
+	// No suffix — treat as raw bytes
+	var val int64
+	if _, err := fmt.Sscanf(s, "%d", &val); err != nil {
+		return 0, fmt.Errorf("unrecognised size format %q", s)
+	}
+	return val, nil
+}
+
+// MeetsMinAge reports whether the file's modification time is older than minAge.
+// Always returns true when minAge is zero.
+func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool {
+	if minAge == 0 {
+		return true
+	}
+	return time.Since(info.ModTime()) >= minAge
+}
+
+// MeetsMinSize reports whether the file size is at least minSizeBytes.
+// Always returns true when minSizeBytes is zero.
+func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool {
+	if minSizeBytes == 0 {
+		return true
+	}
+	return info.Size() >= minSizeBytes
+}
+
 // HasExtension checks if a file has a given extension (case-insensitive)
 func HasExtension(file os.DirEntry, extension string) bool {
 	ext := "." + extension
@@ -333,4 +401,3 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{} {
 	}
 	return logArgs
 }
-

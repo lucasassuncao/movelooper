@@ -78,7 +78,8 @@ movelooper init -f
 | `log-file`    | string   | no       | —        | Path to the log file (required when `output` is `file` or `both`) |
 | `log-level`   | string   | no       | `info`   | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal` |
 | `show-caller` | bool     | no       | `false`  | Include the source location in log lines                 |
-| `watch-delay` | duration | no       | `5m`     | How long a file must be stable before `watch` moves it (e.g. `30s`, `5m`) |
+| `watch-delay`    | duration | no       | `5m`  | How long a file must be stable before `watch` moves it (e.g. `30s`, `5m`) |
+| `history-limit`  | int      | no       | `50`  | Maximum number of batches retained in undo history                         |
 
 ### `categories` block
 
@@ -94,6 +95,8 @@ Each entry in the `categories` list accepts the following fields:
 | `regex`             | string     | no       | —        | Optional regex filter applied to the filename. Mutually exclusive with `glob` |
 | `glob`              | string     | no       | —        | Optional glob filter applied to the filename. Mutually exclusive with `regex` |
 | `ignore`            | []string   | no       | —        | Glob patterns for filenames to skip (case-insensitive)   |
+| `min-age`           | duration   | no       | —        | Only move files whose modification time is older than this value (e.g. `24h`, `168h`) |
+| `min-size`          | string     | no       | —        | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`)  |
 
 #### Conflict strategies
 

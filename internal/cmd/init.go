@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/terminal"
 
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -85,7 +86,7 @@ The configuration file will be created at: <executable_dir>/conf/movelooper.yaml
 			return fmt.Errorf("error writing config file: %v", err)
 		}
 
-		clearScreen()
+		terminal.ClearScreen()
 		pterm.Success.Printf("Configuration file created at: %s\n", configFile)
 		pterm.Info.Println("\nNext steps:")
 		pterm.Info.Println("  1. Edit the configuration file to customize categories")
@@ -106,7 +107,7 @@ The configuration file will be created at: <executable_dir>/conf/movelooper.yaml
 
 // generateInteractiveConfig creates configuration through interactive prompts
 func generateInteractiveConfig() *models.Config {
-	clearScreen()
+	terminal.ClearScreen()
 	config := &models.Config{
 		Configuration: models.Configuration{},
 		Categories:    []models.Category{},
@@ -199,7 +200,7 @@ func generateInteractiveConfig() *models.Config {
 	watchDelay, _ := time.ParseDuration(watchDelayStr)
 	config.Configuration.WatchDelay = watchDelay
 
-	clearScreen()
+	terminal.ClearScreen()
 	pterm.DefaultSection.Println("Categories Configuration")
 	pterm.Info.Println("Categories define how files are organized")
 	pterm.Println()
@@ -228,168 +229,151 @@ func generateInteractiveConfig() *models.Config {
 // collectCategories collects categories from user input
 func collectCategories() []models.Category {
 	var categories []models.Category
-
 	for {
-		clearScreen()
-		var name string
-		err := huh.NewInput().
-			Title("Category name (e.g., images, documents)").
-			Value(&name).
-			Validate(func(str string) error {
-				if str == "" {
-					return fmt.Errorf("category name is required")
-				}
-				return nil
-			}).
-			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
-
-		var strategy string
-		err = huh.NewSelect[string]().
-			Title("Conflict strategy (if file exists)").
-			Options(
-				huh.NewOption("Rename", "rename"),
-				huh.NewOption("Hash Check", "hash_check"),
-				huh.NewOption("Overwrite", "overwrite"),
-				huh.NewOption("Skip", "skip"),
-			).
-			Value(&strategy).
-			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
-
-		var source string
-		err = huh.NewInput().
-			Title("Source directory").
-			Value(&source).
-			Placeholder(getDefaultSourcePath()).
-			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
-
-		if source == "" {
-			source = getDefaultSourcePath()
-		}
-
-		var destination string
-		err = huh.NewInput().
-			Title("Destination directory").
-			Value(&destination).
-			Placeholder(getDefaultDestinationPath(name)).
-			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
-
-		if destination == "" {
-			destination = getDefaultDestinationPath(name)
-		}
-
-		extensions := collectExtensions(name)
-
-		var filterType string
-		var regex string
-		var glob string
-
-		err = huh.NewSelect[string]().
-			Title("Add an optional name filter?").
-			Description("Extensions already define the file type; this further filters by name").
-			Options(
-				huh.NewOption("None", "none"),
-				huh.NewOption("Glob pattern (e.g., report_*.pdf, invoice_*.{pdf,docx})", "glob"),
-				huh.NewOption("Regex pattern (e.g., ^report_\\d{4}\\.pdf$)", "regex"),
-			).
-			Value(&filterType).
-			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
-
-		switch filterType {
-		case "regex":
-			err = huh.NewInput().
-				Title("Specify the Regex pattern").
-				Value(&regex).
-				Validate(func(s string) error {
-					if s == "" {
-						return fmt.Errorf("regex pattern is required")
-					}
-					_, err := regexp.Compile(s)
-					return err
-				}).
-				Run()
-			if err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
-		case "glob":
-			err = huh.NewInput().
-				Title("Specify the Glob pattern").
-				Description("Use * for any characters, ? for one character, {a,b} for alternatives").
-				Value(&glob).
-				Validate(func(s string) error {
-					if s == "" {
-						return fmt.Errorf("glob pattern is required")
-					}
-					return helper.ValidateGlob(s)
-				}).
-				Run()
-			if err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
-		}
-
-		var ignorePatterns []string
-		var addIgnore bool
-		err = huh.NewConfirm().
-			Title("Do you want to add ignore patterns?").
-			Description("Glob patterns for files to skip (e.g., *_temp.*, screenshot_*)").
-			Value(&addIgnore).
-			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
-		if addIgnore {
-			ignorePatterns = collectIgnorePatterns()
-		}
-
-		category := models.Category{
-			Name:             name,
-			Extensions:       extensions,
-			Regex:            regex,
-			Glob:             glob,
-			Ignore:           ignorePatterns,
-			Source:           source,
-			Destination:      destination,
-			ConflictStrategy: strategy,
-		}
-
+		category := promptOneCategory()
 		categories = append(categories, category)
 
-		// Summary
 		pterm.Println()
 		pterm.DefaultSection.Println("Category Summary")
 		printCategorySummary(category)
 		pterm.Println()
 
-		// Add more?
 		var addMore bool
-		err = huh.NewConfirm().
-			Title("Add another category?").
-			Value(&addMore).
-			Run()
-		if err == huh.ErrUserAborted {
+		if err := huh.NewConfirm().Title("Add another category?").Value(&addMore).Run(); err == huh.ErrUserAborted {
 			os.Exit(0)
 		}
-
 		if !addMore {
 			break
 		}
 	}
 	return categories
+}
+
+// promptOneCategory prompts the user for all fields of a single category.
+func promptOneCategory() models.Category {
+	terminal.ClearScreen()
+
+	var name string
+	if err := huh.NewInput().
+		Title("Category name (e.g., images, documents)").
+		Value(&name).
+		Validate(func(str string) error {
+			if str == "" {
+				return fmt.Errorf("category name is required")
+			}
+			return nil
+		}).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	var strategy string
+	if err := huh.NewSelect[string]().
+		Title("Conflict strategy (if file exists)").
+		Options(
+			huh.NewOption("Rename", "rename"),
+			huh.NewOption("Hash Check", "hash_check"),
+			huh.NewOption("Overwrite", "overwrite"),
+			huh.NewOption("Skip", "skip"),
+		).Value(&strategy).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	source := promptWithDefault(
+		huh.NewInput().Title("Source directory").Placeholder(getDefaultSourcePath()),
+		getDefaultSourcePath(),
+	)
+	destination := promptWithDefault(
+		huh.NewInput().Title("Destination directory").Placeholder(getDefaultDestinationPath(name)),
+		getDefaultDestinationPath(name),
+	)
+
+	extensions := collectExtensions(name)
+	regex, glob := promptNameFilter()
+	ignorePatterns := promptIgnorePatterns()
+
+	return models.Category{
+		Name:             name,
+		Extensions:       extensions,
+		Regex:            regex,
+		Glob:             glob,
+		Ignore:           ignorePatterns,
+		Source:           source,
+		Destination:      destination,
+		ConflictStrategy: strategy,
+	}
+}
+
+// promptWithDefault runs a huh.Input field and returns the default value when the user leaves it blank.
+func promptWithDefault(field *huh.Input, defaultVal string) string {
+	var val string
+	field.Value(&val)
+	if err := field.Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+	if val == "" {
+		return defaultVal
+	}
+	return val
+}
+
+// promptNameFilter asks the user to choose an optional name filter (regex or glob).
+func promptNameFilter() (regex, glob string) {
+	var filterType string
+	if err := huh.NewSelect[string]().
+		Title("Add an optional name filter?").
+		Description("Extensions already define the file type; this further filters by name").
+		Options(
+			huh.NewOption("None", "none"),
+			huh.NewOption("Glob pattern (e.g., report_*.pdf, invoice_*.{pdf,docx})", "glob"),
+			huh.NewOption("Regex pattern (e.g., ^report_\\d{4}\\.pdf$)", "regex"),
+		).Value(&filterType).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+
+	switch filterType {
+	case "regex":
+		if err := huh.NewInput().
+			Title("Specify the Regex pattern").
+			Value(&regex).
+			Validate(func(s string) error {
+				if s == "" {
+					return fmt.Errorf("regex pattern is required")
+				}
+				_, err := regexp.Compile(s)
+				return err
+			}).Run(); err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+	case "glob":
+		if err := huh.NewInput().
+			Title("Specify the Glob pattern").
+			Description("Use * for any characters, ? for one character, {a,b} for alternatives").
+			Value(&glob).
+			Validate(func(s string) error {
+				if s == "" {
+					return fmt.Errorf("glob pattern is required")
+				}
+				return helper.ValidateGlob(s)
+			}).Run(); err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+	}
+	return regex, glob
+}
+
+// promptIgnorePatterns asks the user whether to add ignore patterns and collects them.
+func promptIgnorePatterns() []string {
+	var addIgnore bool
+	if err := huh.NewConfirm().
+		Title("Do you want to add ignore patterns?").
+		Description("Glob patterns for files to skip (e.g., *_temp.*, screenshot_*)").
+		Value(&addIgnore).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+	if addIgnore {
+		return collectIgnorePatterns()
+	}
+	return nil
 }
 
 // collectExtensions collects file extensions from user input
@@ -819,19 +803,15 @@ func printCategorySummary(category models.Category) {
 	pterm.Printf("  Strategy:    %s\n", pterm.Magenta(category.ConflictStrategy))
 	pterm.Printf("  Source:      %s\n", pterm.Yellow(category.Source))
 	pterm.Printf("  Destination: %s\n", pterm.Yellow(category.Destination))
-	if category.Regex != "" {
+	switch {
+	case category.Regex != "":
 		pterm.Printf("  Regex:       %s\n", pterm.Green(category.Regex))
-	} else if category.Glob != "" {
+	case category.Glob != "":
 		pterm.Printf("  Glob:        %s\n", pterm.Green(category.Glob))
-	} else {
+	default:
 		pterm.Printf("  Extensions:  %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
 	}
 	if len(category.Ignore) > 0 {
 		pterm.Printf("  Ignore:      %s\n", pterm.Red(strings.Join(category.Ignore, ", ")))
 	}
-}
-
-// clearScreen clears the terminal screen
-func clearScreen() {
-	pterm.Println()
 }

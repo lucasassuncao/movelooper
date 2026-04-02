@@ -36,109 +36,113 @@ type fileTracker struct {
 
 // WatchCmd defines the "watch" command to monitor directories and move files in real-time
 func WatchCmd(m *models.Movelooper) *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "watch",
 		Short: "Monitor folders and move files in real-time",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			configPath, _ := cmd.Flags().GetString("config")
-			if err := preRunHandler(m, configPath); err != nil {
-				return err
-			}
-			categories, err := config.UnmarshalConfig(m)
-			if err != nil {
-				return err
-			}
-			m.Categories = categories
-
-			stabilityThreshold := m.Viper.GetDuration("configuration.watch-delay")
-			if stabilityThreshold == 0 {
-				stabilityThreshold = 5 * time.Minute
-			}
-
-			m.Logger.Info("Starting Watch Mode", m.Logger.Args("stability_delay", stabilityThreshold.String()))
-
-			watcher, err := fsnotify.NewWatcher()
-			if err != nil {
-				return err
-			}
-			defer watcher.Close()
-
-			tracker := &fileTracker{
-				files: make(map[string]time.Time),
-			}
-
-			sources := make(map[string]bool)
-			for _, cat := range m.Categories {
-				if !sources[cat.Source] {
-					m.Logger.Info("Monitoring directory", m.Logger.Args("path", cat.Source))
-					if err := watcher.Add(cat.Source); err != nil {
-						m.Logger.Error("Failed to watch directory", m.Logger.Args("path", cat.Source, "error", err.Error()))
-					}
-					sources[cat.Source] = true
-				}
-			}
-
-			m.Logger.Info("Performing initial scan for existing files...")
-			performInitialScan(m, tracker)
-
-			done := make(chan struct{})
-
-			// Event Loop (Goroutine)
-			// It captures fsnotify events and updates the tracker
-			go func() {
-				for {
-					select {
-					case event, ok := <-watcher.Events:
-						if !ok {
-							return
-						}
-						if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
-							tracker.mu.Lock()
-							tracker.files[event.Name] = time.Now()
-							tracker.mu.Unlock()
-						}
-					case err, ok := <-watcher.Errors:
-						if !ok {
-							return
-						}
-						m.Logger.Error("Watcher error", m.Logger.Args("error", err.Error()))
-					case <-done:
-						return
-					}
-				}
-			}()
-
-			// Ticker Loop
-			// It periodically checks the tracker for stable files to move
-			ticker := time.NewTicker(5 * time.Second)
-			defer ticker.Stop()
-
-			sigChan := make(chan os.Signal, 1)
-			signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-			go func() {
-				<-sigChan
-				m.Logger.Info("Shutting down watch mode...")
-				close(done)
-			}()
-
-			go func() {
-				for {
-					select {
-					case <-ticker.C:
-						processPendingFiles(m, tracker, stabilityThreshold)
-					case <-done:
-						return
-					}
-				}
-			}()
-
-			<-done
-			return nil
+			return runWatch(m)
 		},
 	}
+}
 
-	cmd.Flags().StringP("config", "c", "", "Path to configuration file")
-	return cmd
+// runWatch sets up the file watcher and blocks until a shutdown signal is received.
+func runWatch(m *models.Movelooper) error {
+	categories, err := config.UnmarshalConfig(m)
+	if err != nil {
+		return err
+	}
+	m.Categories = categories
+
+	stabilityThreshold := m.Viper.GetDuration("configuration.watch-delay")
+	if stabilityThreshold == 0 {
+		stabilityThreshold = 5 * time.Minute
+	}
+
+	m.Logger.Info("Starting Watch Mode", m.Logger.Args("stability_delay", stabilityThreshold.String()))
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer watcher.Close()
+
+	tracker := &fileTracker{files: make(map[string]time.Time)}
+
+	registerSources(m, watcher)
+
+	m.Logger.Info("Performing initial scan for existing files...")
+	performInitialScan(m, tracker)
+
+	done := make(chan struct{})
+
+	go runEventLoop(m, watcher, tracker, done)
+	go runSignalHandler(m, done)
+	go runTickerLoop(m, tracker, stabilityThreshold, done)
+
+	<-done
+	return nil
+}
+
+// registerSources adds each unique source directory to the watcher.
+func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
+	seen := make(map[string]bool)
+	for _, cat := range m.Categories {
+		if seen[cat.Source] {
+			continue
+		}
+		m.Logger.Info("Monitoring directory", m.Logger.Args("path", cat.Source))
+		if err := watcher.Add(cat.Source); err != nil {
+			m.Logger.Error("Failed to watch directory", m.Logger.Args("path", cat.Source, "error", err.Error()))
+		}
+		seen[cat.Source] = true
+	}
+}
+
+// runEventLoop captures fsnotify events and updates the tracker.
+func runEventLoop(m *models.Movelooper, watcher *fsnotify.Watcher, tracker *fileTracker, done <-chan struct{}) {
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
+				tracker.mu.Lock()
+				tracker.files[event.Name] = time.Now()
+				tracker.mu.Unlock()
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			m.Logger.Error("Watcher error", m.Logger.Args("error", err.Error()))
+		case <-done:
+			return
+		}
+	}
+}
+
+// runSignalHandler closes done when SIGINT or SIGTERM is received.
+func runSignalHandler(m *models.Movelooper, done chan struct{}) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+	m.Logger.Info("Shutting down watch mode...")
+	close(done)
+}
+
+// runTickerLoop periodically checks for stable files and moves them.
+func runTickerLoop(m *models.Movelooper, tracker *fileTracker, threshold time.Duration, done <-chan struct{}) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			processPendingFiles(m, tracker, threshold)
+		case <-done:
+			return
+		}
+	}
 }
 
 // performInitialScan verifies existing files in source directories and adds them to the tracker
@@ -244,6 +248,19 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 			}
 			if cat.Glob != "" && !helper.MatchesGlob(fileName, cat.Glob) {
 				continue
+			}
+			// Apply optional age/size filters
+			if cat.MinAge > 0 || cat.MinSizeBytes > 0 {
+				info, err := os.Stat(path)
+				if err != nil {
+					continue
+				}
+				if !helper.MeetsMinAge(info, cat.MinAge) {
+					continue
+				}
+				if !helper.MeetsMinSize(info, cat.MinSizeBytes) {
+					continue
+				}
 			}
 			moveFileToCategory(m, *cat, path, ext)
 			return true

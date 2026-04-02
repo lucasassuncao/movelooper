@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const maxBatches = 50
+const defaultMaxBatches = 50
 
 // Entry represents a single file move operation
 type Entry struct {
@@ -21,13 +21,19 @@ type Entry struct {
 
 // History manages the log of file operations
 type History struct {
-	mu      sync.Mutex
-	Entries []Entry `json:"entries"`
-	path    string
+	mu         sync.Mutex
+	Entries    []Entry `json:"entries"`
+	path       string
+	maxBatches int
 }
 
-// NewHistory creates a new History manager
-func NewHistory() (*History, error) {
+// NewHistory creates a new History manager. limit controls the maximum number
+// of batches retained; values less than 1 fall back to defaultMaxBatches.
+func NewHistory(limit int) (*History, error) {
+	if limit < 1 {
+		limit = defaultMaxBatches
+	}
+
 	ex, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -41,7 +47,8 @@ func NewHistory() (*History, error) {
 	path := filepath.Join(historyDir, "movelooper.json")
 
 	h := &History{
-		path: path,
+		path:       path,
+		maxBatches: limit,
 	}
 
 	if err := h.load(); err != nil {
@@ -75,12 +82,12 @@ func (h *History) prune() {
 		}
 	}
 
-	if len(batchOrder) <= maxBatches {
+	if len(batchOrder) <= h.maxBatches {
 		return
 	}
 
 	toRemove := make(map[string]bool)
-	for _, id := range batchOrder[:len(batchOrder)-maxBatches] {
+	for _, id := range batchOrder[:len(batchOrder)-h.maxBatches] {
 		toRemove[id] = true
 	}
 

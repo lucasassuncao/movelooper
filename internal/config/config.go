@@ -81,6 +81,14 @@ func UnmarshalConfig(m *models.Movelooper) ([]*models.Category, error) {
 				return nil, fmt.Errorf("category %q: %w", cat.Name, err)
 			}
 		}
+
+		if cat.MinSize != "" {
+			bytes, err := helper.ParseSize(cat.MinSize)
+			if err != nil {
+				return nil, fmt.Errorf("category %q: invalid min-size %q: %w", cat.Name, cat.MinSize, err)
+			}
+			cat.MinSizeBytes = bytes
+		}
 	}
 
 	return categories, nil

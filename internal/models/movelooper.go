@@ -3,14 +3,13 @@ package models
 import (
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/lucasassuncao/movelooper/internal/history"
+	"github.com/lucasassuncao/movelooper/internal/terminal"
 	"github.com/pterm/pterm"
 	"github.com/spf13/viper"
 )
@@ -50,7 +49,10 @@ type Category struct {
 	Source           string         `yaml:"source" mapstructure:"source"`
 	Destination      string         `yaml:"destination" mapstructure:"destination"`
 	ConflictStrategy string         `yaml:"conflict_strategy" mapstructure:"conflict_strategy"`
-	CompiledRegex    *regexp.Regexp `yaml:"-" mapstructure:"-"` // CompiledRegex is used internally to store the compiled regular expression
+	MinAge           time.Duration  `yaml:"min-age" mapstructure:"min-age"`
+	MinSize          string         `yaml:"min-size" mapstructure:"min-size"`
+	CompiledRegex    *regexp.Regexp `yaml:"-" mapstructure:"-"` // compiled from Regex
+	MinSizeBytes     int64          `yaml:"-" mapstructure:"-"` // parsed from MinSize
 }
 
 // ConfigOption is a function that modifies the configuration
@@ -58,7 +60,7 @@ type ConfigOption func(*Config)
 
 // WithOutput prompts the user to specify the output
 func WithOutput() ConfigOption {
-	clearScreen()
+	terminal.ClearScreen()
 	var output string
 	err := huh.NewSelect[string]().
 		Title("Specify the output").
@@ -81,7 +83,7 @@ func WithOutput() ConfigOption {
 
 // WithLogFile prompts the user to specify the log file
 func WithLogFile() ConfigOption {
-	clearScreen()
+	terminal.ClearScreen()
 	defaultLog := "movelooper.log"
 	if home, err := os.UserHomeDir(); err == nil {
 		defaultLog = filepath.Join(home, "movelooper.log")
@@ -108,7 +110,7 @@ func WithLogFile() ConfigOption {
 
 // WithLogLevel prompts the user to specify the log level
 func WithLogLevel() ConfigOption {
-	clearScreen()
+	terminal.ClearScreen()
 	var logLevel string
 	err := huh.NewSelect[string]().
 		Title("Specify the log level").
@@ -134,7 +136,7 @@ func WithLogLevel() ConfigOption {
 
 // WithShowCaller prompts the user to show the caller information
 func WithShowCaller() ConfigOption {
-	clearScreen()
+	terminal.ClearScreen()
 	var showCaller bool
 	err := huh.NewConfirm().
 		Title("Show caller?").
@@ -152,8 +154,7 @@ func WithShowCaller() ConfigOption {
 // WithCategory adds a category to the configuration
 // The user is prompted to enter the category name, source directory, destination directory, and extensions
 func WithCategory() ConfigOption {
-	clearScreen()
-	var categories []Category
+	terminal.ClearScreen()
 
 	var want bool
 	err := huh.NewConfirm().
@@ -164,88 +165,99 @@ func WithCategory() ConfigOption {
 		os.Exit(0)
 	}
 
-	if want {
-		for {
-			clearScreen()
-			var extensions []string
-			var name, source, destination, regex string
-			var useRegex bool
-
-			if err := huh.NewInput().Title("Specify the category name").Value(&name).Run(); err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
-			if err := huh.NewInput().Title("Specify the source directory").Value(&source).Run(); err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
-			if err := huh.NewInput().Title("Specify the destination directory").Value(&destination).Run(); err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
-
-			if err := huh.NewConfirm().Title("Do you want to use Regex for filtering?").Value(&useRegex).Run(); err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
-
-			if useRegex {
-				if err := huh.NewInput().Title("Specify the Regex pattern").Value(&regex).Run(); err == huh.ErrUserAborted {
-					os.Exit(0)
-				}
-			} else {
-				var wantExtensions bool
-				if err := huh.NewConfirm().Title("Do you want to add extensions?").Value(&wantExtensions).Run(); err == huh.ErrUserAborted {
-					os.Exit(0)
-				}
-
-				if wantExtensions {
-					for {
-						var extension string
-						if err := huh.NewInput().Title("Specify the extension").Value(&extension).Run(); err == huh.ErrUserAborted {
-							os.Exit(0)
-						}
-						extensions = append(extensions, extension)
-
-						var addMore bool
-						if err := huh.NewConfirm().Title("Do you want to add another extension?").Value(&addMore).Run(); err == huh.ErrUserAborted {
-							os.Exit(0)
-						}
-						if !addMore {
-							break
-						}
-					}
-				}
-			}
-
-			categories = append(categories, Category{
-				Name:        name,
-				Extensions:  extensions,
-				Regex:       regex,
-				Source:      source,
-				Destination: destination,
-			})
-
-			var addMore bool
-			if err := huh.NewConfirm().Title("Do you want to add another category?").Value(&addMore).Run(); err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
-			if !addMore {
-				break
-			}
-		}
-	}
+	categories := collectCategoryEntries(want)
 
 	return func(c *Config) {
 		c.Categories = append(c.Categories, categories...)
 	}
 }
 
-// clearScreen clears the terminal screen based on the operating system
-func clearScreen() {
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/c", "cls")
-	} else {
-		cmd = exec.Command("clear")
+// collectCategoryEntries collects one or more categories interactively when want is true.
+func collectCategoryEntries(want bool) []Category {
+	if !want {
+		return nil
+	}
+	var categories []Category
+	for {
+		terminal.ClearScreen()
+		cat := promptCategoryEntry()
+		categories = append(categories, cat)
+
+		var addMore bool
+		if err := huh.NewConfirm().Title("Do you want to add another category?").Value(&addMore).Run(); err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+		if !addMore {
+			break
+		}
+	}
+	return categories
+}
+
+// promptCategoryEntry collects a single category's fields from the user.
+func promptCategoryEntry() Category {
+	var name, source, destination, regex string
+
+	if err := huh.NewInput().Title("Specify the category name").Value(&name).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+	if err := huh.NewInput().Title("Specify the source directory").Value(&source).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+	if err := huh.NewInput().Title("Specify the destination directory").Value(&destination).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
 	}
 
-	cmd.Stdout = os.Stdout
-	_ = cmd.Run()
+	extensions := promptExtensionsOrRegex(&regex)
+
+	return Category{
+		Name:        name,
+		Extensions:  extensions,
+		Regex:       regex,
+		Source:      source,
+		Destination: destination,
+	}
+}
+
+// promptExtensionsOrRegex asks whether to use regex or extensions and collects the chosen input.
+func promptExtensionsOrRegex(regex *string) []string {
+	var useRegex bool
+	if err := huh.NewConfirm().Title("Do you want to use Regex for filtering?").Value(&useRegex).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+	if useRegex {
+		if err := huh.NewInput().Title("Specify the Regex pattern").Value(regex).Run(); err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+		return nil
+	}
+	return promptExtensions()
+}
+
+// promptExtensions asks the user to optionally add file extensions one by one.
+func promptExtensions() []string {
+	var wantExtensions bool
+	if err := huh.NewConfirm().Title("Do you want to add extensions?").Value(&wantExtensions).Run(); err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+	if !wantExtensions {
+		return nil
+	}
+	var extensions []string
+	for {
+		var extension string
+		if err := huh.NewInput().Title("Specify the extension").Value(&extension).Run(); err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+		extensions = append(extensions, extension)
+
+		var addMore bool
+		if err := huh.NewConfirm().Title("Do you want to add another extension?").Value(&addMore).Run(); err == huh.ErrUserAborted {
+			os.Exit(0)
+		}
+		if !addMore {
+			break
+		}
+	}
+	return extensions
 }
