@@ -127,7 +127,7 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 		destPath = resolved
 		err := moveFile(sourcePath, destPath)
 		if err != nil {
-			m.Logger.Error("failed to move file", m.Logger.Args("file", sourcePath), m.Logger.Args("error", err.Error()))
+			m.Logger.Error("failed to move file", m.Logger.Args("file", sourcePath, "error", err.Error()))
 			continue
 		}
 
@@ -144,7 +144,7 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 			}
 		}
 
-		m.Logger.Info("successfully moved file", m.Logger.Args("source", sourcePath), m.Logger.Args("destination", destPath))
+		m.Logger.Info("successfully moved file", m.Logger.Args("source", sourcePath, "destination", destPath))
 	}
 }
 
@@ -158,7 +158,7 @@ func applyConflictStrategy(m *models.Movelooper, strategy, sourcePath, destPath,
 	}
 	resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, fileName)
 	if err != nil {
-		m.Logger.Error("error to solve conflicts", m.Logger.Args("file", fileName), m.Logger.Args("error", err.Error()))
+		m.Logger.Error("error to solve conflicts", m.Logger.Args("file", fileName, "error", err.Error()))
 		return "", true
 	}
 	if !shouldMove {

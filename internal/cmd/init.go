@@ -23,13 +23,15 @@ var (
 	initForce       bool
 	initInteractive bool
 	initTemplate    string
+	initOutput      string
 )
 
 // InitCmd generates a configuration file
 func InitCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "Initialize movelooper configuration",
+		Use:               "init",
+		Short:             "Initialize movelooper configuration",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 		Long: `Initialize movelooper configuration file with predefined templates or interactive mode.
 		
 Available templates:
@@ -43,25 +45,33 @@ Available templates:
   - regex:       Example using regex name filtering
   - full:        Complete example with multiple categories and all options
   
-The configuration file will be created at: <executable_dir>/conf/movelooper.yaml`,
+By default the configuration file is created at: <executable_dir>/conf/movelooper.yaml`,
 		Example: `  # Interactive mode (recommended for first time)
   movelooper init -i
-  
+
   # Use a template
   movelooper init -t media
-  
+
+  # Save to a custom path
+  movelooper init -o /path/to/movelooper.yaml
+
   # Force overwrite existing config
   movelooper init -f`,
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		ex, err := os.Executable()
-		if err != nil {
-			return fmt.Errorf("error getting executable: %v", err)
+		var configFile string
+		if initOutput != "" {
+			configFile = initOutput
+		} else {
+			ex, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("error getting executable: %v", err)
+			}
+			configFile = filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml")
 		}
 
-		configPath := filepath.Join(filepath.Dir(ex), "conf")
-		configFile := filepath.Join(configPath, "movelooper.yaml")
+		configPath := filepath.Dir(configFile)
 
 		if _, err := os.Stat(configFile); err == nil && !initForce {
 			pterm.Error.Printf("Configuration file already exists at: %s\n", configFile)
@@ -92,13 +102,7 @@ The configuration file will be created at: <executable_dir>/conf/movelooper.yaml
 		}
 
 		terminal.ClearScreen()
-		pterm.Success.Printf("Configuration file created at: %s\n", configFile)
-		pterm.Info.Println("\nNext steps:")
-		pterm.Info.Println("  1. Edit the configuration file to customize categories")
-		pterm.Info.Println("  2. Run 'movelooper' to organize your files")
-		pterm.Info.Println("  3. Run 'movelooper --dry-run' to see what would be moved")
-		pterm.Info.Println("  4. Run 'movelooper watch' to continuously watch for file changes and move them")
-		pterm.Info.Println("  5. Run 'movelooper --help' to see all available commands")
+		fmt.Printf("Config created: %s\n", configFile)
 
 		return nil
 	}
@@ -106,6 +110,7 @@ The configuration file will be created at: <executable_dir>/conf/movelooper.yaml
 	cmd.Flags().BoolVarP(&initForce, "force", "f", false, "Overwrite existing configuration file")
 	cmd.Flags().BoolVarP(&initInteractive, "interactive", "i", false, "Interactive mode with prompts")
 	cmd.Flags().StringVarP(&initTemplate, "template", "t", "basic", "Template to use (basic, images, music, video, books, archives, installers, regex, full)")
+	cmd.Flags().StringVarP(&initOutput, "output", "o", "", "Path to write the configuration file (default: <executable_dir>/conf/movelooper.yaml)")
 
 	return cmd
 }

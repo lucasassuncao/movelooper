@@ -85,10 +85,7 @@ func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 func processCategoryMove(m *models.Movelooper, category *models.Category, movedFiles map[string]bool, batchID string, dryRun, showFiles bool) {
 	files, err := helper.ReadDirectory(category.Source)
 	if err != nil {
-		m.Logger.Error("failed to read directory",
-			m.Logger.Args("path", category.Source),
-			m.Logger.Args("error", err.Error()),
-		)
+		m.Logger.Error("failed to read directory", m.Logger.Args("path", category.Source, "error", err.Error()))
 		return
 	}
 
@@ -180,7 +177,7 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 	var options []config.ViperOptions
 
 	if configPath != "" {
-		// Se um caminho específico foi fornecido, use-o
+		// A specific path was provided — use it directly
 		dir := filepath.Dir(configPath)
 		filename := filepath.Base(configPath)
 		ext := filepath.Ext(filename)
