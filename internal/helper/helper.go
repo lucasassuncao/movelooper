@@ -103,20 +103,6 @@ func ReadDirectory(path string) ([]os.DirEntry, error) {
 	return files, nil
 }
 
-// ValidateFiles checks each file in the provided list to see if it is a regular file
-// and has the specified extension (case-insensitive). It returns the count of matching files.
-func ValidateFiles(files []os.DirEntry, extension string) int {
-	var count int
-
-	for _, file := range files {
-		if file.Type().IsRegular() && HasExtension(file, extension) {
-			count++
-		}
-	}
-
-	return count
-}
-
 // MoveFiles moves files with the specified extension from the source directory to the destination directory.
 // The destination path includes a subdirectory named after the extension, avoiding overwriting files.
 func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension, batchID string) {

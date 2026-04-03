@@ -25,7 +25,6 @@ Package helper provides utility functions for file and directory operations.
 - [func MoveFiles\(m \*models.Movelooper, category \*models.Category, files \[\]os.DirEntry, extension, batchID string\)](<#MoveFiles>)
 - [func ParseSize\(s string\) \(int64, error\)](<#ParseSize>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
-- [func ValidateFiles\(files \[\]os.DirEntry, extension string\) int](<#ValidateFiles>)
 - [func ValidateGlob\(pattern string\) error](<#ValidateGlob>)
 
 
@@ -39,7 +38,7 @@ func CreateDirectory(dir string) error
 CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.
 
 <a name="GenerateLogArgs"></a>
-## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L413>)
+## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L399>)
 
 ```go
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
@@ -48,7 +47,7 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
 GenerateLogArgs generates log arguments for a given extension.
 
 <a name="HasExtension"></a>
-## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L406>)
+## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L392>)
 
 ```go
 func HasExtension(file os.DirEntry, extension string) bool
@@ -84,7 +83,7 @@ func MatchesRegex(fileName string, re *regexp.Regexp) bool
 MatchesRegex checks if the file name matches a pre\-compiled regex pattern
 
 <a name="MeetsMaxAge"></a>
-## func [MeetsMaxAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L389>)
+## func [MeetsMaxAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L375>)
 
 ```go
 func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool
@@ -93,7 +92,7 @@ func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool
 MeetsMaxAge reports whether the file's modification time is newer than maxAge. Always returns true when maxAge is zero.
 
 <a name="MeetsMaxSize"></a>
-## func [MeetsMaxSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L398>)
+## func [MeetsMaxSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L384>)
 
 ```go
 func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool
@@ -102,7 +101,7 @@ func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool
 MeetsMaxSize reports whether the file size is at most maxSizeBytes. Always returns true when maxSizeBytes is zero.
 
 <a name="MeetsMinAge"></a>
-## func [MeetsMinAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L371>)
+## func [MeetsMinAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L357>)
 
 ```go
 func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool
@@ -111,7 +110,7 @@ func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool
 MeetsMinAge reports whether the file's modification time is older than minAge. Always returns true when minAge is zero.
 
 <a name="MeetsMinSize"></a>
-## func [MeetsMinSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L380>)
+## func [MeetsMinSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L366>)
 
 ```go
 func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
@@ -120,7 +119,7 @@ func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
 MeetsMinSize reports whether the file size is at least minSizeBytes. Always returns true when minSizeBytes is zero.
 
 <a name="MoveFiles"></a>
-## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L122>)
+## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L108>)
 
 ```go
 func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension, batchID string)
@@ -129,7 +128,7 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 MoveFiles moves files with the specified extension from the source directory to the destination directory. The destination path includes a subdirectory named after the extension, avoiding overwriting files.
 
 <a name="ParseSize"></a>
-## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L332>)
+## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L318>)
 
 ```go
 func ParseSize(s string) (int64, error)
@@ -145,15 +144,6 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ```
 
 ReadDirectory reads the contents of a given directory and returns the files.
-
-<a name="ValidateFiles"></a>
-## func [ValidateFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L108>)
-
-```go
-func ValidateFiles(files []os.DirEntry, extension string) int
-```
-
-ValidateFiles checks each file in the provided list to see if it is a regular file and has the specified extension \(case\-insensitive\). It returns the count of matching files.
 
 <a name="ValidateGlob"></a>
 ## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/helper.go#L74>)

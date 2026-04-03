@@ -15,19 +15,13 @@ Package models defines the data structures and functions related to application 
 - [type Category](<#Category>)
 - [type CategoryFilter](<#CategoryFilter>)
 - [type Config](<#Config>)
-- [type ConfigOption](<#ConfigOption>)
-  - [func WithCategory\(\) ConfigOption](<#WithCategory>)
-  - [func WithLogFile\(\) ConfigOption](<#WithLogFile>)
-  - [func WithLogLevel\(\) ConfigOption](<#WithLogLevel>)
-  - [func WithOutput\(\) ConfigOption](<#WithOutput>)
-  - [func WithShowCaller\(\) ConfigOption](<#WithShowCaller>)
 - [type Configuration](<#Configuration>)
 - [type Flags](<#Flags>)
 - [type Movelooper](<#Movelooper>)
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L57-L64>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L53-L60>)
 
 Category represents a file category with its properties
 
@@ -43,7 +37,7 @@ type Category struct {
 ```
 
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L43-L54>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L39-L50>)
 
 CategoryFilter holds the optional filtering rules for a category
 
@@ -63,7 +57,7 @@ type CategoryFilter struct {
 ```
 
 <a name="Config"></a>
-## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L28-L31>)
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L24-L27>)
 
 Config represents the complete structure of the movelooper.yaml file
 
@@ -74,62 +68,8 @@ type Config struct {
 }
 ```
 
-<a name="ConfigOption"></a>
-## type [ConfigOption](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L67>)
-
-ConfigOption is a function that modifies the configuration
-
-```go
-type ConfigOption func(*Config)
-```
-
-<a name="WithCategory"></a>
-### func [WithCategory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L164>)
-
-```go
-func WithCategory() ConfigOption
-```
-
-WithCategory adds a category to the configuration The user is prompted to enter the category name, source directory, destination directory, and extensions
-
-<a name="WithLogFile"></a>
-### func [WithLogFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L93>)
-
-```go
-func WithLogFile() ConfigOption
-```
-
-WithLogFile prompts the user to specify the log file
-
-<a name="WithLogLevel"></a>
-### func [WithLogLevel](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L120>)
-
-```go
-func WithLogLevel() ConfigOption
-```
-
-WithLogLevel prompts the user to specify the log level
-
-<a name="WithOutput"></a>
-### func [WithOutput](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L70>)
-
-```go
-func WithOutput() ConfigOption
-```
-
-WithOutput prompts the user to specify the output
-
-<a name="WithShowCaller"></a>
-### func [WithShowCaller](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L146>)
-
-```go
-func WithShowCaller() ConfigOption
-```
-
-WithShowCaller prompts the user to show the caller information
-
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L34-L40>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L30-L36>)
 
 Configuration holds the general settings for Movelooper
 
@@ -157,7 +97,7 @@ type Flags struct {
 ```
 
 <a name="Movelooper"></a>
-## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L18-L25>)
+## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L14-L21>)
 
 Movelooper holds the app dependencies and runtime state
 
