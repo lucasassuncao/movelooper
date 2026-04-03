@@ -14,16 +14,18 @@
 
 - Smart file organization based on configurable categories
 - Multiple predefined templates (`basic`, `music`, `video`, `images`, `books`, `archives`, `installers`, `regex`, `full`)
-- Interactive setup wizard
-- Dry-run (`--preview` / `--dry-run`) to simulate moves safely
+- Interactive setup wizard (`init -i`)
+- Dry-run (`--dry-run`) to simulate moves safely
 - Watch mode (`watch`) — monitors directories and moves files in real-time
 - Undo support (`undo`) — revert the last or any specific batch of moves
 - Regex and glob pattern filtering per category
 - Ignore patterns to skip specific files
+- Age and size filters (`min-age`, `max-age`, `min-size`, `max-size`)
 - Conflict strategies: `rename`, `overwrite`, `skip`, `hash_check`
 - Show filenames with `--show-files`
 - Logging support (`console`, `file`, or `both`)
 - Custom config path with `--config` / `-c`
+- Self-update via `self-update` command
 - Runs automatically — `movelooper` defaults to the move operation
 
 ## How It Works
@@ -45,7 +47,13 @@ movelooper init -i
 Or initialize from a template:
 
 ```bash
-movelooper init -t media
+movelooper init -t full
+```
+
+Save to a custom path:
+
+```bash
+movelooper init -o /path/to/movelooper.yaml
 ```
 
 Force overwrite an existing config:
@@ -180,8 +188,7 @@ movelooper [flags]
 
 | Flag           | Short | Description                        |
 |----------------|-------|------------------------------------|
-| `--preview`    | `-p`  | Dry-run: show what would be moved  |
-| `--dry-run`    |       | Alias for `--preview`              |
+| `--dry-run`    |       | Show what would be moved without moving files |
 | `--show-files` |       | List individual files detected     |
 | `--config`     | `-c`  | Path to a custom config file       |
 | `--version`    |       | Print the current version          |
@@ -207,16 +214,45 @@ movelooper undo watch_1718000000000000000 # undo a specific watch batch
 ### `movelooper init` — generate config
 
 ```bash
-movelooper init -i       # interactive wizard
-movelooper init -t full  # from template
-movelooper init -f       # force overwrite existing config
+movelooper init -i                          # interactive wizard
+movelooper init -t full                     # from template
+movelooper init -o /path/to/custom.yaml     # custom output path
+movelooper init -f                          # force overwrite existing config
+```
+
+| Flag           | Short | Description                                              |
+|----------------|-------|----------------------------------------------------------|
+| `--interactive`| `-i`  | Launch the interactive wizard                            |
+| `--template`   | `-t`  | Template to use (default: `basic`)                       |
+| `--output`     | `-o`  | Path to write the config file                            |
+| `--force`      | `-f`  | Overwrite existing config file                           |
+
+### `movelooper config validate` — validate config
+
+Loads and validates the configuration file without moving any files.
+
+```bash
+movelooper config validate
+movelooper config validate --config /path/to/movelooper.yaml
+```
+
+### `movelooper self-update` — update the binary
+
+Downloads the latest release from GitHub and replaces the current binary. The old binary is saved as `movelooper.exe.old` and cleaned up on the next run.
+
+```bash
+movelooper self-update
+movelooper self-update --repo lucasassuncao/movelooper
 ```
 
 ## Tips
 
-- Run with `-p` first to preview actions before organizing real files.
+- Run with `--dry-run` first to preview actions before organizing real files.
 - Use `watch` mode to automatically keep your Downloads folder clean at all times.
 - Use `undo --list` to inspect past operations and roll back any batch.
-- Add `ignore` patterns to skip screenshots, drafts, or temp files from being moved.
-- Use `glob` for simple name patterns (`report_*.pdf`) and `regex` for complex ones (`^\d{4}-.*`).
+- Add `filter.ignore` patterns to skip screenshots, drafts, or temp files from being moved.
+- Use `filter.glob` for simple name patterns (`report_*.pdf`) and `filter.regex` for complex ones (`^\d{4}-.*`).
+- Use `filter.min-age` to avoid moving files that are still being downloaded.
 - Add `movelooper watch` to a cron job or Windows Task Scheduler for fully automatic cleanup.
+- Run `movelooper config validate` to catch config errors before running the tool.
+- Run `movelooper self-update` to always stay on the latest release.
