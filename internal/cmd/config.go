@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -35,36 +34,7 @@ func validateCmd(m *models.Movelooper) *cobra.Command {
 			pterm.Println()
 
 			for _, cat := range categories {
-				pterm.Printf("  Category : %s\n", pterm.Cyan(cat.Name))
-				pterm.Printf("  Source   : %s\n", pterm.Yellow(cat.Source))
-				pterm.Printf("  Dest     : %s\n", pterm.Yellow(cat.Destination))
-				pterm.Printf("  Exts     : %s\n", pterm.Green(strings.Join(cat.Extensions, ", ")))
-
-				if cat.Filter.Regex != "" {
-					pterm.Printf("  Regex    : %s\n", pterm.Magenta(cat.Filter.Regex))
-				}
-				if cat.Filter.Glob != "" {
-					pterm.Printf("  Glob     : %s\n", pterm.Magenta(cat.Filter.Glob))
-				}
-				if len(cat.Filter.Ignore) > 0 {
-					pterm.Printf("  Ignore   : %s\n", pterm.Red(strings.Join(cat.Filter.Ignore, ", ")))
-				}
-				if cat.Filter.MinAge > 0 {
-					pterm.Printf("  Min Age  : %s\n", pterm.Yellow(cat.Filter.MinAge.String()))
-				}
-				if cat.Filter.MaxAge > 0 {
-					pterm.Printf("  Max Age  : %s\n", pterm.Yellow(cat.Filter.MaxAge.String()))
-				}
-				if cat.Filter.MinSize != "" {
-					pterm.Printf("  Min Size : %s\n", pterm.Yellow(cat.Filter.MinSize))
-				}
-				if cat.Filter.MaxSize != "" {
-					pterm.Printf("  Max Size : %s\n", pterm.Yellow(cat.Filter.MaxSize))
-				}
-				if cat.ConflictStrategy != "" {
-					pterm.Printf("  Strategy : %s\n", cat.ConflictStrategy)
-				}
-
+				printCategorySummary(*cat)
 				pterm.Println()
 			}
 
