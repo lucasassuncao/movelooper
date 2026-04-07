@@ -438,6 +438,42 @@ func HasExtension(file os.DirEntry, extension string) bool {
 	return fileExt == strings.ToLower(ext)
 }
 
+// MatchesAnyExtension reports whether fileName's extension matches any entry in the list.
+// Comparison is case-insensitive; leading dots are stripped before comparing.
+func MatchesAnyExtension(fileName string, extensions []string) bool {
+	fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(fileName), "."))
+	for _, e := range extensions {
+		if strings.ToLower(e) == fileExt {
+			return true
+		}
+	}
+	return false
+}
+
+// MatchesNameFilters reports whether fileName passes the category's regex and glob name
+// filters. Returns true when neither filter is configured.
+func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
+	if f.CompiledRegex != nil && !MatchesRegex(fileName, f.CompiledRegex) {
+		return false
+	}
+	if f.Glob != "" && !MatchesGlob(fileName, f.Glob) {
+		return false
+	}
+	return true
+}
+
+// MeetsAgeSizeFilters reports whether info satisfies all age and size constraints
+// defined in f. Returns true immediately when no constraints are set.
+func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool {
+	if f.MinAge == 0 && f.MaxAge == 0 && f.MinSizeBytes == 0 && f.MaxSizeBytes == 0 {
+		return true
+	}
+	return MeetsMinAge(info, f.MinAge) &&
+		MeetsMaxAge(info, f.MaxAge) &&
+		MeetsMinSize(info, f.MinSizeBytes) &&
+		MeetsMaxSize(info, f.MaxSizeBytes)
+}
+
 // GenerateLogArgs generates log arguments for a given extension.
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{} {
 	var logArgs []interface{}

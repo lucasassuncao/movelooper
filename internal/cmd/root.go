@@ -123,35 +123,20 @@ func matchesCategory(category *models.Category, file os.DirEntry, movedFiles map
 	if movedFiles[filePath] {
 		return false
 	}
+	if !file.Type().IsRegular() || !helper.HasExtension(file, extension) {
+		return false
+	}
 	if helper.MatchesIgnorePatterns(file.Name(), category.Filter.Ignore) {
 		return false
 	}
-	if !helper.HasExtension(file, extension) || !file.Type().IsRegular() {
+	if !helper.MatchesNameFilters(file.Name(), category.Filter) {
 		return false
-	}
-	if category.Filter.Regex != "" && !helper.MatchesRegex(file.Name(), category.Filter.CompiledRegex) {
-		return false
-	}
-	if category.Filter.Glob != "" && !helper.MatchesGlob(file.Name(), category.Filter.Glob) {
-		return false
-	}
-	return meetsAgeSizeFilters(category, file)
-}
-
-// meetsAgeSizeFilters reports whether a file satisfies the min-age and min-size constraints.
-func meetsAgeSizeFilters(category *models.Category, file os.DirEntry) bool {
-	f := category.Filter
-	if f.MinAge == 0 && f.MaxAge == 0 && f.MinSizeBytes == 0 && f.MaxSizeBytes == 0 {
-		return true
 	}
 	info, err := file.Info()
 	if err != nil {
 		return false
 	}
-	return helper.MeetsMinAge(info, f.MinAge) &&
-		helper.MeetsMaxAge(info, f.MaxAge) &&
-		helper.MeetsMinSize(info, f.MinSizeBytes) &&
-		helper.MeetsMaxSize(info, f.MaxSizeBytes)
+	return helper.MeetsAgeSizeFilters(info, category.Filter)
 }
 
 // logExtensionResult logs a summary of files found for an extension.

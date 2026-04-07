@@ -153,38 +153,27 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 	for _, cat := range m.Categories {
 		files, err := helper.ReadDirectory(cat.Source)
 		if err != nil {
+			m.Logger.Warn("failed to read directory during initial scan", m.Logger.Args("path", cat.Source, "error", err.Error()))
 			continue
 		}
 
 		for _, file := range files {
-			// Ignore non-regular files (directories, symlinks, etc.)
 			if !file.Type().IsRegular() {
 				continue
 			}
-
-			// Extensions are mandatory; check extension first
-			fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Name()), "."))
-			matches := false
-			for _, ext := range cat.Extensions {
-				if strings.ToLower(ext) == fileExt {
-					matches = true
-					break
-				}
+			if !helper.MatchesAnyExtension(file.Name(), cat.Extensions) {
+				continue
 			}
-			// Apply optional regex/glob name filter
-			if matches && cat.Filter.CompiledRegex != nil {
-				matches = helper.MatchesRegex(file.Name(), cat.Filter.CompiledRegex)
+			if helper.MatchesIgnorePatterns(file.Name(), cat.Filter.Ignore) {
+				continue
 			}
-			if matches && cat.Filter.Glob != "" {
-				matches = helper.MatchesGlob(file.Name(), cat.Filter.Glob)
+			if !helper.MatchesNameFilters(file.Name(), cat.Filter) {
+				continue
 			}
-
-			if matches && !helper.MatchesIgnorePatterns(file.Name(), cat.Filter.Ignore) {
-				fullPath := filepath.Join(cat.Source, file.Name())
-				// The Ticker will check the real ModTime of the file.
-				// If the file is old, ModTime will be old and it will be moved on the first tick.
-				tracker.files[fullPath] = time.Now()
-			}
+			fullPath := filepath.Join(cat.Source, file.Name())
+			// The Ticker will check the real ModTime of the file.
+			// If the file is old, ModTime will be old and it will be moved on the first tick.
+			tracker.files[fullPath] = time.Now()
 		}
 	}
 }
@@ -234,7 +223,7 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 		if helper.MatchesIgnorePatterns(fileName, cat.Filter.Ignore) {
 			continue
 		}
-		if matchesExtensionAndFilters(cat, fileName, ext, path) {
+		if matchesExtensionAndFilters(cat, fileName, path) {
 			moveFileToCategory(m, *cat, path, ext)
 			return true
 		}
@@ -244,39 +233,18 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 
 // matchesExtensionAndFilters reports whether the file matches the category's extension,
 // name filters (regex/glob), and age/size constraints.
-func matchesExtensionAndFilters(cat *models.Category, fileName, ext, path string) bool {
-	extMatched := false
-	for _, catExt := range cat.Extensions {
-		if strings.EqualFold(catExt, ext) {
-			extMatched = true
-			break
-		}
-	}
-	if !extMatched {
+func matchesExtensionAndFilters(cat *models.Category, fileName, path string) bool {
+	if !helper.MatchesAnyExtension(fileName, cat.Extensions) {
 		return false
 	}
-	if cat.Filter.CompiledRegex != nil && !helper.MatchesRegex(fileName, cat.Filter.CompiledRegex) {
+	if !helper.MatchesNameFilters(fileName, cat.Filter) {
 		return false
-	}
-	if cat.Filter.Glob != "" && !helper.MatchesGlob(fileName, cat.Filter.Glob) {
-		return false
-	}
-	return meetsWatchAgeSizeFilters(cat.Filter, path)
-}
-
-// meetsWatchAgeSizeFilters checks age and size constraints for a file path.
-func meetsWatchAgeSizeFilters(f models.CategoryFilter, path string) bool {
-	if f.MinAge == 0 && f.MaxAge == 0 && f.MinSizeBytes == 0 && f.MaxSizeBytes == 0 {
-		return true
 	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
-	return helper.MeetsMinAge(info, f.MinAge) &&
-		helper.MeetsMaxAge(info, f.MaxAge) &&
-		helper.MeetsMinSize(info, f.MinSizeBytes) &&
-		helper.MeetsMaxSize(info, f.MaxSizeBytes)
+	return helper.MeetsAgeSizeFilters(info, cat.Filter)
 }
 
 func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext string) {
