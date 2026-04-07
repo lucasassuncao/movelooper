@@ -559,173 +559,60 @@ func getDefaultCategory() models.Category {
 	}
 }
 
-// getTemplateConfig returns a predefined template configuration
+// simpleTemplateDef describes a single-category template whose configuration
+// is always the same (console output, info level, rename strategy).
+// Adding a new simple template only requires a new entry in simpleTemplateDefs.
+type simpleTemplateDef struct {
+	categoryName string
+	extensions   []string
+}
+
+// simpleTemplateDefs holds the data for all single-category templates.
+var simpleTemplateDefs = map[string]simpleTemplateDef{
+	"basic":      {categoryName: "images", extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"}},
+	"images":     {categoryName: "images", extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"}},
+	"music":      {categoryName: "music", extensions: []string{"mp3", "wav", "flac", "aac"}},
+	"video":      {categoryName: "videos", extensions: []string{"mp4", "avi", "mkv", "mov", "wmv"}},
+	"books":      {categoryName: "books", extensions: []string{"pdf", "epub", "mobi", "azw3", "doc", "docx"}},
+	"archives":   {categoryName: "archives", extensions: []string{"zip", "tar", "gz", "bz2", "rar", "7z"}},
+	"installers": {categoryName: "installers", extensions: []string{"exe", "msi", "apk"}},
+}
+
+// buildSimpleTemplate constructs a Config from a simpleTemplateDef.
+func buildSimpleTemplate(def simpleTemplateDef) *models.Config {
+	src := getDefaultSourcePath()
+	return &models.Config{
+		Configuration: models.Configuration{
+			Output:     "console",
+			LogLevel:   "info",
+			ShowCaller: false,
+			WatchDelay: 5 * time.Minute,
+		},
+		Categories: []models.Category{
+			{
+				Name:             def.categoryName,
+				Extensions:       def.extensions,
+				Source:           src,
+				Destination:      filepath.Join(src, def.categoryName),
+				ConflictStrategy: "rename",
+			},
+		},
+	}
+}
+
+// getTemplateConfig returns a predefined template configuration.
 func getTemplateConfig(template string) *models.Config {
-	templates := map[string]func() *models.Config{
-		"basic":      getBasicTemplate,
-		"music":      getMusicTemplate,
-		"video":      getVideoTemplate,
-		"books":      getBooksTemplate,
-		"images":     getImagesTemplate,
-		"archives":   getArchivesTemplate,
-		"installers": getInstallersTemplate,
-		"regex":      getRegexTemplate,
-		"full":       getFullTemplate,
+	if def, ok := simpleTemplateDefs[template]; ok {
+		return buildSimpleTemplate(def)
 	}
-
-	templateFunc, exists := templates[template]
-	if !exists {
+	switch template {
+	case "regex":
+		return getRegexTemplate()
+	case "full":
+		return getFullTemplate()
+	default:
 		pterm.Warning.Printf("Unknown template '%s', using 'basic'\n", template)
-		templateFunc = getBasicTemplate
-	}
-
-	return templateFunc()
-}
-
-// getBasicTemplate returns the basic configuration template
-func getBasicTemplate() *models.Config {
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name:             "images",
-				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "images"),
-				ConflictStrategy: "rename",
-			},
-		},
-	}
-}
-
-// getMusicTemplate returns the music configuration template
-func getMusicTemplate() *models.Config {
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name:             "music",
-				Extensions:       []string{"mp3", "wav", "flac", "aac"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "music"),
-				ConflictStrategy: "rename",
-			},
-		},
-	}
-}
-
-// getVideoTemplate returns the video configuration template
-func getVideoTemplate() *models.Config {
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name:             "videos",
-				Extensions:       []string{"mp4", "avi", "mkv", "mov", "wmv"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "videos"),
-				ConflictStrategy: "rename",
-			},
-		},
-	}
-}
-
-// getImagesTemplate returns the images configuration template
-func getImagesTemplate() *models.Config {
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name:             "images",
-				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "images"),
-				ConflictStrategy: "rename",
-			},
-		},
-	}
-}
-
-// getBooksTemplate returns the books configuration template
-func getBooksTemplate() *models.Config {
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name:             "books",
-				Extensions:       []string{"pdf", "epub", "mobi", "azw3", "doc", "docx"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "books"),
-				ConflictStrategy: "rename",
-			},
-		},
-	}
-}
-
-// getArchivesTemplate returns the archives configuration template
-func getArchivesTemplate() *models.Config {
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name:             "archives",
-				Extensions:       []string{"zip", "tar", "gz", "bz2", "rar", "7z"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "archives"),
-				ConflictStrategy: "rename",
-			},
-		},
-	}
-}
-
-// getInstallersTemplate returns the installers configuration template
-func getInstallersTemplate() *models.Config {
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name:             "installers",
-				Extensions:       []string{"exe", "msi", "apk"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "installers"),
-				ConflictStrategy: "rename",
-			},
-		},
+		return buildSimpleTemplate(simpleTemplateDefs["basic"])
 	}
 }
 
