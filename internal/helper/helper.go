@@ -175,39 +175,6 @@ func applyConflictStrategy(m *models.Movelooper, strategy, sourcePath, destPath,
 	return resolvedPath, false
 }
 
-// resolveConflict handles file name conflicts based on the specified strategy.
-func resolveConflict(strategy, src, dst, destDir, fileName string) (string, bool, error) {
-	switch strategy {
-	case "overwrite":
-		// Removes the destination file to allow overwrite
-		if err := os.Remove(dst); err != nil {
-			return "", false, fmt.Errorf("failed to remove destination file for overwrite: %w", err)
-		}
-		return dst, true, nil
-
-	case "skip":
-		return "", false, nil
-
-	case "hash_check":
-		match, err := compareFileHashes(src, dst)
-		if err != nil {
-			return "", false, err
-		}
-		if match {
-			if err := os.Remove(src); err != nil {
-				return "", false, fmt.Errorf("failed to remove duplicate source file: %w", err)
-			}
-			return "", false, nil
-		}
-		// If contents are different but names are the same, fall through to default (rename)
-		fallthrough
-
-	case "rename":
-		fallthrough
-	default:
-		return getUniqueDestinationPath(destDir, fileName), true, nil
-	}
-}
 
 // compareFileHashes compares the SHA-256 hashes of two files to determine if they are identical
 func compareFileHashes(file1, file2 string) (bool, error) {
