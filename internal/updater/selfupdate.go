@@ -148,9 +148,18 @@ func fetchLatestRelease(repo, token string) (*ghRelease, error) {
 	return &rel, nil
 }
 
+// Scoring weights used by selectAsset to rank release assets.
+// Higher weight = stronger signal of compatibility with the current platform.
+const (
+	scoreOS   = 5 // OS name match ("windows", "win64", …) — strongest signal
+	scoreArch = 3 // architecture match ("amd64", "x86_64", …) — secondary signal
+	scoreExe  = 2 // ".exe" extension — confirms Windows binary without OS name
+)
+
 // selectAsset picks the best asset for the current platform.
-// Uses a scoring system to rank candidates — prefers .exe for Windows,
-// skips checksums and signatures.
+// Each candidate is scored: OS name match outweighs arch match, which outweighs
+// extension. The highest-scored asset wins; ties keep the first candidate.
+// Checksums, signatures, and plain-text files are excluded before scoring.
 func selectAsset(assets []ghAsset) *ghAsset {
 	skip := []string{".sha256", ".sha512", ".sig", ".asc", "checksums", ".txt"}
 
@@ -176,18 +185,18 @@ func selectAsset(assets []ghAsset) *ghAsset {
 		score := 0
 		for _, w := range []string{"windows", "win64", "win32"} {
 			if strings.Contains(lower, w) {
-				score += 5
+				score += scoreOS
 				break
 			}
 		}
 		for _, a := range []string{"amd64", "x86_64", "x64"} {
 			if strings.Contains(lower, a) {
-				score += 3
+				score += scoreArch
 				break
 			}
 		}
 		if filepath.Ext(lower) == ".exe" {
-			score += 2
+			score += scoreExe
 		}
 		candidates = append(candidates, scored{&assets[i], score})
 	}

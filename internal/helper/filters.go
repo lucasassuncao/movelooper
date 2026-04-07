@@ -4,17 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
-
-// MatchesRegex checks if the file name matches a pre-compiled regex pattern
-func MatchesRegex(fileName string, re *regexp.Regexp) bool {
-	return re.MatchString(fileName)
-}
 
 // MatchesIgnorePatterns reports whether fileName matches any of the provided
 // glob patterns. Matching is case-insensitive. Patterns follow filepath.Match
@@ -97,7 +91,7 @@ func MatchesAnyExtension(fileName string, extensions []string) bool {
 // MatchesNameFilters reports whether fileName passes the category's regex and glob name
 // filters. Returns true when neither filter is configured.
 func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
-	if f.CompiledRegex != nil && !MatchesRegex(fileName, f.CompiledRegex) {
+	if f.CompiledRegex != nil && !f.CompiledRegex.MatchString(fileName) {
 		return false
 	}
 	if f.Glob != "" && !MatchesGlob(fileName, f.Glob) {

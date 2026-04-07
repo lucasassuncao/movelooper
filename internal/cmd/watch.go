@@ -23,7 +23,9 @@ import (
 // Kept shorter than the default watch-delay so stable files are detected promptly.
 const tickerInterval = 5 * time.Second
 
-// fileInfoDirEntry wraps an os.FileInfo to satisfy the os.DirEntry interface.
+// fileInfoDirEntry adapts an os.FileInfo to the os.DirEntry interface.
+// It is used in watch mode, where we obtain file metadata via os.Lstat
+// rather than os.ReadDir, but downstream helpers expect an os.DirEntry.
 type fileInfoDirEntry struct {
 	info os.FileInfo
 }
@@ -33,10 +35,14 @@ func (e fileInfoDirEntry) IsDir() bool                { return e.info.IsDir() }
 func (e fileInfoDirEntry) Type() fs.FileMode          { return e.info.Mode().Type() }
 func (e fileInfoDirEntry) Info() (fs.FileInfo, error) { return e.info, nil }
 
-// fileTracker keeps track of files detected by the watcher
+// fileTracker records files that the watcher has detected but not yet moved.
+// Each entry maps an absolute file path to the time it was first seen in the
+// current event burst. The ticker loop inspects these entries periodically and
+// moves a file once its on-disk ModTime has been stable for longer than the
+// configured watch-delay, indicating that the write is complete.
 type fileTracker struct {
 	mu    sync.Mutex
-	files map[string]time.Time // Path -> Time of last detection
+	files map[string]time.Time // absolute path → time of first detection
 }
 
 // WatchCmd defines the "watch" command to monitor directories and move files in real-time

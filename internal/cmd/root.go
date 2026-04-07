@@ -59,6 +59,13 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	return cmd
 }
 
+// movedSet tracks absolute paths that have already been moved in the current
+// batch, preventing a file from being claimed by more than one category.
+type movedSet map[string]bool
+
+func (s movedSet) mark(dir, name string) { s[filepath.Join(dir, name)] = true }
+func (s movedSet) has(dir, name string) bool { return s[filepath.Join(dir, name)] }
+
 // runMove executes the default move operation across all configured categories.
 func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 	categories, err := config.UnmarshalConfig(m)
@@ -68,10 +75,10 @@ func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 	m.Categories = categories
 
 	batchID := history.NewBatchID()
-	movedFiles := make(map[string]bool)
+	moved := make(movedSet)
 
 	for _, category := range m.Categories {
-		processCategoryMove(m, category, movedFiles, batchID, dryRun, showFiles)
+		processCategoryMove(m, category, moved, batchID, dryRun, showFiles)
 	}
 
 	if dryRun {
@@ -81,7 +88,7 @@ func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 }
 
 // processCategoryMove handles all extensions for a single category.
-func processCategoryMove(m *models.Movelooper, category *models.Category, movedFiles map[string]bool, batchID string, dryRun, showFiles bool) {
+func processCategoryMove(m *models.Movelooper, category *models.Category, moved movedSet, batchID string, dryRun, showFiles bool) {
 	files, err := helper.ReadDirectory(category.Source)
 	if err != nil {
 		m.Logger.Error("failed to read directory", m.Logger.Args("path", category.Source, "error", err.Error()))
@@ -89,7 +96,7 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, movedF
 	}
 
 	for _, extension := range category.Extensions {
-		filteredFiles := filterFilesForExtension(category, files, movedFiles, extension)
+		filteredFiles := filterFilesForExtension(category, files, moved, extension)
 		logExtensionResult(m, filteredFiles, category.Name, extension, showFiles)
 
 		if !dryRun && len(filteredFiles) > 0 {
@@ -99,17 +106,17 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, movedF
 			}
 			helper.MoveFiles(m, category, filteredFiles, extension, batchID)
 			for _, file := range filteredFiles {
-				movedFiles[filepath.Join(category.Source, file.Name())] = true
+				moved.mark(category.Source, file.Name())
 			}
 		}
 	}
 }
 
 // filterFilesForExtension returns the files that match all criteria for a given extension.
-func filterFilesForExtension(category *models.Category, files []os.DirEntry, movedFiles map[string]bool, extension string) []os.DirEntry {
+func filterFilesForExtension(category *models.Category, files []os.DirEntry, moved movedSet, extension string) []os.DirEntry {
 	var filtered []os.DirEntry
 	for _, file := range files {
-		if matchesCategory(category, file, movedFiles, extension) {
+		if matchesCategory(category, file, moved, extension) {
 			filtered = append(filtered, file)
 		}
 	}
@@ -117,9 +124,8 @@ func filterFilesForExtension(category *models.Category, files []os.DirEntry, mov
 }
 
 // matchesCategory reports whether a file passes all filters defined by the category.
-func matchesCategory(category *models.Category, file os.DirEntry, movedFiles map[string]bool, extension string) bool {
-	filePath := filepath.Join(category.Source, file.Name())
-	if movedFiles[filePath] {
+func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet, extension string) bool {
+	if moved.has(category.Source, file.Name()) {
 		return false
 	}
 	if !file.Type().IsRegular() || !helper.HasExtension(file, extension) {
