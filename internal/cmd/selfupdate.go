@@ -9,7 +9,7 @@ import (
 var DefaultRepo = ""
 
 // SelfUpdateCmd returns the self-update command
-func SelfUpdateCmd() *cobra.Command {
+func SelfUpdateCmd(currentVersion string) *cobra.Command {
 	var repo string
 
 	cmd := &cobra.Command{
@@ -21,7 +21,7 @@ The old binary is kept as movelooper.exe.old until the next run.`,
 		Example: `  movelooper self-update
   movelooper self-update --repo lucasassuncao/movelooper`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return updater.SelfUpdate(repo, "")
+			return updater.SelfUpdate(repo, "", currentVersion)
 		},
 	}
 

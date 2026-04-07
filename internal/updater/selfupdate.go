@@ -16,7 +16,9 @@ import (
 // next run, when it is cleaned up automatically.
 //
 // repo must be in "owner/repo" format, e.g. "lucasassuncao/movelooper".
-func SelfUpdate(repo, token string) error {
+// currentVersion is the running binary's version (e.g. "1.13.1" or "v1.13.1");
+// the update is skipped when it matches the latest release tag.
+func SelfUpdate(repo, token, currentVersion string) error {
 	if repo == "" {
 		return fmt.Errorf("--repo is required (e.g. --repo lucasassuncao/movelooper)")
 	}
@@ -29,6 +31,12 @@ func SelfUpdate(repo, token string) error {
 	rel, err := fetchLatestRelease(repo, token)
 	if err != nil {
 		return err
+	}
+
+	// Normalise both versions to a bare "X.Y.Z" form before comparing.
+	if normalizeVersion(currentVersion) == normalizeVersion(rel.TagName) {
+		fmt.Printf("Already up to date (%s).\n", rel.TagName)
+		return nil
 	}
 
 	asset := selectAsset(rel.Assets)
@@ -87,6 +95,11 @@ func cleanOldBinary() {
 	if _, err := os.Stat(old); err == nil {
 		os.Remove(old)
 	}
+}
+
+// normalizeVersion strips a leading "v" so that "v1.2.3" and "1.2.3" compare equal.
+func normalizeVersion(v string) string {
+	return strings.TrimPrefix(v, "v")
 }
 
 // ── GitHub API ────────────────────────────────────────────────────────────────

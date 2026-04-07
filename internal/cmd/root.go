@@ -54,7 +54,7 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	cmd.AddCommand(WatchCmd(m))
 	cmd.AddCommand(UndoCmd(m))
 	cmd.AddCommand(ConfigCmd(m))
-	cmd.AddCommand(SelfUpdateCmd())
+	cmd.AddCommand(SelfUpdateCmd(version))
 
 	return cmd
 }
