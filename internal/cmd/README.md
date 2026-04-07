@@ -32,7 +32,7 @@ var DefaultRepo = ""
 ```
 
 <a name="ConfigCmd"></a>
-## func [ConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/config.go#L14>)
+## func [ConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/config.go#L13>)
 
 ```go
 func ConfigCmd(m *models.Movelooper) *cobra.Command
@@ -41,7 +41,7 @@ func ConfigCmd(m *models.Movelooper) *cobra.Command
 ConfigCmd returns the "config" command group
 
 <a name="InitCmd"></a>
-## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L30>)
+## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L31>)
 
 ```go
 func InitCmd() *cobra.Command
@@ -50,7 +50,7 @@ func InitCmd() *cobra.Command
 InitCmd generates a configuration file
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L19>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L18>)
 
 ```go
 func RootCmd(m *models.Movelooper, version string) *cobra.Command
@@ -77,7 +77,7 @@ func UndoCmd(m *models.Movelooper) *cobra.Command
 UndoCmd reverts a batch of file moves
 
 <a name="WatchCmd"></a>
-## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L38>)
+## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L43>)
 
 ```go
 func WatchCmd(m *models.Movelooper) *cobra.Command

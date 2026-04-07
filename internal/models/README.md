@@ -8,20 +8,17 @@
 import "github.com/lucasassuncao/movelooper/internal/models"
 ```
 
-Package models defines the data structures and functions related to application configuration.
-
 ## Index
 
 - [type Category](<#Category>)
 - [type CategoryFilter](<#CategoryFilter>)
 - [type Config](<#Config>)
 - [type Configuration](<#Configuration>)
-- [type Flags](<#Flags>)
 - [type Movelooper](<#Movelooper>)
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L53-L60>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L52-L59>)
 
 Category represents a file category with its properties
 
@@ -37,7 +34,7 @@ type Category struct {
 ```
 
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L39-L50>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L38-L49>)
 
 CategoryFilter holds the optional filtering rules for a category
 
@@ -57,7 +54,7 @@ type CategoryFilter struct {
 ```
 
 <a name="Config"></a>
-## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L24-L27>)
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L23-L26>)
 
 Config represents the complete structure of the movelooper.yaml file
 
@@ -69,7 +66,7 @@ type Config struct {
 ```
 
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L30-L36>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L29-L35>)
 
 Configuration holds the general settings for Movelooper
 
@@ -83,21 +80,8 @@ type Configuration struct {
 }
 ```
 
-<a name="Flags"></a>
-## type [Flags](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/flags.go#L5-L9>)
-
-Flags is a struct that holds the persistent flags that are used by the CLI
-
-```go
-type Flags struct {
-    Output     *string
-    LogLevel   *string
-    ShowCaller *bool
-}
-```
-
 <a name="Movelooper"></a>
-## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L14-L21>)
+## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L14-L20>)
 
 Movelooper holds the app dependencies and runtime state
 
@@ -105,7 +89,6 @@ Movelooper holds the app dependencies and runtime state
 type Movelooper struct {
     Logger     *pterm.Logger
     Viper      *viper.Viper
-    Flags      *Flags
     Categories []*Category
     History    *history.History
     LogCloser  io.Closer // non-nil when logging to a file; closed on exit

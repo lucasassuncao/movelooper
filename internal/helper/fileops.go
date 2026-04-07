@@ -98,7 +98,6 @@ func applyConflictStrategy(m *models.Movelooper, strategy, sourcePath, destPath,
 	return resolvedPath, false
 }
 
-
 // moveFile attempts to move a file from source to destination.
 // Falls back to copy+delete when os.Rename fails across different devices/drives.
 func moveFile(src, dst string) error {

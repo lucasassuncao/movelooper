@@ -696,11 +696,12 @@ func getFullTemplate() *models.Config {
 	}
 }
 
-// getDefaultSourcePath returns the default source path (Downloads folder)
+// getDefaultSourcePath returns the default source path (Downloads folder).
+// Falls back to the OS temp directory when the home directory is unavailable.
 func getDefaultSourcePath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "C:\\Downloads"
+		return filepath.Join(os.TempDir(), "movelooper", "downloads")
 	}
 	return filepath.Join(homeDir, "Downloads")
 }
@@ -711,11 +712,12 @@ func getDefaultDestinationPath(categoryName string) string {
 	return filepath.Join(source, categoryName)
 }
 
-// getDefaultLogPath returns the default log file path
+// getDefaultLogPath returns the default log file path.
+// Falls back to the OS temp directory when the home directory is unavailable.
 func getDefaultLogPath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "C:\\logs\\movelooper.log"
+		return filepath.Join(os.TempDir(), "movelooper", "logs", "movelooper.log")
 	}
 	return filepath.Join(homeDir, ".movelooper", "logs", "movelooper.log")
 }
