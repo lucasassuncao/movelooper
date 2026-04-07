@@ -14,9 +14,14 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
+	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/spf13/cobra"
 )
+
+// tickerInterval is how often the watch loop checks whether pending files have stabilized.
+// Kept shorter than the default watch-delay so stable files are detected promptly.
+const tickerInterval = 5 * time.Second
 
 // fileInfoDirEntry wraps an os.FileInfo to satisfy the os.DirEntry interface.
 type fileInfoDirEntry struct {
@@ -133,7 +138,7 @@ func runSignalHandler(m *models.Movelooper, done chan struct{}) {
 
 // runTickerLoop periodically checks for stable files and moves them.
 func runTickerLoop(m *models.Movelooper, tracker *fileTracker, threshold time.Duration, done <-chan struct{}) {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -257,7 +262,7 @@ func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext str
 	}
 
 	targetFile := fileInfoDirEntry{info: info}
-	batchID := fmt.Sprintf("watch_%d", time.Now().UnixNano())
+	batchID := history.NewWatchBatchID()
 	helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext, batchID)
 	return nil
 }

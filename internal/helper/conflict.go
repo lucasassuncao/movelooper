@@ -1,7 +1,9 @@
 package helper
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -53,6 +55,35 @@ type skipResolver struct{}
 
 func (r *skipResolver) Resolve(_, dst, _, _ string) (string, bool, error) {
 	return "", false, nil
+}
+
+// compareFileHashes reports whether file1 and file2 have identical SHA-256 digests.
+func compareFileHashes(file1, file2 string) (bool, error) {
+	h1, err := calculateHash(file1)
+	if err != nil {
+		return false, err
+	}
+	h2, err := calculateHash(file2)
+	if err != nil {
+		return false, err
+	}
+	return h1 == h2, nil
+}
+
+// calculateHash computes the SHA-256 hash of a file's contents.
+func calculateHash(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 // hashCheckResolver compares source and destination by SHA-256 hash.

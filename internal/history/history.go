@@ -11,6 +11,17 @@ import (
 
 const defaultMaxBatches = 50
 
+// NewBatchID returns a batch ID for a one-shot move operation.
+func NewBatchID() string {
+	return fmt.Sprintf("batch_%d", time.Now().Unix())
+}
+
+// NewWatchBatchID returns a batch ID for a watch-mode move operation.
+// It uses nanosecond precision to avoid collisions between rapid events.
+func NewWatchBatchID() string {
+	return fmt.Sprintf("watch_%d", time.Now().UnixNano())
+}
+
 // Entry represents a single file move operation
 type Entry struct {
 	Source      string    `json:"source"`

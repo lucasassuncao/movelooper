@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -99,34 +98,6 @@ func applyConflictStrategy(m *models.Movelooper, strategy, sourcePath, destPath,
 	return resolvedPath, false
 }
 
-// compareFileHashes compares the SHA-256 hashes of two files to determine if they are identical
-func compareFileHashes(file1, file2 string) (bool, error) {
-	h1, err := calculateHash(file1)
-	if err != nil {
-		return false, err
-	}
-	h2, err := calculateHash(file2)
-	if err != nil {
-		return false, err
-	}
-	return h1 == h2, nil
-}
-
-// calculateHash computes the SHA-256 hash of a file's contents
-func calculateHash(filePath string) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
-}
 
 // moveFile attempts to move a file from source to destination.
 // Falls back to copy+delete when os.Rename fails across different devices/drives.

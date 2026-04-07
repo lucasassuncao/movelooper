@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
@@ -68,7 +67,7 @@ func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 	}
 	m.Categories = categories
 
-	batchID := fmt.Sprintf("batch_%d", time.Now().Unix())
+	batchID := history.NewBatchID()
 	movedFiles := make(map[string]bool)
 
 	for _, category := range m.Categories {
