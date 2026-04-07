@@ -27,7 +27,6 @@ func main() {
 	m := &models.Movelooper{
 		Viper:      v,
 		Logger:     nil,
-		Flags:      &models.Flags{},
 		Categories: make([]*models.Category, 0),
 	}
 

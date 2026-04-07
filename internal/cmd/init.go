@@ -19,21 +19,24 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-var (
-	initForce       bool
-	initInteractive bool
-	initTemplate    string
-	initOutput      string
-)
+// initOptions holds the flag values for the init command.
+type initOptions struct {
+	force       bool
+	interactive bool
+	template    string
+	output      string
+}
 
 // InitCmd generates a configuration file
 func InitCmd() *cobra.Command {
+	opts := initOptions{}
+
 	cmd := &cobra.Command{
 		Use:               "init",
 		Short:             "Initialize movelooper configuration",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 		Long: `Initialize movelooper configuration file with predefined templates or interactive mode.
-		
+
 Available templates:
   - basic:       Simple configuration with one category (images)
   - images:      Configuration for organizing image files
@@ -44,7 +47,7 @@ Available templates:
   - installers:  Configuration for organizing installer files
   - regex:       Example using regex name filtering
   - full:        Complete example with multiple categories and all options
-  
+
 By default the configuration file is created at: <executable_dir>/conf/movelooper.yaml`,
 		Example: `  # Interactive mode (recommended for first time)
   movelooper init -i
@@ -57,62 +60,64 @@ By default the configuration file is created at: <executable_dir>/conf/moveloope
 
   # Force overwrite existing config
   movelooper init -f`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runInit(opts)
+		},
 	}
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		var configFile string
-		if initOutput != "" {
-			configFile = initOutput
-		} else {
-			ex, err := os.Executable()
-			if err != nil {
-				return fmt.Errorf("error getting executable: %v", err)
-			}
-			configFile = filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml")
-		}
+	cmd.Flags().BoolVarP(&opts.force, "force", "f", false, "Overwrite existing configuration file")
+	cmd.Flags().BoolVarP(&opts.interactive, "interactive", "i", false, "Interactive mode with prompts")
+	cmd.Flags().StringVarP(&opts.template, "template", "t", "basic", "Template to use (basic, images, music, video, books, archives, installers, regex, full)")
+	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Path to write the configuration file (default: <executable_dir>/conf/movelooper.yaml)")
 
-		configPath := filepath.Dir(configFile)
+	return cmd
+}
 
-		if _, err := os.Stat(configFile); err == nil && !initForce {
-			pterm.Error.Printf("Configuration file already exists at: %s\n", configFile)
-			pterm.Info.Println("Use --force to overwrite")
-			return nil
-		}
-
-		if err := helper.CreateDirectory(configPath); err != nil {
-			return fmt.Errorf("error creating config directory: %v", err)
-		}
-
-		var config *models.Config
-
-		if initInteractive {
-			config = generateInteractiveConfig()
-		} else {
-			config = getTemplateConfig(initTemplate)
-		}
-
-		// Write config to file
-		data, err := yaml.Marshal(config)
+// runInit executes the init command with the given options.
+func runInit(opts initOptions) error {
+	var configFile string
+	if opts.output != "" {
+		configFile = opts.output
+	} else {
+		ex, err := os.Executable()
 		if err != nil {
-			return fmt.Errorf("error marshaling config: %v", err)
+			return fmt.Errorf("error getting executable: %v", err)
 		}
+		configFile = filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml")
+	}
 
-		if err := os.WriteFile(configFile, data, 0644); err != nil {
-			return fmt.Errorf("error writing config file: %v", err)
-		}
+	configPath := filepath.Dir(configFile)
 
-		terminal.ClearScreen()
-		fmt.Printf("Config created: %s\n", configFile)
-
+	if _, err := os.Stat(configFile); err == nil && !opts.force {
+		pterm.Error.Printf("Configuration file already exists at: %s\n", configFile)
+		pterm.Info.Println("Use --force to overwrite")
 		return nil
 	}
 
-	cmd.Flags().BoolVarP(&initForce, "force", "f", false, "Overwrite existing configuration file")
-	cmd.Flags().BoolVarP(&initInteractive, "interactive", "i", false, "Interactive mode with prompts")
-	cmd.Flags().StringVarP(&initTemplate, "template", "t", "basic", "Template to use (basic, images, music, video, books, archives, installers, regex, full)")
-	cmd.Flags().StringVarP(&initOutput, "output", "o", "", "Path to write the configuration file (default: <executable_dir>/conf/movelooper.yaml)")
+	if err := helper.CreateDirectory(configPath); err != nil {
+		return fmt.Errorf("error creating config directory: %v", err)
+	}
 
-	return cmd
+	var config *models.Config
+	if opts.interactive {
+		config = generateInteractiveConfig()
+	} else {
+		config = getTemplateConfig(opts.template)
+	}
+
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("error marshaling config: %v", err)
+	}
+
+	if err := os.WriteFile(configFile, data, 0644); err != nil {
+		return fmt.Errorf("error writing config file: %v", err)
+	}
+
+	terminal.ClearScreen()
+	fmt.Printf("Config created: %s\n", configFile)
+
+	return nil
 }
 
 // generateInteractiveConfig creates configuration through interactive prompts

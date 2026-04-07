@@ -59,7 +59,7 @@ Use --list to see all available batches.`,
 func printBatchList(m *models.Movelooper) error {
 	batches := m.History.GetAllBatches()
 	if len(batches) == 0 {
-		m.Logger.Info("No batches in history.")
+		m.Logger.Info("no batches in history")
 		return nil
 	}
 
@@ -98,11 +98,11 @@ func undoBatch(m *models.Movelooper, batchID string) error {
 		Value(&confirm).
 		Run()
 	if err == huh.ErrUserAborted || !confirm {
-		m.Logger.Info("Undo operation cancelled")
+		m.Logger.Info("undo operation cancelled")
 		return nil
 	}
 
-	m.Logger.Info("Undoing batch...", m.Logger.Args("batch_id", batchID, "files", len(entries)))
+	m.Logger.Info("undoing batch", m.Logger.Args("batch_id", batchID, "files", len(entries)))
 
 	successCount := 0
 	failCount := 0
@@ -112,38 +112,38 @@ func undoBatch(m *models.Movelooper, batchID string) error {
 		entry := entries[i]
 
 		if _, err := os.Stat(entry.Destination); os.IsNotExist(err) {
-			m.Logger.Warn("File not found at destination, skipping", m.Logger.Args("path", entry.Destination))
+			m.Logger.Warn("file not found at destination, skipping", m.Logger.Args("path", entry.Destination))
 			failCount++
 			continue
 		}
 
 		if _, err := os.Stat(entry.Source); err == nil {
-			m.Logger.Warn("Source location already occupied, skipping", m.Logger.Args("path", entry.Source))
+			m.Logger.Warn("source location already occupied, skipping", m.Logger.Args("path", entry.Source))
 			failCount++
 			continue
 		}
 
 		sourceDir := filepath.Dir(entry.Source)
 		if err := os.MkdirAll(sourceDir, 0755); err != nil {
-			m.Logger.Error("Failed to create source directory", m.Logger.Args("path", sourceDir, "error", err.Error()))
+			m.Logger.Error("failed to create source directory", m.Logger.Args("path", sourceDir, "error", err.Error()))
 			failCount++
 			continue
 		}
 
 		if err := os.Rename(entry.Destination, entry.Source); err != nil {
-			m.Logger.Error("Failed to move file back", m.Logger.Args("from", entry.Destination, "to", entry.Source, "error", err.Error()))
+			m.Logger.Error("failed to move file back", m.Logger.Args("from", entry.Destination, "to", entry.Source, "error", err.Error()))
 			failCount++
 			continue
 		}
 
-		m.Logger.Info("Restored file", m.Logger.Args("path", entry.Source))
+		m.Logger.Info("file restored", m.Logger.Args("path", entry.Source))
 		successCount++
 	}
 
-	m.Logger.Info("Undo completed", m.Logger.Args("restored", successCount, "failed", failCount))
+	m.Logger.Info("undo completed", m.Logger.Args("restored", successCount, "failed", failCount))
 
 	if err := m.History.RemoveBatch(batchID); err != nil {
-		m.Logger.Error("Failed to remove batch from history", m.Logger.Args("error", err.Error()))
+		m.Logger.Error("failed to remove batch from history", m.Logger.Args("error", err.Error()))
 	}
 
 	return nil

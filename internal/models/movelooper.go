@@ -14,7 +14,6 @@ import (
 type Movelooper struct {
 	Logger     *pterm.Logger
 	Viper      *viper.Viper
-	Flags      *Flags
 	Categories []*Category
 	History    *history.History
 	LogCloser  io.Closer // non-nil when logging to a file; closed on exit

@@ -76,7 +76,7 @@ func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 	}
 
 	if dryRun {
-		m.Logger.Info("Dry-run complete (no files were moved).")
+		m.Logger.Info("dry-run complete, no files were moved")
 	}
 	return nil
 }
@@ -207,7 +207,7 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 	hist, err := history.NewHistory(historyLimit)
 	if err != nil {
 		// Log warning but don't fail app if history fails
-		m.Logger.Warn("Failed to initialize history tracking", m.Logger.Args("error", err.Error()))
+		m.Logger.Warn("failed to initialize history tracking", m.Logger.Args("error", err.Error()))
 	} else {
 		m.History = hist
 	}

@@ -58,7 +58,7 @@ func runWatch(m *models.Movelooper) error {
 		stabilityThreshold = 5 * time.Minute
 	}
 
-	m.Logger.Info("Starting Watch Mode", m.Logger.Args("stability_delay", stabilityThreshold.String()))
+	m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", stabilityThreshold.String()))
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -70,7 +70,7 @@ func runWatch(m *models.Movelooper) error {
 
 	registerSources(m, watcher)
 
-	m.Logger.Info("Performing initial scan for existing files...")
+	m.Logger.Info("performing initial scan for existing files")
 	performInitialScan(m, tracker)
 
 	done := make(chan struct{})
@@ -90,9 +90,9 @@ func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
 		if seen[cat.Source] {
 			continue
 		}
-		m.Logger.Info("Monitoring directory", m.Logger.Args("path", cat.Source))
+		m.Logger.Info("monitoring directory", m.Logger.Args("path", cat.Source))
 		if err := watcher.Add(cat.Source); err != nil {
-			m.Logger.Error("Failed to watch directory", m.Logger.Args("path", cat.Source, "error", err.Error()))
+			m.Logger.Error("failed to watch directory", m.Logger.Args("path", cat.Source, "error", err.Error()))
 		}
 		seen[cat.Source] = true
 	}
@@ -115,7 +115,7 @@ func runEventLoop(m *models.Movelooper, watcher *fsnotify.Watcher, tracker *file
 			if !ok {
 				return
 			}
-			m.Logger.Error("Watcher error", m.Logger.Args("error", err.Error()))
+			m.Logger.Error("watcher error", m.Logger.Args("error", err.Error()))
 		case <-done:
 			return
 		}
@@ -127,7 +127,7 @@ func runSignalHandler(m *models.Movelooper, done chan struct{}) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
-	m.Logger.Info("Shutting down watch mode...")
+	m.Logger.Info("shutting down watch mode")
 	close(done)
 }
 
