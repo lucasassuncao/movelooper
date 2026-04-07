@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/history"
@@ -245,8 +247,8 @@ func moveFile(src, dst string) error {
 	}
 
 	// os.Rename fails across different filesystems/drives (EXDEV on Unix,
-	// "The system cannot move the file to a different disk drive" on Windows).
-	// Fall back to copy+delete.
+	// ERROR_NOT_SAME_DEVICE on Windows). Fall back to copy+delete only for
+	// that specific error — other errors (permissions, missing file) are returned as-is.
 	if !isCrossDeviceError(err) {
 		return err
 	}
@@ -256,41 +258,82 @@ func moveFile(src, dst string) error {
 	}
 
 	if err := os.Remove(src); err != nil {
-		// Copy succeeded but source cleanup failed — log-worthy but not fatal.
-		// The file exists at destination, so we return nil to avoid a false failure.
-		_ = err
+		// Copy succeeded but source removal failed. Remove the destination copy
+		// to avoid silent duplication, then surface the error.
+		_ = os.Remove(dst)
+		return fmt.Errorf("cross-device move: copied to %s but could not remove source: %w", dst, err)
 	}
 
 	return nil
 }
 
 // isCrossDeviceError reports whether err is a rename failure caused by src and
-// dst being on different filesystems or drives. os.Rename always wraps such
-// errors in *os.LinkError on both Windows and Unix.
+// dst being on different filesystems or drives.
+//
+// On Unix the kernel returns EXDEV; on Windows it returns ERROR_NOT_SAME_DEVICE
+// (errno 17). Both are wrapped inside *os.LinkError by os.Rename, so we unwrap
+// to the inner syscall error before comparing — this avoids treating unrelated
+// *os.LinkError values (e.g. permission denied) as cross-device errors.
 func isCrossDeviceError(err error) bool {
 	var linkErr *os.LinkError
-	return errors.As(err, &linkErr)
+	if !errors.As(err, &linkErr) {
+		return false
+	}
+
+	inner := linkErr.Err
+
+	// syscall.EXDEV is defined on all Unix-like platforms.
+	// On Windows, syscall.Errno(17) is ERROR_NOT_SAME_DEVICE.
+	const windowsErrorNotSameDevice = syscall.Errno(17)
+
+	switch runtime.GOOS {
+	case "windows":
+		return errors.Is(inner, windowsErrorNotSameDevice)
+	default:
+		return errors.Is(inner, syscall.EXDEV)
+	}
 }
 
-// copyFile copies src to dst, creating dst if needed.
+// copyFile copies src to dst preserving the original file mode and timestamps.
 func copyFile(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode())
 	if err != nil {
 		return err
 	}
-	defer out.Close()
 
 	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		os.Remove(dst)
 		return err
 	}
 
-	return out.Sync()
+	if err := out.Sync(); err != nil {
+		out.Close()
+		os.Remove(dst)
+		return err
+	}
+
+	if err := out.Close(); err != nil {
+		os.Remove(dst)
+		return err
+	}
+
+	// Restore the original modification time so watchers and filters
+	// that use file age (min-age / max-age) behave consistently.
+	_ = os.Chtimes(dst, srcInfo.ModTime(), srcInfo.ModTime())
+
+	return nil
 }
 
 // getUniqueDestinationPath ensures no file is overwritten by appending (n) if needed
