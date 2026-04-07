@@ -120,6 +120,14 @@ func runInit(opts initOptions) error {
 	return nil
 }
 
+// exitIfAborted exits cleanly when the user cancels an interactive prompt.
+// huh returns ErrUserAborted on Ctrl+C / Esc; we treat that as a graceful exit.
+func exitIfAborted(err error) {
+	if err == huh.ErrUserAborted {
+		os.Exit(0)
+	}
+}
+
 // generateInteractiveConfig creates configuration through interactive prompts
 func generateInteractiveConfig() *models.Config {
 	terminal.ClearScreen()
@@ -141,9 +149,7 @@ func generateInteractiveConfig() *models.Config {
 		).
 		Value(&output).
 		Run()
-	if err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+	exitIfAborted(err)
 	config.Configuration.Output = output
 
 	if output == "log" || output == "file" || output == "both" {
@@ -154,9 +160,7 @@ func generateInteractiveConfig() *models.Config {
 			Value(&logFile).
 			Placeholder(defaultLogPath).
 			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
+		exitIfAborted(err)
 
 		if logFile == "" {
 			logFile = defaultLogPath
@@ -177,9 +181,7 @@ func generateInteractiveConfig() *models.Config {
 		).
 		Value(&logLevel).
 		Run()
-	if err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+	exitIfAborted(err)
 	config.Configuration.LogLevel = logLevel
 
 	var showCaller bool
@@ -187,9 +189,7 @@ func generateInteractiveConfig() *models.Config {
 		Title("Show caller information in logs?").
 		Value(&showCaller).
 		Run()
-	if err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+	exitIfAborted(err)
 	config.Configuration.ShowCaller = showCaller
 
 	var watchDelayStr string
@@ -205,9 +205,7 @@ func generateInteractiveConfig() *models.Config {
 			return err
 		}).
 		Run()
-	if err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+	exitIfAborted(err)
 
 	if watchDelayStr == "" {
 		watchDelayStr = "5m"
@@ -225,9 +223,7 @@ func generateInteractiveConfig() *models.Config {
 		Title("Do you want to add categories now?").
 		Value(&addCategories).
 		Run()
-	if err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+	exitIfAborted(err)
 
 	if addCategories {
 		config.Categories = collectCategories()
@@ -254,9 +250,7 @@ func collectCategories() []models.Category {
 		pterm.Println()
 
 		var addMore bool
-		if err := huh.NewConfirm().Title("Add another category?").Value(&addMore).Run(); err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
+		exitIfAborted(huh.NewConfirm().Title("Add another category?").Value(&addMore).Run())
 		if !addMore {
 			break
 		}
@@ -269,7 +263,7 @@ func promptOneCategory() models.Category {
 	terminal.ClearScreen()
 
 	var name string
-	if err := huh.NewInput().
+	exitIfAborted(huh.NewInput().
 		Title("Category name (e.g., images, documents)").
 		Value(&name).
 		Validate(func(str string) error {
@@ -277,21 +271,17 @@ func promptOneCategory() models.Category {
 				return fmt.Errorf("category name is required")
 			}
 			return nil
-		}).Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+		}).Run())
 
 	var strategy string
-	if err := huh.NewSelect[string]().
+	exitIfAborted(huh.NewSelect[string]().
 		Title("Conflict strategy (if file exists)").
 		Options(
 			huh.NewOption("Rename", "rename"),
 			huh.NewOption("Hash Check", "hash_check"),
 			huh.NewOption("Overwrite", "overwrite"),
 			huh.NewOption("Skip", "skip"),
-		).Value(&strategy).Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+		).Value(&strategy).Run())
 
 	source := promptWithDefault(
 		huh.NewInput().Title("Source directory").Placeholder(getDefaultSourcePath()),
@@ -330,9 +320,7 @@ func promptOneCategory() models.Category {
 func promptWithDefault(field *huh.Input, defaultVal string) string {
 	var val string
 	field.Value(&val)
-	if err := field.Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+	exitIfAborted(field.Run())
 	if val == "" {
 		return defaultVal
 	}
@@ -342,20 +330,18 @@ func promptWithDefault(field *huh.Input, defaultVal string) string {
 // promptNameFilter asks the user to choose an optional name filter (regex or glob).
 func promptNameFilter() (regex, glob string) {
 	var filterType string
-	if err := huh.NewSelect[string]().
+	exitIfAborted(huh.NewSelect[string]().
 		Title("Add an optional name filter?").
 		Description("Extensions already define the file type; this further filters by name").
 		Options(
 			huh.NewOption("None", "none"),
 			huh.NewOption("Glob pattern (e.g., report_*.pdf, invoice_*.{pdf,docx})", "glob"),
 			huh.NewOption("Regex pattern (e.g., ^report_\\d{4}\\.pdf$)", "regex"),
-		).Value(&filterType).Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+		).Value(&filterType).Run())
 
 	switch filterType {
 	case "regex":
-		if err := huh.NewInput().
+		exitIfAborted(huh.NewInput().
 			Title("Specify the Regex pattern").
 			Value(&regex).
 			Validate(func(s string) error {
@@ -364,11 +350,9 @@ func promptNameFilter() (regex, glob string) {
 				}
 				_, err := regexp.Compile(s)
 				return err
-			}).Run(); err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
+			}).Run())
 	case "glob":
-		if err := huh.NewInput().
+		exitIfAborted(huh.NewInput().
 			Title("Specify the Glob pattern").
 			Description("Use * for any characters, ? for one character, {a,b} for alternatives").
 			Value(&glob).
@@ -377,9 +361,7 @@ func promptNameFilter() (regex, glob string) {
 					return fmt.Errorf("glob pattern is required")
 				}
 				return helper.ValidateGlob(s)
-			}).Run(); err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
+			}).Run())
 	}
 	return regex, glob
 }
@@ -387,12 +369,10 @@ func promptNameFilter() (regex, glob string) {
 // promptIgnorePatterns asks the user whether to add ignore patterns and collects them.
 func promptIgnorePatterns() []string {
 	var addIgnore bool
-	if err := huh.NewConfirm().
+	exitIfAborted(huh.NewConfirm().
 		Title("Do you want to add ignore patterns?").
 		Description("Glob patterns for files to skip (e.g., *_temp.*, screenshot_*)").
-		Value(&addIgnore).Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+		Value(&addIgnore).Run())
 	if addIgnore {
 		return collectIgnorePatterns()
 	}
@@ -411,9 +391,7 @@ func collectExtensions(categoryName string) []string {
 			Title("Use suggested extensions?").
 			Value(&useSuggestions).
 			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
+		exitIfAborted(err)
 
 		if useSuggestions {
 			return suggestions
@@ -428,9 +406,7 @@ func collectExtensions(categoryName string) []string {
 			Title("File extension").
 			Value(&extension).
 			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
+		exitIfAborted(err)
 
 		if extension != "" {
 			// Remove dot if user added it
@@ -444,9 +420,7 @@ func collectExtensions(categoryName string) []string {
 				Title("Add another extension?").
 				Value(&addMore).
 				Run()
-			if err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
+			exitIfAborted(err)
 
 			if !addMore {
 				break
@@ -467,24 +441,20 @@ func promptAgeFilter() (minAge, maxAge time.Duration) {
 	}
 
 	var minAgeStr string
-	if err := huh.NewInput().
+	exitIfAborted(huh.NewInput().
 		Title("Minimum file age before moving (e.g., 24h, 168h) — leave blank to disable").
 		Description("Only files older than this duration will be moved").
 		Value(&minAgeStr).
 		Validate(validateDuration).
-		Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+		Run())
 
 	var maxAgeStr string
-	if err := huh.NewInput().
+	exitIfAborted(huh.NewInput().
 		Title("Maximum file age before moving (e.g., 720h, 8760h) — leave blank to disable").
 		Description("Only files newer than this duration will be moved").
 		Value(&maxAgeStr).
 		Validate(validateDuration).
-		Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+		Run())
 
 	if minAgeStr != "" {
 		minAge, _ = time.ParseDuration(minAgeStr)
@@ -497,19 +467,15 @@ func promptAgeFilter() (minAge, maxAge time.Duration) {
 
 // promptSizeFilter asks the user for optional min-size and max-size filters.
 func promptSizeFilter() (minSize, maxSize string) {
-	if err := huh.NewInput().
+	exitIfAborted(huh.NewInput().
 		Title("Minimum file size before moving (e.g., 1MB, 500KB) — leave blank to disable").
 		Description("Only files larger than this size will be moved").
-		Value(&minSize).Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+		Value(&minSize).Run())
 
-	if err := huh.NewInput().
+	exitIfAborted(huh.NewInput().
 		Title("Maximum file size before moving (e.g., 10MB, 1GB) — leave blank to disable").
 		Description("Only files smaller than this size will be moved").
-		Value(&maxSize).Run(); err == huh.ErrUserAborted {
-		os.Exit(0)
-	}
+		Value(&maxSize).Run())
 
 	return minSize, maxSize
 }
@@ -526,9 +492,7 @@ func collectIgnorePatterns() []string {
 			Title("Ignore pattern").
 			Value(&pattern).
 			Run()
-		if err == huh.ErrUserAborted {
-			os.Exit(0)
-		}
+		exitIfAborted(err)
 
 		if pattern != "" {
 			patterns = append(patterns, pattern)
@@ -540,9 +504,7 @@ func collectIgnorePatterns() []string {
 				Title("Add another ignore pattern?").
 				Value(&addMore).
 				Run()
-			if err == huh.ErrUserAborted {
-				os.Exit(0)
-			}
+			exitIfAborted(err)
 
 			if !addMore {
 				break

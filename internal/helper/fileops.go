@@ -16,17 +16,10 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
-// CreateDirectory checks if the specified directory exists, and if not, creates it with full permissions.
+// CreateDirectory creates dir and all necessary parents with full permissions.
+// It is idempotent: no error is returned when dir already exists.
 func CreateDirectory(dir string) error {
-	_, err := os.Stat(dir)
-	if os.IsNotExist(err) {
-		err := os.MkdirAll(dir, 0777)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	return err
+	return os.MkdirAll(dir, 0777)
 }
 
 // ReadDirectory reads the contents of a given directory and returns the files.

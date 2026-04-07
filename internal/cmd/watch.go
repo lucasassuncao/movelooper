@@ -202,7 +202,9 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 
 		// Verifies if the file has stabilized based on its ModTime
 		if err == nil && now.Sub(info.ModTime()) > threshold {
-			attemptMoveFile(m, path)
+			if err := attemptMoveFile(m, path); err != nil {
+				m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
+			}
 			// Remove from tracking after attempt (whether moved or ignored)
 			tracker.mu.Lock()
 			delete(tracker.files, path)
@@ -211,8 +213,10 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 	}
 }
 
-// attemptMoveFile tries to find a matching category and move the file
-func attemptMoveFile(m *models.Movelooper, path string) bool {
+// attemptMoveFile tries to find a matching category and move the file.
+// Returns an error if a matching category was found but the move failed.
+// Returns nil both when the file was moved successfully and when no category matched.
+func attemptMoveFile(m *models.Movelooper, path string) error {
 	fileName := filepath.Base(path)
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 
@@ -224,11 +228,10 @@ func attemptMoveFile(m *models.Movelooper, path string) bool {
 			continue
 		}
 		if matchesExtensionAndFilters(cat, fileName, path) {
-			moveFileToCategory(m, *cat, path, ext)
-			return true
+			return moveFileToCategory(m, *cat, path, ext)
 		}
 	}
-	return false
+	return nil
 }
 
 // matchesExtensionAndFilters reports whether the file matches the category's extension,
@@ -247,13 +250,14 @@ func matchesExtensionAndFilters(cat *models.Category, fileName, path string) boo
 	return helper.MeetsAgeSizeFilters(info, cat.Filter)
 }
 
-func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext string) {
+func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext string) error {
 	info, err := os.Lstat(path)
 	if err != nil {
-		return
+		return fmt.Errorf("failed to stat file before move: %w", err)
 	}
 
 	targetFile := fileInfoDirEntry{info: info}
 	batchID := fmt.Sprintf("watch_%d", time.Now().UnixNano())
 	helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext, batchID)
+	return nil
 }
