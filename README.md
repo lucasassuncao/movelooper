@@ -10,6 +10,7 @@
 
 ## Features
 
+- Split your config across multiple YAML files with `import:` — keep categories tidy and easy to debug with `config show`
 - Smart file organization based on configurable categories
 - Multiple predefined templates (`basic`, `music`, `video`, `images`, `books`, `archives`, `installers`, `regex`, `full`)
 - Interactive setup wizard (`init -i`)
@@ -195,6 +196,37 @@ categories:
     conflict-strategy: hash_check
 ```
 
+## Splitting your config with imports
+
+For large configs, you can split `categories` across multiple YAML files using the top-level `import:` key. Import paths are relative to the file that declares them. Circular imports are detected and reported as an error.
+
+**`movelooper.yaml`** — main file (holds `configuration`, imports category files):
+
+```yaml
+configuration:
+  output: console
+  log-level: info
+  watch-delay: 5m
+
+import:
+  - categories/media.yaml
+  - categories/documents.yaml
+  - categories/wallhaven.yaml
+```
+
+**`categories/wallhaven.yaml`** — imported file (only `categories`):
+
+```yaml
+categories:
+  - name: wallhaven
+    extensions: [jpg, png]
+    source: C:\Users\you\Downloads
+    destination: C:\Users\you\Walls\Wallhaven
+    conflict-strategy: hash_check
+```
+
+Imported files can also have their own `import:` for nested splitting. Use `movelooper config show` to inspect the final merged configuration.
+
 ## Commands and Flags
 
 ### `movelooper` (default — move files once)
@@ -292,6 +324,7 @@ movelooper self-update --repo lucasassuncao/movelooper
 - Use `undo --list` to inspect past operations and roll back any batch.
 - Use `enabled: false` to temporarily pause a category without deleting it from the config.
 - Use `extensions: [all]` with `group-by-extension: true` as a catch-all category that organizes any file by its real extension.
+- Use `import:` to split a large config into per-category files — combine with `config show` to verify the merged result.
 - Run `movelooper config show` to verify which configuration values are actually in effect.
 - Run `movelooper config validate` to catch config errors before running the tool.
 - Add `filter.ignore` patterns to skip screenshots, drafts, or temp files from being moved.

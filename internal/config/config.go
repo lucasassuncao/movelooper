@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 
@@ -12,14 +13,22 @@ import (
 // ViperOptions is a function that takes a viper instance and applies options to it
 type ViperOptions func(*viper.Viper)
 
-// InitConfig initializes Viper to read from movelooper.yaml
+// InitConfig initializes Viper to read from movelooper.yaml.
+// After locating the config file it resolves any top-level `import:` entries,
+// merges all imported categories, and re-feeds the merged document into Viper.
 func InitConfig(v *viper.Viper, options ...ViperOptions) error {
 	applyOptions(v, options...)
 
 	if err := v.ReadInConfig(); err != nil {
 		return fmt.Errorf("could not read config: %w", err)
 	}
-	return nil
+
+	merged, err := ResolveImports(v.ConfigFileUsed())
+	if err != nil {
+		return fmt.Errorf("resolving imports: %w", err)
+	}
+
+	return v.ReadConfig(bytes.NewReader(merged))
 }
 
 // applyOptions applies the options to the viper instance

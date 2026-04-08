@@ -75,6 +75,11 @@
         <h3>Interactive setup</h3>
         <p>Generate your config file with <code>movelooper init -i</code> or from a template.</p>
       </div>
+      <div class="feature-card">
+        <div class="icon">📎</div>
+        <h3>Config imports</h3>
+        <p>Split categories across multiple YAML files with <code>import:</code>. Use <code>config show</code> to inspect the merged result.</p>
+      </div>
     </div>
   </section>
 
@@ -151,6 +156,40 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
     <span class="key">destination</span>: <span class="str">"C:\\Users\\you\\Sorted"</span>
     <span class="key">conflict-strategy</span>: <span class="val">hash_check</span>
     <span class="key">group-by-extension</span>: <span class="val">true</span></pre>
+    </div>
+  </section>
+
+  <!-- ── Imports ── -->
+  <section id="imports">
+    <h2>Splitting your config with imports</h2>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">
+      Use the top-level <code>import:</code> key to split categories across multiple YAML files.
+      Paths are relative to the file that declares them. Circular imports are detected automatically.
+      Use <code>movelooper config show</code> to inspect the final merged result.
+    </p>
+
+    <p style="margin-bottom: 8px; font-weight: 600;">movelooper.yaml <span style="font-weight:400;color:var(--text-muted)">— main file</span></p>
+    <div class="code-block" style="margin-bottom: 16px;">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><span class="key">configuration</span>:
+  <span class="key">output</span>: <span class="val">console</span>
+  <span class="key">log-level</span>: <span class="val">info</span>
+
+<span class="key">import</span>:
+  - <span class="str">categories/media.yaml</span>
+  - <span class="str">categories/documents.yaml</span>
+  - <span class="str">categories/wallhaven.yaml</span></pre>
+    </div>
+
+    <p style="margin-bottom: 8px; font-weight: 600;">categories/wallhaven.yaml <span style="font-weight:400;color:var(--text-muted)">— imported file</span></p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><span class="key">categories</span>:
+  - <span class="key">name</span>: <span class="str">"wallhaven"</span>
+    <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">png</span>]
+    <span class="key">source</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
+    <span class="key">destination</span>: <span class="str">"C:\\Users\\you\\Walls\\Wallhaven"</span>
+    <span class="key">conflict-strategy</span>: <span class="val">hash_check</span></pre>
     </div>
   </section>
 
