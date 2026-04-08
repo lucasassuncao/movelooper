@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -271,10 +272,13 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 	}
 
 	if err := config.InitConfig(v, options...); err != nil {
-		if configPath != "" {
-			return fmt.Errorf("configuration file not found at '%s'", configPath)
+		if errors.Is(err, config.ErrConfigNotFound) {
+			if configPath != "" {
+				return fmt.Errorf("configuration file not found at '%s'", configPath)
+			}
+			return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
 		}
-		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
+		return err
 	}
 
 	logger, closer, err := config.ConfigureLogger(v)

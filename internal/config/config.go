@@ -13,19 +13,24 @@ import (
 // ViperOptions is a function that takes a viper instance and applies options to it
 type ViperOptions func(*viper.Viper)
 
+// ErrConfigNotFound is returned by InitConfig when the base config file cannot be located.
+var ErrConfigNotFound = fmt.Errorf("config file not found")
+
 // InitConfig initializes Viper to read from movelooper.yaml.
 // After locating the config file it resolves any top-level `import:` entries,
 // merges all imported categories, and re-feeds the merged document into Viper.
+// Returns ErrConfigNotFound (unwrappable) when the base file does not exist,
+// or a descriptive error for any other failure (e.g. a missing imported file).
 func InitConfig(v *viper.Viper, options ...ViperOptions) error {
 	applyOptions(v, options...)
 
 	if err := v.ReadInConfig(); err != nil {
-		return fmt.Errorf("could not read config: %w", err)
+		return fmt.Errorf("%w: %w", ErrConfigNotFound, err)
 	}
 
 	merged, err := ResolveImports(v.ConfigFileUsed())
 	if err != nil {
-		return fmt.Errorf("resolving imports: %w", err)
+		return err
 	}
 
 	return v.ReadConfig(bytes.NewReader(merged))

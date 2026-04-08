@@ -10,6 +10,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 ## Index
 
+- [Variables](<#variables>)
 - [func ConfigureLogger\(v \*viper.Viper\) \(\*pterm.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func InitConfig\(v \*viper.Viper, options ...ViperOptions\) error](<#InitConfig>)
 - [func LoadConfig\(v \*viper.Viper\) models.Configuration](<#LoadConfig>)
@@ -21,6 +22,14 @@ import "github.com/lucasassuncao/movelooper/internal/config"
   - [func WithConfigType\(configType string\) ViperOptions](<#WithConfigType>)
 
 
+## Variables
+
+<a name="ErrConfigNotFound"></a>ErrConfigNotFound is returned by InitConfig when the base config file cannot be located.
+
+```go
+var ErrConfigNotFound = fmt.Errorf("config file not found")
+```
+
 <a name="ConfigureLogger"></a>
 ## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L18>)
 
@@ -31,13 +40,13 @@ func ConfigureLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error)
 ConfigureLogger configures the logger based on the configuration. Returns the logger, a Closer that must be called on exit \(non\-nil only when writing to a file\), and any error.
 
 <a name="InitConfig"></a>
-## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L19>)
+## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L24>)
 
 ```go
 func InitConfig(v *viper.Viper, options ...ViperOptions) error
 ```
 
-InitConfig initializes Viper to read from movelooper.yaml. After locating the config file it resolves any top\-level \`import:\` entries, merges all imported categories, and re\-feeds the merged document into Viper.
+InitConfig initializes Viper to read from movelooper.yaml. After locating the config file it resolves any top\-level \`import:\` entries, merges all imported categories, and re\-feeds the merged document into Viper. Returns ErrConfigNotFound \(unwrappable\) when the base file does not exist, or a descriptive error for any other failure \(e.g. a missing imported file\).
 
 <a name="LoadConfig"></a>
 ## func [LoadConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/appconfig.go#L16>)
@@ -58,7 +67,7 @@ func ResolveImports(path string) ([]byte, error)
 ResolveImports reads the YAML file at path, recursively resolves any top\-level \`import:\` entries, merges all \`categories:\` items into the main document, and returns the final merged YAML bytes ready to be fed into Viper. The \`import:\` key is stripped from the output. Import paths are relative to the file that declares them. Circular imports are detected and reported as errors.
 
 <a name="UnmarshalConfig"></a>
-## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L64>)
+## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L69>)
 
 ```go
 func UnmarshalConfig(v *viper.Viper) ([]*models.Category, error)
@@ -76,7 +85,7 @@ type ViperOptions func(*viper.Viper)
 ```
 
 <a name="WithConfigName"></a>
-### func [WithConfigName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L42>)
+### func [WithConfigName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L47>)
 
 ```go
 func WithConfigName(name string) ViperOptions
@@ -85,7 +94,7 @@ func WithConfigName(name string) ViperOptions
 WithConfigName sets the name of the config file
 
 <a name="WithConfigPath"></a>
-### func [WithConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L56>)
+### func [WithConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L61>)
 
 ```go
 func WithConfigPath(path string) ViperOptions
@@ -94,7 +103,7 @@ func WithConfigPath(path string) ViperOptions
 WithConfigPath sets the path of the config file
 
 <a name="WithConfigType"></a>
-### func [WithConfigType](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L49>)
+### func [WithConfigType](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L54>)
 
 ```go
 func WithConfigType(configType string) ViperOptions
