@@ -14,6 +14,7 @@ import (
 // UndoCmd reverts a batch of file moves
 func UndoCmd(m *models.Movelooper) *cobra.Command {
 	var listBatches bool
+	var dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "undo [batch_id]",
@@ -22,10 +23,13 @@ func UndoCmd(m *models.Movelooper) *cobra.Command {
 
 Without arguments, reverts the most recent batch.
 Pass a batch ID to revert a specific batch.
-Use --list to see all available batches.`,
+Use --list to see all available batches.
+Use --dry-run to preview what would be restored without moving any files.`,
 		Example: `  movelooper undo
   movelooper undo --list
+  movelooper undo --dry-run
   movelooper undo batch_1718000000
+  movelooper undo batch_1718000000 --dry-run
   movelooper undo watch_1718000000000000000`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -48,11 +52,12 @@ Use --list to see all available batches.`,
 				}
 			}
 
-			return undoBatch(m, batchID)
+			return undoBatch(m, batchID, dryRun)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&listBatches, "list", "l", false, "List all available batches")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview what would be restored without moving any files")
 	return cmd
 }
 
@@ -72,7 +77,7 @@ func printBatchList(m *models.Movelooper) error {
 	return w.Flush()
 }
 
-func undoBatch(m *models.Movelooper, batchID string) error {
+func undoBatch(m *models.Movelooper, batchID string, dryRun bool) error {
 	entries := m.History.GetBatch(batchID)
 	if len(entries) == 0 {
 		return fmt.Errorf("batch %q not found in history", batchID)
@@ -87,6 +92,24 @@ func undoBatch(m *models.Movelooper, batchID string) error {
 			fileList += fmt.Sprintf("  ... and %d more files\n", len(entries)-5)
 			break
 		}
+	}
+
+	if dryRun {
+		m.Logger.Info("[dry-run] would restore batch", m.Logger.Args("batch_id", batchID, "files", len(entries)))
+		for i := len(entries) - 1; i >= 0; i-- {
+			entry := entries[i]
+			if _, err := os.Stat(entry.Destination); os.IsNotExist(err) {
+				m.Logger.Warn("[dry-run] file not found at destination, would skip", m.Logger.Args("path", entry.Destination))
+				continue
+			}
+			if _, err := os.Stat(entry.Source); err == nil {
+				m.Logger.Warn("[dry-run] source location already occupied, would skip", m.Logger.Args("path", entry.Source))
+				continue
+			}
+			m.Logger.Info("[dry-run] would restore file",
+				m.Logger.Args("from", entry.Destination, "to", entry.Source))
+		}
+		return nil
 	}
 
 	confirmMessage := fmt.Sprintf("Undo batch: %s\n\nFiles to restore (%d total):\n%s\nProceed with restore?",
