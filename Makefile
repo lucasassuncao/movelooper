@@ -58,7 +58,11 @@ deps: ## Download and tidy dependencies
 	@go mod tidy
 
 docs: ## Generate documentation with gomarkdoc
-	@$(GOMARKDOC) -e -o '{{.Dir}}/README.md' ./internal/...
+	@$(GOMARKDOC) -e \
+		--repository.url https://github.com/lucasassuncao/movelooper \
+		--repository.default-branch main \
+		--repository.path / \
+		-o '{{.Dir}}/README.md' ./internal/...
 
 run: ## Run the application
 	@go run $(MAIN_PATH)

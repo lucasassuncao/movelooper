@@ -120,23 +120,30 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 		}
 
 		if !dryRun && len(filteredFiles) > 0 {
-			if strings.ToLower(extension) == helper.ExtAll && category.GroupByExtension {
-				// Group by the real extension of each file instead of the sentinel "all"
-				moveAllByExtension(m, category, filteredFiles, moved, batchID)
-			} else {
-				dirPath := category.Destination
-				if category.GroupByExtension {
-					dirPath = filepath.Join(category.Destination, extension)
-				}
-				if err := helper.CreateDirectory(dirPath); err != nil {
-					m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-				}
-				helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, filteredFiles, extension, batchID)
-				for _, file := range filteredFiles {
-					moved.mark(category.Source, file.Name())
-				}
-			}
+			moveExtension(m, category, filteredFiles, moved, extension, batchID)
 		}
+	}
+}
+
+// moveExtension moves filteredFiles for a single extension, delegating to
+// moveAllByExtension when the sentinel "all" is combined with group-by-extension.
+func moveExtension(m *models.Movelooper, category *models.Category, files []os.DirEntry, moved movedSet, extension, batchID string) {
+	if strings.ToLower(extension) == helper.ExtAll && category.GroupByExtension {
+		moveAllByExtension(m, category, files, moved, batchID)
+		return
+	}
+
+	dirPath := category.Destination
+	if category.GroupByExtension {
+		dirPath = filepath.Join(category.Destination, extension)
+	}
+	if err := helper.CreateDirectory(dirPath); err != nil {
+		m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+		return
+	}
+	helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, files, extension, batchID)
+	for _, file := range files {
+		moved.mark(category.Source, file.Name())
 	}
 }
 
