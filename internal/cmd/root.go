@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
@@ -119,17 +120,47 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 		}
 
 		if !dryRun && len(filteredFiles) > 0 {
-			dirPath := category.Destination
-			if category.GroupByExtension {
-				dirPath = filepath.Join(category.Destination, extension)
+			if strings.ToLower(extension) == helper.ExtAll && category.GroupByExtension {
+				// Group by the real extension of each file instead of the sentinel "all"
+				moveAllByExtension(m, category, filteredFiles, moved, batchID)
+			} else {
+				dirPath := category.Destination
+				if category.GroupByExtension {
+					dirPath = filepath.Join(category.Destination, extension)
+				}
+				if err := helper.CreateDirectory(dirPath); err != nil {
+					m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+				}
+				helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, filteredFiles, extension, batchID)
+				for _, file := range filteredFiles {
+					moved.mark(category.Source, file.Name())
+				}
 			}
-			if err := helper.CreateDirectory(dirPath); err != nil {
-				m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-			}
-			helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, filteredFiles, extension, batchID)
-			for _, file := range filteredFiles {
-				moved.mark(category.Source, file.Name())
-			}
+		}
+	}
+}
+
+// moveAllByExtension handles group-by-extension for the "all" sentinel: it groups
+// files by their real extension and moves each group into its own subdirectory.
+func moveAllByExtension(m *models.Movelooper, category *models.Category, files []os.DirEntry, moved movedSet, batchID string) {
+	groups := make(map[string][]os.DirEntry)
+	for _, file := range files {
+		ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Name()), "."))
+		if ext == "" {
+			ext = "_no_ext"
+		}
+		groups[ext] = append(groups[ext], file)
+	}
+
+	for ext, group := range groups {
+		dirPath := filepath.Join(category.Destination, ext)
+		if err := helper.CreateDirectory(dirPath); err != nil {
+			m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
+			continue
+		}
+		helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, group, ext, batchID)
+		for _, file := range group {
+			moved.mark(category.Source, file.Name())
 		}
 	}
 }

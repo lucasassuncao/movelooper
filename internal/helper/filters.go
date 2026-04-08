@@ -69,8 +69,15 @@ func ValidateGlob(pattern string) error {
 	return nil
 }
 
-// HasExtension checks if a file has a given extension (case-insensitive)
+// ExtAll is the sentinel value that matches files of any extension.
+const ExtAll = "all"
+
+// HasExtension checks if a file has a given extension (case-insensitive).
+// When extension is "all", every file matches.
 func HasExtension(file os.DirEntry, extension string) bool {
+	if strings.ToLower(extension) == ExtAll {
+		return true
+	}
 	ext := "." + extension
 	fileExt := strings.ToLower(filepath.Ext(file.Name()))
 	return fileExt == strings.ToLower(ext)
@@ -78,7 +85,13 @@ func HasExtension(file os.DirEntry, extension string) bool {
 
 // MatchesAnyExtension reports whether fileName's extension matches any entry in the list.
 // Comparison is case-insensitive; leading dots are stripped before comparing.
+// When the list contains "all", every file matches.
 func MatchesAnyExtension(fileName string, extensions []string) bool {
+	for _, e := range extensions {
+		if strings.ToLower(e) == ExtAll {
+			return true
+		}
+	}
 	fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(fileName), "."))
 	for _, e := range extensions {
 		if strings.ToLower(e) == fileExt {
