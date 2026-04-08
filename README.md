@@ -22,6 +22,9 @@
 - Conflict strategies: `rename`, `overwrite`, `skip`, `hash_check`
 - Per-category `enabled` flag to pause categories without removing them
 - Optional subdirectory grouping per extension (`group-by-extension`)
+- Wildcard extension `"all"` to match files of any extension
+- Execution summary at the end of each run (files moved, total size)
+- Startup validation of source and destination directories
 - Show filenames with `--show-files`
 - Logging support (`console`, `file`, or `both`)
 - Custom config path with `--config` / `-c`
@@ -100,7 +103,7 @@ Each entry in the `categories` list accepts the following fields:
 | `name`                | string     | yes      | —        | Label for the category (used in logs)                    |
 | `source`              | string     | yes      | —        | Directory to scan for files                              |
 | `destination`         | string     | yes      | —        | Root directory where files are moved                     |
-| `extensions`          | []string   | yes      | —        | List of file extensions to match (without the dot)       |
+| `extensions`          | []string   | yes      | —        | List of file extensions to match (without the dot). Use `["all"]` to match any extension |
 | `conflict-strategy`   | string     | no       | `rename` | What to do when the destination file already exists (see below) |
 | `group-by-extension`  | bool       | no       | `false`  | When `true`, files land in `<destination>/<extension>/`; when `false`, directly in `<destination>/` |
 | `enabled`             | bool       | no       | `true`   | When `false`, the category is skipped entirely in all modes |
@@ -183,6 +186,13 @@ categories:
     extensions: [pdf, docx]
     filter:
       glob: "report_*"
+
+  - name: everything-else
+    source: C:\Users\johndoe\Downloads
+    destination: C:\Users\johndoe\sorted
+    extensions: [all]              # matches any file extension
+    group-by-extension: true       # organizes into sorted/jpg/, sorted/pdf/, etc.
+    conflict-strategy: hash_check
 ```
 
 ## Commands and Flags
@@ -281,6 +291,7 @@ movelooper self-update --repo lucasassuncao/movelooper
 - Use `watch` mode to automatically keep your Downloads folder clean at all times.
 - Use `undo --list` to inspect past operations and roll back any batch.
 - Use `enabled: false` to temporarily pause a category without deleting it from the config.
+- Use `extensions: [all]` with `group-by-extension: true` as a catch-all category that organizes any file by its real extension.
 - Run `movelooper config show` to verify which configuration values are actually in effect.
 - Run `movelooper config validate` to catch config errors before running the tool.
 - Add `filter.ignore` patterns to skip screenshots, drafts, or temp files from being moved.
