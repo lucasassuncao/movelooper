@@ -1,12 +1,10 @@
-# 🌀 movelooper
-
 <!-- markdownlint-disable MD033 -->
 <p align="center">
-  <img src="./movelooper.png" alt="Movelooper logo" width="360">
+  <img src="images/movelooper2.png" alt="Movelooper logo" width="300" height="300">
 </p>
 <!-- markdownlint-enable MD033 -->
 
-**movelooper** is a modern CLI tool that automatically organizes and moves your files based on configurable categories. No manual sorting, no chaos. Perfect for keeping your Downloads, Dev, or Media folders clean and structured.
+🌀 **Movelooper** is a modern CLI tool that automatically organizes and moves your files based on configurable categories. No manual sorting, no chaos. Perfect for keeping your Downloads, Dev, or Media folders clean and structured.
 
 ![made with Go](https://img.shields.io/badge/made_with-Go-blue?logo=go) ![type CLI](https://img.shields.io/badge/type-CLI-green) ![license MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
