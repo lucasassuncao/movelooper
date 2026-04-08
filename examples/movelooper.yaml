@@ -51,6 +51,11 @@ categories:
     ##                  if different, move with a numeric suffix (same as "rename")
     conflict-strategy: hash_check
 
+    ## group-by-extension: when true, files are moved into <destination>/<extension>/.
+    ## When false, files go directly into <destination>/.
+    ## Default: false
+    group-by-extension: true
+
     filter:
       ## regex: match filenames against a regular expression (RE2 syntax).
       ## Mutually exclusive with glob — use one or the other, not both.
@@ -86,6 +91,7 @@ categories:
     extensions: ["pdf", "epub", "mobi"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Annas\\"
+    group-by-extension: true
     conflict-strategy: hash_check
     filter:
       glob: "*Anna's Archive*"
@@ -94,24 +100,28 @@ categories:
     extensions: ["jpg", "jpeg", "png", "gif", "webp"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Images\\"
+    group-by-extension: true
     conflict-strategy: "rename"
 
   - name: "audio"
     extensions: ["mp3", "m4a", "aac", "ogg"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Audio\\"
+    group-by-extension: true
     conflict-strategy: "rename"
 
   - name: "video"
     extensions: ["mp4", "mkv"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Media\\Video\\"
+    group-by-extension: true
     conflict-strategy: "rename"
 
   - name: "documents"
     extensions: ["pdf", "txt", "docx", "pptx", "epub", "mobi", "md"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Documents\\"
+    group-by-extension: true
     conflict-strategy: "rename"
     filter:
       ignore:
@@ -121,22 +131,26 @@ categories:
     extensions: ["zip", "rar", "7z"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Compressed\\"
+    group-by-extension: true
     conflict-strategy: "rename"
 
   - name: "installers"
     extensions: ["exe", "msi", "apk", "pkg", "jar"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Installers\\"
+    group-by-extension: true
     conflict-strategy: "hash_check"
 
   - name: "others"
     extensions: ["iso", "torrent"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Others\\"
+    group-by-extension: false
     conflict-strategy: "rename"
 
   - name: "fonts"
     extensions: ["ttf", "otf"]
     source: "C:\\Users\\lucas\\Downloads\\"
     destination: "C:\\Users\\lucas\\Downloads\\Others\\fonts\\"
+    group-by-extension: false
     conflict-strategy: "rename"

@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 // ConfigCmd returns the "config" command group
 func ConfigCmd(m *models.Movelooper) *cobra.Command {
 	cmd := &cobra.Command{

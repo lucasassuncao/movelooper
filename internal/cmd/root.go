@@ -64,7 +64,7 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 // batch, preventing a file from being claimed by more than one category.
 type movedSet map[string]bool
 
-func (s movedSet) mark(dir, name string) { s[filepath.Join(dir, name)] = true }
+func (s movedSet) mark(dir, name string)     { s[filepath.Join(dir, name)] = true }
 func (s movedSet) has(dir, name string) bool { return s[filepath.Join(dir, name)] }
 
 // runMove executes the default move operation across all configured categories.
@@ -95,7 +95,10 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 		logExtensionResult(m, filteredFiles, category.Name, extension, showFiles)
 
 		if !dryRun && len(filteredFiles) > 0 {
-			dirPath := filepath.Join(category.Destination, extension)
+			dirPath := category.Destination
+			if category.GroupByExtension {
+				dirPath = filepath.Join(category.Destination, extension)
+			}
 			if err := helper.CreateDirectory(dirPath); err != nil {
 				m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
 			}

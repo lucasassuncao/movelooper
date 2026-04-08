@@ -298,12 +298,20 @@ func promptOneCategory() models.Category {
 	minAge, maxAge := promptAgeFilter()
 	minSize, maxSize := promptSizeFilter()
 
+	var groupByExtension bool
+	exitIfAborted(huh.NewConfirm().
+		Title("Group files into subdirectories by extension?").
+		Description("When enabled, files land in <destination>/<extension>/. When disabled, files go directly into <destination>/.").
+		Value(&groupByExtension).
+		Run())
+
 	return models.Category{
 		Name:             name,
 		Extensions:       extensions,
 		Source:           source,
 		Destination:      destination,
 		ConflictStrategy: strategy,
+		GroupByExtension: groupByExtension,
 		Filter: models.CategoryFilter{
 			Regex:   regex,
 			Glob:    glob,
@@ -562,6 +570,7 @@ func buildSimpleTemplate(def simpleTemplateDef) *models.Config {
 				Source:           src,
 				Destination:      filepath.Join(src, def.categoryName),
 				ConflictStrategy: "rename",
+				GroupByExtension: true,
 			},
 		},
 	}
@@ -599,6 +608,7 @@ func getRegexTemplate() *models.Config {
 				Source:           getDefaultSourcePath(),
 				Destination:      filepath.Join(getDefaultSourcePath(), "regex"),
 				ConflictStrategy: "rename",
+				GroupByExtension: true,
 				Filter: models.CategoryFilter{
 					Regex: `^\d{4}-\d{2}-\d{2}_.*`,
 				},
@@ -625,6 +635,7 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "images"),
 				ConflictStrategy: "rename",
+				GroupByExtension: true,
 				Filter: models.CategoryFilter{
 					Ignore: []string{"screenshot_*", "*_temp.*"},
 					MinAge: 24 * time.Hour,
@@ -636,6 +647,7 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "videos"),
 				ConflictStrategy: "overwrite",
+				GroupByExtension: true,
 				Filter: models.CategoryFilter{
 					Ignore:  []string{"*_preview.*", "*_draft.*"},
 					MinSize: "100MB",
@@ -647,6 +659,7 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "music"),
 				ConflictStrategy: "skip",
+				GroupByExtension: true,
 			},
 			{
 				Name:             "books",
@@ -654,6 +667,7 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "books"),
 				ConflictStrategy: "hash_check",
+				GroupByExtension: true,
 				Filter: models.CategoryFilter{
 					MinSize: "1MB",
 				},
@@ -664,6 +678,7 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "archives"),
 				ConflictStrategy: "hash_check",
+				GroupByExtension: true,
 			},
 			{
 				Name:             "installers",
@@ -671,6 +686,7 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "installers"),
 				ConflictStrategy: "hash_check",
+				GroupByExtension: true,
 			},
 			{
 				Name:             "dated-docs",
@@ -678,6 +694,7 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "dated"),
 				ConflictStrategy: "hash_check",
+				GroupByExtension: true,
 				Filter: models.CategoryFilter{
 					Regex: `^\d{4}-\d{2}-\d{2}_.*`,
 				},
@@ -688,6 +705,7 @@ func getFullTemplate() *models.Config {
 				Source:           basePath,
 				Destination:      filepath.Join(basePath, "reports"),
 				ConflictStrategy: "rename",
+				GroupByExtension: false,
 				Filter: models.CategoryFilter{
 					Glob: "report_*",
 				},
@@ -746,11 +764,12 @@ func getExtensionSuggestions(categoryName string) []string {
 
 // printCategorySummary prints a summary of the category configuration
 func printCategorySummary(category models.Category) {
-	pterm.Printf("  Name:        %s\n", pterm.Cyan(category.Name))
-	pterm.Printf("  Strategy:    %s\n", pterm.Magenta(category.ConflictStrategy))
-	pterm.Printf("  Source:      %s\n", pterm.Yellow(category.Source))
-	pterm.Printf("  Destination: %s\n", pterm.Yellow(category.Destination))
-	pterm.Printf("  Extensions:  %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
+	pterm.Printf("  Name:              %s\n", pterm.Cyan(category.Name))
+	pterm.Printf("  Strategy:          %s\n", pterm.Magenta(category.ConflictStrategy))
+	pterm.Printf("  Source:            %s\n", pterm.Yellow(category.Source))
+	pterm.Printf("  Destination:       %s\n", pterm.Yellow(category.Destination))
+	pterm.Printf("  Group by ext:      %s\n", pterm.Yellow(fmt.Sprintf("%v", category.GroupByExtension)))
+	pterm.Printf("  Extensions:        %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
 	if category.Filter.Regex != "" {
 		pterm.Printf("  Regex:       %s\n", pterm.Green(category.Filter.Regex))
 	}

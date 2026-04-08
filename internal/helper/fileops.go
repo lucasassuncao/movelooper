@@ -40,7 +40,7 @@ func ReadDirectory(path string) ([]os.DirEntry, error) {
 }
 
 // MoveFiles moves files with the specified extension from the source directory to the destination directory.
-// The destination path includes a subdirectory named after the extension, avoiding overwriting files.
+// When GroupByExtension is true (default), files land in <destination>/<extension>/; otherwise directly in <destination>/.
 func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) {
 	for _, file := range files {
 		if !HasExtension(file, extension) {
@@ -48,7 +48,10 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 		}
 
 		sourcePath := filepath.Join(category.Source, file.Name())
-		destDir := filepath.Join(category.Destination, extension)
+		destDir := category.Destination
+		if category.GroupByExtension {
+			destDir = filepath.Join(category.Destination, extension)
+		}
 		destPath := filepath.Join(destDir, file.Name())
 
 		strategy := category.ConflictStrategy

@@ -57,5 +57,6 @@ type Category struct {
 	Source           string         `yaml:"source" mapstructure:"source"`
 	Destination      string         `yaml:"destination" mapstructure:"destination"`
 	ConflictStrategy string         `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+	GroupByExtension bool           `yaml:"group-by-extension" mapstructure:"group-by-extension"`
 	Filter           CategoryFilter `yaml:"filter" mapstructure:"filter"`
 }

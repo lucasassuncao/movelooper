@@ -30,7 +30,7 @@
 
 ## How It Works
 
-`movelooper` reads your configuration file (`movelooper.yaml` or `conf/movelooper.yaml`), scans all extensions listed per category, and moves matching files from the source to the destination, organizing them into subfolders by extension.
+`movelooper` reads your configuration file (`movelooper.yaml` or `conf/movelooper.yaml`), scans all extensions listed per category, and moves matching files from the source to the destination. When `group-by-extension: true` is set on a category, files are organized into `<destination>/<extension>/` subfolders; otherwise they go directly into `<destination>/`.
 
 ## Installation
 
@@ -93,14 +93,15 @@ movelooper init -f
 
 Each entry in the `categories` list accepts the following fields:
 
-| Field               | Type       | Required | Default  | Description                                              |
-|---------------------|------------|----------|----------|----------------------------------------------------------|
-| `name`              | string     | yes      | —        | Label for the category (used in logs)                    |
-| `source`            | string     | yes      | —        | Directory to scan for files                              |
-| `destination`       | string     | yes      | —        | Root directory where files are moved (organized into `<destination>/<extension>/`) |
-| `extensions`        | []string   | yes      | —        | List of file extensions to match (without the dot)       |
-| `conflict-strategy` | string     | no       | `rename` | What to do when the destination file already exists (see below) |
-| `filter`            | object     | no       | —        | Optional block grouping all secondary filters (see below) |
+| Field                 | Type       | Required | Default  | Description                                              |
+|-----------------------|------------|----------|----------|----------------------------------------------------------|
+| `name`                | string     | yes      | —        | Label for the category (used in logs)                    |
+| `source`              | string     | yes      | —        | Directory to scan for files                              |
+| `destination`         | string     | yes      | —        | Root directory where files are moved                     |
+| `extensions`          | []string   | yes      | —        | List of file extensions to match (without the dot)       |
+| `conflict-strategy`   | string     | no       | `rename` | What to do when the destination file already exists (see below) |
+| `group-by-extension`  | bool       | no       | `false`  | When `true`, files land in `<destination>/<extension>/`; when `false`, directly in `<destination>/` |
+| `filter`              | object     | no       | —        | Optional block grouping all secondary filters (see below) |
 
 #### `filter` block
 
@@ -149,6 +150,7 @@ categories:
     destination: C:\Users\johndoe\images
     extensions: [jpg, jpeg, png, gif, bmp, webp]
     conflict-strategy: rename
+    group-by-extension: true   # files go to images/jpg/, images/png/, etc.
     filter:
       ignore:
         - screenshot_*
@@ -160,6 +162,7 @@ categories:
     destination: C:\Users\johndoe\videos
     extensions: [mp4, avi, mkv, mov, wmv]
     conflict-strategy: overwrite
+    group-by-extension: true
     filter:
       min-size: 100MB
 
@@ -167,6 +170,7 @@ categories:
     source: C:\Users\johndoe\Downloads
     destination: C:\Users\johndoe\dated
     extensions: [pdf, txt, log]
+    group-by-extension: false  # all files go directly into dated/
     filter:
       regex: '^\d{4}-\d{2}-\d{2}_.*'
 

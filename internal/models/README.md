@@ -18,7 +18,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L52-L59>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L54-L62>)
 
 Category represents a file category with its properties
 
@@ -29,12 +29,13 @@ type Category struct {
     Source           string         `yaml:"source" mapstructure:"source"`
     Destination      string         `yaml:"destination" mapstructure:"destination"`
     ConflictStrategy string         `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+    GroupByExtension bool           `yaml:"group-by-extension" mapstructure:"group-by-extension"`
     Filter           CategoryFilter `yaml:"filter" mapstructure:"filter"`
 }
 ```
 
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L38-L49>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L40-L51>)
 
 CategoryFilter holds the optional filtering rules for a category
 
@@ -54,7 +55,7 @@ type CategoryFilter struct {
 ```
 
 <a name="Config"></a>
-## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L23-L26>)
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L24-L27>)
 
 Config represents the complete structure of the movelooper.yaml file
 
@@ -66,29 +67,30 @@ type Config struct {
 ```
 
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L29-L35>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L30-L37>)
 
 Configuration holds the general settings for Movelooper
 
 ```go
 type Configuration struct {
-    Output     string        `yaml:"output" mapstructure:"output"`
-    LogFile    string        `yaml:"log-file" mapstructure:"log-file"`
-    LogLevel   string        `yaml:"log-level" mapstructure:"log-level"`
-    ShowCaller bool          `yaml:"show-caller" mapstructure:"show-caller"`
-    WatchDelay time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
+    Output       string        `yaml:"output" mapstructure:"output"`
+    LogFile      string        `yaml:"log-file" mapstructure:"log-file"`
+    LogLevel     string        `yaml:"log-level" mapstructure:"log-level"`
+    ShowCaller   bool          `yaml:"show-caller" mapstructure:"show-caller"`
+    WatchDelay   time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
+    HistoryLimit int           `yaml:"history-limit" mapstructure:"history-limit"`
 }
 ```
 
 <a name="Movelooper"></a>
-## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L14-L20>)
+## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L15-L21>)
 
-Movelooper holds the app dependencies and runtime state
+Movelooper holds the app dependencies and runtime state. Viper is intentionally absent: it is used only during initialisation in preRunHandler and discarded afterwards.
 
 ```go
 type Movelooper struct {
     Logger     *pterm.Logger
-    Viper      *viper.Viper
+    Config     Configuration
     Categories []*Category
     History    *history.History
     LogCloser  io.Closer // non-nil when logging to a file; closed on exit

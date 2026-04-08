@@ -23,21 +23,21 @@ Package helper provides utility functions for file operations, filtering, and co
 - [func MatchesGlob\(fileName, pattern string\) bool](<#MatchesGlob>)
 - [func MatchesIgnorePatterns\(fileName string, patterns \[\]string\) bool](<#MatchesIgnorePatterns>)
 - [func MatchesNameFilters\(fileName string, f models.CategoryFilter\) bool](<#MatchesNameFilters>)
-- [func MatchesRegex\(fileName string, re \*regexp.Regexp\) bool](<#MatchesRegex>)
 - [func MeetsAgeSizeFilters\(info os.FileInfo, f models.CategoryFilter\) bool](<#MeetsAgeSizeFilters>)
 - [func MeetsMaxAge\(info os.FileInfo, maxAge time.Duration\) bool](<#MeetsMaxAge>)
 - [func MeetsMaxSize\(info os.FileInfo, maxSizeBytes int64\) bool](<#MeetsMaxSize>)
 - [func MeetsMinAge\(info os.FileInfo, minAge time.Duration\) bool](<#MeetsMinAge>)
 - [func MeetsMinSize\(info os.FileInfo, minSizeBytes int64\) bool](<#MeetsMinSize>)
-- [func MoveFiles\(m \*models.Movelooper, category \*models.Category, files \[\]os.DirEntry, extension, batchID string\)](<#MoveFiles>)
+- [func MoveFiles\(ctx MoveContext, category \*models.Category, files \[\]os.DirEntry, extension, batchID string\)](<#MoveFiles>)
 - [func ParseSize\(s string\) \(int64, error\)](<#ParseSize>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
 - [func ValidateGlob\(pattern string\) error](<#ValidateGlob>)
 - [type ConflictResolver](<#ConflictResolver>)
+- [type MoveContext](<#MoveContext>)
 
 
 <a name="CreateDirectory"></a>
-## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L20>)
+## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L29>)
 
 ```go
 func CreateDirectory(dir string) error
@@ -46,7 +46,7 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="GenerateLogArgs"></a>
-## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L197>)
+## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L191>)
 
 ```go
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
@@ -55,7 +55,7 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
 GenerateLogArgs generates log arguments for a given extension.
 
 <a name="HasExtension"></a>
-## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L79>)
+## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L73>)
 
 ```go
 func HasExtension(file os.DirEntry, extension string) bool
@@ -64,7 +64,7 @@ func HasExtension(file os.DirEntry, extension string) bool
 HasExtension checks if a file has a given extension \(case\-insensitive\)
 
 <a name="MatchesAnyExtension"></a>
-## func [MatchesAnyExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L87>)
+## func [MatchesAnyExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L81>)
 
 ```go
 func MatchesAnyExtension(fileName string, extensions []string) bool
@@ -73,7 +73,7 @@ func MatchesAnyExtension(fileName string, extensions []string) bool
 MatchesAnyExtension reports whether fileName's extension matches any entry in the list. Comparison is case\-insensitive; leading dots are stripped before comparing.
 
 <a name="MatchesGlob"></a>
-## func [MatchesGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L36>)
+## func [MatchesGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L30>)
 
 ```go
 func MatchesGlob(fileName, pattern string) bool
@@ -82,7 +82,7 @@ func MatchesGlob(fileName, pattern string) bool
 MatchesGlob reports whether fileName matches the glob pattern. Supports brace expansion: \*.\{jpg,png\} expands to \*.jpg and \*.png. Matching is case\-insensitive.
 
 <a name="MatchesIgnorePatterns"></a>
-## func [MatchesIgnorePatterns](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L22>)
+## func [MatchesIgnorePatterns](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L16>)
 
 ```go
 func MatchesIgnorePatterns(fileName string, patterns []string) bool
@@ -91,7 +91,7 @@ func MatchesIgnorePatterns(fileName string, patterns []string) bool
 MatchesIgnorePatterns reports whether fileName matches any of the provided glob patterns. Matching is case\-insensitive. Patterns follow filepath.Match syntax: \* matches any sequence of characters, ? matches one character.
 
 <a name="MatchesNameFilters"></a>
-## func [MatchesNameFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L99>)
+## func [MatchesNameFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L93>)
 
 ```go
 func MatchesNameFilters(fileName string, f models.CategoryFilter) bool
@@ -99,17 +99,8 @@ func MatchesNameFilters(fileName string, f models.CategoryFilter) bool
 
 MatchesNameFilters reports whether fileName passes the category's regex and glob name filters. Returns true when neither filter is configured.
 
-<a name="MatchesRegex"></a>
-## func [MatchesRegex](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L15>)
-
-```go
-func MatchesRegex(fileName string, re *regexp.Regexp) bool
-```
-
-MatchesRegex checks if the file name matches a pre\-compiled regex pattern
-
 <a name="MeetsAgeSizeFilters"></a>
-## func [MeetsAgeSizeFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L186>)
+## func [MeetsAgeSizeFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L180>)
 
 ```go
 func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool
@@ -118,7 +109,7 @@ func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool
 MeetsAgeSizeFilters reports whether info satisfies all age and size constraints defined in f. Returns true immediately when no constraints are set.
 
 <a name="MeetsMaxAge"></a>
-## func [MeetsMaxAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L168>)
+## func [MeetsMaxAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L162>)
 
 ```go
 func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool
@@ -127,7 +118,7 @@ func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool
 MeetsMaxAge reports whether the file's modification time is newer than maxAge. Always returns true when maxAge is zero.
 
 <a name="MeetsMaxSize"></a>
-## func [MeetsMaxSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L177>)
+## func [MeetsMaxSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L171>)
 
 ```go
 func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool
@@ -136,7 +127,7 @@ func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool
 MeetsMaxSize reports whether the file size is at most maxSizeBytes. Always returns true when maxSizeBytes is zero.
 
 <a name="MeetsMinAge"></a>
-## func [MeetsMinAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L150>)
+## func [MeetsMinAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L144>)
 
 ```go
 func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool
@@ -145,7 +136,7 @@ func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool
 MeetsMinAge reports whether the file's modification time is older than minAge. Always returns true when minAge is zero.
 
 <a name="MeetsMinSize"></a>
-## func [MeetsMinSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L159>)
+## func [MeetsMinSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L153>)
 
 ```go
 func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
@@ -154,16 +145,16 @@ func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
 MeetsMinSize reports whether the file size is at least minSizeBytes. Always returns true when minSizeBytes is zero.
 
 <a name="MoveFiles"></a>
-## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L35>)
+## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L44>)
 
 ```go
-func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension, batchID string)
+func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string)
 ```
 
-MoveFiles moves files with the specified extension from the source directory to the destination directory. The destination path includes a subdirectory named after the extension, avoiding overwriting files.
+MoveFiles moves files with the specified extension from the source directory to the destination directory. When GroupByExtension is true \(default\), files land in \<destination\>/\<extension\>/; otherwise directly in \<destination\>/.
 
 <a name="ParseSize"></a>
-## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L111>)
+## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L105>)
 
 ```go
 func ParseSize(s string) (int64, error)
@@ -172,7 +163,7 @@ func ParseSize(s string) (int64, error)
 ParseSize parses a human\-readable size string \(e.g. "10MB", "1.5GB"\) into bytes. Supported suffixes \(case\-insensitive\): B, KB, MB, GB, TB.
 
 <a name="ReadDirectory"></a>
-## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L25>)
+## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L34>)
 
 ```go
 func ReadDirectory(path string) ([]os.DirEntry, error)
@@ -181,7 +172,7 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ReadDirectory reads the contents of a given directory and returns the files.
 
 <a name="ValidateGlob"></a>
-## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L69>)
+## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L63>)
 
 ```go
 func ValidateGlob(pattern string) error
@@ -197,6 +188,18 @@ ConflictResolver resolves a naming conflict when a destination file already exis
 ```go
 type ConflictResolver interface {
     Resolve(src, dst, destDir, fileName string) (resolvedPath string, shouldMove bool, err error)
+}
+```
+
+<a name="MoveContext"></a>
+## type [MoveContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L22-L25>)
+
+MoveContext carries the dependencies needed by file\-move operations. It is intentionally narrow: callers supply only Logger and History, not the full Movelooper application object.
+
+```go
+type MoveContext struct {
+    Logger  *pterm.Logger
+    History *history.History
 }
 ```
 
