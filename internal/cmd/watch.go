@@ -46,20 +46,29 @@ type fileTracker struct {
 
 // WatchCmd defines the "watch" command to monitor directories and move files in real-time
 func WatchCmd(m *models.Movelooper) *cobra.Command {
-	return &cobra.Command{
+	var dryRun bool
+
+	cmd := &cobra.Command{
 		Use:   "watch",
 		Short: "Monitor folders and move files in real-time",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWatch(m)
+			return runWatch(m, dryRun)
 		},
 	}
+
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview mode — log matched files without moving them")
+	return cmd
 }
 
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
-func runWatch(m *models.Movelooper) error {
+func runWatch(m *models.Movelooper, dryRun bool) error {
 	stabilityThreshold := m.Config.WatchDelay
 
-	m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", stabilityThreshold.String()))
+	if dryRun {
+		m.Logger.Info("starting watch mode (dry-run)", m.Logger.Args("stability_delay", stabilityThreshold.String()))
+	} else {
+		m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", stabilityThreshold.String()))
+	}
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -78,7 +87,7 @@ func runWatch(m *models.Movelooper) error {
 
 	go runEventLoop(m, watcher, tracker, done)
 	go runSignalHandler(m, done)
-	go runTickerLoop(m, tracker, stabilityThreshold, done)
+	go runTickerLoop(m, tracker, stabilityThreshold, dryRun, done)
 
 	<-done
 	return nil
@@ -136,13 +145,13 @@ func runSignalHandler(m *models.Movelooper, done chan struct{}) {
 }
 
 // runTickerLoop periodically checks for stable files and moves them.
-func runTickerLoop(m *models.Movelooper, tracker *fileTracker, threshold time.Duration, done <-chan struct{}) {
+func runTickerLoop(m *models.Movelooper, tracker *fileTracker, threshold time.Duration, dryRun bool, done <-chan struct{}) {
 	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			processPendingFiles(m, tracker, threshold)
+			processPendingFiles(m, tracker, threshold, dryRun)
 		case <-done:
 			return
 		}
@@ -186,7 +195,7 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 }
 
 // processPendingFiles checks which files have "stabilized" (not used for the threshold duration) and attempts to move them
-func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold time.Duration) {
+func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold time.Duration, dryRun bool) {
 	now := time.Now()
 
 	// Snapshot tracked paths under lock to keep I/O outside the critical section
@@ -209,7 +218,7 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 
 		// Verifies if the file has stabilized based on its ModTime
 		if err == nil && now.Sub(info.ModTime()) > threshold {
-			if err := attemptMoveFile(m, path); err != nil {
+			if err := attemptMoveFile(m, path, dryRun); err != nil {
 				m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
 			}
 			// Remove from tracking after attempt (whether moved or ignored)
@@ -221,9 +230,10 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 }
 
 // attemptMoveFile tries to find a matching category and move the file.
+// In dry-run mode it logs what would be moved without performing any I/O.
 // Returns an error if a matching category was found but the move failed.
 // Returns nil both when the file was moved successfully and when no category matched.
-func attemptMoveFile(m *models.Movelooper, path string) error {
+func attemptMoveFile(m *models.Movelooper, path string, dryRun bool) error {
 	fileName := filepath.Base(path)
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 
@@ -235,6 +245,15 @@ func attemptMoveFile(m *models.Movelooper, path string) error {
 			continue
 		}
 		if matchesExtensionAndFilters(cat, fileName, path) {
+			if dryRun {
+				destDir := cat.Destination
+				if cat.GroupByExtension {
+					destDir = filepath.Join(cat.Destination, ext)
+				}
+				m.Logger.Info("[dry-run] would move file",
+					m.Logger.Args("file", fileName, "to", destDir, "category", cat.Name))
+				return nil
+			}
 			return moveFileToCategory(m, *cat, path, ext)
 		}
 	}
