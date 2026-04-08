@@ -101,6 +101,7 @@ Each entry in the `categories` list accepts the following fields:
 | `extensions`          | []string   | yes      | —        | List of file extensions to match (without the dot)       |
 | `conflict-strategy`   | string     | no       | `rename` | What to do when the destination file already exists (see below) |
 | `group-by-extension`  | bool       | no       | `false`  | When `true`, files land in `<destination>/<extension>/`; when `false`, directly in `<destination>/` |
+| `enabled`             | bool       | no       | `true`   | When `false`, the category is skipped entirely in all modes |
 | `filter`              | object     | no       | —        | Optional block grouping all secondary filters (see below) |
 
 #### `filter` block

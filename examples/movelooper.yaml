@@ -51,6 +51,11 @@ categories:
     ##                  if different, move with a numeric suffix (same as "rename")
     conflict-strategy: hash_check
 
+    ## enabled: when false, this category is skipped entirely (move and watch modes).
+    ## Useful for temporarily disabling a category without removing it from the config.
+    ## Default: true (omitting the field also means enabled)
+    enabled: true
+
     ## group-by-extension: when true, files are moved into <destination>/<extension>/.
     ## When false, files go directly into <destination>/.
     ## Default: false

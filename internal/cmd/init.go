@@ -765,6 +765,7 @@ func getExtensionSuggestions(categoryName string) []string {
 // printCategorySummary prints a summary of the category configuration
 func printCategorySummary(category models.Category) {
 	pterm.Printf("  Name:              %s\n", pterm.Cyan(category.Name))
+	pterm.Printf("  Enabled:           %s\n", pterm.Yellow(fmt.Sprintf("%v", category.IsEnabled())))
 	pterm.Printf("  Strategy:          %s\n", pterm.Magenta(category.ConflictStrategy))
 	pterm.Printf("  Source:            %s\n", pterm.Yellow(category.Source))
 	pterm.Printf("  Destination:       %s\n", pterm.Yellow(category.Destination))

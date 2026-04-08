@@ -73,6 +73,10 @@ func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 	moved := make(movedSet)
 
 	for _, category := range m.Categories {
+		if !category.IsEnabled() {
+			m.Logger.Info(fmt.Sprintf("[%s] category disabled, skipping", category.Name))
+			continue
+		}
 		processCategoryMove(m, category, moved, batchID, dryRun, showFiles)
 	}
 

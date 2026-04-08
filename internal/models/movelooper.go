@@ -20,6 +20,12 @@ type Movelooper struct {
 	LogCloser  io.Closer // non-nil when logging to a file; closed on exit
 }
 
+// IsEnabled reports whether the category is active.
+// A category is enabled when the field is omitted (nil) or explicitly set to true.
+func (c *Category) IsEnabled() bool {
+	return c.Enabled == nil || *c.Enabled
+}
+
 // Config represents the complete structure of the movelooper.yaml file
 type Config struct {
 	Configuration Configuration `yaml:"configuration" mapstructure:"configuration"`
@@ -58,5 +64,6 @@ type Category struct {
 	Destination      string         `yaml:"destination" mapstructure:"destination"`
 	ConflictStrategy string         `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
 	GroupByExtension bool           `yaml:"group-by-extension" mapstructure:"group-by-extension"`
+	Enabled          *bool          `yaml:"enabled" mapstructure:"enabled"`
 	Filter           CategoryFilter `yaml:"filter" mapstructure:"filter"`
 }

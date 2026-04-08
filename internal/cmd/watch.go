@@ -88,6 +88,9 @@ func runWatch(m *models.Movelooper) error {
 func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
 	seen := make(map[string]bool)
 	for _, cat := range m.Categories {
+		if !cat.IsEnabled() {
+			continue
+		}
 		if seen[cat.Source] {
 			continue
 		}
@@ -152,6 +155,9 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 	defer tracker.mu.Unlock()
 
 	for _, cat := range m.Categories {
+		if !cat.IsEnabled() {
+			continue
+		}
 		files, err := helper.ReadDirectory(cat.Source)
 		if err != nil {
 			m.Logger.Warn("failed to read directory during initial scan", m.Logger.Args("path", cat.Source, "error", err.Error()))

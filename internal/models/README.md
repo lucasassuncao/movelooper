@@ -11,6 +11,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 ## Index
 
 - [type Category](<#Category>)
+  - [func \(c \*Category\) IsEnabled\(\) bool](<#Category.IsEnabled>)
 - [type CategoryFilter](<#CategoryFilter>)
 - [type Config](<#Config>)
 - [type Configuration](<#Configuration>)
@@ -18,7 +19,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L54-L62>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L60-L69>)
 
 Category represents a file category with its properties
 
@@ -30,12 +31,22 @@ type Category struct {
     Destination      string         `yaml:"destination" mapstructure:"destination"`
     ConflictStrategy string         `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
     GroupByExtension bool           `yaml:"group-by-extension" mapstructure:"group-by-extension"`
+    Enabled          *bool          `yaml:"enabled" mapstructure:"enabled"`
     Filter           CategoryFilter `yaml:"filter" mapstructure:"filter"`
 }
 ```
 
+<a name="Category.IsEnabled"></a>
+### func \(\*Category\) [IsEnabled](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L25>)
+
+```go
+func (c *Category) IsEnabled() bool
+```
+
+IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
+
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L40-L51>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L46-L57>)
 
 CategoryFilter holds the optional filtering rules for a category
 
@@ -55,7 +66,7 @@ type CategoryFilter struct {
 ```
 
 <a name="Config"></a>
-## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L24-L27>)
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L30-L33>)
 
 Config represents the complete structure of the movelooper.yaml file
 
@@ -67,7 +78,7 @@ type Config struct {
 ```
 
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L30-L37>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L36-L43>)
 
 Configuration holds the general settings for Movelooper
 
