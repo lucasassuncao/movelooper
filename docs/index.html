@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="movelooper — a modern CLI tool that automatically organizes and moves your files based on configurable categories." />
+  <title>movelooper</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Hero ── -->
+<header class="hero">
+  <img src="../images/movelooper2.png" alt="movelooper logo" width="500" height="500" />
+  <p>A modern CLI tool that automatically organizes and moves your files based on configurable categories. No manual sorting, no chaos.</p>
+
+  <div class="cta">
+    <a class="btn btn-primary" href="https://github.com/lucasassuncao/movelooper/releases">
+      ⬇ Download latest
+    </a>
+    <a class="btn btn-secondary" href="https://github.com/lucasassuncao/movelooper">
+      ★ View on GitHub
+    </a>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- ── Features ── -->
+  <section id="features">
+    <h2>Features</h2>
+    <div class="features">
+      <div class="feature-card">
+        <div class="icon">📂</div>
+        <h3>Category-based rules</h3>
+        <p>Define categories with extensions, filters, and destinations in a simple YAML file.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">👁</div>
+        <h3>Watch mode</h3>
+        <p>Monitor directories in real-time and move files automatically as they appear.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">↩</div>
+        <h3>Undo support</h3>
+        <p>Revert the last batch or any specific batch of moves from the history.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔍</div>
+        <h3>Dry-run everywhere</h3>
+        <p><code>--dry-run</code> on move, watch, and undo — preview before committing.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⚔️</div>
+        <h3>Conflict strategies</h3>
+        <p>rename, overwrite, skip, or hash_check — per category, your choice.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔎</div>
+        <h3>Powerful filters</h3>
+        <p>Regex, glob, ignore patterns, age filters, and size filters per category.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🌐</div>
+        <h3>Wildcard extension</h3>
+        <p>Use <code>extensions: [all]</code> to match any file type and group by real extension.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔄</div>
+        <h3>Self-update</h3>
+        <p>Stay on the latest release with <code>movelooper self-update</code>.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📋</div>
+        <h3>Interactive setup</h3>
+        <p>Generate your config file with <code>movelooper init -i</code> or from a template.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Installation ── -->
+  <section id="install">
+    <h2>Installation</h2>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(event, 'tab-download')">Download</button>
+      <button class="tab" onclick="switchTab(event, 'tab-build')">Build from source</button>
+    </div>
+
+    <div id="tab-download" class="tab-content active">
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="cmt"># 1. Download the binary for your platform from the releases page</span>
+<span class="cmt">#    https://github.com/lucasassuncao/movelooper/releases</span>
+
+<span class="cmt"># 2. Extract and add to your PATH, then run:</span>
+movelooper init -i</pre>
+      </div>
+    </div>
+
+    <div id="tab-build" class="tab-content">
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre>git clone https://github.com/lucasassuncao/movelooper.git
+cd movelooper
+go build -o movelooper .
+./movelooper init -i</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Quick start ── -->
+  <section id="quickstart">
+    <h2>Quick start</h2>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Generate a config with the interactive wizard, then run.</p>
+
+    <div class="code-block" style="margin-bottom: 16px;">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>movelooper init -i        <span class="cmt"># interactive wizard</span>
+movelooper --dry-run      <span class="cmt"># preview what would be moved</span>
+movelooper                <span class="cmt"># move files</span>
+movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
+    </div>
+  </section>
+
+  <!-- ── Config example ── -->
+  <section id="config">
+    <h2>Configuration example</h2>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><span class="key">configuration</span>:
+  <span class="key">output</span>: <span class="val">both</span>
+  <span class="key">log-level</span>: <span class="val">info</span>
+  <span class="key">watch-delay</span>: <span class="val">5m</span>
+  <span class="key">history-limit</span>: <span class="val">50</span>
+
+<span class="key">categories</span>:
+  - <span class="key">name</span>: <span class="str">"images"</span>
+    <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">jpeg</span>, <span class="str">png</span>, <span class="str">gif</span>, <span class="str">webp</span>]
+    <span class="key">source</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
+    <span class="key">destination</span>: <span class="str">"C:\\Users\\you\\Images"</span>
+    <span class="key">conflict-strategy</span>: <span class="val">rename</span>
+    <span class="key">group-by-extension</span>: <span class="val">true</span>
+    <span class="key">filter</span>:
+      <span class="key">ignore</span>: [<span class="str">"screenshot_*"</span>]
+      <span class="key">min-age</span>: <span class="val">10m</span>
+
+  - <span class="key">name</span>: <span class="str">"everything-else"</span>
+    <span class="key">extensions</span>: [<span class="str">all</span>]     <span class="cmt"># matches any file</span>
+    <span class="key">source</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
+    <span class="key">destination</span>: <span class="str">"C:\\Users\\you\\Sorted"</span>
+    <span class="key">conflict-strategy</span>: <span class="val">hash_check</span>
+    <span class="key">group-by-extension</span>: <span class="val">true</span></pre>
+    </div>
+  </section>
+
+  <!-- ── Commands ── -->
+  <section id="commands">
+    <h2>Commands</h2>
+    <table class="cmd-table">
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>movelooper</td><td>Run the move operation once across all categories</td></tr>
+        <tr><td>movelooper watch</td><td>Monitor source directories and move files in real-time</td></tr>
+        <tr><td>movelooper undo</td><td>Revert the last batch of moves</td></tr>
+        <tr><td>movelooper undo --list</td><td>List all recorded batches</td></tr>
+        <tr><td>movelooper undo --dry-run</td><td>Preview what would be restored</td></tr>
+        <tr><td>movelooper init -i</td><td>Launch the interactive setup wizard</td></tr>
+        <tr><td>movelooper init -t full</td><td>Generate config from a template</td></tr>
+        <tr><td>movelooper config validate</td><td>Validate the config file without moving files</td></tr>
+        <tr><td>movelooper config show</td><td>Print the active config with all defaults resolved</td></tr>
+        <tr><td>movelooper self-update</td><td>Download and install the latest release</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer>
+  <p>
+    Built with ❤️ by <a href="https://github.com/lucasassuncao" target="_blank">lucasassuncao</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/lucasassuncao/movelooper" target="_blank">GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/lucasassuncao/movelooper/releases" target="_blank">Releases</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/lucasassuncao/movelooper/blob/main/LICENSE" target="_blank">MIT License</a>
+  </p>
+</footer>
+
+<script>
+  function switchTab(event, id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(id).classList.add('active');
+  }
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -1,17 +1,15 @@
-# Use the Ubuntu base image
-FROM ubuntu:latest
+FROM ubuntu:24.04
 
 # Install basic tools
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
     curl \
     wget \
-    git \
     vim \
     nano \
-    build-essential
-
-SHELL ["/bin/bash", "-c"]
+    build-essential \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /workspace

@@ -4,11 +4,13 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
+  "workspaceFolder": "/workspace",
   "shutdownAction": "stopContainer",
+  "postCreateCommand": "go mod download",
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": "false",
-      "upgradePackages": "false",
+      "upgradePackages": "true",
       "userGid": "automatic",
       "userUid": "automatic",
       "username": "none"
@@ -19,10 +21,7 @@
     },
     "ghcr.io/devcontainers/features/go:1": {
       "golangciLintVersion": "latest",
-      "version": "1.25.0"
-    },
-    "ghcr.io/devcontainers/features/powershell:1": {
-      "version": "latest"
+      "version": "1.26.1"
     },
     "ghcr.io/eitsupi/devcontainer-features/jq-likes:2.1.0": {
       "jqVersion": "latest",
@@ -34,13 +33,13 @@
       "extensions": [
         "golang.go",
         "eamodio.gitlens",
-        "ms-vscode.PowerShell",
         "tamasfe.even-better-toml",
         "zainchen.json",
         "shd101wyy.markdown-preview-enhanced",
-        "gitlab.gitlab-workflow",
+        "github.vscode-github-actions",
         "redhat.vscode-yaml",
-        "ms-vscode.makefile-tools"
+        "ms-vscode.makefile-tools",
+        "streetsidesoftware.code-spell-checker"
       ],
       "settings": {
         "editor.formatOnSave": true,
@@ -55,19 +54,18 @@
         "go.inlayHints.functionTypeParameters": true,
         "go.inlayHints.parameterNames": true,
         "go.inlayHints.rangeVariableTypes": true,
-        "go.lintFlags": [
-          "--fast"
-        ],
         "go.lintOnSave": "file",
         "go.lintTool": "golangci-lint",
-        "go.toolsManagement.checkForUpdates": "off",
         "go.useLanguageServer": true,
         "goTestExplorer.profiler.showCodeLens": true,
         "gopls": {
           "build.buildFlags": [],
           "ui.diagnostic.staticcheck": true
         },
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.defaultLocation": "panel",
+        "workbench.startupEditor": "none",
+        "terminal.integrated.showExitAlert": false
       }
     }
   }
