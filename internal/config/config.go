@@ -6,7 +6,6 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
-
 	"github.com/spf13/viper"
 )
 
@@ -51,11 +50,11 @@ func WithConfigPath(path string) ViperOptions {
 	}
 }
 
-// UnmarshalConfig unmarshals the config file into a struct and pre-compiles regex patterns.
-// Returns an error if any category has an invalid regex.
-func UnmarshalConfig(m *models.Movelooper) ([]*models.Category, error) {
+// UnmarshalConfig reads categories from v, validates them, and pre-compiles
+// regex patterns. Returns an error if any category is misconfigured.
+func UnmarshalConfig(v *viper.Viper) ([]*models.Category, error) {
 	var categories []*models.Category
-	if err := m.Viper.UnmarshalKey("categories", &categories); err != nil {
+	if err := v.UnmarshalKey("categories", &categories); err != nil {
 		return nil, fmt.Errorf("unable to decode categories: %w", err)
 	}
 

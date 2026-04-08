@@ -8,8 +8,6 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/cmd"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/updater"
-
-	"github.com/spf13/viper"
 )
 
 // version is set at build time via -ldflags "-X main.version=<tag>"
@@ -18,15 +16,7 @@ var version = "dev"
 func main() {
 	updater.CleanOldBinary()
 
-	v := viper.GetViper()
-	if v == nil {
-		fmt.Println("viper couldn't be initialized")
-		return
-	}
-
 	m := &models.Movelooper{
-		Viper:      v,
-		Logger:     nil,
 		Categories: make([]*models.Category, 0),
 	}
 

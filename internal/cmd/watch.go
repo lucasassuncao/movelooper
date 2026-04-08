@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -58,16 +57,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
 func runWatch(m *models.Movelooper) error {
-	categories, err := config.UnmarshalConfig(m)
-	if err != nil {
-		return err
-	}
-	m.Categories = categories
-
-	stabilityThreshold := m.Viper.GetDuration("configuration.watch-delay")
-	if stabilityThreshold == 0 {
-		stabilityThreshold = 5 * time.Minute
-	}
+	stabilityThreshold := m.Config.WatchDelay
 
 	m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", stabilityThreshold.String()))
 
@@ -269,6 +259,6 @@ func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext str
 
 	targetFile := fileInfoDirEntry{info: info}
 	batchID := history.NewWatchBatchID()
-	helper.MoveFiles(m, &cat, []os.DirEntry{targetFile}, ext, batchID)
+	helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, &cat, []os.DirEntry{targetFile}, ext, batchID)
 	return nil
 }

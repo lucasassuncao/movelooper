@@ -13,7 +13,16 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/pterm/pterm"
 )
+
+// MoveContext carries the dependencies needed by file-move operations.
+// It is intentionally narrow: callers supply only Logger and History,
+// not the full Movelooper application object.
+type MoveContext struct {
+	Logger  *pterm.Logger
+	History *history.History
+}
 
 // CreateDirectory creates dir and all necessary parents with full permissions.
 // It is idempotent: no error is returned when dir already exists.
@@ -32,7 +41,7 @@ func ReadDirectory(path string) ([]os.DirEntry, error) {
 
 // MoveFiles moves files with the specified extension from the source directory to the destination directory.
 // The destination path includes a subdirectory named after the extension, avoiding overwriting files.
-func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEntry, extension, batchID string) {
+func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) {
 	for _, file := range files {
 		if !HasExtension(file, extension) {
 			continue
@@ -46,52 +55,52 @@ func MoveFiles(m *models.Movelooper, category *models.Category, files []os.DirEn
 		if strategy == "" {
 			strategy = "rename"
 		}
-		resolved, skip := applyConflictStrategy(m, strategy, sourcePath, destPath, destDir, file.Name())
+		resolved, skip := applyConflictStrategy(ctx, strategy, sourcePath, destPath, destDir, file.Name())
 		if skip {
 			continue
 		}
 		destPath = resolved
 		err := moveFile(sourcePath, destPath)
 		if err != nil {
-			m.Logger.Error("failed to move file", m.Logger.Args("file", sourcePath, "error", err.Error()))
+			ctx.Logger.Error("failed to move file", ctx.Logger.Args("file", sourcePath, "error", err.Error()))
 			continue
 		}
 
-		if m.History != nil {
-			err := m.History.Add(history.Entry{
+		if ctx.History != nil {
+			err := ctx.History.Add(history.Entry{
 				Source:      sourcePath,
 				Destination: destPath,
 				Timestamp:   time.Now(),
 				BatchID:     batchID,
 			})
 			if err != nil {
-				m.Logger.Warn("failed to add to history", m.Logger.Args("error", err.Error()))
+				ctx.Logger.Warn("failed to add to history", ctx.Logger.Args("error", err.Error()))
 			}
 		}
 
-		m.Logger.Info("file moved", m.Logger.Args("source", sourcePath, "destination", destPath))
+		ctx.Logger.Info("file moved", ctx.Logger.Args("source", sourcePath, "destination", destPath))
 	}
 }
 
 // applyConflictStrategy checks whether destPath already exists and resolves the
 // conflict according to strategy. It returns the final destination path and
 // whether the file should be skipped entirely.
-func applyConflictStrategy(m *models.Movelooper, strategy, sourcePath, destPath, destDir, fileName string) (resolved string, skip bool) {
+func applyConflictStrategy(ctx MoveContext, strategy, sourcePath, destPath, destDir, fileName string) (resolved string, skip bool) {
 	if _, err := os.Stat(destPath); err != nil {
 		// Destination does not exist — no conflict.
 		return destPath, false
 	}
 	resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, fileName)
 	if err != nil {
-		m.Logger.Error("failed to resolve conflict", m.Logger.Args("file", fileName, "error", err.Error()))
+		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", fileName, "error", err.Error()))
 		return "", true
 	}
 	if !shouldMove {
 		switch strategy {
 		case "skip":
-			m.Logger.Info("file skipped due to conflict strategy", m.Logger.Args("file", fileName))
+			ctx.Logger.Info("file skipped due to conflict strategy", ctx.Logger.Args("file", fileName))
 		case "hash_check":
-			m.Logger.Info("duplicate file removed from source", m.Logger.Args("file", fileName))
+			ctx.Logger.Info("duplicate file removed from source", ctx.Logger.Args("file", fileName))
 		}
 		return "", true
 	}

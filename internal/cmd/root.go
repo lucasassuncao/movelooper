@@ -12,6 +12,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -68,12 +69,6 @@ func (s movedSet) has(dir, name string) bool { return s[filepath.Join(dir, name)
 
 // runMove executes the default move operation across all configured categories.
 func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
-	categories, err := config.UnmarshalConfig(m)
-	if err != nil {
-		return err
-	}
-	m.Categories = categories
-
 	batchID := history.NewBatchID()
 	moved := make(movedSet)
 
@@ -104,7 +99,7 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 			if err := helper.CreateDirectory(dirPath); err != nil {
 				m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
 			}
-			helper.MoveFiles(m, category, filteredFiles, extension, batchID)
+			helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, filteredFiles, extension, batchID)
 			for _, file := range filteredFiles {
 				moved.mark(category.Source, file.Name())
 			}
@@ -162,10 +157,14 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 	m.Logger.Warn(message)
 }
 
-// preRunHandler handles the necessary configuration before command execution
+// preRunHandler handles the necessary configuration before command execution.
+// It creates a short-lived Viper instance to read the YAML file, extracts all
+// values into typed structs, and discards Viper — the rest of the application
+// works exclusively with m.Logger, m.Config, m.Categories, and m.History.
 func preRunHandler(m *models.Movelooper, configPath string) error {
-	var options []config.ViperOptions
+	v := viper.New()
 
+	var options []config.ViperOptions
 	if configPath != "" {
 		// A specific path was provided — use it directly
 		dir := filepath.Dir(configPath)
@@ -192,26 +191,30 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 		}
 	}
 
-	err := config.InitConfig(m.Viper, options...)
-	if err != nil {
+	if err := config.InitConfig(v, options...); err != nil {
 		if configPath != "" {
 			return fmt.Errorf("configuration file not found at '%s'", configPath)
 		}
 		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
 	}
 
-	logger, closer, err := config.ConfigureLogger(m.Viper)
+	logger, closer, err := config.ConfigureLogger(v)
 	if err != nil {
 		return fmt.Errorf("failed to configure logger: %v", err)
 	}
-
 	m.Logger = logger
 	m.LogCloser = closer
 
-	historyLimit := m.Viper.GetInt("configuration.history-limit")
-	hist, err := history.NewHistory(historyLimit)
+	m.Config = config.LoadConfig(v)
+
+	categories, err := config.UnmarshalConfig(v)
 	if err != nil {
-		// Log warning but don't fail app if history fails
+		return err
+	}
+	m.Categories = categories
+
+	hist, err := history.NewHistory(m.Config.HistoryLimit)
+	if err != nil {
 		m.Logger.Warn("failed to initialize history tracking", m.Logger.Args("error", err.Error()))
 	} else {
 		m.History = hist

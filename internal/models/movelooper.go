@@ -7,13 +7,14 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/pterm/pterm"
-	"github.com/spf13/viper"
 )
 
-// Movelooper holds the app dependencies and runtime state
+// Movelooper holds the app dependencies and runtime state.
+// Viper is intentionally absent: it is used only during initialisation
+// in preRunHandler and discarded afterwards.
 type Movelooper struct {
 	Logger     *pterm.Logger
-	Viper      *viper.Viper
+	Config     Configuration
 	Categories []*Category
 	History    *history.History
 	LogCloser  io.Closer // non-nil when logging to a file; closed on exit
@@ -27,11 +28,12 @@ type Config struct {
 
 // Configuration holds the general settings for Movelooper
 type Configuration struct {
-	Output     string        `yaml:"output" mapstructure:"output"`
-	LogFile    string        `yaml:"log-file" mapstructure:"log-file"`
-	LogLevel   string        `yaml:"log-level" mapstructure:"log-level"`
-	ShowCaller bool          `yaml:"show-caller" mapstructure:"show-caller"`
-	WatchDelay time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
+	Output       string        `yaml:"output" mapstructure:"output"`
+	LogFile      string        `yaml:"log-file" mapstructure:"log-file"`
+	LogLevel     string        `yaml:"log-level" mapstructure:"log-level"`
+	ShowCaller   bool          `yaml:"show-caller" mapstructure:"show-caller"`
+	WatchDelay   time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
+	HistoryLimit int           `yaml:"history-limit" mapstructure:"history-limit"`
 }
 
 // CategoryFilter holds the optional filtering rules for a category
