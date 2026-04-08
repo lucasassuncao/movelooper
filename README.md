@@ -13,16 +13,20 @@
 - Smart file organization based on configurable categories
 - Multiple predefined templates (`basic`, `music`, `video`, `images`, `books`, `archives`, `installers`, `regex`, `full`)
 - Interactive setup wizard (`init -i`)
-- Dry-run (`--dry-run`) to simulate moves safely
+- Dry-run (`--dry-run`) on move, watch, and undo commands to simulate actions safely
 - Watch mode (`watch`) — monitors directories and moves files in real-time
 - Undo support (`undo`) — revert the last or any specific batch of moves
 - Regex and glob pattern filtering per category
 - Ignore patterns to skip specific files
 - Age and size filters (`min-age`, `max-age`, `min-size`, `max-size`)
 - Conflict strategies: `rename`, `overwrite`, `skip`, `hash_check`
+- Per-category `enabled` flag to pause categories without removing them
+- Optional subdirectory grouping per extension (`group-by-extension`)
 - Show filenames with `--show-files`
 - Logging support (`console`, `file`, or `both`)
 - Custom config path with `--config` / `-c`
+- `config show` to inspect the active configuration with all defaults resolved
+- `config validate` to catch config errors before running the tool
 - Self-update via `self-update` command
 - Runs automatically — `movelooper` defaults to the move operation
 
@@ -202,17 +206,29 @@ Monitors all source directories and moves files as they appear, after they stabi
 
 ```bash
 movelooper watch
+movelooper watch --dry-run                        # preview matched files without moving
 movelooper watch --config /path/to/movelooper.yaml
 ```
+
+| Flag        | Description                                          |
+|-------------|------------------------------------------------------|
+| `--dry-run` | Log matched files with their intended destination without moving them |
 
 ### `movelooper undo` — revert a batch
 
 ```bash
-movelooper undo                           # undo the most recent batch
-movelooper undo --list                    # list all recorded batches
-movelooper undo batch_1718000000          # undo a specific move batch
-movelooper undo watch_1718000000000000000 # undo a specific watch batch
+movelooper undo                             # undo the most recent batch
+movelooper undo --list                      # list all recorded batches
+movelooper undo --dry-run                   # preview what would be restored
+movelooper undo batch_1718000000            # undo a specific move batch
+movelooper undo batch_1718000000 --dry-run  # preview a specific batch restore
+movelooper undo watch_1718000000000000000   # undo a specific watch batch
 ```
+
+| Flag        | Short | Description                                                    |
+|-------------|-------|----------------------------------------------------------------|
+| `--list`    | `-l`  | List all recorded batches                                      |
+| `--dry-run` |       | Preview which files would be restored without moving any files |
 
 ### `movelooper init` — generate config
 
@@ -239,6 +255,15 @@ movelooper config validate
 movelooper config validate --config /path/to/movelooper.yaml
 ```
 
+### `movelooper config show` — inspect active config
+
+Prints the active configuration as resolved in memory after startup, including all defaults filled in. Useful for verifying what movelooper is actually using.
+
+```bash
+movelooper config show
+movelooper config show --config /path/to/movelooper.yaml
+```
+
 ### `movelooper self-update` — update the binary
 
 Downloads the latest release from GitHub and replaces the current binary. The old binary is saved as `movelooper.exe.old` and cleaned up on the next run.
@@ -250,12 +275,16 @@ movelooper self-update --repo lucasassuncao/movelooper
 
 ## Tips
 
-- Run with `--dry-run` first to preview actions before organizing real files.
+- Run with `--dry-run` first to preview actions before organizing real files — works on `movelooper`, `watch`, and `undo`.
+- Use `watch --dry-run` to test your rules in real-time without moving anything.
+- Use `undo --dry-run` to inspect what a restore would do before committing.
 - Use `watch` mode to automatically keep your Downloads folder clean at all times.
 - Use `undo --list` to inspect past operations and roll back any batch.
+- Use `enabled: false` to temporarily pause a category without deleting it from the config.
+- Run `movelooper config show` to verify which configuration values are actually in effect.
+- Run `movelooper config validate` to catch config errors before running the tool.
 - Add `filter.ignore` patterns to skip screenshots, drafts, or temp files from being moved.
 - Use `filter.glob` for simple name patterns (`report_*.pdf`) and `filter.regex` for complex ones (`^\d{4}-.*`).
 - Use `filter.min-age` to avoid moving files that are still being downloaded.
 - Add `movelooper watch` to a cron job or Windows Task Scheduler for fully automatic cleanup.
-- Run `movelooper config validate` to catch config errors before running the tool.
 - Run `movelooper self-update` to always stay on the latest release.
