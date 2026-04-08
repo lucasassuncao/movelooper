@@ -1,0 +1,142 @@
+## movelooper.yaml — example configuration file
+## Full field reference is documented inline below.
+
+configuration:
+  ## output: where log messages are written.
+  ## Accepted values: "terminal" | "file" | "both"
+  ## Default: "terminal"
+  output: both
+
+  ## log-file: path to the log file. Required when output is "file" or "both".
+  log-file: "D:\\Scripts\\go\\logs\\movelooper.log"
+
+  ## log-level: minimum severity level to emit.
+  ## Accepted values: "trace" | "debug" | "info" | "warn" | "error" | "fatal"
+  ## Default: "info"
+  log-level: info
+
+  ## show-caller: include the source file and line number in every log entry.
+  ## Default: false
+  show-caller: false
+
+  ## watch-delay: how long a file must be unchanged before it is moved in watch mode.
+  ## Accepts Go duration strings: "30s", "5m", "1h", etc.
+  ## Default: 5m
+  watch-delay: 10s
+
+  ## history-limit: maximum number of move operations kept in the undo history.
+  ## Default: 50
+  history-limit: 100
+
+categories:
+    ## name: human-readable label used in logs and the undo history. (required)
+  - name: "wallhaven"
+
+    ## extensions: list of file extensions to match, without the leading dot. (required)
+    extensions: ["jpg", "png"]
+
+    ## source: directory to watch / scan for files. (required)
+    source: "C:\\Users\\lucas\\Downloads\\"
+
+    ## destination: root directory where matched files are moved.
+    ## Files land in <destination>/<extension>/. (required)
+    destination: "C:\\Users\\lucas\\Imagens\\Walls\\Wallhaven"
+
+    ## conflict-strategy: what to do when a file with the same name already exists at the destination.
+    ## Accepted values:
+    ##   "rename"     — append a numeric suffix to the incoming file (e.g. file_1.jpg)  [default]
+    ##   "overwrite"  — replace the existing file unconditionally
+    ##   "skip"       — leave the incoming file in the source directory
+    ##   "hash_check" — compare SHA-256 hashes: if identical, delete the source (deduplication);
+    ##                  if different, move with a numeric suffix (same as "rename")
+    conflict-strategy: hash_check
+
+    filter:
+      ## regex: match filenames against a regular expression (RE2 syntax).
+      ## Mutually exclusive with glob — use one or the other, not both.
+      regex: "^wallhaven"
+
+      ## glob: match filenames against a shell glob pattern (e.g. "report_*.pdf").
+      ## Mutually exclusive with regex — use one or the other, not both.
+      # glob: "*wallhaven*"
+
+      ## ignore: list of glob patterns; matching filenames are skipped entirely.
+      ## Multiple patterns are evaluated with OR logic.
+      # ignore:
+      #   - "*.tmp"
+      #   - "~*"
+
+      ## min-age: only move files whose modification time is older than this duration.
+      ## Accepts Go duration strings: "10m", "2h", "24h", etc.
+      # min-age: 10m
+
+      ## max-age: only move files whose modification time is more recent than this duration.
+      ## Accepts Go duration strings: "10m", "2h", "24h", etc.
+      # max-age: 24h
+
+      ## min-size: only move files at least this large.
+      ## Accepted units: B, KB, MB, GB, TB (case-insensitive). Example: "500KB", "1MB"
+      # min-size: 500KB
+
+      ## max-size: only move files no larger than this.
+      ## Accepted units: B, KB, MB, GB, TB (case-insensitive). Example: "100MB", "2GB"
+      # max-size: 100MB
+
+  - name: "Anna's Archive"
+    extensions: ["pdf", "epub", "mobi"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Annas\\"
+    conflict-strategy: hash_check
+    filter:
+      glob: "*Anna's Archive*"
+
+  - name: "images"
+    extensions: ["jpg", "jpeg", "png", "gif", "webp"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Media\\Images\\"
+    conflict-strategy: "rename"
+
+  - name: "audio"
+    extensions: ["mp3", "m4a", "aac", "ogg"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Media\\Audio\\"
+    conflict-strategy: "rename"
+
+  - name: "video"
+    extensions: ["mp4", "mkv"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Media\\Video\\"
+    conflict-strategy: "rename"
+
+  - name: "documents"
+    extensions: ["pdf", "txt", "docx", "pptx", "epub", "mobi", "md"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Documents\\"
+    conflict-strategy: "rename"
+    filter:
+      ignore:
+        - "*Anna's Archive*"
+
+  - name: "compressed"
+    extensions: ["zip", "rar", "7z"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Compressed\\"
+    conflict-strategy: "rename"
+
+  - name: "installers"
+    extensions: ["exe", "msi", "apk", "pkg", "jar"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Installers\\"
+    conflict-strategy: "hash_check"
+
+  - name: "others"
+    extensions: ["iso", "torrent"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Others\\"
+    conflict-strategy: "rename"
+
+  - name: "fonts"
+    extensions: ["ttf", "otf"]
+    source: "C:\\Users\\lucas\\Downloads\\"
+    destination: "C:\\Users\\lucas\\Downloads\\Others\\fonts\\"
+    conflict-strategy: "rename"
