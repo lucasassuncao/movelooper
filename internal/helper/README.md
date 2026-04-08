@@ -16,6 +16,7 @@ Package helper provides utility functions for file operations, filtering, and co
 
 ## Index
 
+- [Constants](<#constants>)
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
 - [func GenerateLogArgs\(files \[\]os.DirEntry, extension string\) \[\]interface\{\}](<#GenerateLogArgs>)
 - [func HasExtension\(file os.DirEntry, extension string\) bool](<#HasExtension>)
@@ -36,6 +37,14 @@ Package helper provides utility functions for file operations, filtering, and co
 - [type MoveContext](<#MoveContext>)
 
 
+## Constants
+
+<a name="ExtAll"></a>ExtAll is the sentinel value that matches files of any extension.
+
+```go
+const ExtAll = "all"
+```
+
 <a name="CreateDirectory"></a>
 ## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L29>)
 
@@ -46,7 +55,7 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="GenerateLogArgs"></a>
-## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L191>)
+## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L204>)
 
 ```go
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
@@ -55,22 +64,22 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
 GenerateLogArgs generates log arguments for a given extension.
 
 <a name="HasExtension"></a>
-## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L73>)
+## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L77>)
 
 ```go
 func HasExtension(file os.DirEntry, extension string) bool
 ```
 
-HasExtension checks if a file has a given extension \(case\-insensitive\)
+HasExtension checks if a file has a given extension \(case\-insensitive\). When extension is "all", every file matches.
 
 <a name="MatchesAnyExtension"></a>
-## func [MatchesAnyExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L81>)
+## func [MatchesAnyExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L89>)
 
 ```go
 func MatchesAnyExtension(fileName string, extensions []string) bool
 ```
 
-MatchesAnyExtension reports whether fileName's extension matches any entry in the list. Comparison is case\-insensitive; leading dots are stripped before comparing.
+MatchesAnyExtension reports whether fileName's extension matches any entry in the list. Comparison is case\-insensitive; leading dots are stripped before comparing. When the list contains "all", every file matches.
 
 <a name="MatchesGlob"></a>
 ## func [MatchesGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L30>)
@@ -91,7 +100,7 @@ func MatchesIgnorePatterns(fileName string, patterns []string) bool
 MatchesIgnorePatterns reports whether fileName matches any of the provided glob patterns. Matching is case\-insensitive. Patterns follow filepath.Match syntax: \* matches any sequence of characters, ? matches one character.
 
 <a name="MatchesNameFilters"></a>
-## func [MatchesNameFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L93>)
+## func [MatchesNameFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L106>)
 
 ```go
 func MatchesNameFilters(fileName string, f models.CategoryFilter) bool
@@ -100,7 +109,7 @@ func MatchesNameFilters(fileName string, f models.CategoryFilter) bool
 MatchesNameFilters reports whether fileName passes the category's regex and glob name filters. Returns true when neither filter is configured.
 
 <a name="MeetsAgeSizeFilters"></a>
-## func [MeetsAgeSizeFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L180>)
+## func [MeetsAgeSizeFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L193>)
 
 ```go
 func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool
@@ -109,7 +118,7 @@ func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool
 MeetsAgeSizeFilters reports whether info satisfies all age and size constraints defined in f. Returns true immediately when no constraints are set.
 
 <a name="MeetsMaxAge"></a>
-## func [MeetsMaxAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L162>)
+## func [MeetsMaxAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L175>)
 
 ```go
 func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool
@@ -118,7 +127,7 @@ func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool
 MeetsMaxAge reports whether the file's modification time is newer than maxAge. Always returns true when maxAge is zero.
 
 <a name="MeetsMaxSize"></a>
-## func [MeetsMaxSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L171>)
+## func [MeetsMaxSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L184>)
 
 ```go
 func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool
@@ -127,7 +136,7 @@ func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool
 MeetsMaxSize reports whether the file size is at most maxSizeBytes. Always returns true when maxSizeBytes is zero.
 
 <a name="MeetsMinAge"></a>
-## func [MeetsMinAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L144>)
+## func [MeetsMinAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L157>)
 
 ```go
 func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool
@@ -136,7 +145,7 @@ func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool
 MeetsMinAge reports whether the file's modification time is older than minAge. Always returns true when minAge is zero.
 
 <a name="MeetsMinSize"></a>
-## func [MeetsMinSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L153>)
+## func [MeetsMinSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L166>)
 
 ```go
 func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
@@ -154,7 +163,7 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 MoveFiles moves files with the specified extension from the source directory to the destination directory. When GroupByExtension is true \(default\), files land in \<destination\>/\<extension\>/; otherwise directly in \<destination\>/.
 
 <a name="ParseSize"></a>
-## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L105>)
+## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L118>)
 
 ```go
 func ParseSize(s string) (int64, error)
