@@ -121,8 +121,12 @@ func runEventLoop(m *models.Movelooper, watcher *fsnotify.Watcher, tracker *file
 			}
 			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
 				tracker.mu.Lock()
+				_, alreadyTracked := tracker.files[event.Name]
 				tracker.files[event.Name] = time.Now()
 				tracker.mu.Unlock()
+				if !alreadyTracked {
+					m.Logger.Info("detected new file", m.Logger.Args("path", event.Name))
+				}
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {

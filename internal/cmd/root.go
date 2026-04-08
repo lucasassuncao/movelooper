@@ -67,27 +67,40 @@ type movedSet map[string]bool
 func (s movedSet) mark(dir, name string)     { s[filepath.Join(dir, name)] = true }
 func (s movedSet) has(dir, name string) bool { return s[filepath.Join(dir, name)] }
 
+// runStats accumulates totals across all categories for the end-of-run summary.
+type runStats struct {
+	totalFiles int
+	totalBytes int64
+	skipped    int
+}
+
 // runMove executes the default move operation across all configured categories.
 func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 	batchID := history.NewBatchID()
 	moved := make(movedSet)
+	var stats runStats
 
 	for _, category := range m.Categories {
 		if !category.IsEnabled() {
 			m.Logger.Info(fmt.Sprintf("[%s] category disabled, skipping", category.Name))
+			stats.skipped++
 			continue
 		}
-		processCategoryMove(m, category, moved, batchID, dryRun, showFiles)
+		processCategoryMove(m, category, moved, batchID, dryRun, showFiles, &stats)
 	}
 
 	if dryRun {
-		m.Logger.Info("dry-run complete, no files were moved")
+		m.Logger.Info("dry-run complete, no files were moved",
+			m.Logger.Args("matched", stats.totalFiles))
+	} else {
+		m.Logger.Info("run complete",
+			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "categories_skipped", stats.skipped))
 	}
 	return nil
 }
 
 // processCategoryMove handles all extensions for a single category.
-func processCategoryMove(m *models.Movelooper, category *models.Category, moved movedSet, batchID string, dryRun, showFiles bool) {
+func processCategoryMove(m *models.Movelooper, category *models.Category, moved movedSet, batchID string, dryRun, showFiles bool, stats *runStats) {
 	files, err := helper.ReadDirectory(category.Source)
 	if err != nil {
 		m.Logger.Error("failed to read directory", m.Logger.Args("path", category.Source, "error", err.Error()))
@@ -97,6 +110,13 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 	for _, extension := range category.Extensions {
 		filteredFiles := filterFilesForExtension(category, files, moved, extension)
 		logExtensionResult(m, filteredFiles, category.Name, extension, showFiles)
+
+		stats.totalFiles += len(filteredFiles)
+		for _, file := range filteredFiles {
+			if info, err := file.Info(); err == nil {
+				stats.totalBytes += info.Size()
+			}
+		}
 
 		if !dryRun && len(filteredFiles) > 0 {
 			dirPath := category.Destination
@@ -112,6 +132,20 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 			}
 		}
 	}
+}
+
+// formatBytes converts a byte count to a human-readable string (e.g. "1.23 MB").
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.2f %cB", float64(b)/float64(div), "KMGT"[exp])
 }
 
 // filterFilesForExtension returns the files that match all criteria for a given extension.
@@ -227,5 +261,25 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 		m.History = hist
 	}
 
+	validateDirectories(m)
+
 	return nil
+}
+
+// validateDirectories warns about source or destination directories that do not exist.
+// It does not abort startup — missing directories are reported and skipped at runtime.
+func validateDirectories(m *models.Movelooper) {
+	for _, cat := range m.Categories {
+		if !cat.IsEnabled() {
+			continue
+		}
+		if _, err := os.Stat(cat.Source); os.IsNotExist(err) {
+			m.Logger.Warn("source directory does not exist",
+				m.Logger.Args("category", cat.Name, "path", cat.Source))
+		}
+		if _, err := os.Stat(cat.Destination); os.IsNotExist(err) {
+			m.Logger.Warn("destination directory does not exist",
+				m.Logger.Args("category", cat.Name, "path", cat.Destination))
+		}
+	}
 }
