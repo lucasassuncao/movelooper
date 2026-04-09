@@ -118,6 +118,14 @@ func applyConflictStrategy(ctx MoveContext, strategy, sourcePath, destPath, dest
 			ctx.Logger.Info("file skipped due to conflict strategy", ctx.Logger.Args("file", fileName))
 		case "hash_check":
 			ctx.Logger.Info("duplicate file removed from source", ctx.Logger.Args("file", fileName))
+		case "newest":
+			ctx.Logger.Info("file skipped — destination is newer", ctx.Logger.Args("file", fileName))
+		case "oldest":
+			ctx.Logger.Info("file skipped — destination is older", ctx.Logger.Args("file", fileName))
+		case "larger":
+			ctx.Logger.Info("file skipped — destination is larger", ctx.Logger.Args("file", fileName))
+		case "smaller":
+			ctx.Logger.Info("file skipped — destination is smaller", ctx.Logger.Args("file", fileName))
 		}
 		return "", true
 	}

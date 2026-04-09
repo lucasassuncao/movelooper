@@ -21,6 +21,10 @@ var conflictResolvers = map[string]ConflictResolver{
 	"overwrite":  &overwriteResolver{},
 	"skip":       &skipResolver{},
 	"hash_check": &hashCheckResolver{},
+	"newest":     &newestResolver{},
+	"oldest":     &oldestResolver{},
+	"larger":     &largerResolver{},
+	"smaller":    &smallerResolver{},
 }
 
 // resolveConflict dispatches to the registered ConflictResolver for strategy.
@@ -84,6 +88,98 @@ func calculateHash(filePath string) (string, error) {
 	}
 
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+// newestResolver keeps whichever file has the most recent modification time.
+// If the destination is newer or equal, the source is skipped.
+// If the source is newer, the destination is overwritten.
+type newestResolver struct{}
+
+func (r *newestResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return "", false, err
+	}
+	dstInfo, err := os.Stat(dst)
+	if err != nil {
+		return "", false, err
+	}
+	if !srcInfo.ModTime().After(dstInfo.ModTime()) {
+		return "", false, nil // destination is newer or equal — keep it
+	}
+	if err := os.Remove(dst); err != nil {
+		return "", false, fmt.Errorf("newest: failed to remove older destination: %w", err)
+	}
+	return dst, true, nil
+}
+
+// oldestResolver keeps whichever file has the oldest modification time.
+// If the destination is older or equal, the source is skipped.
+// If the source is older, the destination is overwritten.
+type oldestResolver struct{}
+
+func (r *oldestResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return "", false, err
+	}
+	dstInfo, err := os.Stat(dst)
+	if err != nil {
+		return "", false, err
+	}
+	if !srcInfo.ModTime().Before(dstInfo.ModTime()) {
+		return "", false, nil // destination is older or equal — keep it
+	}
+	if err := os.Remove(dst); err != nil {
+		return "", false, fmt.Errorf("oldest: failed to remove newer destination: %w", err)
+	}
+	return dst, true, nil
+}
+
+// largerResolver keeps the larger of the two files.
+// If the destination is larger or equal, the source is skipped.
+// If the source is larger, the destination is overwritten.
+type largerResolver struct{}
+
+func (r *largerResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return "", false, err
+	}
+	dstInfo, err := os.Stat(dst)
+	if err != nil {
+		return "", false, err
+	}
+	if srcInfo.Size() <= dstInfo.Size() {
+		return "", false, nil // destination is larger or equal — keep it
+	}
+	if err := os.Remove(dst); err != nil {
+		return "", false, fmt.Errorf("larger: failed to remove smaller destination: %w", err)
+	}
+	return dst, true, nil
+}
+
+// smallerResolver keeps the smaller of the two files.
+// If the destination is smaller or equal, the source is skipped.
+// If the source is smaller, the destination is overwritten.
+type smallerResolver struct{}
+
+func (r *smallerResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return "", false, err
+	}
+	dstInfo, err := os.Stat(dst)
+	if err != nil {
+		return "", false, err
+	}
+	if srcInfo.Size() >= dstInfo.Size() {
+		return "", false, nil // destination is smaller or equal — keep it
+	}
+	if err := os.Remove(dst); err != nil {
+		return "", false, fmt.Errorf("smaller: failed to remove larger destination: %w", err)
+	}
+	return dst, true, nil
 }
 
 // hashCheckResolver compares source and destination by SHA-256 hash.

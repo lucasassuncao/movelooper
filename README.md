@@ -134,12 +134,16 @@ Each entry in the `categories` list has the following top-level fields:
 
 #### Conflict strategies
 
-| Value        | Behavior                                                                 |
-|--------------|--------------------------------------------------------------------------|
-| `rename`     | Appends `(1)`, `(2)`, … to the filename until it is unique (default)    |
-| `overwrite`  | Deletes the existing destination file and replaces it                    |
-| `skip`       | Leaves the source file untouched                                         |
-| `hash_check` | Compares SHA-256 hashes; deletes source if identical, renames if different |
+| Value        | Behavior                                                                              |
+|--------------|---------------------------------------------------------------------------------------|
+| `rename`     | Appends `(1)`, `(2)`, … to the filename until it is unique (default)                 |
+| `overwrite`  | Deletes the existing destination file and replaces it                                 |
+| `skip`       | Leaves the source file untouched                                                      |
+| `hash_check` | Compares SHA-256 hashes; deletes source if identical, renames if different            |
+| `newest`     | Keeps the file with the most recent modification time; skips source if dest is newer  |
+| `oldest`     | Keeps the file with the oldest modification time; skips source if dest is older       |
+| `larger`     | Keeps the larger file; skips source if dest is larger or equal                        |
+| `smaller`    | Keeps the smaller file; skips source if dest is smaller or equal                      |
 
 #### Filename filters (`filter.regex` and `filter.glob`)
 
