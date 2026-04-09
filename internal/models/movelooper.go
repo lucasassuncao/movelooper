@@ -46,7 +46,9 @@ type Configuration struct {
 type CategoryFilter struct {
 	Regex         string         `yaml:"regex" mapstructure:"regex"`
 	Glob          string         `yaml:"glob" mapstructure:"glob"`
+	Include       []string       `yaml:"include" mapstructure:"include"`
 	Ignore        []string       `yaml:"ignore" mapstructure:"ignore"`
+	CaseSensitive bool           `yaml:"case-sensitive" mapstructure:"case-sensitive"`
 	MinAge        time.Duration  `yaml:"min-age" mapstructure:"min-age"`
 	MaxAge        time.Duration  `yaml:"max-age" mapstructure:"max-age"`
 	MinSize       string         `yaml:"min-size" mapstructure:"min-size"`

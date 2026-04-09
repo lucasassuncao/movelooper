@@ -73,54 +73,89 @@ func UnmarshalConfig(v *viper.Viper) ([]*models.Category, error) {
 	}
 
 	for _, cat := range categories {
-		f := &cat.Source.Filter
-
-		if len(cat.Source.Extensions) == 0 {
-			return nil, fmt.Errorf("category %q: source.extensions are required", cat.Name)
-		}
-
-		if f.Regex != "" && f.Glob != "" {
-			return nil, fmt.Errorf("category %q: source.filter regex and glob are mutually exclusive; use only one", cat.Name)
-		}
-
-		if f.Regex != "" {
-			compiled, err := regexp.Compile(f.Regex)
-			if err != nil {
-				return nil, fmt.Errorf("invalid regex in category %q: %w", cat.Name, err)
-			}
-			f.CompiledRegex = compiled
-		}
-
-		if f.Glob != "" {
-			if err := helper.ValidateGlob(f.Glob); err != nil {
-				return nil, fmt.Errorf("category %q: %w", cat.Name, err)
-			}
-		}
-
-		if f.MinSize != "" {
-			bytes, err := helper.ParseSize(f.MinSize)
-			if err != nil {
-				return nil, fmt.Errorf("category %q: invalid min-size %q: %w", cat.Name, f.MinSize, err)
-			}
-			f.MinSizeBytes = bytes
-		}
-
-		if f.MaxSize != "" {
-			bytes, err := helper.ParseSize(f.MaxSize)
-			if err != nil {
-				return nil, fmt.Errorf("category %q: invalid max-size %q: %w", cat.Name, f.MaxSize, err)
-			}
-			f.MaxSizeBytes = bytes
-		}
-
-		if f.MinSize != "" && f.MaxSize != "" && f.MinSizeBytes > f.MaxSizeBytes {
-			return nil, fmt.Errorf("category %q: min-size (%s) must be less than max-size (%s)", cat.Name, f.MinSize, f.MaxSize)
-		}
-
-		if f.MinAge != 0 && f.MaxAge != 0 && f.MinAge > f.MaxAge {
-			return nil, fmt.Errorf("category %q: min-age (%s) must be less than max-age (%s)", cat.Name, f.MinAge, f.MaxAge)
+		if err := validateCategory(cat); err != nil {
+			return nil, err
 		}
 	}
 
 	return categories, nil
+}
+
+// validateCategory validates a single category and pre-compiles its filter.
+func validateCategory(cat *models.Category) error {
+	if len(cat.Source.Extensions) == 0 {
+		return fmt.Errorf("category %q: source.extensions are required", cat.Name)
+	}
+	return validateFilter(cat.Name, &cat.Source.Filter)
+}
+
+// validateFilter validates and pre-compiles all filter fields for a category.
+func validateFilter(catName string, f *models.CategoryFilter) error {
+	if f.Regex != "" && f.Glob != "" {
+		return fmt.Errorf("category %q: source.filter regex and glob are mutually exclusive; use only one", catName)
+	}
+
+	if err := compileRegex(catName, f); err != nil {
+		return err
+	}
+
+	if f.Glob != "" {
+		if err := helper.ValidateGlob(f.Glob); err != nil {
+			return fmt.Errorf("category %q: %w", catName, err)
+		}
+	}
+
+	for _, p := range f.Include {
+		if err := helper.ValidateGlob(p); err != nil {
+			return fmt.Errorf("category %q: invalid include pattern: %w", catName, err)
+		}
+	}
+
+	return validateSizeAndAge(catName, f)
+}
+
+// compileRegex compiles f.Regex into f.CompiledRegex, adding (?i) when not case-sensitive.
+func compileRegex(catName string, f *models.CategoryFilter) error {
+	if f.Regex == "" {
+		return nil
+	}
+	pattern := f.Regex
+	if !f.CaseSensitive {
+		pattern = "(?i)" + pattern
+	}
+	compiled, err := regexp.Compile(pattern)
+	if err != nil {
+		return fmt.Errorf("invalid regex in category %q: %w", catName, err)
+	}
+	f.CompiledRegex = compiled
+	return nil
+}
+
+// validateSizeAndAge parses size strings and checks that min <= max for both size and age.
+func validateSizeAndAge(catName string, f *models.CategoryFilter) error {
+	if f.MinSize != "" {
+		b, err := helper.ParseSize(f.MinSize)
+		if err != nil {
+			return fmt.Errorf("category %q: invalid min-size %q: %w", catName, f.MinSize, err)
+		}
+		f.MinSizeBytes = b
+	}
+
+	if f.MaxSize != "" {
+		b, err := helper.ParseSize(f.MaxSize)
+		if err != nil {
+			return fmt.Errorf("category %q: invalid max-size %q: %w", catName, f.MaxSize, err)
+		}
+		f.MaxSizeBytes = b
+	}
+
+	if f.MinSize != "" && f.MaxSize != "" && f.MinSizeBytes > f.MaxSizeBytes {
+		return fmt.Errorf("category %q: min-size (%s) must be less than max-size (%s)", catName, f.MinSize, f.MaxSize)
+	}
+
+	if f.MinAge != 0 && f.MaxAge != 0 && f.MinAge > f.MaxAge {
+		return fmt.Errorf("category %q: min-age (%s) must be less than max-age (%s)", catName, f.MinAge, f.MaxAge)
+	}
+
+	return nil
 }

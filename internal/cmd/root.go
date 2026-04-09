@@ -173,7 +173,7 @@ func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet
 	if !file.Type().IsRegular() || !helper.HasExtension(file, extension) {
 		return false
 	}
-	if helper.MatchesIgnorePatterns(file.Name(), category.Source.Filter.Ignore) {
+	if helper.MatchesIgnorePatterns(file.Name(), category.Source.Filter.Ignore, category.Source.Filter.CaseSensitive) {
 		return false
 	}
 	if !helper.MatchesNameFilters(file.Name(), category.Source.Filter) {

@@ -21,7 +21,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L74-L79>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L76-L81>)
 
 Category represents a file category with its properties
 
@@ -44,7 +44,7 @@ func (c *Category) IsEnabled() bool
 IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
 
 <a name="CategoryDestination"></a>
-## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L67-L71>)
+## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L69-L73>)
 
 CategoryDestination holds the destination path and placement rules for a category
 
@@ -57,7 +57,7 @@ type CategoryDestination struct {
 ```
 
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L46-L57>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L46-L59>)
 
 CategoryFilter holds the optional filtering rules for a category
 
@@ -65,7 +65,9 @@ CategoryFilter holds the optional filtering rules for a category
 type CategoryFilter struct {
     Regex         string         `yaml:"regex" mapstructure:"regex"`
     Glob          string         `yaml:"glob" mapstructure:"glob"`
+    Include       []string       `yaml:"include" mapstructure:"include"`
     Ignore        []string       `yaml:"ignore" mapstructure:"ignore"`
+    CaseSensitive bool           `yaml:"case-sensitive" mapstructure:"case-sensitive"`
     MinAge        time.Duration  `yaml:"min-age" mapstructure:"min-age"`
     MaxAge        time.Duration  `yaml:"max-age" mapstructure:"max-age"`
     MinSize       string         `yaml:"min-size" mapstructure:"min-size"`
@@ -77,7 +79,7 @@ type CategoryFilter struct {
 ```
 
 <a name="CategorySource"></a>
-## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L60-L64>)
+## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L62-L66>)
 
 CategorySource holds the source path, extensions, and filters for a category
 

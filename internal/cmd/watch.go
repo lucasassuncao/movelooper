@@ -187,7 +187,7 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 			if !helper.MatchesAnyExtension(file.Name(), cat.Source.Extensions) {
 				continue
 			}
-			if helper.MatchesIgnorePatterns(file.Name(), cat.Source.Filter.Ignore) {
+			if helper.MatchesIgnorePatterns(file.Name(), cat.Source.Filter.Ignore, cat.Source.Filter.CaseSensitive) {
 				continue
 			}
 			if !helper.MatchesNameFilters(file.Name(), cat.Source.Filter) {
@@ -273,7 +273,7 @@ func attemptMoveFile(m *models.Movelooper, path string, dryRun bool) error {
 		if filepath.Clean(filepath.Dir(path)) != filepath.Clean(cat.Source.Path) {
 			continue
 		}
-		if helper.MatchesIgnorePatterns(fileName, cat.Source.Filter.Ignore) {
+		if helper.MatchesIgnorePatterns(fileName, cat.Source.Filter.Ignore, cat.Source.Filter.CaseSensitive) {
 			continue
 		}
 		if !matchesExtensionAndFilters(cat, fileName, path) {

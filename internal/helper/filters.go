@@ -11,12 +11,13 @@ import (
 )
 
 // MatchesIgnorePatterns reports whether fileName matches any of the provided
-// glob patterns. Matching is case-insensitive. Patterns follow filepath.Match
-// syntax: * matches any sequence of characters, ? matches one character.
-func MatchesIgnorePatterns(fileName string, patterns []string) bool {
-	lower := strings.ToLower(fileName)
+// glob patterns. Patterns follow filepath.Match syntax: * matches any sequence
+// of characters, ? matches one character. Matching is case-insensitive unless
+// caseSensitive is true.
+func MatchesIgnorePatterns(fileName string, patterns []string, caseSensitive bool) bool {
+	name := normalizeCase(fileName, caseSensitive)
 	for _, pattern := range patterns {
-		matched, err := filepath.Match(strings.ToLower(pattern), lower)
+		matched, err := filepath.Match(normalizeCase(pattern, caseSensitive), name)
 		if err == nil && matched {
 			return true
 		}
@@ -26,16 +27,24 @@ func MatchesIgnorePatterns(fileName string, patterns []string) bool {
 
 // MatchesGlob reports whether fileName matches the glob pattern.
 // Supports brace expansion: *.{jpg,png} expands to *.jpg and *.png.
-// Matching is case-insensitive.
-func MatchesGlob(fileName, pattern string) bool {
-	lower := strings.ToLower(fileName)
-	for _, p := range expandGlobPattern(strings.ToLower(pattern)) {
-		matched, err := filepath.Match(p, lower)
+// Matching is case-insensitive unless caseSensitive is true.
+func MatchesGlob(fileName, pattern string, caseSensitive bool) bool {
+	name := normalizeCase(fileName, caseSensitive)
+	for _, p := range expandGlobPattern(normalizeCase(pattern, caseSensitive)) {
+		matched, err := filepath.Match(p, name)
 		if err == nil && matched {
 			return true
 		}
 	}
 	return false
+}
+
+// normalizeCase returns s lowercased when caseSensitive is false, otherwise s unchanged.
+func normalizeCase(s string, caseSensitive bool) string {
+	if caseSensitive {
+		return s
+	}
+	return strings.ToLower(s)
 }
 
 // expandGlobPattern expands a single {a,b,c} group into multiple patterns.
@@ -101,13 +110,17 @@ func MatchesAnyExtension(fileName string, extensions []string) bool {
 	return false
 }
 
-// MatchesNameFilters reports whether fileName passes the category's regex and glob name
-// filters. Returns true when neither filter is configured.
+// MatchesNameFilters reports whether fileName passes the category's name filters:
+// regex, glob, and include patterns. Returns true when no filters are configured.
+// When include patterns are set, the file must match at least one to pass.
 func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
 	if f.CompiledRegex != nil && !f.CompiledRegex.MatchString(fileName) {
 		return false
 	}
-	if f.Glob != "" && !MatchesGlob(fileName, f.Glob) {
+	if f.Glob != "" && !MatchesGlob(fileName, f.Glob, f.CaseSensitive) {
+		return false
+	}
+	if len(f.Include) > 0 && !MatchesIgnorePatterns(fileName, f.Include, f.CaseSensitive) {
 		return false
 	}
 	return true
