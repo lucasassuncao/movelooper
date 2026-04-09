@@ -63,7 +63,12 @@
       <div class="feature-card">
         <div class="icon">🌐</div>
         <h3>Wildcard extension</h3>
-        <p>Use <code>extensions: [all]</code> to match any file type and group by real extension.</p>
+        <p>Use <code>extensions: [all]</code> to match any file type and organize by real extension.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🗂</div>
+        <h3>organize-by templates</h3>
+        <p>Flexible subdirectory structure with tokens like <code>{ext}</code>, <code>{mod-year}</code>, <code>{mod-month}</code>, <code>{size-range}</code>, and more.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🔄</div>
@@ -141,21 +146,25 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
 
 <span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"images"</span>
-    <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">jpeg</span>, <span class="str">png</span>, <span class="str">gif</span>, <span class="str">webp</span>]
-    <span class="key">source</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
-    <span class="key">destination</span>: <span class="str">"C:\\Users\\you\\Images"</span>
-    <span class="key">conflict-strategy</span>: <span class="val">rename</span>
-    <span class="key">group-by-extension</span>: <span class="val">true</span>
-    <span class="key">filter</span>:
-      <span class="key">ignore</span>: [<span class="str">"screenshot_*"</span>]
-      <span class="key">min-age</span>: <span class="val">10m</span>
+    <span class="key">source</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
+      <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">jpeg</span>, <span class="str">png</span>, <span class="str">gif</span>, <span class="str">webp</span>]
+      <span class="key">filter</span>:
+        <span class="key">ignore</span>: [<span class="str">"screenshot_*"</span>]
+        <span class="key">min-age</span>: <span class="val">10m</span>
+    <span class="key">destination</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Images"</span>
+      <span class="key">conflict-strategy</span>: <span class="val">rename</span>
+      <span class="key">organize-by</span>: <span class="str">"{ext}"</span>
 
   - <span class="key">name</span>: <span class="str">"everything-else"</span>
-    <span class="key">extensions</span>: [<span class="str">all</span>]     <span class="cmt"># matches any file</span>
-    <span class="key">source</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
-    <span class="key">destination</span>: <span class="str">"C:\\Users\\you\\Sorted"</span>
-    <span class="key">conflict-strategy</span>: <span class="val">hash_check</span>
-    <span class="key">group-by-extension</span>: <span class="val">true</span></pre>
+    <span class="key">source</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
+      <span class="key">extensions</span>: [<span class="str">all</span>]     <span class="cmt"># matches any file</span>
+    <span class="key">destination</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Sorted"</span>
+      <span class="key">conflict-strategy</span>: <span class="val">hash_check</span>
+      <span class="key">organize-by</span>: <span class="str">"{ext}"</span></pre>
     </div>
   </section>
 
@@ -186,10 +195,14 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
       <button class="copy-btn" onclick="copyCode(this)">Copy</button>
       <pre><span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"wallhaven"</span>
-    <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">png</span>]
-    <span class="key">source</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
-    <span class="key">destination</span>: <span class="str">"C:\\Users\\you\\Walls\\Wallhaven"</span>
-    <span class="key">conflict-strategy</span>: <span class="val">hash_check</span></pre>
+    <span class="key">source</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
+      <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">png</span>]
+      <span class="key">filter</span>:
+        <span class="key">regex</span>: <span class="str">"^wallhaven"</span>
+    <span class="key">destination</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Walls\\Wallhaven"</span>
+      <span class="key">conflict-strategy</span>: <span class="val">hash_check</span></pre>
     </div>
   </section>
 

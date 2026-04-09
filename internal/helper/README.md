@@ -18,6 +18,7 @@ Package helper provides utility functions for file operations, filtering, and co
 
 - [Constants](<#constants>)
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
+- [func EffectiveOrganizeBy\(organizeBy string\) string](<#EffectiveOrganizeBy>)
 - [func GenerateLogArgs\(files \[\]os.DirEntry, extension string\) \[\]interface\{\}](<#GenerateLogArgs>)
 - [func HasExtension\(file os.DirEntry, extension string\) bool](<#HasExtension>)
 - [func MatchesAnyExtension\(fileName string, extensions \[\]string\) bool](<#MatchesAnyExtension>)
@@ -29,9 +30,10 @@ Package helper provides utility functions for file operations, filtering, and co
 - [func MeetsMaxSize\(info os.FileInfo, maxSizeBytes int64\) bool](<#MeetsMaxSize>)
 - [func MeetsMinAge\(info os.FileInfo, minAge time.Duration\) bool](<#MeetsMinAge>)
 - [func MeetsMinSize\(info os.FileInfo, minSizeBytes int64\) bool](<#MeetsMinSize>)
-- [func MoveFiles\(ctx MoveContext, category \*models.Category, files \[\]os.DirEntry, extension, batchID string\)](<#MoveFiles>)
+- [func MoveFiles\(ctx MoveContext, category \*models.Category, files \[\]os.DirEntry, extension, batchID string\) \[\]string](<#MoveFiles>)
 - [func ParseSize\(s string\) \(int64, error\)](<#ParseSize>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
+- [func ResolveGroupBy\(template string, info os.FileInfo, categoryName string, now time.Time\) string](<#ResolveGroupBy>)
 - [func ValidateGlob\(pattern string\) error](<#ValidateGlob>)
 - [type ConflictResolver](<#ConflictResolver>)
 - [type MoveContext](<#MoveContext>)
@@ -53,6 +55,15 @@ func CreateDirectory(dir string) error
 ```
 
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
+
+<a name="EffectiveOrganizeBy"></a>
+## func [EffectiveOrganizeBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L95>)
+
+```go
+func EffectiveOrganizeBy(organizeBy string) string
+```
+
+EffectiveOrganizeBy returns the organize\-by template for a category, or an empty string when no subdirectory organisation is configured.
 
 <a name="GenerateLogArgs"></a>
 ## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L204>)
@@ -154,13 +165,13 @@ func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
 MeetsMinSize reports whether the file size is at least minSizeBytes. Always returns true when minSizeBytes is zero.
 
 <a name="MoveFiles"></a>
-## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L44>)
+## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L45>)
 
 ```go
-func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string)
+func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string
 ```
 
-MoveFiles moves files with the specified extension from the source directory to the destination directory. When GroupByExtension is true \(default\), files land in \<destination\>/\<extension\>/; otherwise directly in \<destination\>/.
+MoveFiles moves files with the specified extension from the source directory to the destination directory. When organize\-by is set, files land in subdirectories resolved from the template; otherwise directly in \<destination\>/. Returns the names of files that were successfully moved.
 
 <a name="ParseSize"></a>
 ## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L118>)
@@ -179,6 +190,50 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ```
 
 ReadDirectory reads the contents of a given directory and returns the files.
+
+<a name="ResolveGroupBy"></a>
+## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L51>)
+
+```go
+func ResolveGroupBy(template string, info os.FileInfo, categoryName string, now time.Time) string
+```
+
+ResolveGroupBy resolves a group\-by template string into a relative subdirectory path that should be appended to the category destination.
+
+Supported tokens:
+
+```
+File identification:
+  {name}          — filename without extension
+  {ext}           — extension without dot, lowercase
+  {ext-upper}     — extension without dot, uppercase
+
+File modification date:
+  {mod-year}      — year  (2025)
+  {mod-month}     — month (04)
+  {mod-day}       — day   (08)
+  {mod-date}      — 2025-04-08
+  {mod-weekday}   — Tuesday
+
+File creation date (falls back to mod time on Linux):
+  {created-year}  — year
+  {created-month} — month
+  {created-day}   — day
+  {created-date}  — 2025-04-08
+
+Run date (time.Now()):
+  {year}          — year
+  {month}         — month
+  {day}           — day
+  {date}          — 2025-04-08
+  {weekday}       — Tuesday
+
+File size:
+  {size-range}    — tiny (<1 MB) | small (1 MB–100 MB) | medium (100 MB–1 GB) | large (≥1 GB)
+
+Category:
+  {category}      — category name from config
+```
 
 <a name="ValidateGlob"></a>
 ## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L63>)

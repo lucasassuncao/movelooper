@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
@@ -103,13 +102,13 @@ func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
 
 // processCategoryMove handles all extensions for a single category.
 func processCategoryMove(m *models.Movelooper, category *models.Category, moved movedSet, batchID string, dryRun, showFiles bool, stats *runStats) {
-	files, err := helper.ReadDirectory(category.Source)
+	files, err := helper.ReadDirectory(category.Source.Path)
 	if err != nil {
-		m.Logger.Error("failed to read directory", m.Logger.Args("path", category.Source, "error", err.Error()))
+		m.Logger.Error("failed to read directory", m.Logger.Args("path", category.Source.Path, "error", err.Error()))
 		return
 	}
 
-	for _, extension := range category.Extensions {
+	for _, extension := range category.Source.Extensions {
 		filteredFiles := filterFilesForExtension(category, files, moved, extension)
 		logExtensionResult(m, filteredFiles, category.Name, extension, showFiles)
 
@@ -126,50 +125,12 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 	}
 }
 
-// moveExtension moves filteredFiles for a single extension, delegating to
-// moveAllByExtension when the sentinel "all" is combined with group-by-extension.
+// moveExtension moves filteredFiles for a single extension.
+// Directory creation is handled per-file inside MoveFiles based on the organize-by template.
 func moveExtension(m *models.Movelooper, category *models.Category, files []os.DirEntry, moved movedSet, extension, batchID string) {
-	if strings.ToLower(extension) == helper.ExtAll && category.GroupByExtension {
-		moveAllByExtension(m, category, files, moved, batchID)
-		return
-	}
-
-	dirPath := category.Destination
-	if category.GroupByExtension {
-		dirPath = filepath.Join(category.Destination, extension)
-	}
-	if err := helper.CreateDirectory(dirPath); err != nil {
-		m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-		return
-	}
-	helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, files, extension, batchID)
-	for _, file := range files {
-		moved.mark(category.Source, file.Name())
-	}
-}
-
-// moveAllByExtension handles group-by-extension for the "all" sentinel: it groups
-// files by their real extension and moves each group into its own subdirectory.
-func moveAllByExtension(m *models.Movelooper, category *models.Category, files []os.DirEntry, moved movedSet, batchID string) {
-	groups := make(map[string][]os.DirEntry)
-	for _, file := range files {
-		ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Name()), "."))
-		if ext == "" {
-			ext = "_no_ext"
-		}
-		groups[ext] = append(groups[ext], file)
-	}
-
-	for ext, group := range groups {
-		dirPath := filepath.Join(category.Destination, ext)
-		if err := helper.CreateDirectory(dirPath); err != nil {
-			m.Logger.Error("failed to create directory", m.Logger.Args("error", err.Error()))
-			continue
-		}
-		helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, group, ext, batchID)
-		for _, file := range group {
-			moved.mark(category.Source, file.Name())
-		}
+	movedNames := helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, files, extension, batchID)
+	for _, name := range movedNames {
+		moved.mark(category.Source.Path, name)
 	}
 }
 
@@ -200,23 +161,23 @@ func filterFilesForExtension(category *models.Category, files []os.DirEntry, mov
 
 // matchesCategory reports whether a file passes all filters defined by the category.
 func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet, extension string) bool {
-	if moved.has(category.Source, file.Name()) {
+	if moved.has(category.Source.Path, file.Name()) {
 		return false
 	}
 	if !file.Type().IsRegular() || !helper.HasExtension(file, extension) {
 		return false
 	}
-	if helper.MatchesIgnorePatterns(file.Name(), category.Filter.Ignore) {
+	if helper.MatchesIgnorePatterns(file.Name(), category.Source.Filter.Ignore) {
 		return false
 	}
-	if !helper.MatchesNameFilters(file.Name(), category.Filter) {
+	if !helper.MatchesNameFilters(file.Name(), category.Source.Filter) {
 		return false
 	}
 	info, err := file.Info()
 	if err != nil {
 		return false
 	}
-	return helper.MeetsAgeSizeFilters(info, category.Filter)
+	return helper.MeetsAgeSizeFilters(info, category.Source.Filter)
 }
 
 // logExtensionResult logs a summary of files found for an extension.
@@ -315,13 +276,13 @@ func validateDirectories(m *models.Movelooper) {
 		if !cat.IsEnabled() {
 			continue
 		}
-		if _, err := os.Stat(cat.Source); os.IsNotExist(err) {
+		if _, err := os.Stat(cat.Source.Path); os.IsNotExist(err) {
 			m.Logger.Warn("source directory does not exist",
-				m.Logger.Args("category", cat.Name, "path", cat.Source))
+				m.Logger.Args("category", cat.Name, "path", cat.Source.Path))
 		}
-		if _, err := os.Stat(cat.Destination); os.IsNotExist(err) {
+		if _, err := os.Stat(cat.Destination.Path); os.IsNotExist(err) {
 			m.Logger.Warn("destination directory does not exist",
-				m.Logger.Args("category", cat.Name, "path", cat.Destination))
+				m.Logger.Args("category", cat.Name, "path", cat.Destination.Path))
 		}
 	}
 }

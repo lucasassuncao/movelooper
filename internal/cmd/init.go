@@ -298,28 +298,34 @@ func promptOneCategory() models.Category {
 	minAge, maxAge := promptAgeFilter()
 	minSize, maxSize := promptSizeFilter()
 
-	var groupByExtension bool
-	exitIfAborted(huh.NewConfirm().
-		Title("Group files into subdirectories by extension?").
-		Description("When enabled, files land in <destination>/<extension>/. When disabled, files go directly into <destination>/.").
-		Value(&groupByExtension).
+	var organizeBy string
+	exitIfAborted(huh.NewInput().
+		Title("Organize-by template (optional)").
+		Description(`Organize files into subdirectories using a template.
+Examples: {ext}  |  {ext}/{mod-year}  |  {mod-year}/{mod-month}/{mod-day}
+Leave blank to move files directly into destination.`).
+		Value(&organizeBy).
 		Run())
 
 	return models.Category{
-		Name:             name,
-		Extensions:       extensions,
-		Source:           source,
-		Destination:      destination,
-		ConflictStrategy: strategy,
-		GroupByExtension: groupByExtension,
-		Filter: models.CategoryFilter{
-			Regex:   regex,
-			Glob:    glob,
-			Ignore:  ignorePatterns,
-			MinAge:  minAge,
-			MaxAge:  maxAge,
-			MinSize: minSize,
-			MaxSize: maxSize,
+		Name: name,
+		Source: models.CategorySource{
+			Path:       source,
+			Extensions: extensions,
+			Filter: models.CategoryFilter{
+				Regex:   regex,
+				Glob:    glob,
+				Ignore:  ignorePatterns,
+				MinAge:  minAge,
+				MaxAge:  maxAge,
+				MinSize: minSize,
+				MaxSize: maxSize,
+			},
+		},
+		Destination: models.CategoryDestination{
+			Path:             destination,
+			OrganizeBy:       organizeBy,
+			ConflictStrategy: strategy,
 		},
 	}
 }
@@ -526,11 +532,15 @@ func collectIgnorePatterns() []string {
 func getDefaultCategory() models.Category {
 	source := getDefaultSourcePath()
 	return models.Category{
-		Name:             "images",
-		Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
-		Source:           source,
-		Destination:      filepath.Join(source, "images"),
-		ConflictStrategy: "rename",
+		Name: "images",
+		Source: models.CategorySource{
+			Path:       source,
+			Extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
+		},
+		Destination: models.CategoryDestination{
+			Path:             filepath.Join(source, "images"),
+			ConflictStrategy: "rename",
+		},
 	}
 }
 
@@ -565,12 +575,16 @@ func buildSimpleTemplate(def simpleTemplateDef) *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:             def.categoryName,
-				Extensions:       def.extensions,
-				Source:           src,
-				Destination:      filepath.Join(src, def.categoryName),
-				ConflictStrategy: "rename",
-				GroupByExtension: true,
+				Name: def.categoryName,
+				Source: models.CategorySource{
+					Path:       src,
+					Extensions: def.extensions,
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(src, def.categoryName),
+					ConflictStrategy: "rename",
+					OrganizeBy:       "{ext}",
+				},
 			},
 		},
 	}
@@ -603,14 +617,18 @@ func getRegexTemplate() *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:             "regex",
-				Extensions:       []string{"pdf", "txt", "log"},
-				Source:           getDefaultSourcePath(),
-				Destination:      filepath.Join(getDefaultSourcePath(), "regex"),
-				ConflictStrategy: "rename",
-				GroupByExtension: true,
-				Filter: models.CategoryFilter{
-					Regex: `^\d{4}-\d{2}-\d{2}_.*`,
+				Name: "regex",
+				Source: models.CategorySource{
+					Path:       getDefaultSourcePath(),
+					Extensions: []string{"pdf", "txt", "log"},
+					Filter: models.CategoryFilter{
+						Regex: `^\d{4}-\d{2}-\d{2}_.*`,
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(getDefaultSourcePath(), "regex"),
+					ConflictStrategy: "rename",
+					OrganizeBy:       "{ext}",
 				},
 			},
 		},
@@ -630,84 +648,115 @@ func getFullTemplate() *models.Config {
 		},
 		Categories: []models.Category{
 			{
-				Name:             "images",
-				Extensions:       []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "images"),
-				ConflictStrategy: "rename",
-				GroupByExtension: true,
-				Filter: models.CategoryFilter{
-					Ignore: []string{"screenshot_*", "*_temp.*"},
-					MinAge: 24 * time.Hour,
+				Name: "images",
+				Source: models.CategorySource{
+					Path:       basePath,
+					Extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
+					Filter: models.CategoryFilter{
+						Ignore: []string{"screenshot_*", "*_temp.*"},
+						MinAge: 24 * time.Hour,
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(basePath, "images"),
+					ConflictStrategy: "rename",
+					OrganizeBy:       "{ext}",
 				},
 			},
 			{
-				Name:             "videos",
-				Extensions:       []string{"mp4", "avi", "mkv", "mov", "wmv"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "videos"),
-				ConflictStrategy: "overwrite",
-				GroupByExtension: true,
-				Filter: models.CategoryFilter{
-					Ignore:  []string{"*_preview.*", "*_draft.*"},
-					MinSize: "100MB",
+				Name: "videos",
+				Source: models.CategorySource{
+					Path:       basePath,
+					Extensions: []string{"mp4", "avi", "mkv", "mov", "wmv"},
+					Filter: models.CategoryFilter{
+						Ignore:  []string{"*_preview.*", "*_draft.*"},
+						MinSize: "100MB",
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(basePath, "videos"),
+					ConflictStrategy: "overwrite",
+					OrganizeBy:       "{ext}",
 				},
 			},
 			{
-				Name:             "music",
-				Extensions:       []string{"mp3", "wav", "flac", "aac"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "music"),
-				ConflictStrategy: "skip",
-				GroupByExtension: true,
-			},
-			{
-				Name:             "books",
-				Extensions:       []string{"pdf", "epub", "mobi", "azw3", "doc", "docx"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "books"),
-				ConflictStrategy: "hash_check",
-				GroupByExtension: true,
-				Filter: models.CategoryFilter{
-					MinSize: "1MB",
+				Name: "music",
+				Source: models.CategorySource{
+					Path:       basePath,
+					Extensions: []string{"mp3", "wav", "flac", "aac"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(basePath, "music"),
+					ConflictStrategy: "skip",
+					OrganizeBy:       "{ext}",
 				},
 			},
 			{
-				Name:             "archives",
-				Extensions:       []string{"zip", "tar", "gz", "bz2", "rar", "7z"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "archives"),
-				ConflictStrategy: "hash_check",
-				GroupByExtension: true,
-			},
-			{
-				Name:             "installers",
-				Extensions:       []string{"exe", "msi", "apk"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "installers"),
-				ConflictStrategy: "hash_check",
-				GroupByExtension: true,
-			},
-			{
-				Name:             "dated-docs",
-				Extensions:       []string{"pdf", "txt", "log"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "dated"),
-				ConflictStrategy: "hash_check",
-				GroupByExtension: true,
-				Filter: models.CategoryFilter{
-					Regex: `^\d{4}-\d{2}-\d{2}_.*`,
+				Name: "books",
+				Source: models.CategorySource{
+					Path:       basePath,
+					Extensions: []string{"pdf", "epub", "mobi", "azw3", "doc", "docx"},
+					Filter: models.CategoryFilter{
+						MinSize: "1MB",
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(basePath, "books"),
+					ConflictStrategy: "hash_check",
+					OrganizeBy:       "{ext}",
 				},
 			},
 			{
-				Name:             "reports",
-				Extensions:       []string{"pdf", "docx"},
-				Source:           basePath,
-				Destination:      filepath.Join(basePath, "reports"),
-				ConflictStrategy: "rename",
-				GroupByExtension: false,
-				Filter: models.CategoryFilter{
-					Glob: "report_*",
+				Name: "archives",
+				Source: models.CategorySource{
+					Path:       basePath,
+					Extensions: []string{"zip", "tar", "gz", "bz2", "rar", "7z"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(basePath, "archives"),
+					ConflictStrategy: "hash_check",
+					OrganizeBy:       "{ext}",
+				},
+			},
+			{
+				Name: "installers",
+				Source: models.CategorySource{
+					Path:       basePath,
+					Extensions: []string{"exe", "msi", "apk"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(basePath, "installers"),
+					ConflictStrategy: "hash_check",
+					OrganizeBy:       "{ext}",
+				},
+			},
+			{
+				Name: "dated-docs",
+				Source: models.CategorySource{
+					Path:       basePath,
+					Extensions: []string{"pdf", "txt", "log"},
+					Filter: models.CategoryFilter{
+						Regex: `^\d{4}-\d{2}-\d{2}_.*`,
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(basePath, "dated"),
+					ConflictStrategy: "hash_check",
+					OrganizeBy:       "{ext}",
+				},
+			},
+			{
+				Name: "reports",
+				Source: models.CategorySource{
+					Path:       basePath,
+					Extensions: []string{"pdf", "docx"},
+					Filter: models.CategoryFilter{
+						Glob: "report_*",
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             filepath.Join(basePath, "reports"),
+					ConflictStrategy: "rename",
 				},
 			},
 		},
@@ -766,30 +815,35 @@ func getExtensionSuggestions(categoryName string) []string {
 func printCategorySummary(category models.Category) {
 	pterm.Printf("  Name:              %s\n", pterm.Cyan(category.Name))
 	pterm.Printf("  Enabled:           %s\n", pterm.Yellow(fmt.Sprintf("%v", category.IsEnabled())))
-	pterm.Printf("  Strategy:          %s\n", pterm.Magenta(category.ConflictStrategy))
-	pterm.Printf("  Source:            %s\n", pterm.Yellow(category.Source))
-	pterm.Printf("  Destination:       %s\n", pterm.Yellow(category.Destination))
-	pterm.Printf("  Group by ext:      %s\n", pterm.Yellow(fmt.Sprintf("%v", category.GroupByExtension)))
-	pterm.Printf("  Extensions:        %s\n", pterm.Green(strings.Join(category.Extensions, ", ")))
-	if category.Filter.Regex != "" {
-		pterm.Printf("  Regex:       %s\n", pterm.Green(category.Filter.Regex))
+	pterm.Printf("  Source:            %s\n", pterm.Yellow(category.Source.Path))
+	pterm.Printf("  Extensions:        %s\n", pterm.Green(strings.Join(category.Source.Extensions, ", ")))
+	pterm.Printf("  Destination:       %s\n", pterm.Yellow(category.Destination.Path))
+	pterm.Printf("  Strategy:          %s\n", pterm.Magenta(category.Destination.ConflictStrategy))
+	organizeByDisplay := category.Destination.OrganizeBy
+	if organizeByDisplay == "" {
+		organizeByDisplay = "(none)"
 	}
-	if category.Filter.Glob != "" {
-		pterm.Printf("  Glob:        %s\n", pterm.Green(category.Filter.Glob))
+	pterm.Printf("  Organize by:       %s\n", pterm.Yellow(organizeByDisplay))
+	f := category.Source.Filter
+	if f.Regex != "" {
+		pterm.Printf("  Regex:             %s\n", pterm.Green(f.Regex))
 	}
-	if len(category.Filter.Ignore) > 0 {
-		pterm.Printf("  Ignore:      %s\n", pterm.Red(strings.Join(category.Filter.Ignore, ", ")))
+	if f.Glob != "" {
+		pterm.Printf("  Glob:              %s\n", pterm.Green(f.Glob))
 	}
-	if category.Filter.MinAge > 0 {
-		pterm.Printf("  Min Age:     %s\n", pterm.Yellow(category.Filter.MinAge.String()))
+	if len(f.Ignore) > 0 {
+		pterm.Printf("  Ignore:            %s\n", pterm.Red(strings.Join(f.Ignore, ", ")))
 	}
-	if category.Filter.MaxAge > 0 {
-		pterm.Printf("  Max Age:     %s\n", pterm.Yellow(category.Filter.MaxAge.String()))
+	if f.MinAge > 0 {
+		pterm.Printf("  Min Age:           %s\n", pterm.Yellow(f.MinAge.String()))
 	}
-	if category.Filter.MinSize != "" {
-		pterm.Printf("  Min Size:    %s\n", pterm.Yellow(category.Filter.MinSize))
+	if f.MaxAge > 0 {
+		pterm.Printf("  Max Age:           %s\n", pterm.Yellow(f.MaxAge.String()))
 	}
-	if category.Filter.MaxSize != "" {
-		pterm.Printf("  Max Size:    %s\n", pterm.Yellow(category.Filter.MaxSize))
+	if f.MinSize != "" {
+		pterm.Printf("  Min Size:          %s\n", pterm.Yellow(f.MinSize))
+	}
+	if f.MaxSize != "" {
+		pterm.Printf("  Max Size:          %s\n", pterm.Yellow(f.MaxSize))
 	}
 }

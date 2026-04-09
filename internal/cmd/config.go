@@ -64,12 +64,12 @@ func showCmd(m *models.Movelooper) *cobra.Command {
 			for i, cat := range m.Categories {
 				pterm.Printf("  [%d] %s\n", i+1, pterm.Cyan(cat.Name))
 				pterm.Printf("      %-22s %v\n", "enabled:", cat.IsEnabled())
-				pterm.Printf("      %-22s %s\n", "source:", cat.Source)
-				pterm.Printf("      %-22s %s\n", "destination:", cat.Destination)
-				pterm.Printf("      %-22s %s\n", "extensions:", strings.Join(cat.Extensions, ", "))
-				pterm.Printf("      %-22s %s\n", "conflict-strategy:", orDefault(cat.ConflictStrategy, "rename"))
-				pterm.Printf("      %-22s %v\n", "group-by-extension:", cat.GroupByExtension)
-				printFilterSummary(cat.Filter)
+				pterm.Printf("      %-22s %s\n", "source.path:", cat.Source.Path)
+				pterm.Printf("      %-22s %s\n", "source.extensions:", strings.Join(cat.Source.Extensions, ", "))
+				pterm.Printf("      %-22s %s\n", "destination.path:", cat.Destination.Path)
+				pterm.Printf("      %-22s %s\n", "destination.conflict-strategy:", orDefault(cat.Destination.ConflictStrategy, "rename"))
+				pterm.Printf("      %-22s %s\n", "destination.organize-by:", orDefault(cat.Destination.OrganizeBy, "(none)"))
+				printFilterSummary(cat.Source.Filter)
 				pterm.Println()
 			}
 

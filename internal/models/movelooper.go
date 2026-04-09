@@ -56,14 +56,24 @@ type CategoryFilter struct {
 	MaxSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MaxSize
 }
 
+// CategorySource holds the source path, extensions, and filters for a category
+type CategorySource struct {
+	Path       string         `yaml:"path" mapstructure:"path"`
+	Extensions []string       `yaml:"extensions" mapstructure:"extensions"`
+	Filter     CategoryFilter `yaml:"filter" mapstructure:"filter"`
+}
+
+// CategoryDestination holds the destination path and placement rules for a category
+type CategoryDestination struct {
+	Path             string `yaml:"path" mapstructure:"path"`
+	OrganizeBy       string `yaml:"organize-by" mapstructure:"organize-by"`
+	ConflictStrategy string `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+}
+
 // Category represents a file category with its properties
 type Category struct {
-	Name             string         `yaml:"name" mapstructure:"name"`
-	Extensions       []string       `yaml:"extensions" mapstructure:"extensions"`
-	Source           string         `yaml:"source" mapstructure:"source"`
-	Destination      string         `yaml:"destination" mapstructure:"destination"`
-	ConflictStrategy string         `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
-	GroupByExtension bool           `yaml:"group-by-extension" mapstructure:"group-by-extension"`
-	Enabled          *bool          `yaml:"enabled" mapstructure:"enabled"`
-	Filter           CategoryFilter `yaml:"filter" mapstructure:"filter"`
+	Name        string              `yaml:"name" mapstructure:"name"`
+	Enabled     *bool               `yaml:"enabled" mapstructure:"enabled"`
+	Source      CategorySource      `yaml:"source" mapstructure:"source"`
+	Destination CategoryDestination `yaml:"destination" mapstructure:"destination"`
 }

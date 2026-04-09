@@ -12,27 +12,25 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 - [type Category](<#Category>)
   - [func \(c \*Category\) IsEnabled\(\) bool](<#Category.IsEnabled>)
+- [type CategoryDestination](<#CategoryDestination>)
 - [type CategoryFilter](<#CategoryFilter>)
+- [type CategorySource](<#CategorySource>)
 - [type Config](<#Config>)
 - [type Configuration](<#Configuration>)
 - [type Movelooper](<#Movelooper>)
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L60-L69>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L74-L79>)
 
 Category represents a file category with its properties
 
 ```go
 type Category struct {
-    Name             string         `yaml:"name" mapstructure:"name"`
-    Extensions       []string       `yaml:"extensions" mapstructure:"extensions"`
-    Source           string         `yaml:"source" mapstructure:"source"`
-    Destination      string         `yaml:"destination" mapstructure:"destination"`
-    ConflictStrategy string         `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
-    GroupByExtension bool           `yaml:"group-by-extension" mapstructure:"group-by-extension"`
-    Enabled          *bool          `yaml:"enabled" mapstructure:"enabled"`
-    Filter           CategoryFilter `yaml:"filter" mapstructure:"filter"`
+    Name        string              `yaml:"name" mapstructure:"name"`
+    Enabled     *bool               `yaml:"enabled" mapstructure:"enabled"`
+    Source      CategorySource      `yaml:"source" mapstructure:"source"`
+    Destination CategoryDestination `yaml:"destination" mapstructure:"destination"`
 }
 ```
 
@@ -44,6 +42,19 @@ func (c *Category) IsEnabled() bool
 ```
 
 IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
+
+<a name="CategoryDestination"></a>
+## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L67-L71>)
+
+CategoryDestination holds the destination path and placement rules for a category
+
+```go
+type CategoryDestination struct {
+    Path             string `yaml:"path" mapstructure:"path"`
+    OrganizeBy       string `yaml:"organize-by" mapstructure:"organize-by"`
+    ConflictStrategy string `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+}
+```
 
 <a name="CategoryFilter"></a>
 ## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L46-L57>)
@@ -62,6 +73,19 @@ type CategoryFilter struct {
     CompiledRegex *regexp.Regexp `yaml:"-" mapstructure:"-"` // compiled from Regex
     MinSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MinSize
     MaxSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MaxSize
+}
+```
+
+<a name="CategorySource"></a>
+## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L60-L64>)
+
+CategorySource holds the source path, extensions, and filters for a category
+
+```go
+type CategorySource struct {
+    Path       string         `yaml:"path" mapstructure:"path"`
+    Extensions []string       `yaml:"extensions" mapstructure:"extensions"`
+    Filter     CategoryFilter `yaml:"filter" mapstructure:"filter"`
 }
 ```
 

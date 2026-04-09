@@ -40,21 +40,33 @@ func ReadDirectory(path string) ([]os.DirEntry, error) {
 }
 
 // MoveFiles moves files with the specified extension from the source directory to the destination directory.
-// When GroupByExtension is true (default), files land in <destination>/<extension>/; otherwise directly in <destination>/.
-func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) {
+// When organize-by is set, files land in subdirectories resolved from the template; otherwise directly in <destination>/.
+// Returns the names of files that were successfully moved.
+func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string {
+	var moved []string
 	for _, file := range files {
 		if !HasExtension(file, extension) {
 			continue
 		}
 
-		sourcePath := filepath.Join(category.Source, file.Name())
-		destDir := category.Destination
-		if category.GroupByExtension {
-			destDir = filepath.Join(category.Destination, extension)
+		sourcePath := filepath.Join(category.Source.Path, file.Name())
+		destDir := category.Destination.Path
+		if template := EffectiveOrganizeBy(category.Destination.OrganizeBy); template != "" {
+			if info, err := file.Info(); err == nil {
+				if subdir := ResolveGroupBy(template, info, category.Name, time.Now()); subdir != "" {
+					destDir = filepath.Join(category.Destination.Path, subdir)
+				}
+			}
 		}
+
+		if err := CreateDirectory(destDir); err != nil {
+			ctx.Logger.Error("failed to create directory", ctx.Logger.Args("path", destDir, "error", err.Error()))
+			continue
+		}
+
 		destPath := filepath.Join(destDir, file.Name())
 
-		strategy := category.ConflictStrategy
+		strategy := category.Destination.ConflictStrategy
 		if strategy == "" {
 			strategy = "rename"
 		}
@@ -82,7 +94,9 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 		}
 
 		ctx.Logger.Info("file moved", ctx.Logger.Args("source", sourcePath, "destination", destPath))
+		moved = append(moved, file.Name())
 	}
+	return moved
 }
 
 // applyConflictStrategy checks whether destPath already exists and resolves the
@@ -217,7 +231,7 @@ func getUniqueDestinationPath(destDir, fileName string) string {
 	counter := 1
 
 	for {
-		if _, err := os.Stat(destPath); os.IsNotExist(err) {
+		if _, err := os.Stat(destPath); err != nil {
 			break
 		}
 		newName := fmt.Sprintf("%s(%d)%s", nameOnly, counter, ext)

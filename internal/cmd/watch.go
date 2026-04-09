@@ -100,14 +100,14 @@ func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
 		if !cat.IsEnabled() {
 			continue
 		}
-		if seen[cat.Source] {
+		if seen[cat.Source.Path] {
 			continue
 		}
-		m.Logger.Info("monitoring directory", m.Logger.Args("path", cat.Source))
-		if err := watcher.Add(cat.Source); err != nil {
-			m.Logger.Error("failed to watch directory", m.Logger.Args("path", cat.Source, "error", err.Error()))
+		m.Logger.Info("monitoring directory", m.Logger.Args("path", cat.Source.Path))
+		if err := watcher.Add(cat.Source.Path); err != nil {
+			m.Logger.Error("failed to watch directory", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
 		}
-		seen[cat.Source] = true
+		seen[cat.Source.Path] = true
 	}
 }
 
@@ -171,9 +171,9 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 		if !cat.IsEnabled() {
 			continue
 		}
-		files, err := helper.ReadDirectory(cat.Source)
+		files, err := helper.ReadDirectory(cat.Source.Path)
 		if err != nil {
-			m.Logger.Warn("failed to read directory during initial scan", m.Logger.Args("path", cat.Source, "error", err.Error()))
+			m.Logger.Warn("failed to read directory during initial scan", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
 			continue
 		}
 
@@ -181,16 +181,16 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 			if !file.Type().IsRegular() {
 				continue
 			}
-			if !helper.MatchesAnyExtension(file.Name(), cat.Extensions) {
+			if !helper.MatchesAnyExtension(file.Name(), cat.Source.Extensions) {
 				continue
 			}
-			if helper.MatchesIgnorePatterns(file.Name(), cat.Filter.Ignore) {
+			if helper.MatchesIgnorePatterns(file.Name(), cat.Source.Filter.Ignore) {
 				continue
 			}
-			if !helper.MatchesNameFilters(file.Name(), cat.Filter) {
+			if !helper.MatchesNameFilters(file.Name(), cat.Source.Filter) {
 				continue
 			}
-			fullPath := filepath.Join(cat.Source, file.Name())
+			fullPath := filepath.Join(cat.Source.Path, file.Name())
 			// The Ticker will check the real ModTime of the file.
 			// If the file is old, ModTime will be old and it will be moved on the first tick.
 			tracker.files[fullPath] = time.Now()
@@ -213,15 +213,19 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 	for _, path := range paths {
 		// Verify if the file still exists (it may have been deleted or moved manually)
 		info, err := os.Stat(path)
-		if os.IsNotExist(err) {
+		if err != nil {
 			tracker.mu.Lock()
 			delete(tracker.files, path)
 			tracker.mu.Unlock()
+			if !os.IsNotExist(err) {
+				m.Logger.Warn("failed to stat tracked file, removing from tracker",
+					m.Logger.Args("path", path, "error", err.Error()))
+			}
 			continue
 		}
 
 		// Verifies if the file has stabilized based on its ModTime
-		if err == nil && now.Sub(info.ModTime()) > threshold {
+		if now.Sub(info.ModTime()) > threshold {
 			if err := attemptMoveFile(m, path, dryRun); err != nil {
 				m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
 			}
@@ -233,6 +237,24 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 	}
 }
 
+// resolveDryRunDest returns the destination directory that would be used for a
+// given file and category, resolving the organize-by template when set.
+func resolveDryRunDest(cat *models.Category, path string) string {
+	destDir := cat.Destination.Path
+	template := helper.EffectiveOrganizeBy(cat.Destination.OrganizeBy)
+	if template == "" {
+		return destDir
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return destDir
+	}
+	if subdir := helper.ResolveGroupBy(template, info, cat.Name, time.Now()); subdir != "" {
+		return filepath.Join(destDir, subdir)
+	}
+	return destDir
+}
+
 // attemptMoveFile tries to find a matching category and move the file.
 // In dry-run mode it logs what would be moved without performing any I/O.
 // Returns an error if a matching category was found but the move failed.
@@ -240,26 +262,26 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 func attemptMoveFile(m *models.Movelooper, path string, dryRun bool) error {
 	fileName := filepath.Base(path)
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
+	if ext == "" {
+		ext = helper.ExtAll
+	}
 
 	for _, cat := range m.Categories {
-		if filepath.Clean(filepath.Dir(path)) != filepath.Clean(cat.Source) {
+		if filepath.Clean(filepath.Dir(path)) != filepath.Clean(cat.Source.Path) {
 			continue
 		}
-		if helper.MatchesIgnorePatterns(fileName, cat.Filter.Ignore) {
+		if helper.MatchesIgnorePatterns(fileName, cat.Source.Filter.Ignore) {
 			continue
 		}
-		if matchesExtensionAndFilters(cat, fileName, path) {
-			if dryRun {
-				destDir := cat.Destination
-				if cat.GroupByExtension {
-					destDir = filepath.Join(cat.Destination, ext)
-				}
-				m.Logger.Info("[dry-run] would move file",
-					m.Logger.Args("file", fileName, "to", destDir, "category", cat.Name))
-				return nil
-			}
-			return moveFileToCategory(m, *cat, path, ext)
+		if !matchesExtensionAndFilters(cat, fileName, path) {
+			continue
 		}
+		if dryRun {
+			m.Logger.Info("[dry-run] would move file",
+				m.Logger.Args("file", fileName, "to", resolveDryRunDest(cat, path), "category", cat.Name))
+			return nil
+		}
+		return moveFileToCategory(m, *cat, path, ext)
 	}
 	return nil
 }
@@ -267,17 +289,17 @@ func attemptMoveFile(m *models.Movelooper, path string, dryRun bool) error {
 // matchesExtensionAndFilters reports whether the file matches the category's extension,
 // name filters (regex/glob), and age/size constraints.
 func matchesExtensionAndFilters(cat *models.Category, fileName, path string) bool {
-	if !helper.MatchesAnyExtension(fileName, cat.Extensions) {
+	if !helper.MatchesAnyExtension(fileName, cat.Source.Extensions) {
 		return false
 	}
-	if !helper.MatchesNameFilters(fileName, cat.Filter) {
+	if !helper.MatchesNameFilters(fileName, cat.Source.Filter) {
 		return false
 	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
-	return helper.MeetsAgeSizeFilters(info, cat.Filter)
+	return helper.MeetsAgeSizeFilters(info, cat.Source.Filter)
 }
 
 func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext string) error {

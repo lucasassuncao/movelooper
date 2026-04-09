@@ -73,50 +73,52 @@ func UnmarshalConfig(v *viper.Viper) ([]*models.Category, error) {
 	}
 
 	for _, cat := range categories {
-		if len(cat.Extensions) == 0 {
-			return nil, fmt.Errorf("category %q: extensions are required", cat.Name)
+		f := &cat.Source.Filter
+
+		if len(cat.Source.Extensions) == 0 {
+			return nil, fmt.Errorf("category %q: source.extensions are required", cat.Name)
 		}
 
-		if cat.Filter.Regex != "" && cat.Filter.Glob != "" {
-			return nil, fmt.Errorf("category %q: regex and glob are mutually exclusive; use only one", cat.Name)
+		if f.Regex != "" && f.Glob != "" {
+			return nil, fmt.Errorf("category %q: source.filter regex and glob are mutually exclusive; use only one", cat.Name)
 		}
 
-		if cat.Filter.Regex != "" {
-			compiled, err := regexp.Compile(cat.Filter.Regex)
+		if f.Regex != "" {
+			compiled, err := regexp.Compile(f.Regex)
 			if err != nil {
 				return nil, fmt.Errorf("invalid regex in category %q: %w", cat.Name, err)
 			}
-			cat.Filter.CompiledRegex = compiled
+			f.CompiledRegex = compiled
 		}
 
-		if cat.Filter.Glob != "" {
-			if err := helper.ValidateGlob(cat.Filter.Glob); err != nil {
+		if f.Glob != "" {
+			if err := helper.ValidateGlob(f.Glob); err != nil {
 				return nil, fmt.Errorf("category %q: %w", cat.Name, err)
 			}
 		}
 
-		if cat.Filter.MinSize != "" {
-			bytes, err := helper.ParseSize(cat.Filter.MinSize)
+		if f.MinSize != "" {
+			bytes, err := helper.ParseSize(f.MinSize)
 			if err != nil {
-				return nil, fmt.Errorf("category %q: invalid min-size %q: %w", cat.Name, cat.Filter.MinSize, err)
+				return nil, fmt.Errorf("category %q: invalid min-size %q: %w", cat.Name, f.MinSize, err)
 			}
-			cat.Filter.MinSizeBytes = bytes
+			f.MinSizeBytes = bytes
 		}
 
-		if cat.Filter.MaxSize != "" {
-			bytes, err := helper.ParseSize(cat.Filter.MaxSize)
+		if f.MaxSize != "" {
+			bytes, err := helper.ParseSize(f.MaxSize)
 			if err != nil {
-				return nil, fmt.Errorf("category %q: invalid max-size %q: %w", cat.Name, cat.Filter.MaxSize, err)
+				return nil, fmt.Errorf("category %q: invalid max-size %q: %w", cat.Name, f.MaxSize, err)
 			}
-			cat.Filter.MaxSizeBytes = bytes
+			f.MaxSizeBytes = bytes
 		}
 
-		if cat.Filter.MinSize != "" && cat.Filter.MaxSize != "" && cat.Filter.MinSizeBytes > cat.Filter.MaxSizeBytes {
-			return nil, fmt.Errorf("category %q: min-size (%s) must be less than max-size (%s)", cat.Name, cat.Filter.MinSize, cat.Filter.MaxSize)
+		if f.MinSize != "" && f.MaxSize != "" && f.MinSizeBytes > f.MaxSizeBytes {
+			return nil, fmt.Errorf("category %q: min-size (%s) must be less than max-size (%s)", cat.Name, f.MinSize, f.MaxSize)
 		}
 
-		if cat.Filter.MinAge != 0 && cat.Filter.MaxAge != 0 && cat.Filter.MinAge > cat.Filter.MaxAge {
-			return nil, fmt.Errorf("category %q: min-age (%s) must be less than max-age (%s)", cat.Name, cat.Filter.MinAge, cat.Filter.MaxAge)
+		if f.MinAge != 0 && f.MaxAge != 0 && f.MinAge > f.MaxAge {
+			return nil, fmt.Errorf("category %q: min-age (%s) must be less than max-age (%s)", cat.Name, f.MinAge, f.MaxAge)
 		}
 	}
 

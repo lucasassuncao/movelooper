@@ -10,33 +10,31 @@
 
 ## Features
 
-- Split your config across multiple YAML files with `import:` — keep categories tidy and easy to debug with `config show`
-- Smart file organization based on configurable categories
-- Multiple predefined templates (`basic`, `music`, `video`, `images`, `books`, `archives`, `installers`, `regex`, `full`)
-- Interactive setup wizard (`init -i`)
-- Dry-run (`--dry-run`) on move, watch, and undo commands to simulate actions safely
-- Watch mode (`watch`) — monitors directories and moves files in real-time
-- Undo support (`undo`) — revert the last or any specific batch of moves
-- Regex and glob pattern filtering per category
-- Ignore patterns to skip specific files
-- Age and size filters (`min-age`, `max-age`, `min-size`, `max-size`)
-- Conflict strategies: `rename`, `overwrite`, `skip`, `hash_check`
-- Per-category `enabled` flag to pause categories without removing them
-- Optional subdirectory grouping per extension (`group-by-extension`)
-- Wildcard extension `"all"` to match files of any extension
-- Execution summary at the end of each run (files moved, total size)
-- Startup validation of source and destination directories
-- Show filenames with `--show-files`
-- Logging support (`console`, `file`, or `both`)
-- Custom config path with `--config` / `-c`
-- `config show` to inspect the active configuration with all defaults resolved
-- `config validate` to catch config errors before running the tool
-- Self-update via `self-update` command
-- Runs automatically — `movelooper` defaults to the move operation
+### Organize
+
+- Category-based rules: match files by extension, regex, glob, age, and size
+- Organize files by using templates: `{ext}`, `{mod-year}`, `{mod-month}`, `{size-range}`, and [more](#organize-by-tokens)
+- Wildcard `extensions: [all]` to catch any file type
+- Conflict strategies per category: `rename`, `overwrite`, `skip`, `hash_check`
+
+### Automate
+
+- Watch mode: monitors directories in real-time, moves files as they stabilize
+- Undo: revert the last batch or any specific batch from history
+- `--dry-run` on move, watch, and undo to preview before committing
+
+### Configure
+
+- Split config across multiple YAML files with `import:`
+- Interactive setup wizard (`init -i`) or generate from a template (`init -t full`)
+- `config show` to inspect the merged config · `config validate` to catch errors early
+- Self-update with `self-update`
 
 ## How It Works
 
-`movelooper` reads your configuration file (`movelooper.yaml` or `conf/movelooper.yaml`), scans all extensions listed per category, and moves matching files from the source to the destination. When `group-by-extension: true` is set on a category, files are organized into `<destination>/<extension>/` subfolders; otherwise they go directly into `<destination>/`.
+`movelooper` reads your configuration file (`movelooper.yaml` or `conf/movelooper.yaml`), scans all extensions listed per category, and moves matching files from the source to the destination. 
+
+The optional `organize-by` field controls how files are placed inside `<destination>/` using a template — for example `{ext}/{mod-year}/{mod-month}` places a `.jpg` modified in April 2025 into `<destination>/jpg/2025/04/`.
 
 ## Installation
 
@@ -97,30 +95,42 @@ movelooper init -f
 
 ### `categories` block
 
-Each entry in the `categories` list accepts the following fields:
+Each entry in the `categories` list has the following top-level fields:
 
-| Field                 | Type       | Required | Default  | Description                                              |
-|-----------------------|------------|----------|----------|----------------------------------------------------------|
-| `name`                | string     | yes      | —        | Label for the category (used in logs)                    |
-| `source`              | string     | yes      | —        | Directory to scan for files                              |
-| `destination`         | string     | yes      | —        | Root directory where files are moved                     |
-| `extensions`          | []string   | yes      | —        | List of file extensions to match (without the dot). Use `["all"]` to match any extension |
-| `conflict-strategy`   | string     | no       | `rename` | What to do when the destination file already exists (see below) |
-| `group-by-extension`  | bool       | no       | `false`  | When `true`, files land in `<destination>/<extension>/`; when `false`, directly in `<destination>/` |
-| `enabled`             | bool       | no       | `true`   | When `false`, the category is skipped entirely in all modes |
-| `filter`              | object     | no       | —        | Optional block grouping all secondary filters (see below) |
+| Field         | Type   | Required | Default | Description                                          |
+|---------------|--------|----------|---------|------------------------------------------------------|
+| `name`        | string | yes      | —       | Label for the category (used in logs and undo history) |
+| `enabled`     | bool   | no       | `true`  | When `false`, the category is skipped in all modes  |
+| `source`      | object | yes      | —       | Where to scan for files (see below)                  |
+| `destination` | object | yes      | —       | Where to move files and how (see below)              |
 
-#### `filter` block
+#### `source` block
+
+| Field        | Type      | Required | Description                                                                 |
+|--------------|-----------|----------|-----------------------------------------------------------------------------|
+| `path`       | string    | yes      | Directory to scan for files                                                 |
+| `extensions` | []string  | yes      | File extensions to match (without the dot). Use `["all"]` to match any extension |
+| `filter`     | object    | no       | Optional filters applied to files in this source (see below)               |
+
+#### `source.filter` block
 
 | Field      | Type      | Description                                                                        |
 |------------|-----------|------------------------------------------------------------------------------------|
-| `regex`    | string    | Regex filter applied to the filename after extension match. Mutually exclusive with `glob` |
-| `glob`     | string    | Glob filter applied to the filename after extension match. Mutually exclusive with `regex` |
+| `regex`    | string    | Regex filter applied to the filename. Mutually exclusive with `glob`               |
+| `glob`     | string    | Glob filter applied to the filename. Mutually exclusive with `regex`               |
 | `ignore`   | []string  | Glob patterns for filenames to skip (case-insensitive)                             |
 | `min-age`  | duration  | Only move files older than this value (e.g. `24h`, `168h`)                        |
 | `max-age`  | duration  | Only move files newer than this value (e.g. `720h`, `8760h`)                      |
 | `min-size` | string    | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`)                 |
 | `max-size` | string    | Only move files at most this large (e.g. `10MB`, `1GB`)                           |
+
+#### `destination` block
+
+| Field               | Type   | Required | Default  | Description                                                                     |
+|---------------------|--------|----------|----------|---------------------------------------------------------------------------------|
+| `path`              | string | yes      | —        | Root directory where matched files are moved                                    |
+| `conflict-strategy` | string | no       | `rename` | What to do when a file already exists at the destination (see below)            |
+| `organize-by`       | string | no       | —        | Template defining subdirectory structure under `path` (see tokens below). Leave empty to move files directly into `path` |
 
 #### Conflict strategies
 
@@ -141,6 +151,30 @@ Both fields narrow which files within a category are matched, in addition to `ex
   Matching is case-insensitive.
 - `filter.ignore` uses the same glob syntax as `filter.glob` and is always evaluated independently of both.
 
+#### `organize-by` tokens
+
+| Token | Example | Description |
+|---|---|---|
+| `{ext}` | `jpg` | File extension, lowercase |
+| `{ext-upper}` | `JPG` | File extension, uppercase |
+| `{name}` | `photo` | Filename without extension |
+| `{mod-year}` | `2025` | File modification year |
+| `{mod-month}` | `04` | File modification month (zero-padded) |
+| `{mod-day}` | `08` | File modification day (zero-padded) |
+| `{mod-date}` | `2025-04-08` | Shorthand for `{mod-year}-{mod-month}-{mod-day}` |
+| `{mod-weekday}` | `Tuesday` | File modification weekday |
+| `{created-year}` | `2025` | File creation year (falls back to mod time on Linux) |
+| `{created-month}` | `04` | File creation month |
+| `{created-day}` | `08` | File creation day |
+| `{created-date}` | `2025-04-08` | Shorthand for `{created-year}-{created-month}-{created-day}` |
+| `{year}` | `2025` | Run date year |
+| `{month}` | `04` | Run date month |
+| `{day}` | `08` | Run date day |
+| `{date}` | `2025-04-08` | Run date shorthand |
+| `{weekday}` | `Tuesday` | Run date weekday |
+| `{size-range}` | `small` | `tiny` (<1 MB) · `small` (1–100 MB) · `medium` (100 MB–1 GB) · `large` (≥1 GB) |
+| `{category}` | `images` | Category name from config |
+
 ### Full example
 
 ```yaml
@@ -153,47 +187,57 @@ configuration:
 
 categories:
   - name: images
-    source: C:\Users\johndoe\Downloads
-    destination: C:\Users\johndoe\images
-    extensions: [jpg, jpeg, png, gif, bmp, webp]
-    conflict-strategy: rename
-    group-by-extension: true   # files go to images/jpg/, images/png/, etc.
-    filter:
-      ignore:
-        - screenshot_*
-        - "*_temp.*"
-      min-age: 24h
+    source:
+      path: C:\Users\johndoe\Downloads
+      extensions: [jpg, jpeg, png, gif, bmp, webp]
+      filter:
+        ignore:
+          - screenshot_*
+          - "*_temp.*"
+        min-age: 24h
+    destination:
+      path: C:\Users\johndoe\images
+      conflict-strategy: rename
+      organize-by: "{ext}"         # files go to images/jpg/, images/png/, etc.
 
   - name: videos
-    source: C:\Users\johndoe\Downloads
-    destination: C:\Users\johndoe\videos
-    extensions: [mp4, avi, mkv, mov, wmv]
-    conflict-strategy: overwrite
-    group-by-extension: true
-    filter:
-      min-size: 100MB
+    source:
+      path: C:\Users\johndoe\Downloads
+      extensions: [mp4, avi, mkv, mov, wmv]
+      filter:
+        min-size: 100MB
+    destination:
+      path: C:\Users\johndoe\videos
+      conflict-strategy: overwrite
+      organize-by: "{ext}"
 
   - name: dated-docs
-    source: C:\Users\johndoe\Downloads
-    destination: C:\Users\johndoe\dated
-    extensions: [pdf, txt, log]
-    group-by-extension: false  # all files go directly into dated/
-    filter:
-      regex: '^\d{4}-\d{2}-\d{2}_.*'
+    source:
+      path: C:\Users\johndoe\Downloads
+      extensions: [pdf, txt, log]
+      filter:
+        regex: '^\d{4}-\d{2}-\d{2}_.*'
+    destination:
+      path: C:\Users\johndoe\dated
+      # organize-by not set — all files go directly into dated/
 
   - name: reports
-    source: C:\Users\johndoe\Downloads
-    destination: C:\Users\johndoe\reports
-    extensions: [pdf, docx]
-    filter:
-      glob: "report_*"
+    source:
+      path: C:\Users\johndoe\Downloads
+      extensions: [pdf, docx]
+      filter:
+        glob: "report_*"
+    destination:
+      path: C:\Users\johndoe\reports
 
   - name: everything-else
-    source: C:\Users\johndoe\Downloads
-    destination: C:\Users\johndoe\sorted
-    extensions: [all]              # matches any file extension
-    group-by-extension: true       # organizes into sorted/jpg/, sorted/pdf/, etc.
-    conflict-strategy: hash_check
+    source:
+      path: C:\Users\johndoe\Downloads
+      extensions: [all]            # matches any file extension
+    destination:
+      path: C:\Users\johndoe\sorted
+      conflict-strategy: hash_check
+      organize-by: "{ext}"         # organizes into sorted/jpg/, sorted/pdf/, etc.
 ```
 
 ## Splitting your config with imports
@@ -219,10 +263,14 @@ import:
 ```yaml
 categories:
   - name: wallhaven
-    extensions: [jpg, png]
-    source: C:\Users\you\Downloads
-    destination: C:\Users\you\Walls\Wallhaven
-    conflict-strategy: hash_check
+    source:
+      path: C:\Users\you\Downloads
+      extensions: [jpg, png]
+      filter:
+        regex: "^wallhaven"
+    destination:
+      path: C:\Users\you\Walls\Wallhaven
+      conflict-strategy: hash_check
 ```
 
 Imported files can also have their own `import:` for nested splitting. Use `movelooper config show` to inspect the final merged configuration.
@@ -323,7 +371,7 @@ movelooper self-update --repo lucasassuncao/movelooper
 - Use `watch` mode to automatically keep your Downloads folder clean at all times.
 - Use `undo --list` to inspect past operations and roll back any batch.
 - Use `enabled: false` to temporarily pause a category without deleting it from the config.
-- Use `extensions: [all]` with `group-by-extension: true` as a catch-all category that organizes any file by its real extension.
+- Use `source.extensions: [all]` with `destination.organize-by: "{ext}"` as a catch-all category that organizes any file by its real extension.
 - Use `import:` to split a large config into per-category files — combine with `config show` to verify the merged result.
 - Run `movelooper config show` to verify which configuration values are actually in effect.
 - Run `movelooper config validate` to catch config errors before running the tool.
