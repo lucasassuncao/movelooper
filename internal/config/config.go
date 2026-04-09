@@ -1,74 +1,41 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
+	"os"
 	"regexp"
 
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/rawbytes"
+	"github.com/knadh/koanf/v2"
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/spf13/viper"
 )
 
-// ViperOptions is a function that takes a viper instance and applies options to it
-type ViperOptions func(*viper.Viper)
-
-// ErrConfigNotFound is returned by InitConfig when the base config file cannot be located.
+// ErrConfigNotFound is returned by InitConfig when the config file cannot be located.
 var ErrConfigNotFound = fmt.Errorf("config file not found")
 
-// InitConfig initializes Viper to read from movelooper.yaml.
-// After locating the config file it resolves any top-level `import:` entries,
-// merges all imported categories, and re-feeds the merged document into Viper.
-// Returns ErrConfigNotFound (unwrappable) when the base file does not exist,
-// or a descriptive error for any other failure (e.g. a missing imported file).
-func InitConfig(v *viper.Viper, options ...ViperOptions) error {
-	applyOptions(v, options...)
-
-	if err := v.ReadInConfig(); err != nil {
+// InitConfig reads the YAML file at path, resolves any import: entries,
+// and loads the merged document into k. Returns ErrConfigNotFound when
+// the file does not exist, or a descriptive error for any other failure.
+func InitConfig(k *koanf.Koanf, path string) error {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return fmt.Errorf("%w: %w", ErrConfigNotFound, err)
 	}
 
-	merged, err := ResolveImports(v.ConfigFileUsed())
+	merged, err := ResolveImports(path)
 	if err != nil {
 		return err
 	}
 
-	return v.ReadConfig(bytes.NewReader(merged))
+	return k.Load(rawbytes.Provider(merged), yaml.Parser())
 }
 
-// applyOptions applies the options to the viper instance
-func applyOptions(v *viper.Viper, options ...ViperOptions) {
-	for _, option := range options {
-		option(v)
-	}
-}
-
-// WithConfigName sets the name of the config file
-func WithConfigName(name string) ViperOptions {
-	return func(v *viper.Viper) {
-		v.SetConfigName(name)
-	}
-}
-
-// WithConfigType sets the type of the config file
-func WithConfigType(configType string) ViperOptions {
-	return func(v *viper.Viper) {
-		v.SetConfigType(configType)
-	}
-}
-
-// WithConfigPath sets the path of the config file
-func WithConfigPath(path string) ViperOptions {
-	return func(v *viper.Viper) {
-		v.AddConfigPath(path)
-	}
-}
-
-// UnmarshalConfig reads categories from v, validates them, and pre-compiles
+// UnmarshalConfig reads categories from k, validates them, and pre-compiles
 // regex patterns. Returns an error if any category is misconfigured.
-func UnmarshalConfig(v *viper.Viper) ([]*models.Category, error) {
+func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error) {
 	var categories []*models.Category
-	if err := v.UnmarshalKey("categories", &categories); err != nil {
+	if err := k.UnmarshalWithConf("categories", &categories, koanf.UnmarshalConf{Tag: "mapstructure"}); err != nil {
 		return nil, fmt.Errorf("unable to decode categories: %w", err)
 	}
 

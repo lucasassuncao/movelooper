@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/knadh/koanf/v2"
 	"github.com/pterm/pterm"
-	"github.com/spf13/viper"
 )
 
 const maxWidth = 70
@@ -15,49 +15,49 @@ const maxWidth = 70
 // ConfigureLogger configures the logger based on the configuration.
 // Returns the logger, a Closer that must be called on exit (non-nil only when
 // writing to a file), and any error.
-func ConfigureLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error) {
-	switch v.GetString("configuration.output") {
+func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
+	switch k.String("configuration.output") {
 	default:
 		fallthrough
 	case "console":
-		return configurePTermLogger(v)
+		return configurePTermLogger(k)
 	case "file", "log":
-		return configureFileLogger(v)
+		return configureFileLogger(k)
 	case "both":
-		return configureMultiWriterLogger(v)
+		return configureMultiWriterLogger(k)
 	}
 }
 
 // configurePTermLogger configures the logger to write to the console
-func configurePTermLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error) {
-	l := v.GetString("configuration.log-level")
-	s := v.GetBool("configuration.show-caller")
+func configurePTermLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
+	l := k.String("configuration.log-level")
+	s := k.Bool("configuration.show-caller")
 
 	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(os.Stdout).WithMaxWidth(maxWidth), nil, nil
 }
 
 // configureFileLogger configures the logger to write to a file
-func configureFileLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error) {
-	f, err := openLogFile(v)
+func configureFileLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
+	f, err := openLogFile(k)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	l := v.GetString("configuration.log-level")
-	s := v.GetBool("configuration.show-caller")
+	l := k.String("configuration.log-level")
+	s := k.Bool("configuration.show-caller")
 
 	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(f).WithMaxWidth(maxWidth), f, nil
 }
 
 // configureMultiWriterLogger configures the logger to write to both the console and a file
-func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error) {
-	f, err := openLogFile(v)
+func configureMultiWriterLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
+	f, err := openLogFile(k)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	l := v.GetString("configuration.log-level")
-	s := v.GetBool("configuration.show-caller")
+	l := k.String("configuration.log-level")
+	s := k.Bool("configuration.show-caller")
 
 	multiWriter := io.MultiWriter(os.Stdout, f)
 
@@ -65,8 +65,8 @@ func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error
 }
 
 // openLogFile opens the log file for writing
-func openLogFile(v *viper.Viper) (*os.File, error) {
-	file := v.GetString("configuration.log-file")
+func openLogFile(k *koanf.Koanf) (*os.File, error) {
+	file := k.String("configuration.log-file")
 	if file == "" {
 		return nil, fmt.Errorf("log-file is required when output is 'file' or 'both'")
 	}

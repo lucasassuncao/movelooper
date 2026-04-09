@@ -7,13 +7,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/knadh/koanf/v2"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -205,40 +205,12 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 }
 
 // preRunHandler handles the necessary configuration before command execution.
-// It creates a short-lived Viper instance to read the YAML file, extracts all
-// values into typed structs, and discards Viper — the rest of the application
+// It creates a short-lived koanf instance to read the YAML file, extracts all
+// values into typed structs, and discards it — the rest of the application
 // works exclusively with m.Logger, m.Config, m.Categories, and m.History.
 func preRunHandler(m *models.Movelooper, configPath string) error {
-	v := viper.New()
-
-	var options []config.ViperOptions
-	if configPath != "" {
-		// A specific path was provided — use it directly
-		dir := filepath.Dir(configPath)
-		filename := filepath.Base(configPath)
-		ext := filepath.Ext(filename)
-		nameWithoutExt := filename[:len(filename)-len(ext)]
-
-		options = []config.ViperOptions{
-			config.WithConfigName(nameWithoutExt),
-			config.WithConfigType(ext[1:]),
-			config.WithConfigPath(dir),
-		}
-	} else {
-		ex, err := os.Executable()
-		if err != nil {
-			return fmt.Errorf("error getting executable: %v", err)
-		}
-
-		options = []config.ViperOptions{
-			config.WithConfigName("movelooper"),
-			config.WithConfigType("yaml"),
-			config.WithConfigPath(filepath.Dir(ex)),
-			config.WithConfigPath(filepath.Join(filepath.Dir(ex), "conf")),
-		}
-	}
-
-	if err := config.InitConfig(v, options...); err != nil {
+	resolvedPath, err := resolveConfigPath(configPath)
+	if err != nil {
 		if errors.Is(err, config.ErrConfigNotFound) {
 			if configPath != "" {
 				return fmt.Errorf("configuration file not found at '%s'", configPath)
@@ -248,16 +220,28 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 		return err
 	}
 
-	logger, closer, err := config.ConfigureLogger(v)
+	k := koanf.New(".")
+
+	if err := config.InitConfig(k, resolvedPath); err != nil {
+		if errors.Is(err, config.ErrConfigNotFound) {
+			if configPath != "" {
+				return fmt.Errorf("configuration file not found at '%s'", configPath)
+			}
+			return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
+		}
+		return err
+	}
+
+	logger, closer, err := config.ConfigureLogger(k)
 	if err != nil {
 		return fmt.Errorf("failed to configure logger: %v", err)
 	}
 	m.Logger = logger
 	m.LogCloser = closer
 
-	m.Config = config.LoadConfig(v)
+	m.Config = config.LoadConfig(k)
 
-	categories, err := config.UnmarshalConfig(v)
+	categories, err := config.UnmarshalConfig(k)
 	if err != nil {
 		return err
 	}
@@ -273,6 +257,41 @@ func preRunHandler(m *models.Movelooper, configPath string) error {
 	validateDirectories(m)
 
 	return nil
+}
+
+// resolveConfigPath returns the absolute path to the config file.
+// If configPath is provided it is used directly (after verifying existence).
+// Otherwise it searches for movelooper.yaml in the executable directory and
+// its conf/ subdirectory, returning ErrConfigNotFound if neither exists.
+func resolveConfigPath(configPath string) (string, error) {
+	if configPath != "" {
+		abs, err := filepath.Abs(configPath)
+		if err != nil {
+			return "", fmt.Errorf("resolving config path: %w", err)
+		}
+		if _, err := os.Stat(abs); os.IsNotExist(err) {
+			return "", fmt.Errorf("%w: %w", config.ErrConfigNotFound, err)
+		}
+		return abs, nil
+	}
+
+	ex, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("error getting executable: %v", err)
+	}
+	exDir := filepath.Dir(ex)
+
+	candidates := []string{
+		filepath.Join(exDir, "movelooper.yaml"),
+		filepath.Join(exDir, "conf", "movelooper.yaml"),
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	return "", fmt.Errorf("%w: movelooper.yaml not found in %s or %s/conf", config.ErrConfigNotFound, exDir, exDir)
 }
 
 // validateDirectories warns about source or destination directories that do not exist.
