@@ -63,13 +63,13 @@ func showCmd(m *models.Movelooper) *cobra.Command {
 			pterm.DefaultSection.Printf("Categories (%d)\n", len(m.Categories))
 			for i, cat := range m.Categories {
 				pterm.Printf("  [%d] %s\n", i+1, pterm.Cyan(cat.Name))
-				pterm.Printf("      %-22s %v\n", "enabled:", cat.IsEnabled())
-				pterm.Printf("      %-22s %s\n", "source.path:", cat.Source.Path)
-				pterm.Printf("      %-22s %s\n", "source.extensions:", strings.Join(cat.Source.Extensions, ", "))
-				pterm.Printf("      %-22s %s\n", "destination.path:", cat.Destination.Path)
-				pterm.Printf("      %-22s %s\n", "destination.conflict-strategy:", orDefault(cat.Destination.ConflictStrategy, "rename"))
-				pterm.Printf("      %-22s %s\n", "destination.organize-by:", orDefault(cat.Destination.OrganizeBy, "(none)"))
+				pterm.Printf("      %-32s %v\n", "enabled:", cat.IsEnabled())
+				pterm.Printf("      %-32s %s\n", "source.path:", cat.Source.Path)
+				pterm.Printf("      %-32s %s\n", "source.extensions:", strings.Join(cat.Source.Extensions, ", "))
 				printFilterSummary(cat.Source.Filter)
+				pterm.Printf("      %-32s %s\n", "destination.path:", cat.Destination.Path)
+				pterm.Printf("      %-32s %s\n", "destination.conflict-strategy:", orDefault(cat.Destination.ConflictStrategy, "rename"))
+				pterm.Printf("      %-32s %s\n", "destination.organize-by:", orDefault(cat.Destination.OrganizeBy, "(none)"))
 				pterm.Println()
 			}
 
@@ -80,25 +80,25 @@ func showCmd(m *models.Movelooper) *cobra.Command {
 
 func printFilterSummary(f models.CategoryFilter) {
 	if f.Regex != "" {
-		pterm.Printf("      %-22s %s\n", "filter.regex:", f.Regex)
+		pterm.Printf("      %-32s %s\n", "source.filter.regex:", f.Regex)
 	}
 	if f.Glob != "" {
-		pterm.Printf("      %-22s %s\n", "filter.glob:", f.Glob)
+		pterm.Printf("      %-32s %s\n", "source.filter.glob:", f.Glob)
 	}
 	if len(f.Ignore) > 0 {
-		pterm.Printf("      %-22s %s\n", "filter.ignore:", strings.Join(f.Ignore, ", "))
+		pterm.Printf("      %-32s %s\n", "source.filter.ignore:", strings.Join(f.Ignore, ", "))
 	}
 	if f.MinAge > 0 {
-		pterm.Printf("      %-22s %s\n", "filter.min-age:", f.MinAge)
+		pterm.Printf("      %-32s %s\n", "source.filter.min-age:", f.MinAge)
 	}
 	if f.MaxAge > 0 {
-		pterm.Printf("      %-22s %s\n", "filter.max-age:", f.MaxAge)
+		pterm.Printf("      %-32s %s\n", "source.filter.max-age:", f.MaxAge)
 	}
 	if f.MinSize != "" {
-		pterm.Printf("      %-22s %s\n", "filter.min-size:", f.MinSize)
+		pterm.Printf("      %-32s %s\n", "source.filter.min-size:", f.MinSize)
 	}
 	if f.MaxSize != "" {
-		pterm.Printf("      %-22s %s\n", "filter.max-size:", f.MaxSize)
+		pterm.Printf("      %-32s %s\n", "source.filter.max-size:", f.MaxSize)
 	}
 }
 
