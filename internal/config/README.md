@@ -27,7 +27,7 @@ var ErrConfigNotFound = fmt.Errorf("config file not found")
 ```
 
 <a name="ConfigureLogger"></a>
-## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L18>)
+## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L62>)
 
 ```go
 func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error)

@@ -12,56 +12,68 @@ import (
 
 const maxWidth = 70
 
+// writerBuilder is an interface for building log writers based on the configuration.
+type writerBuilder interface {
+	Writer(k *koanf.Koanf) (io.Writer, io.Closer, error)
+}
+
+type consoleStrategy struct{}
+type fileStrategy struct{}
+type multiStrategy struct{}
+
+func (consoleStrategy) Writer(_ *koanf.Koanf) (io.Writer, io.Closer, error) {
+	return os.Stdout, nil, nil
+}
+
+func (fileStrategy) Writer(k *koanf.Koanf) (io.Writer, io.Closer, error) {
+	f, err := openLogFile(k)
+	if err != nil {
+		return nil, nil, err
+	}
+	return f, f, nil
+}
+
+func (multiStrategy) Writer(k *koanf.Koanf) (io.Writer, io.Closer, error) {
+	f, err := openLogFile(k)
+	if err != nil {
+		return nil, nil, err
+	}
+	return io.MultiWriter(os.Stdout, f), f, nil
+}
+
+var logWriterStrategies = map[string]writerBuilder{
+	"console": consoleStrategy{},
+	"file":    fileStrategy{},
+	"log":     fileStrategy{},
+	"both":    multiStrategy{},
+}
+
+// logWriterFactory returns the strategy for the given output mode.
+func logWriterFactory(output string) writerBuilder {
+	if s, ok := logWriterStrategies[output]; ok {
+		return s
+	}
+	return consoleStrategy{}
+}
+
 // ConfigureLogger configures the logger based on the configuration.
 // Returns the logger, a Closer that must be called on exit (non-nil only when
 // writing to a file), and any error.
 func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
-	switch k.String("configuration.output") {
-	default:
-		fallthrough
-	case "console":
-		return configurePTermLogger(k)
-	case "file", "log":
-		return configureFileLogger(k)
-	case "both":
-		return configureMultiWriterLogger(k)
-	}
-}
+	strategy := logWriterFactory(k.String("configuration.output"))
 
-// configurePTermLogger configures the logger to write to the console
-func configurePTermLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
-	l := k.String("configuration.log-level")
-	s := k.Bool("configuration.show-caller")
-
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(os.Stdout).WithMaxWidth(maxWidth), nil, nil
-}
-
-// configureFileLogger configures the logger to write to a file
-func configureFileLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
-	f, err := openLogFile(k)
+	w, closer, err := strategy.Writer(k)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	l := k.String("configuration.log-level")
-	s := k.Bool("configuration.show-caller")
+	logger := pterm.DefaultLogger.
+		WithCaller(k.Bool("configuration.show-caller")).
+		WithLevel(parseLogLevel(k.String("configuration.log-level"))).
+		WithWriter(w).
+		WithMaxWidth(maxWidth)
 
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(f).WithMaxWidth(maxWidth), f, nil
-}
-
-// configureMultiWriterLogger configures the logger to write to both the console and a file
-func configureMultiWriterLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
-	f, err := openLogFile(k)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	l := k.String("configuration.log-level")
-	s := k.Bool("configuration.show-caller")
-
-	multiWriter := io.MultiWriter(os.Stdout, f)
-
-	return pterm.DefaultLogger.WithCaller(s).WithLevel(parseLogLevel(l)).WithWriter(multiWriter).WithMaxWidth(maxWidth), f, nil
+	return logger, closer, nil
 }
 
 // openLogFile opens the log file for writing
