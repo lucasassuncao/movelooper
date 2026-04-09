@@ -41,7 +41,7 @@ func ConfigCmd(m *models.Movelooper) *cobra.Command
 ConfigCmd returns the "config" command group
 
 <a name="InitCmd"></a>
-## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L31>)
+## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L32>)
 
 ```go
 func InitCmd() *cobra.Command
@@ -68,7 +68,7 @@ func SelfUpdateCmd(currentVersion string) *cobra.Command
 SelfUpdateCmd returns the self\-update command
 
 <a name="UndoCmd"></a>
-## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L15>)
+## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L16>)
 
 ```go
 func UndoCmd(m *models.Movelooper) *cobra.Command

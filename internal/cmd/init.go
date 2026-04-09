@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -123,7 +124,7 @@ func runInit(opts initOptions) error {
 // exitIfAborted exits cleanly when the user cancels an interactive prompt.
 // huh returns ErrUserAborted on Ctrl+C / Esc; we treat that as a graceful exit.
 func exitIfAborted(err error) {
-	if err == huh.ErrUserAborted {
+	if errors.Is(err, huh.ErrUserAborted) {
 		os.Exit(0)
 	}
 }

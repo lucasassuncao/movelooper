@@ -90,12 +90,6 @@ func ResolveGroupBy(template string, info os.FileInfo, categoryName string, now 
 	return filepath.FromSlash(r.Replace(template))
 }
 
-// EffectiveOrganizeBy returns the organize-by template for a category, or an
-// empty string when no subdirectory organisation is configured.
-func EffectiveOrganizeBy(organizeBy string) string {
-	return organizeBy
-}
-
 func fileSizeRange(size int64) string {
 	switch {
 	case size < sizeThresholdTiny:

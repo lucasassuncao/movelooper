@@ -67,6 +67,9 @@ func configureMultiWriterLogger(v *viper.Viper) (*pterm.Logger, io.Closer, error
 // openLogFile opens the log file for writing
 func openLogFile(v *viper.Viper) (*os.File, error) {
 	file := v.GetString("configuration.log-file")
+	if file == "" {
+		return nil, fmt.Errorf("log-file is required when output is 'file' or 'both'")
+	}
 
 	dir := filepath.Dir(file)
 

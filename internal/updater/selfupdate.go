@@ -24,7 +24,7 @@ func SelfUpdate(repo, token, currentVersion string) error {
 	}
 
 	// Clean up any leftover .old binary from a previous update.
-	cleanOldBinary()
+	CleanOldBinary()
 
 	fmt.Printf("Checking latest release of %s...\n", repo)
 
@@ -63,7 +63,9 @@ func SelfUpdate(repo, token, currentVersion string) error {
 
 	// On Windows we cannot delete the running binary, but we can rename it.
 	oldPath := exePath + ".old"
-	os.Remove(oldPath) // remove a possible stale .old
+	if err := os.Remove(oldPath); err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "warning: could not remove stale binary %s: %v\n", oldPath, err)
+	}
 
 	fmt.Printf("Replacing binary...\n")
 	if err := os.Rename(exePath, oldPath); err != nil {
@@ -83,17 +85,15 @@ func SelfUpdate(repo, token, currentVersion string) error {
 // CleanOldBinary removes a <exe>.old file left by a previous self-update.
 // Call this from main() at startup.
 func CleanOldBinary() {
-	cleanOldBinary()
-}
-
-func cleanOldBinary() {
 	exe, err := os.Executable()
 	if err != nil {
 		return
 	}
 	old := exe + ".old"
 	if _, err := os.Stat(old); err == nil {
-		os.Remove(old)
+		if err := os.Remove(old); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not remove old binary %s: %v\n", old, err)
+		}
 	}
 }
 
@@ -243,6 +243,10 @@ func download(url, destPath, token string) error {
 	if _, err := io.Copy(f, resp.Body); err != nil {
 		os.Remove(destPath)
 		return fmt.Errorf("writing binary: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		os.Remove(destPath)
+		return fmt.Errorf("syncing binary: %w", err)
 	}
 	return nil
 }

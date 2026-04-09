@@ -18,7 +18,6 @@ Package helper provides utility functions for file operations, filtering, and co
 
 - [Constants](<#constants>)
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
-- [func EffectiveOrganizeBy\(organizeBy string\) string](<#EffectiveOrganizeBy>)
 - [func GenerateLogArgs\(files \[\]os.DirEntry, extension string\) \[\]interface\{\}](<#GenerateLogArgs>)
 - [func HasExtension\(file os.DirEntry, extension string\) bool](<#HasExtension>)
 - [func MatchesAnyExtension\(fileName string, extensions \[\]string\) bool](<#MatchesAnyExtension>)
@@ -55,15 +54,6 @@ func CreateDirectory(dir string) error
 ```
 
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
-
-<a name="EffectiveOrganizeBy"></a>
-## func [EffectiveOrganizeBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L95>)
-
-```go
-func EffectiveOrganizeBy(organizeBy string) string
-```
-
-EffectiveOrganizeBy returns the organize\-by template for a category, or an empty string when no subdirectory organisation is configured.
 
 <a name="GenerateLogArgs"></a>
 ## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L204>)

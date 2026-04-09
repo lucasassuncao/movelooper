@@ -116,6 +116,8 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 		for _, file := range filteredFiles {
 			if info, err := file.Info(); err == nil {
 				stats.totalBytes += info.Size()
+			} else {
+				m.Logger.Warn("could not stat file for size accounting", m.Logger.Args("file", file.Name(), "error", err.Error()))
 			}
 		}
 
@@ -145,7 +147,11 @@ func formatBytes(b int64) string {
 		div *= unit
 		exp++
 	}
-	return fmt.Sprintf("%.2f %cB", float64(b)/float64(div), "KMGT"[exp])
+	const prefixes = "KMGTPE"
+	if exp >= len(prefixes) {
+		exp = len(prefixes) - 1
+	}
+	return fmt.Sprintf("%.2f %cB", float64(b)/float64(div), prefixes[exp])
 }
 
 // filterFilesForExtension returns the files that match all criteria for a given extension.

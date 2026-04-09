@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -120,7 +121,7 @@ func undoBatch(m *models.Movelooper, batchID string, dryRun bool) error {
 		Title(confirmMessage).
 		Value(&confirm).
 		Run()
-	if err == huh.ErrUserAborted || !confirm {
+	if errors.Is(err, huh.ErrUserAborted) || !confirm {
 		m.Logger.Info("undo operation cancelled")
 		return nil
 	}

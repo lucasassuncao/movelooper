@@ -51,7 +51,7 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 
 		sourcePath := filepath.Join(category.Source.Path, file.Name())
 		destDir := category.Destination.Path
-		if template := EffectiveOrganizeBy(category.Destination.OrganizeBy); template != "" {
+		if template := category.Destination.OrganizeBy; template != "" {
 			if info, err := file.Info(); err == nil {
 				if subdir := ResolveGroupBy(template, info, category.Name, time.Now()); subdir != "" {
 					destDir = filepath.Join(category.Destination.Path, subdir)

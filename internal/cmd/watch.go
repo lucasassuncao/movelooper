@@ -141,11 +141,14 @@ func runEventLoop(m *models.Movelooper, watcher *fsnotify.Watcher, tracker *file
 
 // runSignalHandler closes done when SIGINT or SIGTERM is received.
 func runSignalHandler(m *models.Movelooper, done chan struct{}) {
+	var once sync.Once
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
-	m.Logger.Info("shutting down watch mode")
-	close(done)
+	for range sigChan {
+		m.Logger.Info("shutting down watch mode")
+		once.Do(func() { close(done) })
+		return
+	}
 }
 
 // runTickerLoop periodically checks for stable files and moves them.
@@ -241,7 +244,7 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 // given file and category, resolving the organize-by template when set.
 func resolveDryRunDest(cat *models.Category, path string) string {
 	destDir := cat.Destination.Path
-	template := helper.EffectiveOrganizeBy(cat.Destination.OrganizeBy)
+	template := cat.Destination.OrganizeBy
 	if template == "" {
 		return destDir
 	}
