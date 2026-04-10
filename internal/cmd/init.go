@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"embed"
 	"errors"
 	"fmt"
 	"os"
@@ -19,6 +20,9 @@ import (
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 )
+
+//go:embed templates/*.yaml
+var templateFS embed.FS
 
 // initOptions holds the flag values for the init command.
 type initOptions struct {
@@ -99,16 +103,20 @@ func runInit(opts initOptions) error {
 		return fmt.Errorf("error creating config directory: %v", err)
 	}
 
-	var config *models.Config
+	var data []byte
 	if opts.interactive {
-		config = generateInteractiveConfig()
+		config := generateInteractiveConfig()
+		var err error
+		data, err = yaml.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("error marshaling config: %v", err)
+		}
 	} else {
-		config = getTemplateConfig(opts.template)
-	}
-
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("error marshaling config: %v", err)
+		var err error
+		data, err = loadTemplate(opts.template)
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := os.WriteFile(configFile, data, 0644); err != nil {
@@ -214,6 +222,32 @@ func generateInteractiveConfig() *models.Config {
 	watchDelay, _ := time.ParseDuration(watchDelayStr)
 	config.Configuration.WatchDelay = watchDelay
 
+	var historyLimitStr string
+	err = huh.NewInput().
+		Title("History limit (number of move operations to keep in history) — leave blank for default (100)").
+		Value(&historyLimitStr).
+		Placeholder("100").
+		Validate(func(str string) error {
+			if str == "" {
+				return nil
+			}
+			var n int
+			_, scanErr := fmt.Sscanf(str, "%d", &n)
+			if scanErr != nil || n < 0 {
+				return fmt.Errorf("must be a non-negative integer")
+			}
+			return nil
+		}).
+		Run()
+	exitIfAborted(err)
+
+	if historyLimitStr != "" {
+		var n int
+		if _, err := fmt.Sscanf(historyLimitStr, "%d", &n); err == nil {
+			config.Configuration.HistoryLimit = n
+		}
+	}
+
 	terminal.ClearScreen()
 	pterm.DefaultSection.Println("Categories Configuration")
 	pterm.Info.Println("Categories define how files are organized")
@@ -274,6 +308,13 @@ func promptOneCategory() models.Category {
 			return nil
 		}).Run())
 
+	var enabledBool bool
+	exitIfAborted(huh.NewConfirm().
+		Title("Enable this category?").
+		Value(&enabledBool).
+		Run())
+	enabled := enabledBool
+
 	var strategy string
 	exitIfAborted(huh.NewSelect[string]().
 		Title("Conflict strategy (if file exists)").
@@ -295,6 +336,8 @@ func promptOneCategory() models.Category {
 
 	extensions := collectExtensions(name)
 	regex, glob := promptNameFilter()
+	caseSensitive := promptCaseSensitive()
+	includePatterns := promptIncludePatterns()
 	ignorePatterns := promptIgnorePatterns()
 	minAge, maxAge := promptAgeFilter()
 	minSize, maxSize := promptSizeFilter()
@@ -309,18 +352,21 @@ Leave blank to move files directly into destination.`).
 		Run())
 
 	return models.Category{
-		Name: name,
+		Name:    name,
+		Enabled: &enabled,
 		Source: models.CategorySource{
 			Path:       source,
 			Extensions: extensions,
 			Filter: models.CategoryFilter{
-				Regex:   regex,
-				Glob:    glob,
-				Ignore:  ignorePatterns,
-				MinAge:  minAge,
-				MaxAge:  maxAge,
-				MinSize: minSize,
-				MaxSize: maxSize,
+				Regex:         regex,
+				Glob:          glob,
+				Include:       includePatterns,
+				Ignore:        ignorePatterns,
+				CaseSensitive: caseSensitive,
+				MinAge:        minAge,
+				MaxAge:        maxAge,
+				MinSize:       minSize,
+				MaxSize:       maxSize,
 			},
 		},
 		Destination: models.CategoryDestination{
@@ -379,6 +425,63 @@ func promptNameFilter() (regex, glob string) {
 			}).Run())
 	}
 	return regex, glob
+}
+
+// promptCaseSensitive asks whether name filters should be case-sensitive.
+func promptCaseSensitive() bool {
+	var cs bool
+	exitIfAborted(huh.NewConfirm().
+		Title("Make name filters case-sensitive?").
+		Description("Applies to regex, glob, and include/ignore patterns").
+		Value(&cs).Run())
+	return cs
+}
+
+// promptIncludePatterns asks the user whether to add include patterns and collects them.
+func promptIncludePatterns() []string {
+	var addInclude bool
+	exitIfAborted(huh.NewConfirm().
+		Title("Do you want to add include patterns?").
+		Description("Glob patterns — only files matching these patterns will be moved (e.g., report_*, invoice_*)").
+		Value(&addInclude).Run())
+	if addInclude {
+		return collectIncludePatterns()
+	}
+	return nil
+}
+
+// collectIncludePatterns collects glob include patterns from user input.
+func collectIncludePatterns() []string {
+	var patterns []string
+
+	pterm.Info.Println("Enter glob patterns for files to include (e.g., report_*, invoice_*, *.draft)")
+
+	for {
+		var pattern string
+		err := huh.NewInput().
+			Title("Include pattern").
+			Value(&pattern).
+			Run()
+		exitIfAborted(err)
+
+		if pattern != "" {
+			patterns = append(patterns, pattern)
+		}
+
+		if len(patterns) > 0 {
+			var addMore bool
+			err := huh.NewConfirm().
+				Title("Add another include pattern?").
+				Value(&addMore).
+				Run()
+			exitIfAborted(err)
+
+			if !addMore {
+				break
+			}
+		}
+	}
+	return patterns
 }
 
 // promptIgnorePatterns asks the user whether to add ignore patterns and collects them.
@@ -545,223 +648,20 @@ func getDefaultCategory() models.Category {
 	}
 }
 
-// simpleTemplateDef describes a single-category template whose configuration
-// is always the same (console output, info level, rename strategy).
-// Adding a new simple template only requires a new entry in simpleTemplateDefs.
-type simpleTemplateDef struct {
-	categoryName string
-	extensions   []string
+// knownTemplates lists all valid template names.
+var knownTemplates = map[string]struct{}{
+	"basic": {}, "images": {}, "music": {}, "video": {},
+	"books": {}, "archives": {}, "installers": {}, "regex": {}, "full": {},
 }
 
-// simpleTemplateDefs holds the data for all single-category templates.
-var simpleTemplateDefs = map[string]simpleTemplateDef{
-	"basic":      {categoryName: "images", extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"}},
-	"images":     {categoryName: "images", extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"}},
-	"music":      {categoryName: "music", extensions: []string{"mp3", "wav", "flac", "aac"}},
-	"video":      {categoryName: "videos", extensions: []string{"mp4", "avi", "mkv", "mov", "wmv"}},
-	"books":      {categoryName: "books", extensions: []string{"pdf", "epub", "mobi", "azw3", "doc", "docx"}},
-	"archives":   {categoryName: "archives", extensions: []string{"zip", "tar", "gz", "bz2", "rar", "7z"}},
-	"installers": {categoryName: "installers", extensions: []string{"exe", "msi", "apk"}},
-}
-
-// buildSimpleTemplate constructs a Config from a simpleTemplateDef.
-func buildSimpleTemplate(def simpleTemplateDef) *models.Config {
-	src := getDefaultSourcePath()
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name: def.categoryName,
-				Source: models.CategorySource{
-					Path:       src,
-					Extensions: def.extensions,
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(src, def.categoryName),
-					ConflictStrategy: "rename",
-					OrganizeBy:       "{ext}",
-				},
-			},
-		},
+// loadTemplate reads an embedded YAML template by name and returns its bytes.
+// Falls back to "basic" when the name is unknown.
+func loadTemplate(name string) ([]byte, error) {
+	if _, ok := knownTemplates[name]; !ok {
+		pterm.Warning.Printf("Unknown template %q, using 'basic'\n", name)
+		name = "basic"
 	}
-}
-
-// getTemplateConfig returns a predefined template configuration.
-func getTemplateConfig(template string) *models.Config {
-	if def, ok := simpleTemplateDefs[template]; ok {
-		return buildSimpleTemplate(def)
-	}
-	switch template {
-	case "regex":
-		return getRegexTemplate()
-	case "full":
-		return getFullTemplate()
-	default:
-		pterm.Warning.Printf("Unknown template '%s', using 'basic'\n", template)
-		return buildSimpleTemplate(simpleTemplateDefs["basic"])
-	}
-}
-
-// getRegexTemplate returns the regex configuration template
-func getRegexTemplate() *models.Config {
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "console",
-			LogLevel:   "info",
-			ShowCaller: false,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name: "regex",
-				Source: models.CategorySource{
-					Path:       getDefaultSourcePath(),
-					Extensions: []string{"pdf", "txt", "log"},
-					Filter: models.CategoryFilter{
-						Regex: `^\d{4}-\d{2}-\d{2}_.*`,
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(getDefaultSourcePath(), "regex"),
-					ConflictStrategy: "rename",
-					OrganizeBy:       "{ext}",
-				},
-			},
-		},
-	}
-}
-
-// getFullTemplate returns the full configuration template
-func getFullTemplate() *models.Config {
-	basePath := getDefaultSourcePath()
-	return &models.Config{
-		Configuration: models.Configuration{
-			Output:     "both",
-			LogFile:    getDefaultLogPath(),
-			LogLevel:   "info",
-			ShowCaller: true,
-			WatchDelay: 5 * time.Minute,
-		},
-		Categories: []models.Category{
-			{
-				Name: "images",
-				Source: models.CategorySource{
-					Path:       basePath,
-					Extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"},
-					Filter: models.CategoryFilter{
-						Ignore: []string{"screenshot_*", "*_temp.*"},
-						MinAge: 24 * time.Hour,
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(basePath, "images"),
-					ConflictStrategy: "rename",
-					OrganizeBy:       "{ext}",
-				},
-			},
-			{
-				Name: "videos",
-				Source: models.CategorySource{
-					Path:       basePath,
-					Extensions: []string{"mp4", "avi", "mkv", "mov", "wmv"},
-					Filter: models.CategoryFilter{
-						Ignore:  []string{"*_preview.*", "*_draft.*"},
-						MinSize: "100MB",
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(basePath, "videos"),
-					ConflictStrategy: "overwrite",
-					OrganizeBy:       "{ext}",
-				},
-			},
-			{
-				Name: "music",
-				Source: models.CategorySource{
-					Path:       basePath,
-					Extensions: []string{"mp3", "wav", "flac", "aac"},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(basePath, "music"),
-					ConflictStrategy: "skip",
-					OrganizeBy:       "{ext}",
-				},
-			},
-			{
-				Name: "books",
-				Source: models.CategorySource{
-					Path:       basePath,
-					Extensions: []string{"pdf", "epub", "mobi", "azw3", "doc", "docx"},
-					Filter: models.CategoryFilter{
-						MinSize: "1MB",
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(basePath, "books"),
-					ConflictStrategy: "hash_check",
-					OrganizeBy:       "{ext}",
-				},
-			},
-			{
-				Name: "archives",
-				Source: models.CategorySource{
-					Path:       basePath,
-					Extensions: []string{"zip", "tar", "gz", "bz2", "rar", "7z"},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(basePath, "archives"),
-					ConflictStrategy: "hash_check",
-					OrganizeBy:       "{ext}",
-				},
-			},
-			{
-				Name: "installers",
-				Source: models.CategorySource{
-					Path:       basePath,
-					Extensions: []string{"exe", "msi", "apk"},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(basePath, "installers"),
-					ConflictStrategy: "hash_check",
-					OrganizeBy:       "{ext}",
-				},
-			},
-			{
-				Name: "dated-docs",
-				Source: models.CategorySource{
-					Path:       basePath,
-					Extensions: []string{"pdf", "txt", "log"},
-					Filter: models.CategoryFilter{
-						Regex: `^\d{4}-\d{2}-\d{2}_.*`,
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(basePath, "dated"),
-					ConflictStrategy: "hash_check",
-					OrganizeBy:       "{ext}",
-				},
-			},
-			{
-				Name: "reports",
-				Source: models.CategorySource{
-					Path:       basePath,
-					Extensions: []string{"pdf", "docx"},
-					Filter: models.CategoryFilter{
-						Glob: "report_*",
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             filepath.Join(basePath, "reports"),
-					ConflictStrategy: "rename",
-				},
-			},
-		},
-	}
+	return templateFS.ReadFile("templates/" + name + ".yaml")
 }
 
 // getDefaultSourcePath returns the default source path (Downloads folder).
@@ -831,6 +731,12 @@ func printCategorySummary(category models.Category) {
 	}
 	if f.Glob != "" {
 		pterm.Printf("  Glob:              %s\n", pterm.Green(f.Glob))
+	}
+	if f.CaseSensitive {
+		pterm.Printf("  Case-sensitive:    %s\n", pterm.Yellow("true"))
+	}
+	if len(f.Include) > 0 {
+		pterm.Printf("  Include:           %s\n", pterm.Green(strings.Join(f.Include, ", ")))
 	}
 	if len(f.Ignore) > 0 {
 		pterm.Printf("  Ignore:            %s\n", pterm.Red(strings.Join(f.Ignore, ", ")))

@@ -1,0 +1,131 @@
+configuration:
+  output: both
+  log-file: ~/.movelooper/logs/movelooper.log
+  log-level: info
+  show-caller: true
+  watch-delay: 5m
+  history-limit: 50
+
+categories:
+  - name: images
+    source:
+      path: ~/Downloads
+      extensions:
+        - jpg
+        - jpeg
+        - png
+        - gif
+        - bmp
+        - webp
+        - svg
+      filter:
+        ignore:
+          - "screenshot_*"
+          - "*_temp.*"
+        min-age: 24h
+    destination:
+      path: ~/Downloads/images
+      conflict-strategy: rename
+      organize-by: "{ext}"
+
+  - name: videos
+    source:
+      path: ~/Downloads
+      extensions:
+        - mp4
+        - avi
+        - mkv
+        - mov
+        - wmv
+      filter:
+        ignore:
+          - "*_preview.*"
+          - "*_draft.*"
+        min-size: 100MB
+    destination:
+      path: ~/Downloads/videos
+      conflict-strategy: overwrite
+      organize-by: "{ext}"
+
+  - name: music
+    source:
+      path: ~/Downloads
+      extensions:
+        - mp3
+        - wav
+        - flac
+        - aac
+    destination:
+      path: ~/Downloads/music
+      conflict-strategy: skip
+      organize-by: "{ext}"
+
+  - name: books
+    source:
+      path: ~/Downloads
+      extensions:
+        - pdf
+        - epub
+        - mobi
+        - azw3
+        - doc
+        - docx
+      filter:
+        min-size: 1MB
+    destination:
+      path: ~/Downloads/books
+      conflict-strategy: hash_check
+      organize-by: "{ext}"
+
+  - name: archives
+    source:
+      path: ~/Downloads
+      extensions:
+        - zip
+        - tar
+        - gz
+        - bz2
+        - rar
+        - 7z
+    destination:
+      path: ~/Downloads/archives
+      conflict-strategy: hash_check
+      organize-by: "{ext}"
+
+  - name: installers
+    source:
+      path: ~/Downloads
+      extensions:
+        - exe
+        - msi
+        - apk
+    destination:
+      path: ~/Downloads/installers
+      conflict-strategy: hash_check
+      organize-by: "{ext}"
+
+  - name: dated-docs
+    source:
+      path: ~/Downloads
+      extensions:
+        - pdf
+        - txt
+        - log
+      filter:
+        regex: '^\d{4}-\d{2}-\d{2}_.*'
+    destination:
+      path: ~/Downloads/dated
+      conflict-strategy: hash_check
+      organize-by: "{ext}"
+
+  - name: reports
+    source:
+      path: ~/Downloads
+      extensions:
+        - pdf
+        - docx
+      filter:
+        glob: "report_*"
+    destination:
+      path: ~/Downloads/reports
+      conflict-strategy: rename

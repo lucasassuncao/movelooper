@@ -1,0 +1,19 @@
+configuration:
+  output: console
+  log-level: info
+  show-caller: false
+  watch-delay: 5m
+  history-limit: 50
+
+categories:
+  - name: installers
+    source:
+      path: ~/Downloads
+      extensions:
+        - exe
+        - msi
+        - apk
+    destination:
+      path: ~/Downloads/installers
+      conflict-strategy: rename
+      organize-by: "{ext}"

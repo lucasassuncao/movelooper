@@ -1,0 +1,21 @@
+configuration:
+  output: console
+  log-level: info
+  show-caller: false
+  watch-delay: 5m
+  history-limit: 50
+
+categories:
+  - name: videos
+    source:
+      path: ~/Downloads
+      extensions:
+        - mp4
+        - avi
+        - mkv
+        - mov
+        - wmv
+    destination:
+      path: ~/Downloads/videos
+      conflict-strategy: rename
+      organize-by: "{ext}"

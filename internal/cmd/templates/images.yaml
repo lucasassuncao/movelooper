@@ -1,0 +1,23 @@
+configuration:
+  output: console
+  log-level: info
+  show-caller: false
+  watch-delay: 5m
+  history-limit: 50
+
+categories:
+  - name: images
+    source:
+      path: ~/Downloads
+      extensions:
+        - jpg
+        - jpeg
+        - png
+        - gif
+        - bmp
+        - webp
+        - svg
+    destination:
+      path: ~/Downloads/images
+      conflict-strategy: rename
+      organize-by: "{ext}"

@@ -1,0 +1,22 @@
+configuration:
+  output: console
+  log-level: info
+  show-caller: false
+  watch-delay: 5m
+  history-limit: 50
+
+categories:
+  - name: books
+    source:
+      path: ~/Downloads
+      extensions:
+        - pdf
+        - epub
+        - mobi
+        - azw3
+        - doc
+        - docx
+    destination:
+      path: ~/Downloads/books
+      conflict-strategy: rename
+      organize-by: "{ext}"

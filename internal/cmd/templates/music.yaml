@@ -1,0 +1,20 @@
+configuration:
+  output: console
+  log-level: info
+  show-caller: false
+  watch-delay: 5m
+  history-limit: 50
+
+categories:
+  - name: music
+    source:
+      path: ~/Downloads
+      extensions:
+        - mp3
+        - wav
+        - flac
+        - aac
+    destination:
+      path: ~/Downloads/music
+      conflict-strategy: rename
+      organize-by: "{ext}"

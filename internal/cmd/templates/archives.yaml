@@ -1,0 +1,22 @@
+configuration:
+  output: console
+  log-level: info
+  show-caller: false
+  watch-delay: 5m
+  history-limit: 50
+
+categories:
+  - name: archives
+    source:
+      path: ~/Downloads
+      extensions:
+        - zip
+        - tar
+        - gz
+        - bz2
+        - rar
+        - 7z
+    destination:
+      path: ~/Downloads/archives
+      conflict-strategy: rename
+      organize-by: "{ext}"

@@ -1,0 +1,21 @@
+configuration:
+  output: console
+  log-level: info
+  show-caller: false
+  watch-delay: 5m
+  history-limit: 50
+
+categories:
+  - name: dated-docs
+    source:
+      path: ~/Downloads
+      extensions:
+        - pdf
+        - txt
+        - log
+      filter:
+        regex: '^\d{4}-\d{2}-\d{2}_.*'
+    destination:
+      path: ~/Downloads/dated-docs
+      conflict-strategy: rename
+      organize-by: "{ext}"
