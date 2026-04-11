@@ -33,7 +33,7 @@ based on configurable categories.
 By default, it runs the move operation automatically.
 Use --dry-run for a preview without moving files, and --show-files to display filenames.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			configPath, _ := cmd.Flags().GetString("config")
+			configPath, _ := cmd.Root().PersistentFlags().GetString("config")
 			return preRunHandler(m, configPath)
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
