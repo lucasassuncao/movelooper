@@ -17,7 +17,7 @@ builds:
       - "-s -w -X main.version={{.Version}} -X github.com/lucasassuncao/movelooper/internal/cmd.DefaultRepo=lucasassuncao/{{.ProjectName}}"
 
 archives:
-  - format: binary
+  - formats: [binary]
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
