@@ -17,6 +17,7 @@ Package helper provides utility functions for file operations, filtering, and co
 ## Index
 
 - [Constants](<#constants>)
+- [Variables](<#variables>)
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
 - [func GenerateLogArgs\(files \[\]os.DirEntry, extension string\) \[\]interface\{\}](<#GenerateLogArgs>)
 - [func HasExtension\(file os.DirEntry, extension string\) bool](<#HasExtension>)
@@ -46,8 +47,16 @@ Package helper provides utility functions for file operations, filtering, and co
 const ExtAll = "all"
 ```
 
+## Variables
+
+<a name="ErrTimestampPreserve"></a>ErrTimestampPreserve is returned when a cross\-device copy succeeded but the original timestamps could not be restored. The file was moved successfully.
+
+```go
+var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
+```
+
 <a name="CreateDirectory"></a>
-## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L29>)
+## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L33>)
 
 ```go
 func CreateDirectory(dir string) error
@@ -155,7 +164,7 @@ func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
 MeetsMinSize reports whether the file size is at least minSizeBytes. Always returns true when minSizeBytes is zero.
 
 <a name="MoveFiles"></a>
-## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L45>)
+## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L49>)
 
 ```go
 func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string
@@ -173,7 +182,7 @@ func ParseSize(s string) (int64, error)
 ParseSize parses a human\-readable size string \(e.g. "10MB", "1.5GB"\) into bytes. Supported suffixes \(case\-insensitive\): B, KB, MB, GB, TB.
 
 <a name="ReadDirectory"></a>
-## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L34>)
+## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L38>)
 
 ```go
 func ReadDirectory(path string) ([]os.DirEntry, error)
@@ -246,7 +255,7 @@ type ConflictResolver interface {
 ```
 
 <a name="MoveContext"></a>
-## type [MoveContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L22-L25>)
+## type [MoveContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L26-L29>)
 
 MoveContext carries the dependencies needed by file\-move operations. It is intentionally narrow: callers supply only Logger and History, not the full Movelooper application object.
 

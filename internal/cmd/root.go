@@ -208,7 +208,13 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 // It creates a short-lived koanf instance to read the YAML file, extracts all
 // values into typed structs, and discards it — the rest of the application
 // works exclusively with m.Logger, m.Config, m.Categories, and m.History.
-func preRunHandler(m *models.Movelooper, configPath string) error {
+func preRunHandler(m *models.Movelooper, configPath string) (retErr error) {
+	defer func() {
+		if retErr != nil && m.LogCloser != nil {
+			m.LogCloser.Close()
+			m.LogCloser = nil
+		}
+	}()
 	resolvedPath, err := resolveConfigPath(configPath)
 	if err != nil {
 		if errors.Is(err, config.ErrConfigNotFound) {

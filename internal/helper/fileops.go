@@ -16,6 +16,10 @@ import (
 	"github.com/pterm/pterm"
 )
 
+// ErrTimestampPreserve is returned when a cross-device copy succeeded but the
+// original timestamps could not be restored. The file was moved successfully.
+var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
+
 // MoveContext carries the dependencies needed by file-move operations.
 // It is intentionally narrow: callers supply only Logger and History,
 // not the full Movelooper application object.
@@ -77,8 +81,12 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 		destPath = resolved
 		err := moveFile(sourcePath, destPath)
 		if err != nil {
-			ctx.Logger.Error("failed to move file", ctx.Logger.Args("file", sourcePath, "error", err.Error()))
-			continue
+			if errors.Is(err, ErrTimestampPreserve) {
+				ctx.Logger.Warn("file moved but timestamps could not be preserved", ctx.Logger.Args("file", sourcePath))
+			} else {
+				ctx.Logger.Error("failed to move file", ctx.Logger.Args("file", sourcePath, "error", err.Error()))
+				continue
+			}
 		}
 
 		if ctx.History != nil {
@@ -147,8 +155,9 @@ func moveFile(src, dst string) error {
 		return err
 	}
 
-	if err := copyFile(src, dst); err != nil {
-		return fmt.Errorf("cross-device copy failed: %w", err)
+	copyErr := copyFile(src, dst)
+	if copyErr != nil && !errors.Is(copyErr, ErrTimestampPreserve) {
+		return fmt.Errorf("cross-device copy failed: %w", copyErr)
 	}
 
 	if err := os.Remove(src); err != nil {
@@ -158,7 +167,8 @@ func moveFile(src, dst string) error {
 		return fmt.Errorf("cross-device move: copied to %s but could not remove source: %w", dst, err)
 	}
 
-	return nil
+	// Propagate timestamp warning so the caller can log it.
+	return copyErr
 }
 
 // isCrossDeviceError reports whether err is a rename failure caused by src and
@@ -225,27 +235,29 @@ func copyFile(src, dst string) error {
 
 	// Restore the original modification time so watchers and filters
 	// that use file age (min-age / max-age) behave consistently.
-	_ = os.Chtimes(dst, srcInfo.ModTime(), srcInfo.ModTime())
+	if err := os.Chtimes(dst, srcInfo.ModTime(), srcInfo.ModTime()); err != nil {
+		return fmt.Errorf("%w: %w", ErrTimestampPreserve, err)
+	}
 
 	return nil
 }
 
-// getUniqueDestinationPath ensures no file is overwritten by appending (n) if needed
-func getUniqueDestinationPath(destDir, fileName string) string {
+const maxConflictAttempts = 1000
+
+// getUniqueDestinationPath ensures no file is overwritten by appending (n) if needed.
+// Returns an error if no free slot is found within maxConflictAttempts tries.
+func getUniqueDestinationPath(destDir, fileName string) (string, error) {
 	ext := filepath.Ext(fileName)
 	nameOnly := strings.TrimSuffix(fileName, ext)
 
 	destPath := filepath.Join(destDir, fileName)
-	counter := 1
-
-	for {
+	for counter := 1; counter <= maxConflictAttempts; counter++ {
 		if _, err := os.Stat(destPath); err != nil {
-			break
+			return destPath, nil
 		}
 		newName := fmt.Sprintf("%s(%d)%s", nameOnly, counter, ext)
 		destPath = filepath.Join(destDir, newName)
-		counter++
 	}
 
-	return destPath
+	return "", fmt.Errorf("could not find a unique destination for %q after %d attempts", fileName, maxConflictAttempts)
 }

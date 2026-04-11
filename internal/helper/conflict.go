@@ -41,7 +41,11 @@ func resolveConflict(strategy, src, dst, destDir, fileName string) (string, bool
 type renameResolver struct{}
 
 func (r *renameResolver) Resolve(_, _, destDir, fileName string) (string, bool, error) {
-	return getUniqueDestinationPath(destDir, fileName), true, nil
+	path, err := getUniqueDestinationPath(destDir, fileName)
+	if err != nil {
+		return "", false, err
+	}
+	return path, true, nil
 }
 
 // overwriteResolver removes the existing destination file so the source can take its place.
@@ -199,5 +203,9 @@ func (r *hashCheckResolver) Resolve(src, dst, destDir, fileName string) (string,
 		return "", false, nil
 	}
 	// Files differ — rename to avoid clobbering the existing destination.
-	return getUniqueDestinationPath(destDir, fileName), true, nil
+	path, err := getUniqueDestinationPath(destDir, fileName)
+	if err != nil {
+		return "", false, err
+	}
+	return path, true, nil
 }

@@ -120,10 +120,13 @@ func runEventLoop(m *models.Movelooper, watcher *fsnotify.Watcher, tracker *file
 				return
 			}
 			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
-				tracker.mu.Lock()
-				_, alreadyTracked := tracker.files[event.Name]
-				tracker.files[event.Name] = time.Now()
-				tracker.mu.Unlock()
+				alreadyTracked := func() bool {
+					tracker.mu.Lock()
+					defer tracker.mu.Unlock()
+					_, tracked := tracker.files[event.Name]
+					tracker.files[event.Name] = time.Now()
+					return tracked
+				}()
 				if !alreadyTracked {
 					m.Logger.Info("detected new file", m.Logger.Args("path", event.Name))
 				}
@@ -206,12 +209,15 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 	now := time.Now()
 
 	// Snapshot tracked paths under lock to keep I/O outside the critical section
-	tracker.mu.Lock()
-	paths := make([]string, 0, len(tracker.files))
-	for p := range tracker.files {
-		paths = append(paths, p)
-	}
-	tracker.mu.Unlock()
+	paths := func() []string {
+		tracker.mu.Lock()
+		defer tracker.mu.Unlock()
+		ps := make([]string, 0, len(tracker.files))
+		for p := range tracker.files {
+			ps = append(ps, p)
+		}
+		return ps
+	}()
 
 	for _, path := range paths {
 		// Verify if the file still exists (it may have been deleted or moved manually)

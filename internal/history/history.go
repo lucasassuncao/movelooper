@@ -1,6 +1,8 @@
 package history
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,10 +18,13 @@ func NewBatchID() string {
 	return fmt.Sprintf("batch_%d", time.Now().Unix())
 }
 
-// NewWatchBatchID returns a batch ID for a watch-mode move operation.
-// It uses nanosecond precision to avoid collisions between rapid events.
+// NewWatchBatchID returns a collision-resistant batch ID for a watch-mode move operation.
 func NewWatchBatchID() string {
-	return fmt.Sprintf("watch_%d", time.Now().UnixNano())
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("watch_%d", time.Now().UnixNano())
+	}
+	return "watch_" + hex.EncodeToString(b)
 }
 
 // Entry represents a single file move operation
@@ -72,14 +77,19 @@ func NewHistory(limit int) (*History, error) {
 	return h, nil
 }
 
-// Add appends a new entry to the history
+// Add appends a new entry to the history.
+// JSON serialization is done under the lock for a consistent snapshot;
+// the disk write happens outside to avoid blocking concurrent callers.
 func (h *History) Add(entry Entry) error {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	h.Entries = append(h.Entries, entry)
 	h.prune()
-	return h.save()
+	data, err := json.MarshalIndent(h.Entries, "", "  ")
+	h.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(h.path, data, 0644)
 }
 
 // prune removes the oldest batches, keeping at most maxBatches
