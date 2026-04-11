@@ -234,7 +234,7 @@ func download(url, destPath, token string) error {
 		return fmt.Errorf("download returned HTTP %d", resp.StatusCode)
 	}
 
-	f, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	f, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755) //#nosec G302 G304 -- binary must be executable; path is controlled by the updater
 	if err != nil {
 		return fmt.Errorf("creating temp binary: %w", err)
 	}

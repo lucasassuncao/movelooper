@@ -148,7 +148,7 @@ func undoBatch(m *models.Movelooper, batchID string, dryRun bool) error {
 		}
 
 		sourceDir := filepath.Dir(entry.Source)
-		if err := os.MkdirAll(sourceDir, 0755); err != nil {
+		if err := os.MkdirAll(sourceDir, 0750); err != nil {
 			m.Logger.Error("failed to create source directory", m.Logger.Args("path", sourceDir, "error", err.Error()))
 			failCount++
 			continue

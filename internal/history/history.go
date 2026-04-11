@@ -56,7 +56,7 @@ func NewHistory(limit int) (*History, error) {
 	}
 
 	historyDir := filepath.Join(filepath.Dir(ex), "history")
-	if err := os.MkdirAll(historyDir, 0755); err != nil {
+	if err := os.MkdirAll(historyDir, 0750); err != nil {
 		return nil, err
 	}
 
@@ -89,7 +89,7 @@ func (h *History) Add(entry Entry) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(h.path, data, 0644)
+	return os.WriteFile(h.path, data, 0600)
 }
 
 // prune removes the oldest batches, keeping at most maxBatches
@@ -207,5 +207,5 @@ func (h *History) save() error {
 		return err
 	}
 
-	return os.WriteFile(h.path, data, 0644)
+	return os.WriteFile(h.path, data, 0600)
 }

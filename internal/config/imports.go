@@ -20,7 +20,7 @@ func ResolveImports(path string) ([]byte, error) {
 		return nil, fmt.Errorf("resolving path %q: %w", path, err)
 	}
 
-	data, err := os.ReadFile(absPath)
+	data, err := os.ReadFile(absPath) //#nosec G304 -- absPath resolved via filepath.Abs
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", absPath, err)
 	}
@@ -102,7 +102,7 @@ func loadImportedCategories(absPath string, visited map[string]bool) ([]*yaml.No
 	}
 	visited[absPath] = true
 
-	data, err := os.ReadFile(absPath)
+	data, err := os.ReadFile(absPath) //#nosec G304 -- absPath resolved via filepath.Abs
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", absPath, err)
 	}

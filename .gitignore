@@ -11,9 +11,9 @@ dist/
 *.test
 
 # Output of the go coverage tool
-*.out
 coverage.out
 coverage.html
+coverage.xml
 
 # Dependency directories
 vendor/
@@ -52,7 +52,7 @@ temp/
 Thumbs.db
 Desktop.ini
 
-history/
+/history/
 ,/movelooper.yaml
 .claude
 CLAUDE.md

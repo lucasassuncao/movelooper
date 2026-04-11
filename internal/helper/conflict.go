@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // ConflictResolver resolves a naming conflict when a destination file already exists.
@@ -80,7 +81,7 @@ func compareFileHashes(file1, file2 string) (bool, error) {
 
 // calculateHash computes the SHA-256 hash of a file's contents.
 func calculateHash(filePath string) (string, error) {
-	file, err := os.Open(filePath)
+	file, err := os.Open(filepath.Clean(filePath)) //#nosec G304 -- path comes from directory walk
 	if err != nil {
 		return "", err
 	}

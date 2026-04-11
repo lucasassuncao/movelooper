@@ -85,11 +85,11 @@ func openLogFile(k *koanf.Koanf) (*os.File, error) {
 
 	dir := filepath.Dir(file)
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return nil, fmt.Errorf("couldn't create log directory: %w", err)
 	}
 
-	logFile, err := os.OpenFile(filepath.Clean(file), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0660)
+	logFile, err := os.OpenFile(filepath.Clean(file), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't open the log file: %w", err)
 	}

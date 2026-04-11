@@ -31,7 +31,7 @@ type MoveContext struct {
 // CreateDirectory creates dir and all necessary parents with full permissions.
 // It is idempotent: no error is returned when dir already exists.
 func CreateDirectory(dir string) error {
-	return os.MkdirAll(dir, 0777)
+	return os.MkdirAll(dir, 0750)
 }
 
 // ReadDirectory reads the contents of a given directory and returns the files.
@@ -205,13 +205,13 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
-	in, err := os.Open(src)
+	in, err := os.Open(filepath.Clean(src)) //#nosec G304 -- path comes from directory walk, validated by caller
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode())
+	out, err := os.OpenFile(filepath.Clean(dst), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode()) //#nosec G304 -- path comes from directory walk, validated by caller
 	if err != nil {
 		return err
 	}

@@ -40,10 +40,22 @@ jobs:
           echo "✅ Dependencies are up to date."
 
       - name: Test
-        run: make test
+        run: make test-coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage.out
+            coverage.html
+            coverage.xml
 
       - name: Lint
         run: make lint
+
+      - name: Security
+        run: make security
 
       - name: Check docs
         run: |

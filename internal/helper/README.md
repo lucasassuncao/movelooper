@@ -244,7 +244,7 @@ func ValidateGlob(pattern string) error
 ValidateGlob checks that pattern is syntactically valid after brace expansion.
 
 <a name="ConflictResolver"></a>
-## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/conflict.go#L13-L15>)
+## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/conflict.go#L14-L16>)
 
 ConflictResolver resolves a naming conflict when a destination file already exists. Resolve returns the final destination path, whether the move should proceed, and any error encountered. When shouldMove is false the caller must skip the file.
 
