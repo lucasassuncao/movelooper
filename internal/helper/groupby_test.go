@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,109 +17,97 @@ func TestFileSizeRange(t *testing.T) {
 		want string
 	}{
 		{0, "tiny"},
-		{500 * 1024, "tiny"},           // 500 KB
-		{sizeThresholdTiny, "small"},   // 1 MB
-		{50 * 1024 * 1024, "small"},    // 50 MB
-		{sizeThresholdSmall, "medium"}, // 100 MB
-		{500 * 1024 * 1024, "medium"},  // 500 MB
-		{sizeThresholdMedium, "large"}, // 1 GB
+		{500 * 1024, "tiny"},
+		{sizeThresholdTiny, "small"},
+		{50 * 1024 * 1024, "small"},
+		{sizeThresholdSmall, "medium"},
+		{500 * 1024 * 1024, "medium"},
+		{sizeThresholdMedium, "large"},
 		{2 * 1024 * 1024 * 1024, "large"},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.want, fileSizeRange(tt.size), "size=%d", tt.size)
+		t.Run(fmt.Sprintf("%d", tt.size), func(t *testing.T) {
+			assert.Equal(t, tt.want, fileSizeRange(tt.size))
+		})
 	}
 }
 
-func TestResolveGroupBy_EmptyTemplate(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "file.txt")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	result := ResolveGroupBy("", info, "docs", time.Now())
-	assert.Empty(t, result)
-}
-
-func TestResolveGroupBy_ExtToken(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "document.PDF")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	result := ResolveGroupBy("{ext}", info, "docs", time.Now())
-	assert.Equal(t, "pdf", result)
-}
-
-func TestResolveGroupBy_ExtUpperToken(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "image.jpg")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	result := ResolveGroupBy("{ext-upper}", info, "photos", time.Now())
-	assert.Equal(t, "JPG", result)
-}
-
-func TestResolveGroupBy_CategoryToken(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "file.txt")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	result := ResolveGroupBy("{category}", info, "MyCategory", time.Now())
-	assert.Equal(t, "MyCategory", result)
-}
-
-func TestResolveGroupBy_RunDateTokens(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "file.txt")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	now := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
-	result := ResolveGroupBy("{year}/{month}/{day}", info, "cat", now)
-	assert.Equal(t, filepath.FromSlash("2024/03/15"), result)
-}
-
-func TestResolveGroupBy_ModDateTokens(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "file.txt")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
-
+func TestResolveGroupBy(t *testing.T) {
+	// Fixed reference times used across cases.
+	now := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC) // Friday
 	modTime := time.Date(2023, 7, 4, 12, 0, 0, 0, time.Local)
-	require.NoError(t, os.Chtimes(path, modTime, modTime))
 
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	result := ResolveGroupBy("{mod-year}/{mod-month}/{mod-day}", info, "cat", time.Now())
-	assert.Equal(t, filepath.FromSlash("2023/07/04"), result)
-}
-
-func TestResolveGroupBy_SizeRange(t *testing.T) {
+	// Create files once and reuse across cases.
 	dir := t.TempDir()
-	path := filepath.Join(dir, "small.bin")
-	require.NoError(t, os.WriteFile(path, make([]byte, 500), 0644))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
 
-	result := ResolveGroupBy("{size-range}", info, "bin", time.Now())
-	assert.Equal(t, "tiny", result)
-}
+	newFile := func(name string, size int, mt time.Time) os.FileInfo {
+		p := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(p, make([]byte, size), 0644))
+		if !mt.IsZero() {
+			require.NoError(t, os.Chtimes(p, mt, mt))
+		}
+		info, err := os.Stat(p)
+		require.NoError(t, err)
+		return info
+	}
 
-func TestResolveGroupBy_CombinedTemplate(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "report.pdf")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
+	plain := newFile("my-report.PDF", 1, modTime)
+	tiny := newFile("tiny.bin", 500, modTime)
 
-	now := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC)
-	result := ResolveGroupBy("{category}/{year}/{ext}", info, "docs", now)
-	assert.Equal(t, filepath.FromSlash("docs/2024/pdf"), result)
+	// For created tokens: platform-agnostic expected value via getBirthTime.
+	createdTime := getBirthTime(plain)
+
+	tests := []struct {
+		name     string
+		template string
+		info     os.FileInfo
+		category string
+		now      time.Time
+		want     string
+	}{
+		// empty
+		{"empty template", "", plain, "docs", now, ""},
+
+		// identification
+		{"name", "{name}", plain, "docs", now, "my-report"},
+		{"ext lowercase", "{ext}", plain, "docs", now, "pdf"},
+		{"ext uppercase", "{ext-upper}", plain, "docs", now, "PDF"},
+
+		// modification date
+		{"mod-year", "{mod-year}", plain, "cat", now, "2023"},
+		{"mod-month", "{mod-month}", plain, "cat", now, "07"},
+		{"mod-day", "{mod-day}", plain, "cat", now, "04"},
+		{"mod-date", "{mod-date}", plain, "cat", now, "2023-07-04"},
+		{"mod-weekday", "{mod-weekday}", plain, "cat", now, modTime.Weekday().String()},
+
+		// creation date (platform-agnostic)
+		{"created-year", "{created-year}", plain, "cat", now, createdTime.Format("2006")},
+		{"created-month", "{created-month}", plain, "cat", now, createdTime.Format("01")},
+		{"created-day", "{created-day}", plain, "cat", now, createdTime.Format("02")},
+		{"created-date", "{created-date}", plain, "cat", now, createdTime.Format("2006-01-02")},
+
+		// run date
+		{"year", "{year}", plain, "cat", now, "2024"},
+		{"month", "{month}", plain, "cat", now, "03"},
+		{"day", "{day}", plain, "cat", now, "15"},
+		{"date", "{date}", plain, "cat", now, "2024-03-15"},
+		{"weekday", "{weekday}", plain, "cat", now, "Friday"},
+
+		// size-range (boundary cases covered by TestFileSizeRange)
+		{"size-range tiny", "{size-range}", tiny, "cat", now, "tiny"},
+
+		// category
+		{"category", "{category}", plain, "MyCategory", now, "MyCategory"},
+
+		// combined
+		{"combined", "{category}/{year}/{ext}", plain, "docs", now, filepath.FromSlash("docs/2024/pdf")},
+		{"combined created path", "{created-year}/{created-month}/{created-day}", plain, "cat", now, filepath.FromSlash(createdTime.Format("2006/01/02"))},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveGroupBy(tt.template, tt.info, tt.category, tt.now)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

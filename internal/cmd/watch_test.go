@@ -14,234 +14,319 @@ import (
 
 // --- fileInfoDirEntry ---
 
-func TestFileInfoDirEntry_Interface(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test.txt")
-	require.NoError(t, os.WriteFile(path, []byte("hello"), 0644))
+func TestFileInfoDirEntry(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func(t *testing.T) string // returns path
+		isDir     bool
+		isRegular bool
+	}{
+		{
+			name: "regular file",
+			setup: func(t *testing.T) string {
+				p := filepath.Join(t.TempDir(), "test.txt")
+				require.NoError(t, os.WriteFile(p, []byte("hello"), 0644))
+				return p
+			},
+			isDir:     false,
+			isRegular: true,
+		},
+		{
+			name:      "directory",
+			setup:     func(t *testing.T) string { return t.TempDir() },
+			isDir:     true,
+			isRegular: false,
+		},
+	}
 
-	info, err := os.Lstat(path)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := tt.setup(t)
+			info, err := os.Lstat(path)
+			require.NoError(t, err)
 
-	entry := fileInfoDirEntry{info: info}
-	assert.Equal(t, "test.txt", entry.Name())
-	assert.False(t, entry.IsDir())
-	assert.True(t, entry.Type().IsRegular())
+			entry := fileInfoDirEntry{info: info}
+			assert.Equal(t, tt.isDir, entry.IsDir())
+			assert.Equal(t, tt.isRegular, entry.Type().IsRegular())
 
-	got, err := entry.Info()
-	require.NoError(t, err)
-	assert.Equal(t, info.Name(), got.Name())
-}
-
-func TestFileInfoDirEntry_Directory(t *testing.T) {
-	dir := t.TempDir()
-	info, err := os.Lstat(dir)
-	require.NoError(t, err)
-
-	entry := fileInfoDirEntry{info: info}
-	assert.True(t, entry.IsDir())
-	assert.False(t, entry.Type().IsRegular())
+			got, err := entry.Info()
+			require.NoError(t, err)
+			assert.Equal(t, info.Name(), got.Name())
+		})
+	}
 }
 
 // --- matchesExtensionAndFilters ---
 
-func TestMatchesExtensionAndFilters_Match(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "report.pdf")
-	require.NoError(t, os.WriteFile(path, []byte("data"), 0644))
+func TestMatchesExtensionAndFilters(t *testing.T) {
+	tests := []struct {
+		name      string
+		fileName  string
+		exts      []string
+		setupCat  func(cat *models.Category)
+		wantMatch bool
+		noFile    bool
+	}{
+		{
+			name:      "matches extension",
+			fileName:  "report.pdf",
+			exts:      []string{"pdf"},
+			wantMatch: true,
+		},
+		{
+			name:      "wrong extension",
+			fileName:  "notes.txt",
+			exts:      []string{"pdf"},
+			wantMatch: false,
+		},
+		{
+			name:      "non-existent file",
+			fileName:  "ghost.pdf",
+			exts:      []string{"pdf"},
+			noFile:    true,
+			wantMatch: false,
+		},
+		{
+			name:     "regex filter matches",
+			fileName: "report_2024.pdf",
+			exts:     []string{"pdf"},
+			setupCat: func(cat *models.Category) {
+				cat.Source.Filter.Regex = "report"
+				cat.Source.Filter.CompiledRegex = regexp.MustCompile("(?i)report")
+			},
+			wantMatch: true,
+		},
+		{
+			name:     "regex filter no match",
+			fileName: "invoice.pdf",
+			exts:     []string{"pdf"},
+			setupCat: func(cat *models.Category) {
+				cat.Source.Filter.Regex = "report"
+				cat.Source.Filter.CompiledRegex = regexp.MustCompile("(?i)report")
+			},
+			wantMatch: false,
+		},
+	}
 
-	cat := buildCategory("PDFs", dir, t.TempDir(), []string{"pdf"})
-	assert.True(t, matchesExtensionAndFilters(cat, "report.pdf", path))
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := t.TempDir()
+			var filePath string
+			if tt.noFile {
+				filePath = "/nonexistent/" + tt.fileName
+			} else {
+				filePath = filepath.Join(src, tt.fileName)
+				require.NoError(t, os.WriteFile(filePath, []byte("data"), 0644))
+			}
 
-func TestMatchesExtensionAndFilters_WrongExtension(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "notes.txt")
-	require.NoError(t, os.WriteFile(path, []byte("data"), 0644))
+			cat := buildCategory("cat", src, t.TempDir(), tt.exts)
+			if tt.setupCat != nil {
+				tt.setupCat(cat)
+			}
 
-	cat := buildCategory("PDFs", dir, t.TempDir(), []string{"pdf"})
-	assert.False(t, matchesExtensionAndFilters(cat, "notes.txt", path))
-}
-
-func TestMatchesExtensionAndFilters_NonExistentFile(t *testing.T) {
-	dir := t.TempDir()
-	cat := buildCategory("PDFs", dir, t.TempDir(), []string{"pdf"})
-	assert.False(t, matchesExtensionAndFilters(cat, "ghost.pdf", "/nonexistent/ghost.pdf"))
-}
-
-func TestMatchesExtensionAndFilters_RegexFilter(t *testing.T) {
-	dir := t.TempDir()
-	matchPath := filepath.Join(dir, "report_2024.pdf")
-	noMatchPath := filepath.Join(dir, "invoice.pdf")
-	require.NoError(t, os.WriteFile(matchPath, []byte("x"), 0644))
-	require.NoError(t, os.WriteFile(noMatchPath, []byte("x"), 0644))
-
-	cat := buildCategory("PDFs", dir, t.TempDir(), []string{"pdf"})
-	cat.Source.Filter.Regex = "report"
-	cat.Source.Filter.CompiledRegex = regexp.MustCompile("(?i)report")
-
-	assert.True(t, matchesExtensionAndFilters(cat, "report_2024.pdf", matchPath))
-	assert.False(t, matchesExtensionAndFilters(cat, "invoice.pdf", noMatchPath))
+			assert.Equal(t, tt.wantMatch, matchesExtensionAndFilters(cat, tt.fileName, filePath))
+		})
+	}
 }
 
 // --- resolveDryRunDest ---
 
-func TestResolveDryRunDest_NoTemplate(t *testing.T) {
-	dir := t.TempDir()
-	dst := t.TempDir()
-	cat := buildCategory("Docs", dir, dst, []string{"pdf"})
-	result := resolveDryRunDest(cat, filepath.Join(dir, "file.pdf"))
-	assert.Equal(t, dst, result)
-}
-
-func TestResolveDryRunDest_WithExtTemplate(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-	filePath := filepath.Join(src, "photo.jpg")
-	require.NoError(t, os.WriteFile(filePath, []byte("img"), 0644))
-
-	cat := &models.Category{
-		Name:    "Images",
-		Enabled: boolPtr(true),
-		Source:  models.CategorySource{Path: src, Extensions: []string{"jpg"}},
-		Destination: models.CategoryDestination{
-			Path:       dst,
-			OrganizeBy: "{ext}",
+func TestResolveDryRunDest(t *testing.T) {
+	tests := []struct {
+		name       string
+		organizeBy string
+		fileName   string
+		fileExists bool
+		wantSuffix string // expected suffix appended to dst (empty = dst itself)
+	}{
+		{
+			name:       "no template returns dst",
+			wantSuffix: "",
+		},
+		{
+			name:       "ext template appends subdir",
+			organizeBy: "{ext}",
+			fileName:   "photo.jpg",
+			fileExists: true,
+			wantSuffix: "jpg",
+		},
+		{
+			name:       "non-existent file falls back to dst",
+			organizeBy: "{ext}",
+			fileName:   "file.pdf",
+			fileExists: false,
+			wantSuffix: "",
 		},
 	}
-	result := resolveDryRunDest(cat, filePath)
-	assert.Equal(t, filepath.Join(dst, "jpg"), result)
-}
 
-func TestResolveDryRunDest_NonExistentFile(t *testing.T) {
-	dst := t.TempDir()
-	cat := buildCategory("Docs", t.TempDir(), dst, []string{"pdf"})
-	cat.Destination.OrganizeBy = "{ext}"
-	// File doesn't exist — should fall back to base dest
-	result := resolveDryRunDest(cat, "/nonexistent/file.pdf")
-	assert.Equal(t, dst, result)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := t.TempDir()
+			dst := t.TempDir()
+
+			fileName := tt.fileName
+			if fileName == "" {
+				fileName = "file.pdf"
+			}
+			filePath := filepath.Join(src, fileName)
+
+			if tt.fileExists {
+				require.NoError(t, os.WriteFile(filePath, []byte("x"), 0644))
+			} else if !tt.fileExists && tt.organizeBy != "" {
+				filePath = "/nonexistent/" + fileName
+			}
+
+			cat := &models.Category{
+				Name:    "cat",
+				Enabled: boolPtr(true),
+				Source:  models.CategorySource{Path: src, Extensions: []string{"pdf", "jpg"}},
+				Destination: models.CategoryDestination{
+					Path:       dst,
+					OrganizeBy: tt.organizeBy,
+				},
+			}
+
+			result := resolveDryRunDest(cat, filePath)
+			if tt.wantSuffix == "" {
+				assert.Equal(t, dst, result)
+			} else {
+				assert.Equal(t, filepath.Join(dst, tt.wantSuffix), result)
+			}
+		})
+	}
 }
 
 // --- attemptMoveFile ---
 
-func TestAttemptMoveFile_DryRun_Logs(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-	filePath := filepath.Join(src, "doc.pdf")
-	require.NoError(t, os.WriteFile(filePath, []byte("pdf"), 0644))
+func TestAttemptMoveFile(t *testing.T) {
+	tests := []struct {
+		name      string
+		fileName  string
+		catExts   []string
+		wrongSrc  bool // file in different src than category
+		dryRun    bool
+		wantMoved bool
+	}{
+		{
+			name:      "dry-run does not move",
+			fileName:  "doc.pdf",
+			catExts:   []string{"pdf"},
+			dryRun:    true,
+			wantMoved: false,
+		},
+		{
+			name:      "no matching category stays",
+			fileName:  "notes.txt",
+			catExts:   []string{"pdf"},
+			wantMoved: false,
+		},
+		{
+			name:      "moves matching file",
+			fileName:  "report.pdf",
+			catExts:   []string{"pdf"},
+			wantMoved: true,
+		},
+		{
+			name:      "ignores file from wrong source dir",
+			fileName:  "file.pdf",
+			catExts:   []string{"pdf"},
+			wrongSrc:  true,
+			wantMoved: false,
+		},
+	}
 
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			catSrc := t.TempDir()
+			dst := t.TempDir()
 
-	err := attemptMoveFile(m, filePath, true)
-	assert.NoError(t, err)
-	// Dry-run: file must stay in source
-	assert.FileExists(t, filePath)
-	assert.NoFileExists(t, filepath.Join(dst, "doc.pdf"))
-}
+			var fileSrc string
+			if tt.wrongSrc {
+				fileSrc = t.TempDir()
+			} else {
+				fileSrc = catSrc
+			}
 
-func TestAttemptMoveFile_NoMatchingCategory(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-	filePath := filepath.Join(src, "notes.txt")
-	require.NoError(t, os.WriteFile(filePath, []byte("txt"), 0644))
+			filePath := filepath.Join(fileSrc, tt.fileName)
+			require.NoError(t, os.WriteFile(filePath, []byte("x"), 0644))
 
-	// Category only matches pdf
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
+			cat := buildCategory("cat", catSrc, dst, tt.catExts)
+			m := newSilentMovelooper([]*models.Category{cat})
 
-	err := attemptMoveFile(m, filePath, false)
-	assert.NoError(t, err)
-	// No matching category — file stays
-	assert.FileExists(t, filePath)
-}
+			err := attemptMoveFile(m, filePath, tt.dryRun)
+			assert.NoError(t, err)
 
-func TestAttemptMoveFile_MovesFile(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-	filePath := filepath.Join(src, "report.pdf")
-	require.NoError(t, os.WriteFile(filePath, []byte("pdf"), 0644))
-
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
-
-	err := attemptMoveFile(m, filePath, false)
-	assert.NoError(t, err)
-	assert.NoFileExists(t, filePath)
-	assert.FileExists(t, filepath.Join(dst, "report.pdf"))
-}
-
-func TestAttemptMoveFile_IgnoresWrongSourceDir(t *testing.T) {
-	src1 := t.TempDir()
-	src2 := t.TempDir()
-	dst := t.TempDir()
-
-	// File is in src2, but category watches src1
-	filePath := filepath.Join(src2, "file.pdf")
-	require.NoError(t, os.WriteFile(filePath, []byte("x"), 0644))
-
-	cat := buildCategory("PDFs", src1, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
-
-	err := attemptMoveFile(m, filePath, false)
-	assert.NoError(t, err)
-	assert.FileExists(t, filePath)
+			if tt.wantMoved {
+				assert.NoFileExists(t, filePath)
+				assert.FileExists(t, filepath.Join(dst, tt.fileName))
+			} else {
+				assert.FileExists(t, filePath)
+			}
+		})
+	}
 }
 
 // --- performInitialScan ---
 
-func TestPerformInitialScan_AddsMatchingFiles(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
+func TestPerformInitialScan(t *testing.T) {
+	tests := []struct {
+		name      string
+		files     []string
+		ext       []string
+		disabled  bool
+		ignore    []string
+		wantFiles []string
+	}{
+		{
+			name:      "adds matching files",
+			files:     []string{"a.pdf", "b.txt"},
+			ext:       []string{"pdf"},
+			wantFiles: []string{"a.pdf"},
+		},
+		{
+			name:      "skips disabled category",
+			files:     []string{"a.pdf"},
+			ext:       []string{"pdf"},
+			disabled:  true,
+			wantFiles: nil,
+		},
+		{
+			name:      "ignores ignored files",
+			files:     []string{"ignore_me.pdf", "keep.pdf"},
+			ext:       []string{"pdf"},
+			ignore:    []string{"ignore_*"},
+			wantFiles: []string{"keep.pdf"},
+		},
+	}
 
-	require.NoError(t, os.WriteFile(filepath.Join(src, "a.pdf"), []byte("x"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(src, "b.txt"), []byte("x"), 0644))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := t.TempDir()
+			dst := t.TempDir()
 
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
-	tracker := &fileTracker{files: make(map[string]time.Time)}
+			for _, f := range tt.files {
+				require.NoError(t, os.WriteFile(filepath.Join(src, f), []byte("x"), 0644))
+			}
 
-	performInitialScan(m, tracker)
+			cat := buildCategory("cat", src, dst, tt.ext)
+			if tt.disabled {
+				cat.Enabled = boolPtr(false)
+			}
+			cat.Source.Filter.Ignore = tt.ignore
 
-	tracker.mu.Lock()
-	defer tracker.mu.Unlock()
-	assert.Len(t, tracker.files, 1)
-	assert.Contains(t, tracker.files, filepath.Join(src, "a.pdf"))
-}
+			m := newSilentMovelooper([]*models.Category{cat})
+			tracker := &fileTracker{files: make(map[string]time.Time)}
+			performInitialScan(m, tracker)
 
-func TestPerformInitialScan_SkipsDisabledCategory(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(src, "a.pdf"), []byte("x"), 0644))
+			tracker.mu.Lock()
+			defer tracker.mu.Unlock()
 
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	cat.Enabled = boolPtr(false)
-	m := newSilentMovelooper([]*models.Category{cat})
-	tracker := &fileTracker{files: make(map[string]time.Time)}
-
-	performInitialScan(m, tracker)
-
-	tracker.mu.Lock()
-	defer tracker.mu.Unlock()
-	assert.Empty(t, tracker.files)
-}
-
-func TestPerformInitialScan_IgnoresIgnoredFiles(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(src, "ignore_me.pdf"), []byte("x"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(src, "keep.pdf"), []byte("x"), 0644))
-
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	cat.Source.Filter.Ignore = []string{"ignore_*"}
-	m := newSilentMovelooper([]*models.Category{cat})
-	tracker := &fileTracker{files: make(map[string]time.Time)}
-
-	performInitialScan(m, tracker)
-
-	tracker.mu.Lock()
-	defer tracker.mu.Unlock()
-	assert.Len(t, tracker.files, 1)
-	assert.Contains(t, tracker.files, filepath.Join(src, "keep.pdf"))
+			assert.Len(t, tracker.files, len(tt.wantFiles))
+			for _, f := range tt.wantFiles {
+				assert.Contains(t, tracker.files, filepath.Join(src, f))
+			}
+		})
+	}
 }
 
 // --- processPendingFiles ---
@@ -264,53 +349,80 @@ func buildStaleTracker(t *testing.T, name string) (m *models.Movelooper, dst, fi
 	return
 }
 
-func TestProcessPendingFiles_MovesStableFile(t *testing.T) {
-	m, dst, filePath, tracker := buildStaleTracker(t, "old.pdf")
-	processPendingFiles(m, tracker, 5*time.Minute, false)
-	assert.NoFileExists(t, filePath)
-	assert.FileExists(t, filepath.Join(dst, "old.pdf"))
-}
+func TestProcessPendingFiles(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func(t *testing.T) (m *models.Movelooper, dst string, filePath string, tracker *fileTracker)
+		threshold time.Duration
+		dryRun    bool
+		wantMoved bool
+		wantGone  bool // file removed from tracker (e.g. deleted file)
+	}{
+		{
+			name: "moves stable file",
+			setup: func(t *testing.T) (*models.Movelooper, string, string, *fileTracker) {
+				return buildStaleTracker(t, "old.pdf")
+			},
+			threshold: 5 * time.Minute,
+			wantMoved: true,
+		},
+		{
+			name: "skips fresh file",
+			setup: func(t *testing.T) (*models.Movelooper, string, string, *fileTracker) {
+				src := t.TempDir()
+				dst := t.TempDir()
+				filePath := filepath.Join(src, "fresh.pdf")
+				require.NoError(t, os.WriteFile(filePath, []byte("x"), 0644))
+				cat := buildCategory("PDFs", src, dst, []string{"pdf"})
+				m := newSilentMovelooper([]*models.Category{cat})
+				tracker := &fileTracker{files: map[string]time.Time{filePath: time.Now()}}
+				return m, dst, filePath, tracker
+			},
+			threshold: 5 * time.Minute,
+			wantMoved: false,
+		},
+		{
+			name: "removes deleted file from tracker",
+			setup: func(t *testing.T) (*models.Movelooper, string, string, *fileTracker) {
+				src := t.TempDir()
+				dst := t.TempDir()
+				ghostPath := filepath.Join(src, "ghost.pdf")
+				cat := buildCategory("PDFs", src, dst, []string{"pdf"})
+				m := newSilentMovelooper([]*models.Category{cat})
+				tracker := &fileTracker{files: map[string]time.Time{ghostPath: time.Now().Add(-10 * time.Minute)}}
+				return m, dst, ghostPath, tracker
+			},
+			threshold: 5 * time.Minute,
+			wantGone:  true,
+		},
+		{
+			name: "dry-run does not move",
+			setup: func(t *testing.T) (*models.Movelooper, string, string, *fileTracker) {
+				return buildStaleTracker(t, "stable.pdf")
+			},
+			threshold: 5 * time.Minute,
+			dryRun:    true,
+			wantMoved: false,
+		},
+	}
 
-func TestProcessPendingFiles_SkipsFreshFile(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-	filePath := filepath.Join(src, "fresh.pdf")
-	require.NoError(t, os.WriteFile(filePath, []byte("x"), 0644))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, dst, filePath, tracker := tt.setup(t)
+			processPendingFiles(m, tracker, tt.threshold, tt.dryRun)
 
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
-	tracker := &fileTracker{files: map[string]time.Time{
-		filePath: time.Now(),
-	}}
-
-	// Threshold of 5 minutes, file was just written — should not move
-	processPendingFiles(m, tracker, 5*time.Minute, false)
-
-	assert.FileExists(t, filePath)
-}
-
-func TestProcessPendingFiles_RemovesDeletedFileFromTracker(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-	ghostPath := filepath.Join(src, "ghost.pdf")
-
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
-	tracker := &fileTracker{files: map[string]time.Time{
-		ghostPath: time.Now().Add(-10 * time.Minute),
-	}}
-
-	processPendingFiles(m, tracker, 5*time.Minute, false)
-
-	tracker.mu.Lock()
-	defer tracker.mu.Unlock()
-	assert.NotContains(t, tracker.files, ghostPath)
-}
-
-func TestProcessPendingFiles_DryRunDoesNotMove(t *testing.T) {
-	m, dst, filePath, tracker := buildStaleTracker(t, "stable.pdf")
-	processPendingFiles(m, tracker, 5*time.Minute, true)
-	// Dry-run: file stays in source
-	assert.FileExists(t, filePath)
-	assert.NoFileExists(t, filepath.Join(dst, "stable.pdf"))
+			fileName := filepath.Base(filePath)
+			switch {
+			case tt.wantMoved:
+				assert.NoFileExists(t, filePath)
+				assert.FileExists(t, filepath.Join(dst, fileName))
+			case tt.wantGone:
+				tracker.mu.Lock()
+				defer tracker.mu.Unlock()
+				assert.NotContains(t, tracker.files, filePath)
+			default:
+				assert.FileExists(t, filePath)
+			}
+		})
+	}
 }

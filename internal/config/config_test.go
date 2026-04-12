@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/knadh/koanf/v2"
+	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,26 +20,7 @@ func writeYAML(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// --- InitConfig ---
-
-func TestInitConfig_FileNotFound(t *testing.T) {
-	k := koanf.New(".")
-	err := InitConfig(k, "/nonexistent/path/movelooper.yaml")
-	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrConfigNotFound)
-}
-
-func TestInitConfig_MalformedYAML(t *testing.T) {
-	dir := t.TempDir()
-	path := writeYAML(t, dir, "bad.yaml", "categories: [invalid: yaml: :")
-	k := koanf.New(".")
-	err := InitConfig(k, path)
-	assert.Error(t, err)
-}
-
-func TestInitConfig_ValidMinimalConfig(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+const minimalCategory = `
 categories:
   - name: docs
     source:
@@ -47,24 +29,60 @@ categories:
     destination:
       path: /tmp/dst
 `
-	path := writeYAML(t, dir, "movelooper.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-}
 
-func TestInitConfig_EmptyFile(t *testing.T) {
-	dir := t.TempDir()
-	path := writeYAML(t, dir, "empty.yaml", "")
-	k := koanf.New(".")
-	// Empty file is valid YAML (no content), should not error
-	assert.NoError(t, InitConfig(k, path))
+// --- InitConfig ---
+
+func TestInitConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		yaml        string
+		nonExistent bool
+		wantErr     bool
+		errIs       error
+	}{
+		{"file not found", "", true, true, ErrConfigNotFound},
+		{"malformed yaml", "categories: [invalid: yaml: :", false, true, nil},
+		{"valid minimal config", minimalCategory, false, false, nil},
+		{"empty file is valid", "", false, false, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			var path string
+			if tt.nonExistent {
+				path = "/nonexistent/path/movelooper.yaml"
+			} else {
+				path = writeYAML(t, dir, "cfg.yaml", tt.yaml)
+			}
+
+			k := koanf.New(".")
+			err := InitConfig(k, path)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errIs != nil {
+					assert.ErrorIs(t, err, tt.errIs)
+				}
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
 }
 
 // --- UnmarshalConfig ---
 
-func TestUnmarshalConfig_ValidCategory(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+func TestUnmarshalConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string // substring; empty = no error expected
+		check   func(t *testing.T, cats []*models.Category)
+	}{
+		{
+			name: "valid category",
+			yaml: `
 categories:
   - name: docs
     source:
@@ -72,40 +90,29 @@ categories:
       extensions: [pdf, txt]
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	cats, err := UnmarshalConfig(k)
-	require.NoError(t, err)
-	require.Len(t, cats, 1)
-	assert.Equal(t, "docs", cats[0].Name)
-	assert.ElementsMatch(t, []string{"pdf", "txt"}, cats[0].Source.Extensions)
-}
-
-func TestUnmarshalConfig_MissingExtensions(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+			check: func(t *testing.T, cats []*models.Category) {
+				require.Len(t, cats, 1)
+				assert.Equal(t, "docs", cats[0].Name)
+				assert.ElementsMatch(t, []string{"pdf", "txt"}, cats[0].Source.Extensions)
+			},
+		},
+		{
+			name:    "missing extensions",
+			wantErr: "source.extensions are required",
+			yaml: `
 categories:
   - name: broken
     source:
       path: /tmp/src
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	_, err := UnmarshalConfig(k)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "source.extensions are required")
-}
-
-func TestUnmarshalConfig_InvalidRegex(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+		},
+		{
+			name:    "invalid regex",
+			wantErr: "invalid regex",
+			yaml: `
 categories:
   - name: bad-regex
     source:
@@ -115,19 +122,12 @@ categories:
         regex: "[invalid"
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	_, err := UnmarshalConfig(k)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid regex")
-}
-
-func TestUnmarshalConfig_RegexAndGlobMutuallyExclusive(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+		},
+		{
+			name:    "regex and glob mutually exclusive",
+			wantErr: "mutually exclusive",
+			yaml: `
 categories:
   - name: both-filters
     source:
@@ -138,19 +138,12 @@ categories:
         glob: "*.txt"
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	_, err := UnmarshalConfig(k)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "mutually exclusive")
-}
-
-func TestUnmarshalConfig_MinSizeGreaterThanMaxSize(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+		},
+		{
+			name:    "min-size greater than max-size",
+			wantErr: "min-size",
+			yaml: `
 categories:
   - name: bad-size
     source:
@@ -161,19 +154,12 @@ categories:
         max-size: "1 MB"
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	_, err := UnmarshalConfig(k)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "min-size")
-}
-
-func TestUnmarshalConfig_MinAgeGreaterThanMaxAge(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+		},
+		{
+			name:    "min-age greater than max-age",
+			wantErr: "min-age",
+			yaml: `
 categories:
   - name: bad-age
     source:
@@ -184,19 +170,11 @@ categories:
         max-age: "24h"
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	_, err := UnmarshalConfig(k)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "min-age")
-}
-
-func TestUnmarshalConfig_CaseInsensitiveRegexCompiled(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+		},
+		{
+			name: "case-insensitive regex compiled",
+			yaml: `
 categories:
   - name: ci-regex
     source:
@@ -207,21 +185,15 @@ categories:
         case-sensitive: false
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	cats, err := UnmarshalConfig(k)
-	require.NoError(t, err)
-	require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
-	// (?i) prefix makes it case-insensitive
-	assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
-}
-
-func TestUnmarshalConfig_CaseSensitiveRegexCompiled(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+			check: func(t *testing.T, cats []*models.Category) {
+				require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
+				assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
+			},
+		},
+		{
+			name: "case-sensitive regex compiled",
+			yaml: `
 categories:
   - name: cs-regex
     source:
@@ -232,21 +204,16 @@ categories:
         case-sensitive: true
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	cats, err := UnmarshalConfig(k)
-	require.NoError(t, err)
-	require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
-	assert.False(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
-	assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("report"))
-}
-
-func TestUnmarshalConfig_SizeBytesPopulated(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+			check: func(t *testing.T, cats []*models.Category) {
+				require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
+				assert.False(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
+				assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("report"))
+			},
+		},
+		{
+			name: "size bytes populated",
+			yaml: `
 categories:
   - name: sized
     source:
@@ -257,20 +224,16 @@ categories:
         max-size: "10 MB"
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	cats, err := UnmarshalConfig(k)
-	require.NoError(t, err)
-	assert.Equal(t, int64(1024), cats[0].Source.Filter.MinSizeBytes)
-	assert.Equal(t, int64(10*1024*1024), cats[0].Source.Filter.MaxSizeBytes)
-}
-
-func TestUnmarshalConfig_InvalidGlob(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+`,
+			check: func(t *testing.T, cats []*models.Category) {
+				assert.Equal(t, int64(1024), cats[0].Source.Filter.MinSizeBytes)
+				assert.Equal(t, int64(10*1024*1024), cats[0].Source.Filter.MaxSizeBytes)
+			},
+		},
+		{
+			name:    "invalid glob",
+			wantErr: "",
+			yaml: `
 categories:
   - name: bad-glob
     source:
@@ -280,51 +243,89 @@ categories:
         glob: "[invalid"
     destination:
       path: /tmp/dst
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
+`,
+			check: func(t *testing.T, cats []*models.Category) {
+				// error is expected — this case is handled below
+			},
+		},
+	}
 
-	_, err := UnmarshalConfig(k)
-	assert.Error(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := writeYAML(t, dir, "cfg.yaml", tt.yaml)
+			k := koanf.New(".")
+			require.NoError(t, InitConfig(k, path))
+
+			cats, err := UnmarshalConfig(k)
+
+			if tt.name == "invalid glob" {
+				assert.Error(t, err)
+				return
+			}
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			if tt.check != nil {
+				tt.check(t, cats)
+			}
+		})
+	}
 }
 
-// --- LoadConfig defaults ---
+// --- LoadConfig ---
 
-func TestLoadConfig_Defaults(t *testing.T) {
-	k := koanf.New(".")
-	cfg := LoadConfig(k)
-	assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
-	assert.Equal(t, defaultHistoryLimit, cfg.HistoryLimit)
-}
-
-func TestLoadConfig_CustomValues(t *testing.T) {
-	dir := t.TempDir()
-	yaml := `
+func TestLoadConfig(t *testing.T) {
+	tests := []struct {
+		name  string
+		yaml  string
+		check func(t *testing.T, cfg models.Configuration)
+	}{
+		{
+			name: "defaults when not set",
+			yaml: "",
+			check: func(t *testing.T, cfg models.Configuration) {
+				assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
+				assert.Equal(t, defaultHistoryLimit, cfg.HistoryLimit)
+			},
+		},
+		{
+			name: "custom values",
+			yaml: `
 configuration:
   output: json
   log-level: debug
   watch-delay: 2m
   history-limit: 100
-`
-	path := writeYAML(t, dir, "cfg.yaml", yaml)
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
+`,
+			check: func(t *testing.T, cfg models.Configuration) {
+				assert.Equal(t, "json", cfg.Output)
+				assert.Equal(t, "debug", cfg.LogLevel)
+				assert.Equal(t, 2*time.Minute, cfg.WatchDelay)
+				assert.Equal(t, 100, cfg.HistoryLimit)
+			},
+		},
+		{
+			name: "watch-delay fallback to default",
+			yaml: "configuration:\n  output: text\n",
+			check: func(t *testing.T, cfg models.Configuration) {
+				assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
+			},
+		},
+	}
 
-	cfg := LoadConfig(k)
-	assert.Equal(t, "json", cfg.Output)
-	assert.Equal(t, "debug", cfg.LogLevel)
-	assert.Equal(t, 2*time.Minute, cfg.WatchDelay)
-	assert.Equal(t, 100, cfg.HistoryLimit)
-}
-
-func TestLoadConfig_WatchDelayFallback(t *testing.T) {
-	// When watch-delay is not set, default is used
-	dir := t.TempDir()
-	path := writeYAML(t, dir, "cfg.yaml", "configuration:\n  output: text\n")
-	k := koanf.New(".")
-	require.NoError(t, InitConfig(k, path))
-
-	cfg := LoadConfig(k)
-	assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := writeYAML(t, dir, "cfg.yaml", tt.yaml)
+			k := koanf.New(".")
+			if tt.yaml != "" {
+				require.NoError(t, InitConfig(k, path))
+			}
+			tt.check(t, LoadConfig(k))
+		})
+	}
 }

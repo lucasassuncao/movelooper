@@ -11,6 +11,9 @@ import (
 	"strings"
 )
 
+// osExecutable is a variable so tests can override os.Executable.
+var osExecutable = os.Executable
+
 // SelfUpdate downloads the latest release of movelooper from GitHub and
 // replaces the current binary. The old binary is kept as <name>.old until the
 // next run, when it is cleaned up automatically.
@@ -46,7 +49,7 @@ func SelfUpdate(repo, token, currentVersion string) error {
 
 	fmt.Printf("Found %s → %s (%.1f MB)\n", rel.TagName, asset.Name, float64(asset.Size)/1e6)
 
-	exePath, err := os.Executable()
+	exePath, err := osExecutable()
 	if err != nil {
 		return fmt.Errorf("cannot determine current executable path: %w", err)
 	}
@@ -85,7 +88,7 @@ func SelfUpdate(repo, token, currentVersion string) error {
 // CleanOldBinary removes a <exe>.old file left by a previous self-update.
 // Call this from main() at startup.
 func CleanOldBinary() {
-	exe, err := os.Executable()
+	exe, err := osExecutable()
 	if err != nil {
 		return
 	}

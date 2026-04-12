@@ -17,7 +17,6 @@ func newSilentMovelooperWithHistory(t *testing.T) *models.Movelooper {
 	t.Helper()
 	h, err := history.NewHistory(50)
 	if err != nil {
-		// Fall back: no history (tests that need it will skip or use workarounds)
 		h = nil
 	}
 	m := newSilentMovelooper(nil)
@@ -36,119 +35,133 @@ func addHistoryEntry(t *testing.T, h *history.History, batchID, src, dst string)
 	}))
 }
 
-// --- undoBatch dry-run ---
+// --- undoBatch ---
 
-func TestUndoBatch_DryRun_ReportsWouldRestore(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-
-	srcFile := filepath.Join(src, "file.txt")
-	dstFile := filepath.Join(dst, "file.txt")
-
-	// Simulate that the file was moved: it's now at dst
-	require.NoError(t, os.WriteFile(dstFile, []byte("data"), 0644))
-
-	m := newSilentMovelooperWithHistory(t)
-	if m.History == nil {
-		t.Skip("history not available in this environment")
-	}
-	addHistoryEntry(t, m.History, "batch_1", srcFile, dstFile)
-
-	err := undoBatch(m, "batch_1", true)
-	assert.NoError(t, err)
-
-	// Dry-run: file must remain at destination
-	assert.FileExists(t, dstFile)
-	assert.NoFileExists(t, srcFile)
-}
-
-func TestUndoBatch_DryRun_WarnsMissingDestination(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-
-	srcFile := filepath.Join(src, "missing.txt")
-	dstFile := filepath.Join(dst, "missing.txt") // does NOT exist
-
-	m := newSilentMovelooperWithHistory(t)
-	if m.History == nil {
-		t.Skip("history not available in this environment")
-	}
-	addHistoryEntry(t, m.History, "batch_missing", srcFile, dstFile)
-
-	// Should not error even when destination file is absent
-	err := undoBatch(m, "batch_missing", true)
-	assert.NoError(t, err)
-}
-
-func TestUndoBatch_DryRun_WarnsOccupiedSource(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-
-	srcFile := filepath.Join(src, "occupied.txt")
-	dstFile := filepath.Join(dst, "occupied.txt")
-
-	// Both exist: source is occupied, destination also exists
-	require.NoError(t, os.WriteFile(srcFile, []byte("original"), 0644))
-	require.NoError(t, os.WriteFile(dstFile, []byte("moved"), 0644))
-
-	m := newSilentMovelooperWithHistory(t)
-	if m.History == nil {
-		t.Skip("history not available in this environment")
-	}
-	addHistoryEntry(t, m.History, "batch_occupied", srcFile, dstFile)
-
-	err := undoBatch(m, "batch_occupied", true)
-	assert.NoError(t, err)
-
-	// Dry-run: nothing moved
-	assert.FileExists(t, srcFile)
-	assert.FileExists(t, dstFile)
-}
-
-func TestUndoBatch_BatchNotFound(t *testing.T) {
-	m := newSilentMovelooperWithHistory(t)
-	if m.History == nil {
-		t.Skip("history not available in this environment")
+func TestUndoBatch(t *testing.T) {
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T, m *models.Movelooper) (batchID string, srcFile string, dstFile string)
+		dryRun  bool
+		wantErr string
+		check   func(t *testing.T, srcFile, dstFile string)
+	}{
+		{
+			name: "dry-run reports would restore",
+			setup: func(t *testing.T, m *models.Movelooper) (string, string, string) {
+				src := t.TempDir()
+				dst := t.TempDir()
+				srcFile := filepath.Join(src, "file.txt")
+				dstFile := filepath.Join(dst, "file.txt")
+				require.NoError(t, os.WriteFile(dstFile, []byte("data"), 0644))
+				addHistoryEntry(t, m.History, "batch_1", srcFile, dstFile)
+				return "batch_1", srcFile, dstFile
+			},
+			dryRun: true,
+			check: func(t *testing.T, srcFile, dstFile string) {
+				assert.FileExists(t, dstFile)
+				assert.NoFileExists(t, srcFile)
+			},
+		},
+		{
+			name: "dry-run warns missing destination",
+			setup: func(t *testing.T, m *models.Movelooper) (string, string, string) {
+				src := t.TempDir()
+				dst := t.TempDir()
+				srcFile := filepath.Join(src, "missing.txt")
+				dstFile := filepath.Join(dst, "missing.txt") // does NOT exist
+				addHistoryEntry(t, m.History, "batch_missing", srcFile, dstFile)
+				return "batch_missing", srcFile, dstFile
+			},
+			dryRun: true,
+		},
+		{
+			name: "dry-run warns occupied source",
+			setup: func(t *testing.T, m *models.Movelooper) (string, string, string) {
+				src := t.TempDir()
+				dst := t.TempDir()
+				srcFile := filepath.Join(src, "occupied.txt")
+				dstFile := filepath.Join(dst, "occupied.txt")
+				require.NoError(t, os.WriteFile(srcFile, []byte("original"), 0644))
+				require.NoError(t, os.WriteFile(dstFile, []byte("moved"), 0644))
+				addHistoryEntry(t, m.History, "batch_occupied", srcFile, dstFile)
+				return "batch_occupied", srcFile, dstFile
+			},
+			dryRun: true,
+			check: func(t *testing.T, srcFile, dstFile string) {
+				assert.FileExists(t, srcFile)
+				assert.FileExists(t, dstFile)
+			},
+		},
+		{
+			name: "batch not found returns error",
+			setup: func(t *testing.T, m *models.Movelooper) (string, string, string) {
+				return "nonexistent_batch", "", ""
+			},
+			dryRun:  true,
+			wantErr: "not found in history",
+		},
 	}
 
-	err := undoBatch(m, "nonexistent_batch", true)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found in history")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newSilentMovelooperWithHistory(t)
+			if m.History == nil {
+				t.Skip("history not available in this environment")
+			}
+
+			batchID, srcFile, dstFile := tt.setup(t, m)
+			err := undoBatch(m, batchID, tt.dryRun)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			assert.NoError(t, err)
+			if tt.check != nil {
+				tt.check(t, srcFile, dstFile)
+			}
+		})
+	}
 }
 
 // --- printBatchList ---
 
-func TestPrintBatchList_NoBatches(t *testing.T) {
-	m := newSilentMovelooperWithHistory(t)
-	if m.History == nil {
-		t.Skip("history not available in this environment")
+func TestPrintBatchList(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, m *models.Movelooper)
+	}{
+		{
+			name:  "no batches",
+			setup: func(t *testing.T, m *models.Movelooper) {},
+		},
+		{
+			name: "with batches",
+			setup: func(t *testing.T, m *models.Movelooper) {
+				dst := t.TempDir()
+				addHistoryEntry(t, m.History, "batch_X", "/src/a.txt", filepath.Join(dst, "a.txt"))
+				addHistoryEntry(t, m.History, "batch_Y", "/src/b.txt", filepath.Join(dst, "b.txt"))
+			},
+		},
 	}
 
-	// No error and no panic when history is empty
-	err := printBatchList(m)
-	assert.NoError(t, err)
-}
-
-func TestPrintBatchList_WithBatches(t *testing.T) {
-	dst := t.TempDir()
-
-	m := newSilentMovelooperWithHistory(t)
-	if m.History == nil {
-		t.Skip("history not available in this environment")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newSilentMovelooperWithHistory(t)
+			if m.History == nil {
+				t.Skip("history not available in this environment")
+			}
+			tt.setup(t, m)
+			assert.NoError(t, printBatchList(m))
+		})
 	}
-
-	addHistoryEntry(t, m.History, "batch_X", "/src/a.txt", filepath.Join(dst, "a.txt"))
-	addHistoryEntry(t, m.History, "batch_Y", "/src/b.txt", filepath.Join(dst, "b.txt"))
-
-	err := printBatchList(m)
-	assert.NoError(t, err)
 }
 
 // --- UndoCmd structure ---
 
 func TestUndoCmd_NilHistory_ReturnsError(t *testing.T) {
 	m := newSilentMovelooper(nil)
-	// m.History is nil
 	cmd := UndoCmd(m)
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()

@@ -3,6 +3,7 @@ package helper
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -10,6 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// createTempFile creates a file with default content in dir and returns its path.
+func createTempFile(t *testing.T, dir, name string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	require.NoError(t, os.WriteFile(path, []byte("test"), 0644))
+	return path
+}
 
 // --- MatchesIgnorePatterns ---
 
@@ -33,8 +42,7 @@ func TestMatchesIgnorePatterns(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := MatchesIgnorePatterns(tt.fileName, tt.patterns, tt.caseSensitive)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, MatchesIgnorePatterns(tt.fileName, tt.patterns, tt.caseSensitive))
 		})
 	}
 }
@@ -51,13 +59,11 @@ func TestExpandGlobPattern(t *testing.T) {
 		{"file.{go,py,js}", []string{"file.go", "file.py", "file.js"}},
 		{"{a,b}", []string{"a", "b"}},
 		{"no braces", []string{"no braces"}},
-		// spaces around alternatives are trimmed
 		{"*.{ jpg , png }", []string{"*.jpg", "*.png"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.pattern, func(t *testing.T) {
-			got := expandGlobPattern(tt.pattern)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, expandGlobPattern(tt.pattern))
 		})
 	}
 }
@@ -82,8 +88,7 @@ func TestMatchesGlob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := MatchesGlob(tt.fileName, tt.pattern, tt.caseSensitive)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, MatchesGlob(tt.fileName, tt.pattern, tt.caseSensitive))
 		})
 	}
 }
@@ -91,9 +96,24 @@ func TestMatchesGlob(t *testing.T) {
 // --- ValidateGlob ---
 
 func TestValidateGlob(t *testing.T) {
-	assert.NoError(t, ValidateGlob("*.txt"))
-	assert.NoError(t, ValidateGlob("*.{jpg,png}"))
-	assert.Error(t, ValidateGlob("[invalid"))
+	tests := []struct {
+		pattern string
+		wantErr bool
+	}{
+		{"*.txt", false},
+		{"*.{jpg,png}", false},
+		{"[invalid", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			err := ValidateGlob(tt.pattern)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 // --- HasExtension ---
@@ -106,46 +126,98 @@ func TestHasExtension(t *testing.T) {
 
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-
 	byName := make(map[string]os.DirEntry)
 	for _, e := range entries {
 		byName[e.Name()] = e
 	}
 
-	assert.True(t, HasExtension(byName["doc.pdf"], "pdf"))
-	assert.True(t, HasExtension(byName["image.PNG"], "png"))
-	assert.True(t, HasExtension(byName["doc.pdf"], "all"))
-	assert.False(t, HasExtension(byName["doc.pdf"], "txt"))
-	assert.False(t, HasExtension(byName["noext"], "txt"))
+	tests := []struct {
+		name  string
+		entry os.DirEntry
+		ext   string
+		want  bool
+	}{
+		{"exact match", byName["doc.pdf"], "pdf", true},
+		{"case insensitive", byName["image.PNG"], "png", true},
+		{"all matches any", byName["doc.pdf"], "all", true},
+		{"wrong ext", byName["doc.pdf"], "txt", false},
+		{"no ext vs txt", byName["noext"], "txt", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, HasExtension(tt.entry, tt.ext))
+		})
+	}
 }
 
 // --- MatchesAnyExtension ---
 
 func TestMatchesAnyExtension(t *testing.T) {
-	assert.True(t, MatchesAnyExtension("file.txt", []string{"txt", "pdf"}))
-	assert.True(t, MatchesAnyExtension("file.PDF", []string{"pdf"}))
-	assert.True(t, MatchesAnyExtension("file.go", []string{"all"}))
-	assert.False(t, MatchesAnyExtension("file.go", []string{"txt", "pdf"}))
+	tests := []struct {
+		name string
+		file string
+		exts []string
+		want bool
+	}{
+		{"matches first ext", "file.txt", []string{"txt", "pdf"}, true},
+		{"case insensitive", "file.PDF", []string{"pdf"}, true},
+		{"all matches any", "file.go", []string{"all"}, true},
+		{"no match", "file.go", []string{"txt", "pdf"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, MatchesAnyExtension(tt.file, tt.exts))
+		})
+	}
 }
 
 // --- MatchesNameFilters ---
 
 func TestMatchesNameFilters(t *testing.T) {
-	t.Run("no filters passes all", func(t *testing.T) {
-		assert.True(t, MatchesNameFilters("anything.txt", models.CategoryFilter{}))
-	})
-
-	t.Run("glob filter matches", func(t *testing.T) {
-		f := models.CategoryFilter{Glob: "report_*"}
-		assert.True(t, MatchesNameFilters("report_2024.pdf", f))
-		assert.False(t, MatchesNameFilters("invoice.pdf", f))
-	})
-
-	t.Run("include filter", func(t *testing.T) {
-		f := models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}
-		assert.True(t, MatchesNameFilters("file.pdf", f))
-		assert.False(t, MatchesNameFilters("file.txt", f))
-	})
+	tests := []struct {
+		name     string
+		fileName string
+		filter   models.CategoryFilter
+		want     bool
+	}{
+		{"no filters passes all", "anything.txt", models.CategoryFilter{}, true},
+		{"glob matches", "report_2024.pdf", models.CategoryFilter{Glob: "report_*"}, true},
+		{"glob no match", "invoice.pdf", models.CategoryFilter{Glob: "report_*"}, false},
+		{"include matches first", "file.pdf", models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}, true},
+		{"include no match", "file.txt", models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}, false},
+		{"include multiple patterns first", "IMG_001.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, true},
+		{"include multiple patterns second", "DSC_100.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, true},
+		{"include no match multiple", "photo.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, false},
+		{
+			"regex match",
+			"report_2024.pdf",
+			models.CategoryFilter{Regex: "report", CompiledRegex: regexp.MustCompile("(?i)report")},
+			true,
+		},
+		{
+			"regex no match",
+			"invoice.pdf",
+			models.CategoryFilter{Regex: "^report", CompiledRegex: regexp.MustCompile("^report")},
+			false,
+		},
+		{
+			"glob filter match",
+			"report_2024.pdf",
+			models.CategoryFilter{Glob: "report_*.pdf"},
+			true,
+		},
+		{
+			"glob filter no match",
+			"invoice.pdf",
+			models.CategoryFilter{Glob: "report_*.pdf"},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, MatchesNameFilters(tt.fileName, tt.filter))
+		})
+	}
 }
 
 // --- ParseSize ---
@@ -179,77 +251,109 @@ func TestParseSize(t *testing.T) {
 	}
 }
 
-// --- Age/Size filters ---
+// --- MeetsMinAge / MeetsMaxAge ---
 
-func TestMeetsMinAge(t *testing.T) {
-	dir := t.TempDir()
-	path := createTempFile(t, dir, "old.txt")
+func TestMeetsAge(t *testing.T) {
+	tests := []struct {
+		name      string
+		fn        func(os.FileInfo, time.Duration) bool
+		fileAge   time.Duration // how old to backdate the file
+		threshold time.Duration
+		want      bool
+	}{
+		{"min: zero threshold always passes", MeetsMinAge, 10 * time.Minute, 0, true},
+		{"min: file older than threshold", MeetsMinAge, 10 * time.Minute, 5 * time.Minute, true},
+		{"min: file newer than threshold", MeetsMinAge, 10 * time.Minute, 20 * time.Minute, false},
+		{"max: zero threshold always passes", MeetsMaxAge, 10 * time.Minute, 0, true},
+		{"max: file within threshold", MeetsMaxAge, 10 * time.Minute, 20 * time.Minute, true},
+		{"max: file exceeds threshold", MeetsMaxAge, 10 * time.Minute, 5 * time.Minute, false},
+	}
 
-	// backdate by 10 minutes
-	old := time.Now().Add(-10 * time.Minute)
-	require.NoError(t, os.Chtimes(path, old, old))
-
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	assert.True(t, MeetsMinAge(info, 0))
-	assert.True(t, MeetsMinAge(info, 5*time.Minute))
-	assert.False(t, MeetsMinAge(info, 20*time.Minute))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := createTempFile(t, t.TempDir(), "file.txt")
+			ts := time.Now().Add(-tt.fileAge)
+			require.NoError(t, os.Chtimes(path, ts, ts))
+			info, err := os.Stat(path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, tt.fn(info, tt.threshold))
+		})
+	}
 }
 
-func TestMeetsMaxAge(t *testing.T) {
-	dir := t.TempDir()
-	path := createTempFile(t, dir, "recent.txt")
+// --- MeetsMinSize / MeetsMaxSize ---
 
-	old := time.Now().Add(-10 * time.Minute)
-	require.NoError(t, os.Chtimes(path, old, old))
+func TestMeetsSize(t *testing.T) {
+	tests := []struct {
+		name      string
+		fn        func(os.FileInfo, int64) bool
+		fileSize  int
+		threshold int64
+		want      bool
+	}{
+		{"min: zero threshold always passes", MeetsMinSize, 500, 0, true},
+		{"min: file bigger than threshold", MeetsMinSize, 500, 100, true},
+		{"min: file smaller than threshold", MeetsMinSize, 500, 1000, false},
+		{"max: zero threshold always passes", MeetsMaxSize, 500, 0, true},
+		{"max: file within threshold", MeetsMaxSize, 500, 1000, true},
+		{"max: file exceeds threshold", MeetsMaxSize, 500, 100, false},
+	}
 
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	assert.True(t, MeetsMaxAge(info, 0))
-	assert.True(t, MeetsMaxAge(info, 20*time.Minute))
-	assert.False(t, MeetsMaxAge(info, 5*time.Minute))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := createTempFile(t, t.TempDir(), "file.bin")
+			require.NoError(t, os.WriteFile(path, make([]byte, tt.fileSize), 0644))
+			info, err := os.Stat(path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, tt.fn(info, tt.threshold))
+		})
+	}
 }
 
-func TestMeetsMinSize(t *testing.T) {
-	dir := t.TempDir()
-	path := createTempFile(t, dir, "data.bin")
-	require.NoError(t, os.WriteFile(path, make([]byte, 500), 0644))
+// --- MeetsAgeSizeFilters ---
 
-	info, err := os.Stat(path)
-	require.NoError(t, err)
+func TestMeetsAgeSizeFilters(t *testing.T) {
+	tests := []struct {
+		name     string
+		fileAge  time.Duration // how old to backdate; zero = fresh
+		fileSize int
+		filter   models.CategoryFilter
+		want     bool
+	}{
+		{"no constraints passes", 0, 4, models.CategoryFilter{}, true},
+		{"min-age only: passes", 2 * time.Hour, 1, models.CategoryFilter{MinAge: 1 * time.Hour}, true},
+		{"min-age only: fails", 0, 1, models.CategoryFilter{MinAge: 1 * time.Hour}, false},
+		{"max-age only: passes", 0, 1, models.CategoryFilter{MaxAge: 1 * time.Hour}, true},
+		{"max-age only: fails", 2 * time.Hour, 1, models.CategoryFilter{MaxAge: 1 * time.Hour}, false},
+		{"min-size only: passes", 0, 2048, models.CategoryFilter{MinSizeBytes: 1024}, true},
+		{"min-size only: fails", 0, 4, models.CategoryFilter{MinSizeBytes: 1024}, false},
+		{"max-size only: passes", 0, 4, models.CategoryFilter{MaxSizeBytes: 1024}, true},
+		{"max-size only: fails", 0, 2048, models.CategoryFilter{MaxSizeBytes: 1024}, false},
+		{
+			"all constraints pass",
+			2 * time.Hour, 512,
+			models.CategoryFilter{MinAge: 1 * time.Hour, MaxAge: 24 * time.Hour, MinSizeBytes: 100, MaxSizeBytes: 1024},
+			true,
+		},
+		{
+			"all constraints: size fails",
+			2 * time.Hour, 2048,
+			models.CategoryFilter{MinAge: 1 * time.Hour, MaxAge: 24 * time.Hour, MinSizeBytes: 100, MaxSizeBytes: 1024},
+			false,
+		},
+	}
 
-	assert.True(t, MeetsMinSize(info, 0))
-	assert.True(t, MeetsMinSize(info, 100))
-	assert.False(t, MeetsMinSize(info, 1000))
-}
-
-func TestMeetsMaxSize(t *testing.T) {
-	dir := t.TempDir()
-	path := createTempFile(t, dir, "data.bin")
-	require.NoError(t, os.WriteFile(path, make([]byte, 500), 0644))
-
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-
-	assert.True(t, MeetsMaxSize(info, 0))
-	assert.True(t, MeetsMaxSize(info, 1000))
-	assert.False(t, MeetsMaxSize(info, 100))
-}
-
-func TestMeetsAgeSizeFilters_NoConstraints(t *testing.T) {
-	dir := t.TempDir()
-	path := createTempFile(t, dir, "file.txt")
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-	assert.True(t, MeetsAgeSizeFilters(info, models.CategoryFilter{}))
-}
-
-// createTempFile creates an empty file in dir and returns its path.
-func createTempFile(t *testing.T, dir, name string) string {
-	t.Helper()
-	path := filepath.Join(dir, name)
-	require.NoError(t, os.WriteFile(path, []byte("test"), 0644))
-	return path
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := createTempFile(t, t.TempDir(), "file.txt")
+			require.NoError(t, os.WriteFile(path, make([]byte, tt.fileSize), 0644))
+			if tt.fileAge > 0 {
+				ts := time.Now().Add(-tt.fileAge)
+				require.NoError(t, os.Chtimes(path, ts, ts))
+			}
+			info, err := os.Stat(path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, MeetsAgeSizeFilters(info, tt.filter))
+		})
+	}
 }

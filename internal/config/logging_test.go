@@ -22,8 +22,8 @@ func loadKoanfFromYAML(t *testing.T, content string) *koanf.Koanf {
 
 // --- parseLogLevel ---
 
-func TestParseLogLevel_AllLevels(t *testing.T) {
-	cases := []struct {
+func TestParseLogLevel(t *testing.T) {
+	tests := []struct {
 		input string
 		want  pterm.LogLevel
 	}{
@@ -38,30 +38,38 @@ func TestParseLogLevel_AllLevels(t *testing.T) {
 		{"unknown", pterm.LogLevelInfo},
 		{"INFO", pterm.LogLevelInfo}, // case sensitive — falls to default
 	}
-	for _, tc := range cases {
-		assert.Equal(t, tc.want, parseLogLevel(tc.input), "input=%q", tc.input)
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			assert.Equal(t, tt.want, parseLogLevel(tt.input))
+		})
 	}
 }
 
 // --- logWriterFactory ---
 
-func TestLogWriterFactory_KnownStrategies(t *testing.T) {
-	for _, output := range []string{"console", "file", "log", "both"} {
-		s := logWriterFactory(output)
-		assert.NotNil(t, s, "output=%q", output)
+func TestLogWriterFactory(t *testing.T) {
+	tests := []struct {
+		output      string
+		wantConsole bool // true = result must be a consoleStrategy
+	}{
+		{"console", false},
+		{"file", false},
+		{"log", false},
+		{"both", false},
+		{"unknown", true},
+		{"", true},
 	}
-}
 
-func TestLogWriterFactory_UnknownFallsToConsole(t *testing.T) {
-	s := logWriterFactory("unknown")
-	_, ok := s.(consoleStrategy)
-	assert.True(t, ok, "unknown output should fall back to consoleStrategy")
-}
-
-func TestLogWriterFactory_EmptyFallsToConsole(t *testing.T) {
-	s := logWriterFactory("")
-	_, ok := s.(consoleStrategy)
-	assert.True(t, ok)
+	for _, tt := range tests {
+		t.Run(tt.output, func(t *testing.T) {
+			s := logWriterFactory(tt.output)
+			assert.NotNil(t, s)
+			if tt.wantConsole {
+				_, ok := s.(consoleStrategy)
+				assert.True(t, ok, "expected consoleStrategy for output=%q", tt.output)
+			}
+		})
+	}
 }
 
 // --- consoleStrategy ---
@@ -74,92 +82,146 @@ func TestConsoleStrategy_WriterReturnsStdout(t *testing.T) {
 	assert.Nil(t, closer)
 }
 
-// --- fileStrategy / openLogFile ---
+// --- fileStrategy ---
 
-func TestFileStrategy_WriterCreatesFile(t *testing.T) {
-	logPath := filepath.Join(t.TempDir(), "logs", "app.log")
-	k := loadKoanfFromYAML(t, "configuration:\n  log-file: "+logPath+"\n")
+func TestFileStrategy(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string
+	}{
+		{
+			name: "creates log file",
+			yaml: func() string {
+				return "configuration:\n  log-file: " + filepath.Join(t.TempDir(), "logs", "app.log") + "\n"
+			}(),
+		},
+		{
+			name:    "error when log-file not set",
+			yaml:    "",
+			wantErr: "log-file is required",
+		},
+	}
 
-	w, closer, err := fileStrategy{}.Writer(k)
-	require.NoError(t, err)
-	assert.NotNil(t, w)
-	require.NotNil(t, closer)
-	assert.NoError(t, closer.Close())
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var k *koanf.Koanf
+			if tt.yaml == "" {
+				k = koanf.New(".")
+			} else {
+				k = loadKoanfFromYAML(t, tt.yaml)
+			}
 
-func TestFileStrategy_WriterErrorWhenNoLogFile(t *testing.T) {
-	k := koanf.New(".") // log-file is empty
-	_, _, err := fileStrategy{}.Writer(k)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "log-file is required")
+			w, closer, err := fileStrategy{}.Writer(k)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.NotNil(t, w)
+			require.NotNil(t, closer)
+			assert.NoError(t, closer.Close())
+		})
+	}
 }
 
 // --- multiStrategy ---
 
-func TestMultiStrategy_WriterCreatesFileAndMultiWriter(t *testing.T) {
-	logPath := filepath.Join(t.TempDir(), "app.log")
-	k := loadKoanfFromYAML(t, "configuration:\n  log-file: "+logPath+"\n")
+func TestMultiStrategy(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr bool
+	}{
+		{
+			name: "creates file and multi-writer",
+			yaml: func() string {
+				return "configuration:\n  log-file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
+			}(),
+		},
+		{
+			name:    "error when log-file not set",
+			yaml:    "",
+			wantErr: true,
+		},
+	}
 
-	w, closer, err := multiStrategy{}.Writer(k)
-	require.NoError(t, err)
-	assert.NotNil(t, w)
-	require.NotNil(t, closer)
-	assert.NoError(t, closer.Close())
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var k *koanf.Koanf
+			if tt.yaml == "" {
+				k = koanf.New(".")
+			} else {
+				k = loadKoanfFromYAML(t, tt.yaml)
+			}
 
-func TestMultiStrategy_WriterErrorWhenNoLogFile(t *testing.T) {
-	k := koanf.New(".")
-	_, _, err := multiStrategy{}.Writer(k)
-	assert.Error(t, err)
+			w, closer, err := multiStrategy{}.Writer(k)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.NotNil(t, w)
+			require.NotNil(t, closer)
+			assert.NoError(t, closer.Close())
+		})
+	}
 }
 
 // --- ConfigureLogger ---
 
-func TestConfigureLogger_ConsoleOutput(t *testing.T) {
-	k := loadKoanfFromYAML(t, `
-configuration:
-  output: console
-  log-level: debug
-`)
-	logger, closer, err := ConfigureLogger(k)
-	require.NoError(t, err)
-	assert.NotNil(t, logger)
-	assert.Nil(t, closer)
-}
+func TestConfigureLogger(t *testing.T) {
+	tests := []struct {
+		name       string
+		yaml       func() string
+		wantCloser bool
+		wantCaller bool
+	}{
+		{
+			name: "console output",
+			yaml: func() string { return "configuration:\n  output: console\n  log-level: debug\n" },
+		},
+		{
+			name: "file output creates closer",
+			yaml: func() string {
+				return "configuration:\n  output: file\n  log-file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
+			},
+			wantCloser: true,
+		},
+		{
+			name: "both output creates closer",
+			yaml: func() string {
+				return "configuration:\n  output: both\n  log-file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
+			},
+			wantCloser: true,
+		},
+		{
+			name: "unknown output defaults to console",
+			yaml: func() string { return "configuration:\n  output: syslog\n" },
+		},
+		{
+			name:       "show-caller enabled",
+			yaml:       func() string { return "configuration:\n  output: console\n  show-caller: true\n" },
+			wantCaller: true,
+		},
+	}
 
-func TestConfigureLogger_FileOutput(t *testing.T) {
-	logPath := filepath.Join(t.TempDir(), "app.log")
-	k := loadKoanfFromYAML(t, "configuration:\n  output: file\n  log-file: "+logPath+"\n")
-
-	logger, closer, err := ConfigureLogger(k)
-	require.NoError(t, err)
-	assert.NotNil(t, logger)
-	require.NotNil(t, closer)
-	assert.NoError(t, closer.Close())
-}
-
-func TestConfigureLogger_BothOutput(t *testing.T) {
-	logPath := filepath.Join(t.TempDir(), "app.log")
-	k := loadKoanfFromYAML(t, "configuration:\n  output: both\n  log-file: "+logPath+"\n")
-
-	logger, closer, err := ConfigureLogger(k)
-	require.NoError(t, err)
-	assert.NotNil(t, logger)
-	require.NotNil(t, closer)
-	assert.NoError(t, closer.Close())
-}
-
-func TestConfigureLogger_UnknownOutputDefaultsToConsole(t *testing.T) {
-	k := loadKoanfFromYAML(t, "configuration:\n  output: syslog\n")
-	logger, closer, err := ConfigureLogger(k)
-	require.NoError(t, err)
-	assert.NotNil(t, logger)
-	assert.Nil(t, closer)
-}
-
-func TestConfigureLogger_ShowCallerEnabled(t *testing.T) {
-	k := loadKoanfFromYAML(t, "configuration:\n  output: console\n  show-caller: true\n")
-	logger, _, err := ConfigureLogger(k)
-	require.NoError(t, err)
-	assert.True(t, logger.ShowCaller)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k := loadKoanfFromYAML(t, tt.yaml())
+			logger, closer, err := ConfigureLogger(k)
+			require.NoError(t, err)
+			assert.NotNil(t, logger)
+			if tt.wantCloser {
+				require.NotNil(t, closer)
+				assert.NoError(t, closer.Close())
+			} else {
+				assert.Nil(t, closer)
+			}
+			if tt.wantCaller {
+				assert.True(t, logger.ShowCaller)
+			}
+		})
+	}
 }

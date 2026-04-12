@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/pterm/pterm"
@@ -25,182 +26,425 @@ func newTestMoveContext() MoveContext {
 
 // --- CreateDirectory ---
 
-func TestCreateDirectory_CreatesNew(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "sub", "dir")
-	require.NoError(t, CreateDirectory(dir))
-	info, err := os.Stat(dir)
-	require.NoError(t, err)
-	assert.True(t, info.IsDir())
-}
+func TestCreateDirectory(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    func(base string) string
+		wantErr bool
+	}{
+		{"creates nested dir", func(base string) string { return filepath.Join(base, "sub", "dir") }, false},
+		{"idempotent on existing", func(base string) string { return base }, false},
+	}
 
-func TestCreateDirectory_Idempotent(t *testing.T) {
-	dir := t.TempDir()
-	assert.NoError(t, CreateDirectory(dir))
-	assert.NoError(t, CreateDirectory(dir))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := tt.path(t.TempDir())
+			err := CreateDirectory(dir)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			info, err := os.Stat(dir)
+			require.NoError(t, err)
+			assert.True(t, info.IsDir())
+		})
+	}
 }
 
 // --- ReadDirectory ---
 
-func TestReadDirectory_ReturnsEntries(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0644))
+func TestReadDirectory(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func(t *testing.T, dir string)
+		wantLen     int
+		wantErr     bool
+		nonExistent bool
+	}{
+		{
+			name: "returns entries",
+			setup: func(t *testing.T, dir string) {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0644))
+			},
+			wantLen: 2,
+		},
+		{
+			name:        "non-existent returns error",
+			nonExistent: true,
+			wantErr:     true,
+		},
+	}
 
-	entries, err := ReadDirectory(dir)
-	require.NoError(t, err)
-	assert.Len(t, entries, 2)
-}
-
-func TestReadDirectory_NonExistentReturnsError(t *testing.T) {
-	_, err := ReadDirectory(filepath.Join(t.TempDir(), "nonexistent"))
-	assert.Error(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tt.nonExistent {
+				dir = filepath.Join(dir, "nonexistent")
+			} else if tt.setup != nil {
+				tt.setup(t, dir)
+			}
+			entries, err := ReadDirectory(dir)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Len(t, entries, tt.wantLen)
+		})
+	}
 }
 
 // --- copyFile ---
 
-func TestCopyFile_CopiesContent(t *testing.T) {
-	dir := t.TempDir()
-	src := filepath.Join(dir, "src.txt")
-	dst := filepath.Join(dir, "dst.txt")
-	content := []byte("hello world")
-	require.NoError(t, os.WriteFile(src, content, 0644))
+func TestCopyFile(t *testing.T) {
+	tests := []struct {
+		name    string
+		content []byte
+		check   func(t *testing.T, src, dst string)
+	}{
+		{
+			name:    "copies content",
+			content: []byte("hello world"),
+			check: func(t *testing.T, _, dst string) {
+				got, err := os.ReadFile(dst)
+				require.NoError(t, err)
+				assert.Equal(t, []byte("hello world"), got)
+			},
+		},
+		{
+			name:    "preserves mod time",
+			content: []byte("data"),
+			check: func(t *testing.T, src, dst string) {
+				srcInfo, err := os.Stat(src)
+				require.NoError(t, err)
+				dstInfo, err := os.Stat(dst)
+				require.NoError(t, err)
+				assert.Equal(t, srcInfo.ModTime().Unix(), dstInfo.ModTime().Unix())
+			},
+		},
+	}
 
-	require.NoError(t, copyFile(src, dst))
-
-	got, err := os.ReadFile(dst)
-	require.NoError(t, err)
-	assert.Equal(t, content, got)
-}
-
-func TestCopyFile_PreservesModTime(t *testing.T) {
-	dir := t.TempDir()
-	src := filepath.Join(dir, "src.txt")
-	dst := filepath.Join(dir, "dst.txt")
-	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
-
-	srcInfo, err := os.Stat(src)
-	require.NoError(t, err)
-
-	require.NoError(t, copyFile(src, dst))
-
-	dstInfo, err := os.Stat(dst)
-	require.NoError(t, err)
-	assert.Equal(t, srcInfo.ModTime().Unix(), dstInfo.ModTime().Unix())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			src := filepath.Join(dir, "src.txt")
+			dst := filepath.Join(dir, "dst.txt")
+			require.NoError(t, os.WriteFile(src, tt.content, 0644))
+			require.NoError(t, copyFile(src, dst))
+			tt.check(t, src, dst)
+		})
+	}
 }
 
 // --- MoveFiles ---
 
-func TestMoveFiles_MovesMatchingExtension(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-
-	require.NoError(t, os.WriteFile(filepath.Join(src, "doc.pdf"), []byte("pdf"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(src, "img.jpg"), []byte("jpg"), 0644))
-
-	entries, err := os.ReadDir(src)
-	require.NoError(t, err)
-
+func TestMoveFiles(t *testing.T) {
 	enabled := true
-	category := &models.Category{
-		Name:    "PDFs",
-		Enabled: &enabled,
-		Source:  models.CategorySource{Path: src, Extensions: []string{"pdf"}},
-		Destination: models.CategoryDestination{
-			Path:             dst,
-			ConflictStrategy: "rename",
+
+	tests := []struct {
+		name      string
+		setup     func(t *testing.T, src, dst string)
+		category  func(src, dst string) *models.Category
+		ext       string
+		batchID   string
+		wantMoved []string
+		check     func(t *testing.T, src, dst string)
+	}{
+		{
+			name: "moves matching extension",
+			setup: func(t *testing.T, src, dst string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "doc.pdf"), []byte("pdf"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(src, "img.jpg"), []byte("jpg"), 0644))
+			},
+			category: func(src, dst string) *models.Category {
+				return &models.Category{
+					Name: "PDFs", Enabled: &enabled,
+					Source:      models.CategorySource{Path: src, Extensions: []string{"pdf"}},
+					Destination: models.CategoryDestination{Path: dst, ConflictStrategy: "rename"},
+				}
+			},
+			ext: "pdf", batchID: "batch_test",
+			wantMoved: []string{"doc.pdf"},
+			check: func(t *testing.T, src, dst string) {
+				assert.FileExists(t, filepath.Join(dst, "doc.pdf"))
+				assert.NoFileExists(t, filepath.Join(src, "doc.pdf"))
+				assert.FileExists(t, filepath.Join(src, "img.jpg"))
+			},
+		},
+		{
+			name: "skip strategy leaves src",
+			setup: func(t *testing.T, src, dst string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("existing"), 0644))
+			},
+			category: func(src, dst string) *models.Category {
+				return &models.Category{
+					Name: "Texts", Enabled: &enabled,
+					Source:      models.CategorySource{Path: src, Extensions: []string{"txt"}},
+					Destination: models.CategoryDestination{Path: dst, ConflictStrategy: "skip"},
+				}
+			},
+			ext: "txt", batchID: "batch_skip",
+			wantMoved: nil,
+			check: func(t *testing.T, src, dst string) {
+				assert.FileExists(t, filepath.Join(src, "file.txt"))
+			},
+		},
+		{
+			name: "organize-by places in subdir",
+			setup: func(t *testing.T, src, dst string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("img"), 0644))
+			},
+			category: func(src, dst string) *models.Category {
+				return &models.Category{
+					Name: "Photos", Enabled: &enabled,
+					Source:      models.CategorySource{Path: src, Extensions: []string{"jpg"}},
+					Destination: models.CategoryDestination{Path: dst, OrganizeBy: "{ext}", ConflictStrategy: "rename"},
+				}
+			},
+			ext: "jpg", batchID: "batch_org",
+			wantMoved: []string{"photo.jpg"},
+			check: func(t *testing.T, src, dst string) {
+				assert.FileExists(t, filepath.Join(dst, "jpg", "photo.jpg"))
+			},
+		},
+		{
+			name: "ext all moves every file",
+			setup: func(t *testing.T, src, dst string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "a.txt"), []byte("a"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(src, "b.pdf"), []byte("b"), 0644))
+			},
+			category: func(src, dst string) *models.Category {
+				return &models.Category{
+					Name: "All", Enabled: &enabled,
+					Source:      models.CategorySource{Path: src},
+					Destination: models.CategoryDestination{Path: dst, ConflictStrategy: "rename"},
+				}
+			},
+			ext: "all", batchID: "batch_all",
+			check: func(t *testing.T, src, dst string) {
+				assert.Len(t, func() []string {
+					entries, _ := filepath.Glob(filepath.Join(dst, "*"))
+					return entries
+				}(), 2)
+			},
+		},
+		{
+			name: "empty strategy defaults to rename",
+			setup: func(t *testing.T, src, dst string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("existing"), 0644))
+			},
+			category: func(src, dst string) *models.Category {
+				return &models.Category{
+					Name: "Texts", Enabled: &enabled,
+					Source:      models.CategorySource{Path: src, Extensions: []string{"txt"}},
+					Destination: models.CategoryDestination{Path: dst, ConflictStrategy: ""},
+				}
+			},
+			ext: "txt", batchID: "batch_default",
+			check: func(t *testing.T, src, dst string) {
+				assert.FileExists(t, filepath.Join(dst, "file(1).txt"))
+			},
 		},
 	}
 
-	ctx := newTestMoveContext()
-	moved := MoveFiles(ctx, category, entries, "pdf", "batch_test")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := t.TempDir()
+			dst := t.TempDir()
+			tt.setup(t, src, dst)
 
-	assert.Equal(t, []string{"doc.pdf"}, moved)
-	assert.FileExists(t, filepath.Join(dst, "doc.pdf"))
-	assert.NoFileExists(t, filepath.Join(src, "doc.pdf"))
-	// jpg should stay untouched
-	assert.FileExists(t, filepath.Join(src, "img.jpg"))
+			entries, err := os.ReadDir(src)
+			require.NoError(t, err)
+
+			cat := tt.category(src, dst)
+			moved := MoveFiles(newTestMoveContext(), cat, entries, tt.ext, tt.batchID)
+
+			if tt.wantMoved != nil {
+				assert.Equal(t, tt.wantMoved, moved)
+			}
+			if tt.check != nil {
+				tt.check(t, src, dst)
+			}
+		})
+	}
 }
 
-func TestMoveFiles_SkipsOnConflictSkipStrategy(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
+// --- applyConflictStrategy ---
 
-	require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("existing"), 0644))
-
-	entries, err := os.ReadDir(src)
-	require.NoError(t, err)
-
-	enabled := true
-	category := &models.Category{
-		Name:    "Texts",
-		Enabled: &enabled,
-		Source:  models.CategorySource{Path: src, Extensions: []string{"txt"}},
-		Destination: models.CategoryDestination{
-			Path:             dst,
-			ConflictStrategy: "skip",
+func TestApplyConflictStrategy(t *testing.T) {
+	tests := []struct {
+		name       string
+		strategy   string
+		setup      func(t *testing.T, srcFile, dstFile string)
+		wantSkip   bool
+		wantEqDst  bool   // resolved == dstFile
+		wantSuffix string // substring in resolved path
+	}{
+		{
+			name:      "no conflict returns dst as-is",
+			strategy:  "rename",
+			setup:     func(t *testing.T, srcFile, dstFile string) { writeFile(t, srcFile, []byte("data")) },
+			wantEqDst: true,
+		},
+		{
+			name:     "skip strategy skips",
+			strategy: "skip",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("new"))
+				writeFile(t, dstFile, []byte("existing"))
+			},
+			wantSkip: true,
+		},
+		{
+			name:     "rename strategy renames",
+			strategy: "rename",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("new"))
+				writeFile(t, dstFile, []byte("existing"))
+			},
+			wantSuffix: "(1)",
+		},
+		{
+			name:     "overwrite strategy returns dst",
+			strategy: "overwrite",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("new"))
+				writeFile(t, dstFile, []byte("existing"))
+			},
+			wantEqDst: true,
+		},
+		{
+			name:     "hash_check duplicate skips and removes src",
+			strategy: "hash_check",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("identical content"))
+				writeFile(t, dstFile, []byte("identical content"))
+			},
+			wantSkip: true,
+		},
+		{
+			name:     "newest/src newer moves to dst",
+			strategy: "newest",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("new"))
+				writeFile(t, dstFile, []byte("old"))
+				require.NoError(t, os.Chtimes(dstFile, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
+			},
+			wantEqDst: true,
+		},
+		{
+			name:     "oldest/src older moves to dst",
+			strategy: "oldest",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("old"))
+				writeFile(t, dstFile, []byte("new"))
+				require.NoError(t, os.Chtimes(srcFile, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
+			},
+			wantEqDst: true,
+		},
+		{
+			name:     "larger/src larger moves to dst",
+			strategy: "larger",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("larger content here"))
+				writeFile(t, dstFile, []byte("small"))
+			},
+			wantEqDst: true,
+		},
+		{
+			name:     "smaller/src smaller moves to dst",
+			strategy: "smaller",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("tiny"))
+				writeFile(t, dstFile, []byte("much larger content here"))
+			},
+			wantEqDst: true,
+		},
+		{
+			name:     "unknown strategy falls to rename",
+			strategy: "does_not_exist",
+			setup: func(t *testing.T, srcFile, dstFile string) {
+				writeFile(t, srcFile, []byte("x"))
+				writeFile(t, dstFile, []byte("y"))
+			},
+			wantSuffix: "(1)",
 		},
 	}
 
-	ctx := newTestMoveContext()
-	moved := MoveFiles(ctx, category, entries, "txt", "batch_skip")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := t.TempDir()
+			dst := t.TempDir()
+			srcFile := filepath.Join(src, "file.txt")
+			dstFile := filepath.Join(dst, "file.txt")
+			tt.setup(t, srcFile, dstFile)
 
-	assert.Empty(t, moved)
-	// Source should still be there (skipped)
-	assert.FileExists(t, filepath.Join(src, "file.txt"))
+			resolved, skip := applyConflictStrategy(newTestMoveContext(), tt.strategy, srcFile, dstFile, dst, "file.txt")
+			assert.Equal(t, tt.wantSkip, skip)
+			if !tt.wantSkip {
+				switch {
+				case tt.wantEqDst:
+					assert.Equal(t, dstFile, resolved)
+				case tt.wantSuffix != "":
+					assert.Contains(t, resolved, tt.wantSuffix)
+				}
+			}
+		})
+	}
 }
 
-func TestMoveFiles_WithOrganizeBy(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
+// --- isCrossDeviceError ---
 
-	require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("img"), 0644))
-
-	entries, err := os.ReadDir(src)
-	require.NoError(t, err)
-
-	enabled := true
-	category := &models.Category{
-		Name:    "Photos",
-		Enabled: &enabled,
-		Source:  models.CategorySource{Path: src, Extensions: []string{"jpg"}},
-		Destination: models.CategoryDestination{
-			Path:             dst,
-			OrganizeBy:       "{ext}",
-			ConflictStrategy: "rename",
-		},
+func TestIsCrossDeviceError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil", nil, false},
+		{"non-link error", os.ErrPermission, false},
+		{"link error with permission", &os.LinkError{Op: "rename", Old: "a", New: "b", Err: os.ErrPermission}, false},
 	}
 
-	ctx := newTestMoveContext()
-	moved := MoveFiles(ctx, category, entries, "jpg", "batch_org")
-
-	assert.Equal(t, []string{"photo.jpg"}, moved)
-	assert.FileExists(t, filepath.Join(dst, "jpg", "photo.jpg"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isCrossDeviceError(tt.err))
+		})
+	}
 }
 
-func TestMoveFiles_ExtAllMovesAll(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
+// --- GenerateLogArgs ---
 
-	require.NoError(t, os.WriteFile(filepath.Join(src, "a.txt"), []byte("a"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(src, "b.pdf"), []byte("b"), 0644))
-
-	entries, err := os.ReadDir(src)
-	require.NoError(t, err)
-
-	enabled := true
-	category := &models.Category{
-		Name:    "All",
-		Enabled: &enabled,
-		Source:  models.CategorySource{Path: src},
-		Destination: models.CategoryDestination{
-			Path:             dst,
-			ConflictStrategy: "rename",
-		},
+func TestGenerateLogArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		files   []string
+		ext     string
+		wantLen int
+	}{
+		{"matches by extension", []string{"a.pdf", "b.pdf", "c.txt"}, "pdf", 4},
+		{"no match returns empty", []string{"file.txt"}, "pdf", 0},
+		{"all extension matches everything", []string{"a.pdf", "b.txt"}, "all", 4},
 	}
 
-	ctx := newTestMoveContext()
-	moved := MoveFiles(ctx, category, entries, "all", "batch_all")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, f := range tt.files {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0644))
+			}
+			entries, err := os.ReadDir(dir)
+			require.NoError(t, err)
 
-	assert.Len(t, moved, 2)
+			args := GenerateLogArgs(entries, tt.ext)
+			assert.Len(t, args, tt.wantLen)
+			for i := 0; i < len(args)-1; i += 2 {
+				assert.Equal(t, "name", args[i])
+			}
+		})
+	}
 }

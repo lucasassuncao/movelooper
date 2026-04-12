@@ -43,55 +43,112 @@ func buildCategory(name, src, dst string, extensions []string) *models.Category 
 
 // --- Integration: full move run ---
 
-func TestRunMove_MovesFilesByExtension(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
+func TestRunMove(t *testing.T) {
+	tests := []struct {
+		name   string
+		setup  func(t *testing.T, src string, extraDst ...*string)
+		cats   func(t *testing.T, src string, extraDst ...*string) []*models.Category
+		dryRun bool
+		check  func(t *testing.T, src string, extraDst ...*string)
+	}{
+		{
+			name: "moves files by extension",
+			setup: func(t *testing.T, src string, d ...*string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "report.pdf"), []byte("pdf"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(src, "notes.txt"), []byte("txt"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("jpg"), 0644))
+			},
+			cats: func(t *testing.T, src string, d ...*string) []*models.Category {
+				return []*models.Category{buildCategory("PDFs", src, *d[0], []string{"pdf"})}
+			},
+			check: func(t *testing.T, src string, d ...*string) {
+				assert.FileExists(t, filepath.Join(*d[0], "report.pdf"))
+				assert.NoFileExists(t, filepath.Join(src, "report.pdf"))
+				assert.FileExists(t, filepath.Join(src, "notes.txt"))
+				assert.FileExists(t, filepath.Join(src, "photo.jpg"))
+			},
+		},
+		{
+			name: "dry-run does not move",
+			setup: func(t *testing.T, src string, d ...*string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "doc.pdf"), []byte("pdf"), 0644))
+			},
+			cats: func(t *testing.T, src string, d ...*string) []*models.Category {
+				return []*models.Category{buildCategory("PDFs", src, *d[0], []string{"pdf"})}
+			},
+			dryRun: true,
+			check: func(t *testing.T, src string, d ...*string) {
+				assert.FileExists(t, filepath.Join(src, "doc.pdf"))
+				assert.NoFileExists(t, filepath.Join(*d[0], "doc.pdf"))
+			},
+		},
+		{
+			name: "disabled category skipped",
+			setup: func(t *testing.T, src string, d ...*string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "doc.pdf"), []byte("pdf"), 0644))
+			},
+			cats: func(t *testing.T, src string, d ...*string) []*models.Category {
+				cat := buildCategory("PDFs", src, *d[0], []string{"pdf"})
+				cat.Enabled = boolPtr(false)
+				return []*models.Category{cat}
+			},
+			check: func(t *testing.T, src string, d ...*string) {
+				assert.FileExists(t, filepath.Join(src, "doc.pdf"))
+			},
+		},
+		{
+			name: "conflict rename",
+			setup: func(t *testing.T, src string, d ...*string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(*d[0], "file.txt"), []byte("existing"), 0644))
+			},
+			cats: func(t *testing.T, src string, d ...*string) []*models.Category {
+				return []*models.Category{buildCategory("Texts", src, *d[0], []string{"txt"})}
+			},
+			check: func(t *testing.T, src string, d ...*string) {
+				assert.FileExists(t, filepath.Join(*d[0], "file.txt"))
+				assert.FileExists(t, filepath.Join(*d[0], "file(1).txt"))
+			},
+		},
+		{
+			name: "organize by ext template",
+			setup: func(t *testing.T, src string, d ...*string) {
+				require.NoError(t, os.WriteFile(filepath.Join(src, "image.jpg"), []byte("img"), 0644))
+			},
+			cats: func(t *testing.T, src string, d ...*string) []*models.Category {
+				return []*models.Category{{
+					Name:    "Images",
+					Enabled: boolPtr(true),
+					Source:  models.CategorySource{Path: src, Extensions: []string{"jpg"}},
+					Destination: models.CategoryDestination{
+						Path:             *d[0],
+						OrganizeBy:       "{ext}",
+						ConflictStrategy: "rename",
+					},
+				}}
+			},
+			check: func(t *testing.T, src string, d ...*string) {
+				assert.FileExists(t, filepath.Join(*d[0], "jpg", "image.jpg"))
+			},
+		},
+	}
 
-	require.NoError(t, os.WriteFile(filepath.Join(src, "report.pdf"), []byte("pdf"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(src, "notes.txt"), []byte("txt"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("jpg"), 0644))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := t.TempDir()
+			dst := t.TempDir()
+			dstRef := &dst
 
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
+			tt.setup(t, src, dstRef)
+			cats := tt.cats(t, src, dstRef)
+			m := newSilentMovelooper(cats)
 
-	require.NoError(t, runMove(m, false, false))
-
-	assert.FileExists(t, filepath.Join(dst, "report.pdf"))
-	assert.NoFileExists(t, filepath.Join(src, "report.pdf"))
-	// Non-matching files stay in source
-	assert.FileExists(t, filepath.Join(src, "notes.txt"))
-	assert.FileExists(t, filepath.Join(src, "photo.jpg"))
-}
-
-func TestRunMove_DryRunDoesNotMove(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-
-	require.NoError(t, os.WriteFile(filepath.Join(src, "doc.pdf"), []byte("pdf"), 0644))
-
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	m := newSilentMovelooper([]*models.Category{cat})
-
-	require.NoError(t, runMove(m, true, false))
-
-	// File must remain in source on dry-run
-	assert.FileExists(t, filepath.Join(src, "doc.pdf"))
-	assert.NoFileExists(t, filepath.Join(dst, "doc.pdf"))
-}
-
-func TestRunMove_DisabledCategorySkipped(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-
-	require.NoError(t, os.WriteFile(filepath.Join(src, "doc.pdf"), []byte("pdf"), 0644))
-
-	cat := buildCategory("PDFs", src, dst, []string{"pdf"})
-	cat.Enabled = boolPtr(false)
-	m := newSilentMovelooper([]*models.Category{cat})
-
-	require.NoError(t, runMove(m, false, false))
-
-	assert.FileExists(t, filepath.Join(src, "doc.pdf"))
+			require.NoError(t, runMove(m, tt.dryRun, false))
+			if tt.check != nil {
+				tt.check(t, src, dstRef)
+			}
+		})
+	}
 }
 
 func TestRunMove_MultipleCategories(t *testing.T) {
@@ -121,7 +178,6 @@ func TestRunMove_FileClaimedByFirstCategory(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("text"), 0644))
 
-	// Both categories claim "all" — first one wins
 	cats := []*models.Category{
 		buildCategory("First", src, dst1, []string{"all"}),
 		buildCategory("Second", src, dst2, []string{"all"}),
@@ -130,83 +186,57 @@ func TestRunMove_FileClaimedByFirstCategory(t *testing.T) {
 
 	require.NoError(t, runMove(m, false, false))
 
-	// File must land in exactly one destination
 	inDst1 := fileExists(filepath.Join(dst1, "file.txt"))
 	inDst2 := fileExists(filepath.Join(dst2, "file.txt"))
 	assert.True(t, inDst1 || inDst2, "file must be in one of the destinations")
 	assert.False(t, inDst1 && inDst2, "file must not be in both destinations")
 }
 
-func TestRunMove_WithOrganizeByTemplate(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-
-	require.NoError(t, os.WriteFile(filepath.Join(src, "image.jpg"), []byte("img"), 0644))
-
-	cat := &models.Category{
-		Name:    "Images",
-		Enabled: boolPtr(true),
-		Source:  models.CategorySource{Path: src, Extensions: []string{"jpg"}},
-		Destination: models.CategoryDestination{
-			Path:             dst,
-			OrganizeBy:       "{ext}",
-			ConflictStrategy: "rename",
-		},
-	}
-	m := newSilentMovelooper([]*models.Category{cat})
-
-	require.NoError(t, runMove(m, false, false))
-
-	assert.FileExists(t, filepath.Join(dst, "jpg", "image.jpg"))
-}
-
-func TestRunMove_ConflictRename(t *testing.T) {
-	src := t.TempDir()
-	dst := t.TempDir()
-
-	require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("existing"), 0644))
-
-	cat := buildCategory("Texts", src, dst, []string{"txt"})
-	m := newSilentMovelooper([]*models.Category{cat})
-
-	require.NoError(t, runMove(m, false, false))
-
-	assert.FileExists(t, filepath.Join(dst, "file.txt"))
-	assert.FileExists(t, filepath.Join(dst, "file(1).txt"))
-}
-
 // --- filterFilesForExtension ---
 
-func TestFilterFilesForExtension_FiltersCorrectly(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.pdf"), []byte("x"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("x"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "c.pdf"), []byte("x"), 0644))
+func TestFilterFilesForExtension(t *testing.T) {
+	tests := []struct {
+		name      string
+		files     []string
+		ext       string
+		preMarked []string // files to mark as already moved
+		wantLen   int
+	}{
+		{
+			name:    "filters correctly by extension",
+			files:   []string{"a.pdf", "b.txt", "c.pdf"},
+			ext:     "pdf",
+			wantLen: 2,
+		},
+		{
+			name:      "skips already moved files",
+			files:     []string{"a.pdf"},
+			ext:       "pdf",
+			preMarked: []string{"a.pdf"},
+			wantLen:   0,
+		},
+	}
 
-	entries, err := os.ReadDir(dir)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, f := range tt.files {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0644))
+			}
 
-	cat := buildCategory("PDFs", dir, dir, []string{"pdf"})
-	moved := make(movedSet)
+			entries, err := os.ReadDir(dir)
+			require.NoError(t, err)
 
-	filtered := filterFilesForExtension(cat, entries, moved, "pdf")
-	assert.Len(t, filtered, 2)
-}
+			cat := buildCategory("PDFs", dir, dir, []string{tt.ext})
+			moved := make(movedSet)
+			for _, f := range tt.preMarked {
+				moved.mark(dir, f)
+			}
 
-func TestFilterFilesForExtension_SkipsAlreadyMoved(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.pdf"), []byte("x"), 0644))
-
-	entries, err := os.ReadDir(dir)
-	require.NoError(t, err)
-
-	cat := buildCategory("PDFs", dir, dir, []string{"pdf"})
-	moved := make(movedSet)
-	moved.mark(dir, "a.pdf")
-
-	filtered := filterFilesForExtension(cat, entries, moved, "pdf")
-	assert.Empty(t, filtered)
+			filtered := filterFilesForExtension(cat, entries, moved, tt.ext)
+			assert.Len(t, filtered, tt.wantLen)
+		})
+	}
 }
 
 // --- formatBytes ---
@@ -224,7 +254,9 @@ func TestFormatBytes(t *testing.T) {
 		{1024 * 1024 * 1024, "1.00 GB"},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.want, formatBytes(tt.input), "input=%d", tt.input)
+		t.Run(tt.want, func(t *testing.T) {
+			assert.Equal(t, tt.want, formatBytes(tt.input))
+		})
 	}
 }
 

@@ -20,136 +20,106 @@ func countCategories(t *testing.T, data []byte) int {
 	return len(doc.Categories)
 }
 
-func TestResolveImports_NoImport(t *testing.T) {
-	dir := t.TempDir()
-	path := writeYAML(t, dir, "main.yaml", `
+func TestResolveImports(t *testing.T) {
+	tests := []struct {
+		name       string
+		setup      func(t *testing.T, dir string) string // returns path to main yaml
+		wantErr    string                                // expected substring in error message
+		wantAnyErr bool                                  // true when any error is expected (without message check)
+		check      func(t *testing.T, data []byte)
+	}{
+		{
+			name: "no import",
+			setup: func(t *testing.T, dir string) string {
+				return writeYAML(t, dir, "main.yaml", `
 categories:
   - name: docs
-    source:
-      path: /tmp/src
-      extensions: [pdf]
-    destination:
-      path: /tmp/dst
+    source: {path: /tmp/src, extensions: [pdf]}
+    destination: {path: /tmp/dst}
 `)
-	data, err := ResolveImports(path)
-	require.NoError(t, err)
-	assert.Equal(t, 1, countCategories(t, data))
-}
-
-func TestResolveImports_EmptyFile(t *testing.T) {
-	dir := t.TempDir()
-	path := writeYAML(t, dir, "empty.yaml", "")
-	data, err := ResolveImports(path)
-	require.NoError(t, err)
-	// Empty file: no categories key expected
-	assert.Empty(t, data)
-}
-
-func TestResolveImports_WithSingleImport(t *testing.T) {
-	dir := t.TempDir()
-
-	writeYAML(t, dir, "extra.yaml", `
+			},
+			check: func(t *testing.T, data []byte) {
+				assert.Equal(t, 1, countCategories(t, data))
+			},
+		},
+		{
+			name: "empty file",
+			setup: func(t *testing.T, dir string) string {
+				return writeYAML(t, dir, "empty.yaml", "")
+			},
+			check: func(t *testing.T, data []byte) {
+				assert.Empty(t, data)
+			},
+		},
+		{
+			name: "single import merges categories",
+			setup: func(t *testing.T, dir string) string {
+				writeYAML(t, dir, "extra.yaml", `
 categories:
   - name: images
-    source:
-      path: /tmp/img
-      extensions: [jpg]
-    destination:
-      path: /tmp/dst
+    source: {path: /tmp/img, extensions: [jpg]}
+    destination: {path: /tmp/dst}
 `)
-
-	path := writeYAML(t, dir, "main.yaml", `
+				return writeYAML(t, dir, "main.yaml", `
 import:
   - extra.yaml
 categories:
   - name: docs
-    source:
-      path: /tmp/src
-      extensions: [pdf]
-    destination:
-      path: /tmp/dst
+    source: {path: /tmp/src, extensions: [pdf]}
+    destination: {path: /tmp/dst}
 `)
-
-	data, err := ResolveImports(path)
-	require.NoError(t, err)
-	// Should have docs (from main) + images (from extra)
-	assert.Equal(t, 2, countCategories(t, data))
-	// import key should be stripped
-	assert.NotContains(t, string(data), "import:")
-}
-
-func TestResolveImports_ImportWithNoCategoriesInMain(t *testing.T) {
-	dir := t.TempDir()
-
-	writeYAML(t, dir, "extra.yaml", `
+			},
+			check: func(t *testing.T, data []byte) {
+				assert.Equal(t, 2, countCategories(t, data))
+				assert.NotContains(t, string(data), "import:")
+			},
+		},
+		{
+			name: "import with no categories in main",
+			setup: func(t *testing.T, dir string) string {
+				writeYAML(t, dir, "extra.yaml", `
 categories:
   - name: images
-    source:
-      path: /tmp/img
-      extensions: [jpg]
-    destination:
-      path: /tmp/dst
+    source: {path: /tmp/img, extensions: [jpg]}
+    destination: {path: /tmp/dst}
 `)
-
-	path := writeYAML(t, dir, "main.yaml", `
-import:
-  - extra.yaml
-`)
-
-	data, err := ResolveImports(path)
-	require.NoError(t, err)
-	assert.Equal(t, 1, countCategories(t, data))
-}
-
-func TestResolveImports_CircularImport(t *testing.T) {
-	dir := t.TempDir()
-
-	// a.yaml imports b.yaml, b.yaml imports a.yaml
-	aPath := filepath.Join(dir, "a.yaml")
-	bPath := filepath.Join(dir, "b.yaml")
-
-	require.NoError(t, os.WriteFile(aPath, []byte(`
-import:
-  - b.yaml
+				return writeYAML(t, dir, "main.yaml", "import:\n  - extra.yaml\n")
+			},
+			check: func(t *testing.T, data []byte) {
+				assert.Equal(t, 1, countCategories(t, data))
+			},
+		},
+		{
+			name: "multiple imports",
+			setup: func(t *testing.T, dir string) string {
+				writeYAML(t, dir, "a.yaml", `
 categories:
-  - name: a
-    source: {path: /tmp, extensions: [txt]}
+  - name: alpha
+    source: {path: /tmp, extensions: [pdf]}
     destination: {path: /tmp}
-`), 0644))
-	require.NoError(t, os.WriteFile(bPath, []byte(`
-import:
-  - a.yaml
-categories:
-  - name: b
-    source: {path: /tmp, extensions: [txt]}
-    destination: {path: /tmp}
-`), 0644))
-
-	_, err := ResolveImports(aPath)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "circular import")
-}
-
-func TestResolveImports_MissingImportFile(t *testing.T) {
-	dir := t.TempDir()
-	path := writeYAML(t, dir, "main.yaml", `
-import:
-  - nonexistent.yaml
 `)
-	_, err := ResolveImports(path)
-	assert.Error(t, err)
-}
-
-func TestResolveImports_NestedImports(t *testing.T) {
-	dir := t.TempDir()
-
-	writeYAML(t, dir, "deep.yaml", `
+				writeYAML(t, dir, "b.yaml", `
+categories:
+  - name: beta
+    source: {path: /tmp, extensions: [jpg]}
+    destination: {path: /tmp}
+`)
+				return writeYAML(t, dir, "main.yaml", "import:\n  - a.yaml\n  - b.yaml\n")
+			},
+			check: func(t *testing.T, data []byte) {
+				assert.Equal(t, 2, countCategories(t, data))
+			},
+		},
+		{
+			name: "nested imports",
+			setup: func(t *testing.T, dir string) string {
+				writeYAML(t, dir, "deep.yaml", `
 categories:
   - name: deep
     source: {path: /tmp, extensions: [txt]}
     destination: {path: /tmp}
 `)
-	writeYAML(t, dir, "mid.yaml", `
+				writeYAML(t, dir, "mid.yaml", `
 import:
   - deep.yaml
 categories:
@@ -157,7 +127,7 @@ categories:
     source: {path: /tmp, extensions: [txt]}
     destination: {path: /tmp}
 `)
-	path := writeYAML(t, dir, "main.yaml", `
+				return writeYAML(t, dir, "main.yaml", `
 import:
   - mid.yaml
 categories:
@@ -165,76 +135,66 @@ categories:
     source: {path: /tmp, extensions: [txt]}
     destination: {path: /tmp}
 `)
+			},
+			check: func(t *testing.T, data []byte) {
+				assert.Equal(t, 3, countCategories(t, data))
+			},
+		},
+		{
+			name:    "circular import",
+			wantErr: "circular import",
+			setup: func(t *testing.T, dir string) string {
+				aPath := filepath.Join(dir, "a.yaml")
+				bPath := filepath.Join(dir, "b.yaml")
+				require.NoError(t, os.WriteFile(aPath, []byte("import:\n  - b.yaml\ncategories:\n  - name: a\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0644))
+				require.NoError(t, os.WriteFile(bPath, []byte("import:\n  - a.yaml\ncategories:\n  - name: b\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0644))
+				return aPath
+			},
+		},
+		{
+			name:    "sibling circular chain",
+			wantErr: "circular import",
+			setup: func(t *testing.T, dir string) string {
+				bPath := filepath.Join(dir, "b.yaml")
+				cPath := filepath.Join(dir, "c.yaml")
+				require.NoError(t, os.WriteFile(bPath, []byte("import:\n  - c.yaml\ncategories:\n  - name: b\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0644))
+				require.NoError(t, os.WriteFile(cPath, []byte("import:\n  - b.yaml\ncategories:\n  - name: c\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0644))
+				return writeYAML(t, dir, "main.yaml", "import:\n  - b.yaml\n")
+			},
+		},
+		{
+			name:       "missing import file",
+			wantAnyErr: true,
+			setup: func(t *testing.T, dir string) string {
+				return writeYAML(t, dir, "main.yaml", "import:\n  - nonexistent.yaml\n")
+			},
+		},
+		{
+			name:       "malformed yaml",
+			wantAnyErr: true,
+			setup: func(t *testing.T, dir string) string {
+				return writeYAML(t, dir, "bad.yaml", "categories: [invalid: yaml: :")
+			},
+		},
+	}
 
-	data, err := ResolveImports(path)
-	require.NoError(t, err)
-	// main + mid + deep = 3 categories
-	assert.Equal(t, 3, countCategories(t, data))
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := tt.setup(t, t.TempDir())
+			data, err := ResolveImports(path)
 
-func TestResolveImports_MalformedYAML(t *testing.T) {
-	dir := t.TempDir()
-	path := writeYAML(t, dir, "bad.yaml", "categories: [invalid: yaml: :")
-	_, err := ResolveImports(path)
-	assert.Error(t, err)
-}
-
-func TestResolveImports_MultipleImports(t *testing.T) {
-	dir := t.TempDir()
-
-	writeYAML(t, dir, "a.yaml", `
-categories:
-  - name: alpha
-    source: {path: /tmp, extensions: [pdf]}
-    destination: {path: /tmp}
-`)
-	writeYAML(t, dir, "b.yaml", `
-categories:
-  - name: beta
-    source: {path: /tmp, extensions: [jpg]}
-    destination: {path: /tmp}
-`)
-	path := writeYAML(t, dir, "main.yaml", `
-import:
-  - a.yaml
-  - b.yaml
-`)
-
-	data, err := ResolveImports(path)
-	require.NoError(t, err)
-	assert.Equal(t, 2, countCategories(t, data))
-}
-
-func TestResolveImports_SiblingCircularChain(t *testing.T) {
-	// A imports B; B imports C; C imports B — cycle at the B->C->B level
-	dir := t.TempDir()
-
-	bPath := filepath.Join(dir, "b.yaml")
-	cPath := filepath.Join(dir, "c.yaml")
-
-	require.NoError(t, os.WriteFile(bPath, []byte(`
-import:
-  - c.yaml
-categories:
-  - name: b
-    source: {path: /tmp, extensions: [txt]}
-    destination: {path: /tmp}
-`), 0644))
-	require.NoError(t, os.WriteFile(cPath, []byte(`
-import:
-  - b.yaml
-categories:
-  - name: c
-    source: {path: /tmp, extensions: [txt]}
-    destination: {path: /tmp}
-`), 0644))
-
-	path := writeYAML(t, dir, "main.yaml", `
-import:
-  - b.yaml
-`)
-
-	_, err := ResolveImports(path)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "circular import")
+			switch {
+			case tt.wantAnyErr:
+				assert.Error(t, err)
+			case tt.wantErr != "":
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			default:
+				require.NoError(t, err)
+				if tt.check != nil {
+					tt.check(t, data)
+				}
+			}
+		})
+	}
 }

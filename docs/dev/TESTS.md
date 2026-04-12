@@ -68,72 +68,73 @@ Overview of all test cases across the movelooper project.
 
 ### `move_integration_test.go`
 
-| Test | What it verifies | Expected |
-|---|---|---|
-| `TestRunMove_MovesFilesByExtension` | Moves files matched by extension | no error, file in dst, non-matching files stay in src |
-| `TestRunMove_DryRunDoesNotMove` | Dry-run does not move any file | no error, file stays in src |
-| `TestRunMove_DisabledCategorySkipped` | Disabled category is ignored | no error, file stays in src |
-| `TestRunMove_MultipleCategories` | Multiple categories move files to distinct destinations | no error, each file in its correct dst |
-| `TestRunMove_FileClaimedByFirstCategory` | Disputed file goes to the first matching category | no error, file in exactly one dst |
-| `TestRunMove_WithOrganizeByTemplate` | Template `{ext}` creates the correct subdirectory | no error, file at `dst/jpg/image.jpg` |
-| `TestRunMove_ConflictRename` | Name conflict generates a `(1)` suffix | no error, `file.txt` and `file(1).txt` both exist in dst |
-| `TestFilterFilesForExtension_FiltersCorrectly` | Filters only files with the correct extension | 2 entries returned |
-| `TestFilterFilesForExtension_SkipsAlreadyMoved` | Already-moved file is excluded from the list | empty result |
-| `TestFormatBytes` | Converts bytes to human-readable string (B, KB, MB, GB) | each input maps to its expected string |
-| `TestMovedSet` | `movedSet` marks and queries files correctly | `has` returns false before mark, true after |
+| Test | Subcases | What it verifies | Expected |
+|---|---|---|---|
+| `TestRunMove` | moves files by extension | Moves files matched by extension | no error, file in dst, non-matching files stay in src |
+| | dry-run does not move | Dry-run does not move any file | no error, file stays in src |
+| | disabled category skipped | Disabled category is ignored | no error, file stays in src |
+| | conflict rename | Name conflict generates a `(1)` suffix | no error, `file.txt` and `file(1).txt` both exist in dst |
+| | organize by ext template | Template `{ext}` creates the correct subdirectory | no error, file at `dst/jpg/image.jpg` |
+| `TestRunMove_MultipleCategories` | — | Multiple categories move files to distinct destinations | no error, each file in its correct dst |
+| `TestRunMove_FileClaimedByFirstCategory` | — | Disputed file goes to the first matching category | no error, file in exactly one dst |
+| `TestFilterFilesForExtension` | filters correctly by extension | Filters only files with the correct extension | 2 entries returned |
+| | skips already moved files | Already-moved file is excluded from the list | empty result |
+| `TestFormatBytes` | 0 B / 512 B / 1.00 KB / … | Converts bytes to human-readable string (B, KB, MB, GB) | each input maps to its expected string |
+| `TestMovedSet` | — | `movedSet` marks and queries files correctly | `has` returns false before mark, true after |
 
 ### `integration_test.go`
 
-| Test | What it verifies | Expected |
-|---|---|---|
-| `TestRunMove_RegexFilter_OnlyMatchingFilesMoved` | Regex filter moves only files matching the pattern | no error, matching file in dst, non-matching stays in src |
-| `TestRunMove_GlobFilter_OnlyMatchingFilesMoved` | Glob filter moves only files matching the pattern | no error, matching file in dst, non-matching stays in src |
-| `TestRunMove_IgnorePattern_SkipsIgnoredFiles` | Files matching ignore pattern stay in source | no error, non-ignored in dst, ignored stays in src |
-| `TestRunMove_MinSizeFilter_SkipsSmallFiles` | Files smaller than `min-size` are not moved | no error, large file in dst, small stays in src |
-| `TestRunMove_MinAgeFilter_SkipsRecentFiles` | Files newer than `min-age` are not moved | no error, old file in dst, recent stays in src |
-| `TestRunMove_MultipleExtensionsInOneCategory` | A category with multiple extensions moves all of them | no error, jpg and png in dst, pdf stays in src |
-| `TestRunMove_AllExtension_MovesEverything` | Extension `all` moves any file type | no error, all 3 files in dst |
-| `TestRunMove_ShowFiles_DryRun` | `show-files + dry-run` does not move and does not error | no error, file stays in src |
-| `TestValidateDirectories_MissingDirsNoError` | Missing directories only warn, no panic | no panic |
-| `TestResolveConfigPath_ExplicitPath` | Valid explicit path is resolved correctly | no error, resolved path equals input |
-| `TestResolveConfigPath_ExplicitPathNotFound` | Non-existent explicit path returns error | error |
+| Test | Subcases | What it verifies | Expected |
+|---|---|---|---|
+| `TestRunMove_Filters` | regex filter moves only matching files | Regex filter moves only files matching the pattern | no error, matching file in dst, non-matching stays in src |
+| | glob filter moves only matching files | Glob filter moves only files matching the pattern | no error, matching file in dst, non-matching stays in src |
+| | ignore pattern skips ignored files | Files matching ignore pattern stay in source | no error, non-ignored in dst, ignored stays in src |
+| | min size filter skips small files | Files smaller than `min-size` are not moved | no error, large file in dst, small stays in src |
+| | min age filter skips recent files | Files newer than `min-age` are not moved | no error, old file in dst, recent stays in src |
+| | multiple extensions in one category | A category with multiple extensions moves all of them | no error, jpg and png in dst, pdf stays in src |
+| | all extension moves everything | Extension `all` moves any file type | no error, all 3 files in dst |
+| | show-files dry-run does not move | `show-files + dry-run` does not move and does not error | no error, file stays in src |
+| `TestValidateDirectories_MissingDirsNoError` | — | Missing directories only warn, no panic | no panic |
+| `TestResolveConfigPath` | explicit path returns path | Valid explicit path is resolved correctly | no error, resolved path equals input |
+| | explicit path not found returns error | Non-existent explicit path returns error | error |
 
 ### `watch_test.go`
 
-| Test | What it verifies | Expected |
-|---|---|---|
-| `TestFileInfoDirEntry_Interface` | `fileInfoDirEntry` adapter returns correct name, type, and info | name matches, `IsDir() == false`, `Type().IsRegular() == true` |
-| `TestFileInfoDirEntry_Directory` | Adapter correctly identifies a directory | `IsDir() == true`, `Type().IsRegular() == false` |
-| `TestMatchesExtensionAndFilters_Match` | File with correct extension and filters matches the category | `true` |
-| `TestMatchesExtensionAndFilters_WrongExtension` | Wrong extension does not match | `false` |
-| `TestMatchesExtensionAndFilters_NonExistentFile` | Non-existent file returns false | `false` |
-| `TestMatchesExtensionAndFilters_RegexFilter` | Regex filter applied correctly in watch mode | `true` for match, `false` for non-match |
-| `TestResolveDryRunDest_NoTemplate` | Without `organize-by`, returns the base destination | path equals base dst |
-| `TestResolveDryRunDest_WithExtTemplate` | With `{ext}`, returns destination with subdirectory | path equals `dst/jpg` |
-| `TestResolveDryRunDest_NonExistentFile` | Non-existent file falls back to base destination | path equals base dst |
-| `TestAttemptMoveFile_DryRun_Logs` | Dry-run does not move the file | no error, file stays in src |
-| `TestAttemptMoveFile_NoMatchingCategory` | File with no matching category is not moved | no error, file stays in src |
-| `TestAttemptMoveFile_MovesFile` | File with matching category is moved | no error, file in dst, absent from src |
-| `TestAttemptMoveFile_IgnoresWrongSourceDir` | File in a different directory than watched is ignored | no error, file stays in src |
-| `TestPerformInitialScan_AddsMatchingFiles` | Initial scan adds only files matching the category | tracker has 1 entry for the pdf, txt excluded |
-| `TestPerformInitialScan_SkipsDisabledCategory` | Disabled category is skipped in initial scan | tracker is empty |
-| `TestPerformInitialScan_IgnoresIgnoredFiles` | Files matching ignore pattern are excluded from tracker | tracker has 1 entry (non-ignored file only) |
-| `TestProcessPendingFiles_MovesStableFile` | File with old ModTime is moved | no error, file in dst, absent from src |
-| `TestProcessPendingFiles_SkipsFreshFile` | Recently modified file is not moved | file stays in src |
-| `TestProcessPendingFiles_RemovesDeletedFileFromTracker` | Externally deleted file is removed from tracker | tracker no longer contains the ghost path |
-| `TestProcessPendingFiles_DryRunDoesNotMove` | Dry-run does not move a stable file | file stays in src |
+| Test | Subcases | What it verifies | Expected |
+|---|---|---|---|
+| `TestFileInfoDirEntry` | regular file | Adapter returns correct type info for a regular file | `IsDir() == false`, `Type().IsRegular() == true` |
+| | directory | Adapter correctly identifies a directory | `IsDir() == true`, `Type().IsRegular() == false` |
+| `TestMatchesExtensionAndFilters` | matches extension | File with correct extension matches the category | `true` |
+| | wrong extension | Wrong extension does not match | `false` |
+| | non-existent file | Non-existent file returns false | `false` |
+| | regex filter matches | Regex filter passes a matching filename | `true` |
+| | regex filter no match | Regex filter rejects a non-matching filename | `false` |
+| `TestResolveDryRunDest` | no template returns dst | Without `organize-by`, returns the base destination | path equals base dst |
+| | ext template appends subdir | With `{ext}`, returns destination with subdirectory | path equals `dst/jpg` |
+| | non-existent file falls back to dst | Non-existent file falls back to base destination | path equals base dst |
+| `TestAttemptMoveFile` | dry-run does not move | Dry-run does not move the file | no error, file stays in src |
+| | no matching category stays | File with no matching category is not moved | no error, file stays in src |
+| | moves matching file | File with matching category is moved | no error, file in dst, absent from src |
+| | ignores file from wrong source dir | File in a different directory than watched is ignored | no error, file stays in src |
+| `TestPerformInitialScan` | adds matching files | Initial scan adds only files matching the category | tracker has 1 entry for the pdf, txt excluded |
+| | skips disabled category | Disabled category is skipped in initial scan | tracker is empty |
+| | ignores ignored files | Files matching ignore pattern are excluded from tracker | tracker has 1 entry (non-ignored file only) |
+| `TestProcessPendingFiles` | moves stable file | File with old ModTime is moved | no error, file in dst, absent from src |
+| | skips fresh file | Recently modified file is not moved | file stays in src |
+| | removes deleted file from tracker | Externally deleted file is removed from tracker | tracker no longer contains the ghost path |
+| | dry-run does not move | Dry-run does not move a stable file | file stays in src |
 
 ### `undo_test.go`
 
-| Test | What it verifies | Expected |
-|---|---|---|
-| `TestUndoBatch_DryRun_ReportsWouldRestore` | Dry-run reports what would be restored without moving | no error, file stays at dst |
-| `TestUndoBatch_DryRun_WarnsMissingDestination` | Warns when file is no longer at destination | no error |
-| `TestUndoBatch_DryRun_WarnsOccupiedSource` | Warns when source location is already occupied | no error, both files unchanged |
-| `TestUndoBatch_BatchNotFound` | Non-existent batch returns error with clear message | error containing `"not found in history"` |
-| `TestPrintBatchList_NoBatches` | Empty history does not return error | no error |
-| `TestPrintBatchList_WithBatches` | History with batches is listed without error | no error |
-| `TestUndoCmd_NilHistory_ReturnsError` | `UndoCmd` with nil history returns immediate error | error containing `"history tracking is not initialized"` |
+| Test | Subcases | What it verifies | Expected |
+|---|---|---|---|
+| `TestUndoBatch` | dry-run reports would restore | Dry-run reports what would be restored without moving | no error, file stays at dst |
+| | dry-run warns missing destination | Warns when file is no longer at destination | no error |
+| | dry-run warns occupied source | Warns when source location is already occupied | no error, both files unchanged |
+| | batch not found returns error | Non-existent batch returns error with clear message | error containing `"not found in history"` |
+| `TestPrintBatchList` | no batches | Empty history does not return error | no error |
+| | with batches | History with batches is listed without error | no error |
+| `TestUndoCmd_NilHistory_ReturnsError` | — | `UndoCmd` with nil history returns immediate error | error containing `"history tracking is not initialized"` |
 
 ---
 

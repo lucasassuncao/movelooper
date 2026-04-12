@@ -17,7 +17,7 @@ Package updater implements the self\-update mechanism for movelooper.
 
 
 <a name="CleanOldBinary"></a>
-## func [CleanOldBinary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L87>)
+## func [CleanOldBinary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L90>)
 
 ```go
 func CleanOldBinary()
@@ -26,7 +26,7 @@ func CleanOldBinary()
 CleanOldBinary removes a \<exe\>.old file left by a previous self\-update. Call this from main\(\) at startup.
 
 <a name="SelfUpdate"></a>
-## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L21>)
+## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L24>)
 
 ```go
 func SelfUpdate(repo, token, currentVersion string) error
