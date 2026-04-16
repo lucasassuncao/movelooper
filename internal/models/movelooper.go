@@ -70,6 +70,8 @@ type CategoryDestination struct {
 	Path             string `yaml:"path" mapstructure:"path"`
 	OrganizeBy       string `yaml:"organize-by" mapstructure:"organize-by"`
 	ConflictStrategy string `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+	Action           string `yaml:"action" mapstructure:"action"`
+	Rename           string `yaml:"rename" mapstructure:"rename"`
 }
 
 // Category represents a file category with its properties

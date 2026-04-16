@@ -27,12 +27,13 @@ func NewWatchBatchID() string {
 	return "watch_" + hex.EncodeToString(b)
 }
 
-// Entry represents a single file move operation
+// Entry represents a single file operation
 type Entry struct {
 	Source      string    `json:"source"`
 	Destination string    `json:"destination"`
 	Timestamp   time.Time `json:"timestamp"`
 	BatchID     string    `json:"batch_id"`
+	Action      string    `json:"action"`
 }
 
 // History manages the log of file operations

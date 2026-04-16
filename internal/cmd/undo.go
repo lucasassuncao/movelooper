@@ -107,8 +107,14 @@ func undoBatch(m *models.Movelooper, batchID string, dryRun bool) error {
 				m.Logger.Warn("[dry-run] source location already occupied, would skip", m.Logger.Args("path", entry.Source))
 				continue
 			}
-			m.Logger.Info("[dry-run] would restore file",
-				m.Logger.Args("from", entry.Destination, "to", entry.Source))
+			switch entry.Action {
+			case "copy", "symlink":
+				m.Logger.Info("[dry-run] would remove file",
+					m.Logger.Args("action", entry.Action, "path", entry.Destination))
+			default:
+				m.Logger.Info("[dry-run] would restore file",
+					m.Logger.Args("from", entry.Destination, "to", entry.Source))
+			}
 		}
 		return nil
 	}
@@ -154,10 +160,19 @@ func undoBatch(m *models.Movelooper, batchID string, dryRun bool) error {
 			continue
 		}
 
-		if err := os.Rename(entry.Destination, entry.Source); err != nil {
-			m.Logger.Error("failed to move file back", m.Logger.Args("from", entry.Destination, "to", entry.Source, "error", err.Error()))
-			failCount++
-			continue
+		switch entry.Action {
+		case "copy", "symlink":
+			if err := undoCopyOrSymlink(entry.Destination); err != nil {
+				m.Logger.Error("failed to remove file", m.Logger.Args("path", entry.Destination, "error", err.Error()))
+				failCount++
+				continue
+			}
+		default: // "move" or legacy entries without Action
+			if err := os.Rename(entry.Destination, entry.Source); err != nil {
+				m.Logger.Error("failed to move file back", m.Logger.Args("from", entry.Destination, "to", entry.Source, "error", err.Error()))
+				failCount++
+				continue
+			}
 		}
 
 		m.Logger.Info("file restored", m.Logger.Args("path", entry.Source))
@@ -171,4 +186,9 @@ func undoBatch(m *models.Movelooper, batchID string, dryRun bool) error {
 	}
 
 	return nil
+}
+
+// undoCopyOrSymlink removes the destination file or symlink created by a copy or symlink action.
+func undoCopyOrSymlink(dst string) error {
+	return os.Remove(dst)
 }

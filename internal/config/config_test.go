@@ -329,3 +329,72 @@ configuration:
 		})
 	}
 }
+
+func TestValidateCategory_Action(t *testing.T) {
+	tests := []struct {
+		name    string
+		action  string
+		wantErr bool
+	}{
+		{"empty defaults to move — ok", "", false},
+		{"move explicit — ok", "move", false},
+		{"copy — ok", "copy", false},
+		{"symlink — ok", "symlink", false},
+		{"invalid action", "link", true},
+		{"uppercase invalid", "MOVE", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cat := &models.Category{
+				Name: "test",
+				Source: models.CategorySource{
+					Extensions: []string{"pdf"},
+				},
+				Destination: models.CategoryDestination{
+					Path:   "/tmp/dst",
+					Action: tt.action,
+				},
+			}
+			err := validateCategory(cat)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "action")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateCategory_Rename(t *testing.T) {
+	tests := []struct {
+		name    string
+		rename  string
+		wantErr bool
+	}{
+		{"empty — ok", "", false},
+		{"valid template — ok", "{mod-date}_{name}.{ext}", false},
+		{"unknown token — error", "{unknown}", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cat := &models.Category{
+				Name: "test",
+				Source: models.CategorySource{
+					Extensions: []string{"pdf"},
+				},
+				Destination: models.CategoryDestination{
+					Path:   "/tmp/dst",
+					Rename: tt.rename,
+				},
+			}
+			err := validateCategory(cat)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "rename")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

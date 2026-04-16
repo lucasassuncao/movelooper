@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
@@ -470,4 +471,66 @@ func TestFormatBytes(t *testing.T) {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// --- Action + rename integration tests ---
+
+func TestRunMove_CopyAction(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(src, "report.pdf"), []byte("x"), 0644))
+
+	cat := buildCategory("docs", src, dst, []string{"pdf"})
+	cat.Destination.Action = "copy"
+
+	ctx := helper.MoveContext{Logger: pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)}
+	files, err := helper.ReadDirectory(src)
+	require.NoError(t, err)
+	moved := helper.MoveFiles(ctx, cat, files, "pdf", "batch_test")
+
+	require.Len(t, moved, 1)
+	assert.FileExists(t, filepath.Join(dst, "report.pdf"))
+	assert.FileExists(t, filepath.Join(src, "report.pdf"))
+}
+
+func TestRunMove_CopyWithRename(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("x"), 0644))
+
+	cat := buildCategory("images", src, dst, []string{"jpg"})
+	cat.Destination.Action = "copy"
+	cat.Destination.Rename = "{category}_{name}.{ext}"
+
+	ctx := helper.MoveContext{Logger: pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)}
+	files, err := helper.ReadDirectory(src)
+	require.NoError(t, err)
+	moved := helper.MoveFiles(ctx, cat, files, "jpg", "batch_test")
+
+	require.Len(t, moved, 1)
+	assert.FileExists(t, filepath.Join(dst, "images_photo.jpg"))
+	assert.FileExists(t, filepath.Join(src, "photo.jpg"))
+}
+
+func TestRunMove_SymlinkWithConflictRename(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("y"), 0644))
+
+	cat := buildCategory("docs", src, dst, []string{"txt"})
+	cat.Destination.Action = "symlink"
+	cat.Destination.ConflictStrategy = "rename"
+
+	ctx := helper.MoveContext{Logger: pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)}
+	files, err := helper.ReadDirectory(src)
+	require.NoError(t, err)
+	moved := helper.MoveFiles(ctx, cat, files, "txt", "batch_test")
+
+	if len(moved) == 0 {
+		t.Skip("symlink not available (likely missing privilege on Windows)")
+	}
+	assert.FileExists(t, filepath.Join(dst, "file.txt"))
+	_, err = os.Lstat(filepath.Join(dst, "file(1).txt"))
+	assert.NoError(t, err, "renamed symlink should exist")
 }

@@ -195,3 +195,48 @@ func TestUndoCmd_NilHistory_ReturnsError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "history tracking is not initialized")
 }
+
+func TestUndoCopyOrSymlink_RemovesDst(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "original.txt")
+	dst := filepath.Join(dir, "copy.txt")
+	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
+	require.NoError(t, os.WriteFile(dst, []byte("hello"), 0644))
+
+	require.NoError(t, undoCopyOrSymlink(dst))
+	assert.NoFileExists(t, dst)
+	assert.FileExists(t, src)
+}
+
+func TestUndoSymlink_RemovesLink(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "original.txt")
+	link := filepath.Join(dir, "link.txt")
+	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
+	if err := os.Symlink(src, link); err != nil {
+		t.Skipf("symlink not available: %v", err)
+	}
+
+	require.NoError(t, undoCopyOrSymlink(link))
+	_, err := os.Lstat(link)
+	assert.True(t, os.IsNotExist(err), "link should be removed")
+	assert.FileExists(t, src)
+}
+
+func TestUndoBatch_CopyDryRun(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "copy.txt")
+	require.NoError(t, os.WriteFile(dst, []byte("hello"), 0644))
+
+	m := newSilentMovelooperWithHistory(t)
+	require.NoError(t, m.History.Add(history.Entry{
+		Source:      filepath.Join(dir, "original.txt"),
+		Destination: dst,
+		BatchID:     "batch_copy",
+		Action:      "copy",
+		Timestamp:   time.Now(),
+	}))
+
+	require.NoError(t, undoBatch(m, "batch_copy", true))
+	assert.FileExists(t, dst) // dry-run must not remove the file
+}

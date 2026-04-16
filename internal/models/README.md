@@ -21,7 +21,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L76-L81>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L78-L83>)
 
 Category represents a file category with its properties
 
@@ -44,7 +44,7 @@ func (c *Category) IsEnabled() bool
 IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
 
 <a name="CategoryDestination"></a>
-## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L69-L73>)
+## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L69-L75>)
 
 CategoryDestination holds the destination path and placement rules for a category
 
@@ -53,6 +53,8 @@ type CategoryDestination struct {
     Path             string `yaml:"path" mapstructure:"path"`
     OrganizeBy       string `yaml:"organize-by" mapstructure:"organize-by"`
     ConflictStrategy string `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+    Action           string `yaml:"action" mapstructure:"action"`
+    Rename           string `yaml:"rename" mapstructure:"rename"`
 }
 ```
 

@@ -448,3 +448,79 @@ func TestGenerateLogArgs(t *testing.T) {
 		})
 	}
 }
+
+func TestDispatchAction_Move(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "file.txt")
+	dst := filepath.Join(t.TempDir(), "file.txt")
+	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
+
+	ctx := MoveContext{Logger: newTestLogger()}
+	_ = ctx
+	require.NoError(t, dispatchAction("move", src, dst))
+
+	assert.FileExists(t, dst)
+	assert.NoFileExists(t, src)
+}
+
+func TestDispatchAction_Copy(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "file.txt")
+	dst := filepath.Join(t.TempDir(), "file.txt")
+	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
+
+	require.NoError(t, dispatchAction("copy", src, dst))
+
+	assert.FileExists(t, dst)
+	assert.FileExists(t, src)
+	srcData, _ := os.ReadFile(src)
+	dstData, _ := os.ReadFile(dst)
+	assert.Equal(t, srcData, dstData)
+}
+
+func TestDispatchAction_Symlink(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "file.txt")
+	dst := filepath.Join(dir, "link.txt")
+	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
+
+	err := dispatchAction("symlink", src, dst)
+	if err != nil {
+		t.Skipf("symlink not available (likely missing privilege on Windows): %v", err)
+	}
+
+	info, err := os.Lstat(dst)
+	require.NoError(t, err)
+	assert.True(t, info.Mode()&os.ModeSymlink != 0, "dst should be a symlink")
+}
+
+func readDir(t *testing.T, path string) []os.DirEntry {
+	t.Helper()
+	entries, err := os.ReadDir(path)
+	require.NoError(t, err)
+	return entries
+}
+
+func TestMoveFiles_RenameTemplate(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("x"), 0644))
+
+	cat := &models.Category{
+		Name: "images",
+		Source: models.CategorySource{
+			Path:       src,
+			Extensions: []string{"jpg"},
+		},
+		Destination: models.CategoryDestination{
+			Path:   dst,
+			Action: "copy",
+			Rename: "{category}_{name}.{ext}",
+		},
+	}
+
+	ctx := MoveContext{Logger: newTestLogger()}
+	moved := MoveFiles(ctx, cat, readDir(t, src), "jpg", "batch_test")
+
+	require.Len(t, moved, 1)
+	assert.FileExists(t, filepath.Join(dst, "images_photo.jpg"))
+	assert.FileExists(t, filepath.Join(src, "photo.jpg"))
+}

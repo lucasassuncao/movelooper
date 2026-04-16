@@ -1,11 +1,37 @@
 package helper
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// knownTokens is the set of tokens recognised by both organize-by and rename templates.
+var knownTokens = map[string]bool{
+	"{name}": true, "{ext}": true, "{ext-upper}": true,
+	"{mod-year}": true, "{mod-month}": true, "{mod-day}": true,
+	"{mod-date}": true, "{mod-weekday}": true,
+	"{created-year}": true, "{created-month}": true, "{created-day}": true,
+	"{created-date}": true,
+	"{year}":         true, "{month}": true, "{day}": true,
+	"{date}": true, "{weekday}": true,
+	"{size-range}": true, "{category}": true,
+}
+
+var tokenPattern = regexp.MustCompile(`\{[^}]+\}`)
+
+// ValidateTemplate returns an error if the template contains any unrecognised {token}.
+func ValidateTemplate(template string) error {
+	for _, tok := range tokenPattern.FindAllString(template, -1) {
+		if !knownTokens[tok] {
+			return fmt.Errorf("unknown token %q in template", tok)
+		}
+	}
+	return nil
+}
 
 const (
 	sizeThresholdTiny   = int64(1 << 20)         // 1 MB
@@ -101,4 +127,18 @@ func fileSizeRange(size int64) string {
 	default:
 		return "large"
 	}
+}
+
+// ResolveRename applies a rename template to produce a destination filename.
+// It supports the same tokens as ResolveGroupBy. When template is empty, the
+// original filename is returned unchanged. Path separators are stripped from
+// the result so the output is always a plain filename.
+func ResolveRename(template string, info os.FileInfo, categoryName string, now time.Time) string {
+	if template == "" {
+		return info.Name()
+	}
+	resolved := ResolveGroupBy(template, info, categoryName, now)
+	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "_")
+	resolved = strings.ReplaceAll(resolved, "/", "_")
+	return resolved
 }

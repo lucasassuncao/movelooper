@@ -28,7 +28,9 @@ import "github.com/lucasassuncao/movelooper/internal/helper"
 - [func ParseSize\(s string\) \(int64, error\)](<#ParseSize>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
 - [func ResolveGroupBy\(template string, info os.FileInfo, categoryName string, now time.Time\) string](<#ResolveGroupBy>)
+- [func ResolveRename\(template string, info os.FileInfo, categoryName string, now time.Time\) string](<#ResolveRename>)
 - [func ValidateGlob\(pattern string\) error](<#ValidateGlob>)
+- [func ValidateTemplate\(template string\) error](<#ValidateTemplate>)
 - [type ConflictResolver](<#ConflictResolver>)
 - [type MoveContext](<#MoveContext>)
 
@@ -158,13 +160,13 @@ func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
 MeetsMinSize reports whether the file size is at least minSizeBytes. Always returns true when minSizeBytes is zero.
 
 <a name="MoveFiles"></a>
-## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L49>)
+## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L50>)
 
 ```go
 func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string
 ```
 
-MoveFiles moves files with the specified extension from the source directory to the destination directory. When organize\-by is set, files land in subdirectories resolved from the template; otherwise directly in \<destination\>/. Returns the names of files that were successfully moved.
+MoveFiles processes files matching the given extension in the category's source directory. It resolves the destination directory \(via organize\-by\), applies rename \(if set\), checks for conflicts, then dispatches the configured action \(move/copy/symlink\). Returns the names of files that were successfully processed.
 
 <a name="ParseSize"></a>
 ## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L131>)
@@ -185,7 +187,7 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ReadDirectory reads the contents of a given directory and returns the files.
 
 <a name="ResolveGroupBy"></a>
-## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L51>)
+## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L77>)
 
 ```go
 func ResolveGroupBy(template string, info os.FileInfo, categoryName string, now time.Time) string
@@ -228,6 +230,15 @@ Category:
   {category}      — category name from config
 ```
 
+<a name="ResolveRename"></a>
+## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L136>)
+
+```go
+func ResolveRename(template string, info os.FileInfo, categoryName string, now time.Time) string
+```
+
+ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
+
 <a name="ValidateGlob"></a>
 ## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L72>)
 
@@ -236,6 +247,15 @@ func ValidateGlob(pattern string) error
 ```
 
 ValidateGlob checks that pattern is syntactically valid after brace expansion.
+
+<a name="ValidateTemplate"></a>
+## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L27>)
+
+```go
+func ValidateTemplate(template string) error
+```
+
+ValidateTemplate returns an error if the template contains any unrecognised \{token\}.
 
 <a name="ConflictResolver"></a>
 ## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/conflict.go#L14-L16>)

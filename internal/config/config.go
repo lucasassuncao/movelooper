@@ -48,11 +48,30 @@ func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error) {
 	return categories, nil
 }
 
+// validActions is the set of accepted values for destination.action.
+var validActions = map[string]bool{
+	"":        true, // empty = default (move)
+	"move":    true,
+	"copy":    true,
+	"symlink": true,
+}
+
 // validateCategory validates a single category and pre-compiles its filter.
 func validateCategory(cat *models.Category) error {
 	if len(cat.Source.Extensions) == 0 {
 		return fmt.Errorf("category %q: source.extensions are required", cat.Name)
 	}
+
+	if !validActions[cat.Destination.Action] {
+		return fmt.Errorf("category %q: invalid action %q — must be move, copy, or symlink", cat.Name, cat.Destination.Action)
+	}
+
+	if cat.Destination.Rename != "" {
+		if err := helper.ValidateTemplate(cat.Destination.Rename); err != nil {
+			return fmt.Errorf("category %q: invalid rename template: %w", cat.Name, err)
+		}
+	}
+
 	return validateFilter(cat.Name, &cat.Source.Filter)
 }
 

@@ -27,6 +27,8 @@ Overview of all test cases across the movelooper project.
 | `TestLoadConfig_Defaults` | `WatchDelay` and `HistoryLimit` use default values when absent | `WatchDelay == 5m`, `HistoryLimit == 50` |
 | `TestLoadConfig_CustomValues` | Custom `output`, `log-level`, `watch-delay`, `history-limit` are read correctly | no error, fields match YAML values |
 | `TestLoadConfig_WatchDelayFallback` | Missing `watch-delay` falls back to default | `WatchDelay == 5m` |
+| `TestValidateCategory_Action` | empty / move / copy / symlink / invalid / uppercase | Only `move`, `copy`, `symlink`, and empty are accepted; others error | no error for valid values, error containing `"action"` otherwise |
+| `TestValidateCategory_Rename` | empty / valid template / unknown token | Unknown tokens in `rename` are rejected at validation time | no error for valid, error containing `"rename"` for unknown token |
 
 ### `logging_test.go`
 
@@ -97,6 +99,9 @@ Overview of all test cases across the movelooper project.
 | `TestValidateDirectories_MissingDirsNoError` | — | Missing directories only warn, no panic | no panic |
 | `TestResolveConfigPath` | explicit path returns path | Valid explicit path is resolved correctly | no error, resolved path equals input |
 | | explicit path not found returns error | Non-existent explicit path returns error | error |
+| `TestRunMove_CopyAction` | — | `action: copy` copies the file, leaving source intact | no error, file in dst and in src |
+| `TestRunMove_CopyWithRename` | — | `action: copy` + `rename` template produces the renamed file at dst | no error, renamed file in dst, original stays in src |
+| `TestRunMove_SymlinkWithConflictRename` | — | `action: symlink` with a conflicting dst creates a renamed symlink | no error, original dst untouched, symlink as `file(1).txt` |
 
 ### `watch_test.go`
 
@@ -135,6 +140,9 @@ Overview of all test cases across the movelooper project.
 | `TestPrintBatchList` | no batches | Empty history does not return error | no error |
 | | with batches | History with batches is listed without error | no error |
 | `TestUndoCmd_NilHistory_ReturnsError` | — | `UndoCmd` with nil history returns immediate error | error containing `"history tracking is not initialized"` |
+| `TestUndoCopyOrSymlink_RemovesDst` | — | `undoCopyOrSymlink` removes the destination file, leaving source intact | no error, dst removed, src unchanged |
+| `TestUndoSymlink_RemovesLink` | — | `undoCopyOrSymlink` removes a symlink without touching the original | no error, link removed, src intact |
+| `TestUndoBatch_CopyDryRun` | — | Dry-run of a `copy` batch reports removal without touching the file | no error, dst file still exists |
 
 ---
 
@@ -176,6 +184,10 @@ Overview of all test cases across the movelooper project.
 | `TestMoveFiles_SkipsOnConflictSkipStrategy` | `skip` strategy does not move on conflict | no error, empty moved list, src file still exists |
 | `TestMoveFiles_WithOrganizeBy` | `organize-by` template creates the correct subdirectory | no error, file at `dst/jpg/photo.jpg` |
 | `TestMoveFiles_ExtAllMovesAll` | Extension `all` moves any file | no error, 2 files moved |
+| `TestDispatchAction_Move` | `action: move` moves file to dst and removes src | no error, file in dst, absent from src |
+| `TestDispatchAction_Copy` | `action: copy` copies file to dst, source stays | no error, file in both src and dst, contents equal |
+| `TestDispatchAction_Symlink` | `action: symlink` creates a symlink at dst pointing to src | no error, dst is a symlink (skipped if privileges unavailable) |
+| `TestMoveFiles_RenameTemplate` | `rename` template produces correctly named file at dst | no error, `images_photo.jpg` in dst, original stays in src |
 
 ### `filters_extra_test.go`
 
@@ -249,6 +261,8 @@ Overview of all test cases across the movelooper project.
 | `TestResolveGroupBy_ModDateTokens` | `{mod-year}`, `{mod-month}`, `{mod-day}` return file modification date parts | correct date part strings |
 | `TestResolveGroupBy_SizeRange` | `{size-range}` returns the file size range | one of `tiny/small/medium/large` |
 | `TestResolveGroupBy_CombinedTemplate` | Combined template with multiple tokens | correctly interpolated string |
+| `TestValidateTemplate` | empty / valid / unknown / mixed tokens | Rejects unknown `{token}` values, accepts all known ones | no error for valid, error for unknown |
+| `TestResolveRename` | empty / ext / ext-upper / mod-date / category / run-date | Resolves rename template to correct filename using file metadata | expected filename string per case |
 
 ---
 

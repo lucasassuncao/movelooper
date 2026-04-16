@@ -71,6 +71,16 @@
         <p>Flexible subdirectory structure with tokens like <code>{ext}</code>, <code>{mod-year}</code>, <code>{mod-month}</code>, <code>{size-range}</code>, and more.</p>
       </div>
       <div class="feature-card">
+        <div class="icon">📋</div>
+        <h3>Action control</h3>
+        <p>Choose <code>action: move</code>, <code>copy</code>, or <code>symlink</code> per category — back up files or link to a media server without touching the originals.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">✏️</div>
+        <h3>Rename at destination</h3>
+        <p>Rename files on arrival with the same token engine: <code>rename: "{mod-date}_{name}.{ext}"</code> turns <code>photo.jpg</code> into <code>2025-04-16_photo.jpg</code>.</p>
+      </div>
+      <div class="feature-card">
         <div class="icon">🔄</div>
         <h3>Self-update</h3>
         <p>Stay on the latest release with <code>movelooper self-update</code>.</p>
@@ -164,7 +174,17 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
     <span class="key">destination</span>:
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Sorted"</span>
       <span class="key">conflict-strategy</span>: <span class="val">hash_check</span>
-      <span class="key">organize-by</span>: <span class="str">"{ext}"</span></pre>
+      <span class="key">organize-by</span>: <span class="str">"{ext}"</span>
+
+  - <span class="key">name</span>: <span class="str">"photos-backup"</span>
+    <span class="key">source</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
+      <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">jpeg</span>, <span class="str">raw</span>]
+    <span class="key">destination</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Backup\\photos"</span>
+      <span class="key">action</span>: <span class="val">copy</span>                   <span class="cmt"># keep original in Downloads</span>
+      <span class="key">rename</span>: <span class="str">"{mod-date}_{name}.{ext}"</span>  <span class="cmt"># photo.jpg → 2025-04-16_photo.jpg</span>
+      <span class="key">conflict-strategy</span>: <span class="val">skip</span></pre>
     </div>
   </section>
 

@@ -43,9 +43,10 @@ func ReadDirectory(path string) ([]os.DirEntry, error) {
 	return files, nil
 }
 
-// MoveFiles moves files with the specified extension from the source directory to the destination directory.
-// When organize-by is set, files land in subdirectories resolved from the template; otherwise directly in <destination>/.
-// Returns the names of files that were successfully moved.
+// MoveFiles processes files matching the given extension in the category's source directory.
+// It resolves the destination directory (via organize-by), applies rename (if set),
+// checks for conflicts, then dispatches the configured action (move/copy/symlink).
+// Returns the names of files that were successfully processed.
 func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string {
 	var moved []string
 	for _, file := range files {
@@ -53,13 +54,18 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 			continue
 		}
 
+		info, err := file.Info()
+		if err != nil {
+			ctx.Logger.Error("failed to stat file", ctx.Logger.Args("file", file.Name(), "error", err.Error()))
+			continue
+		}
+
 		sourcePath := filepath.Join(category.Source.Path, file.Name())
+
 		destDir := category.Destination.Path
 		if template := category.Destination.OrganizeBy; template != "" {
-			if info, err := file.Info(); err == nil {
-				if subdir := ResolveGroupBy(template, info, category.Name, time.Now()); subdir != "" {
-					destDir = filepath.Join(category.Destination.Path, subdir)
-				}
+			if subdir := ResolveGroupBy(template, info, category.Name, time.Now()); subdir != "" {
+				destDir = filepath.Join(category.Destination.Path, subdir)
 			}
 		}
 
@@ -68,43 +74,66 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 			continue
 		}
 
-		destPath := filepath.Join(destDir, file.Name())
+		destName := ResolveRename(category.Destination.Rename, info, category.Name, time.Now())
+		destPath := filepath.Join(destDir, destName)
 
 		strategy := category.Destination.ConflictStrategy
 		if strategy == "" {
 			strategy = "rename"
 		}
-		resolved, skip := applyConflictStrategy(ctx, strategy, sourcePath, destPath, destDir, file.Name())
+		resolved, skip := applyConflictStrategy(ctx, strategy, sourcePath, destPath, destDir, destName)
 		if skip {
 			continue
 		}
 		destPath = resolved
-		err := moveFile(sourcePath, destPath)
-		if err != nil {
+
+		action := category.Destination.Action
+		if err := dispatchAction(action, sourcePath, destPath); err != nil {
 			if errors.Is(err, ErrTimestampPreserve) {
-				ctx.Logger.Warn("file moved but timestamps could not be preserved", ctx.Logger.Args("file", sourcePath))
+				ctx.Logger.Warn("file processed but timestamps could not be preserved", ctx.Logger.Args("file", sourcePath))
 			} else {
-				ctx.Logger.Error("failed to move file", ctx.Logger.Args("file", sourcePath, "error", err.Error()))
+				ctx.Logger.Warn("failed to perform action on file", ctx.Logger.Args("file", sourcePath, "action", action, "error", err.Error()))
 				continue
 			}
 		}
 
 		if ctx.History != nil {
-			err := ctx.History.Add(history.Entry{
+			effectiveAction := action
+			if effectiveAction == "" {
+				effectiveAction = "move"
+			}
+			if err := ctx.History.Add(history.Entry{
 				Source:      sourcePath,
 				Destination: destPath,
 				Timestamp:   time.Now(),
 				BatchID:     batchID,
-			})
-			if err != nil {
+				Action:      effectiveAction,
+			}); err != nil {
 				ctx.Logger.Warn("failed to add to history", ctx.Logger.Args("error", err.Error()))
 			}
 		}
 
-		ctx.Logger.Info("file moved", ctx.Logger.Args("source", sourcePath, "destination", destPath))
+		ctx.Logger.Info("file processed", ctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
 		moved = append(moved, file.Name())
 	}
 	return moved
+}
+
+// dispatchAction performs the file operation indicated by action.
+// Supported values: "move" (default), "copy", "symlink".
+// On Windows, symlink creation may fail without elevated privileges; the error
+// is returned to the caller, which logs it as a warning per file.
+func dispatchAction(action, src, dst string) error {
+	switch action {
+	case "", "move":
+		return moveFile(src, dst)
+	case "copy":
+		return copyFile(src, dst)
+	case "symlink":
+		return os.Symlink(src, dst)
+	default:
+		return fmt.Errorf("unknown action %q", action)
+	}
 }
 
 // applyConflictStrategy checks whether destPath already exists and resolves the

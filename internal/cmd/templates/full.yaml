@@ -129,3 +129,37 @@ categories:
     destination:
       path: ~/Downloads/reports
       conflict-strategy: rename
+
+  - name: photos-backup
+    # action: copy keeps the original in Downloads and places a copy in the backup folder.
+    # rename: renames the copy using the modification date and original name.
+    source:
+      path: ~/Downloads
+      extensions:
+        - jpg
+        - jpeg
+        - raw
+        - cr2
+        - nef
+    destination:
+      path: ~/Backup/photos
+      action: copy
+      rename: "{mod-date}_{name}.{ext}"
+      conflict-strategy: skip
+
+  - name: media-server-links
+    # action: symlink creates a symbolic link in the media server folder without moving the file.
+    # Useful for NAS or Plex-style setups where you want one canonical file location.
+    source:
+      path: ~/Downloads
+      extensions:
+        - mp4
+        - mkv
+        - mov
+      filter:
+        min-size: 500MB
+    destination:
+      path: ~/MediaServer/movies
+      action: symlink
+      organize-by: "{mod-year}"
+      conflict-strategy: rename
