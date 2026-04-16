@@ -107,19 +107,33 @@ categories:
 
 ## Tips
 
-- Run with `--dry-run` first to preview actions before organizing real files — works on `movelooper`, `watch`, and `undo`.
+### Safety & Dry-run
+
+- Run with `--dry-run` first to preview actions before organizing real files - works on `movelooper`, `watch`, and `undo`.
 - Use `watch --dry-run` to test your rules in real-time without moving anything.
 - Use `undo --dry-run` to inspect what a restore would do before committing.
-- Use `watch` mode to automatically keep your Downloads folder clean at all times.
 - Use `undo --list` to inspect past operations and roll back any batch.
+
+### Configuration
+
 - Use `enabled: false` to temporarily pause a category without deleting it from the config.
+- Use `import:` to split a large config into per-category files - combine with `config show` to verify the merged result.
+- Run `movelooper config validate` to catch config errors before running the tool.
+
+### Filters
+
+- Add `filter.ignore` patterns to skip screenshots, drafts, or temp files from being moved.
+- Use `filter.min-age` to avoid moving files that are still being downloaded.
 - Use `source.extensions: [all]` with `destination.organize-by: "{ext}"` as a catch-all that organizes any file by its real extension.
+
+### Actions & Rename
+
 - Use `action: copy` to back up files without removing them from the source.
 - Use `action: symlink` to link files into a media server folder without duplicating them.
 - Use `rename: "{mod-date}_{name}.{ext}"` to timestamp files as they arrive at the destination.
-- Use `import:` to split a large config into per-category files — combine with `config show` to verify the merged result.
-- Run `movelooper config validate` to catch config errors before running the tool.
-- Add `filter.ignore` patterns to skip screenshots, drafts, or temp files from being moved.
-- Use `filter.min-age` to avoid moving files that are still being downloaded.
+
+### Automation
+
+- Use `watch` mode to automatically keep your Downloads folder clean at all times.
 - Add `movelooper watch` to a cron job or Windows Task Scheduler for fully automatic cleanup.
 - Run `movelooper self-update` to always stay on the latest release.

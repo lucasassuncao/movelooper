@@ -310,6 +310,189 @@ func TestMeetsSize(t *testing.T) {
 	}
 }
 
+// --- MatchesFilter ---
+
+// makeInfo returns an os.FileInfo for a temp file with the given size and modtime.
+func makeInfo(t *testing.T, name string, size int, modTime time.Time) os.FileInfo {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, name)
+	content := make([]byte, size)
+	require.NoError(t, os.WriteFile(path, content, 0644))
+	require.NoError(t, os.Chtimes(path, modTime, modTime))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	return info
+}
+
+func TestMatchesFilter_Leaf(t *testing.T) {
+	info := makeInfo(t, "report_2024.pdf", 1024, time.Now().Add(-2*time.Hour))
+
+	tests := []struct {
+		name   string
+		filter models.CategoryFilter
+		want   bool
+	}{
+		{
+			"empty filter - no restrictions",
+			models.CategoryFilter{},
+			true,
+		},
+		{
+			"glob matches",
+			models.CategoryFilter{Glob: "report_*"},
+			true,
+		},
+		{
+			"glob no match",
+			models.CategoryFilter{Glob: "invoice_*"},
+			false,
+		},
+		{
+			"ignore excludes file",
+			models.CategoryFilter{Ignore: []string{"report_*"}},
+			false,
+		},
+		{
+			"min-size passes",
+			models.CategoryFilter{MinSizeBytes: 512},
+			true,
+		},
+		{
+			"min-size fails",
+			models.CategoryFilter{MinSizeBytes: 1024 * 1024},
+			false,
+		},
+		{
+			"min-age passes",
+			models.CategoryFilter{MinAge: 1 * time.Hour},
+			true,
+		},
+		{
+			"min-age fails",
+			models.CategoryFilter{MinAge: 3 * time.Hour},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, MatchesFilter(tt.filter, info.Name(), info))
+		})
+	}
+}
+
+func TestMatchesFilter_Any(t *testing.T) {
+	info := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
+
+	t.Run("any - first group passes", func(t *testing.T) {
+		f := models.CategoryFilter{
+			Any: []models.CategoryFilter{
+				{Glob: "report_*"},
+				{Glob: "invoice_*"},
+			},
+		}
+		assert.True(t, MatchesFilter(f, info.Name(), info))
+	})
+
+	t.Run("any - second group passes", func(t *testing.T) {
+		f := models.CategoryFilter{
+			Any: []models.CategoryFilter{
+				{Glob: "invoice_*"},
+				{Glob: "report_*"},
+			},
+		}
+		assert.True(t, MatchesFilter(f, info.Name(), info))
+	})
+
+	t.Run("any - no group passes", func(t *testing.T) {
+		f := models.CategoryFilter{
+			Any: []models.CategoryFilter{
+				{Glob: "invoice_*"},
+				{Glob: "draft_*"},
+			},
+		}
+		assert.False(t, MatchesFilter(f, info.Name(), info))
+	})
+}
+
+func TestMatchesFilter_All(t *testing.T) {
+	info := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
+
+	t.Run("all - all groups pass", func(t *testing.T) {
+		f := models.CategoryFilter{
+			All: []models.CategoryFilter{
+				{Glob: "report_*"},
+				{MinSizeBytes: 1024 * 1024}, // 1MB
+			},
+		}
+		assert.True(t, MatchesFilter(f, info.Name(), info))
+	})
+
+	t.Run("all - one group fails", func(t *testing.T) {
+		f := models.CategoryFilter{
+			All: []models.CategoryFilter{
+				{Glob: "report_*"},
+				{MinSizeBytes: 10 * 1024 * 1024}, // 10MB - file is only 2MB
+			},
+		}
+		assert.False(t, MatchesFilter(f, info.Name(), info))
+	})
+}
+
+func TestMatchesFilter_AnyInsideAll(t *testing.T) {
+	// (report_* OR invoice_*) AND min-size:1MB
+	info := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now())
+
+	f := models.CategoryFilter{
+		All: []models.CategoryFilter{
+			{MinSizeBytes: 1024 * 1024}, // 1MB - passes (file is 2MB)
+			{
+				Any: []models.CategoryFilter{
+					{Glob: "report_*"},
+					{Glob: "invoice_*"},
+				},
+			},
+		},
+	}
+	assert.True(t, MatchesFilter(f, info.Name(), info))
+
+	// Same structure but file is too small
+	smallInfo := makeInfo(t, "report_small.pdf", 512, time.Now())
+	assert.False(t, MatchesFilter(f, smallInfo.Name(), smallInfo))
+}
+
+func TestMatchesFilter_AllInsideAny(t *testing.T) {
+	// (report_* AND >1MB) OR (invoice_* AND >2h old)
+	f := models.CategoryFilter{
+		Any: []models.CategoryFilter{
+			{
+				All: []models.CategoryFilter{
+					{Glob: "report_*"},
+					{MinSizeBytes: 1024 * 1024},
+				},
+			},
+			{
+				All: []models.CategoryFilter{
+					{Glob: "invoice_*"},
+					{MinAge: 2 * time.Hour},
+				},
+			},
+		},
+	}
+
+	// report, large → matches first branch
+	reportLarge := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now())
+	assert.True(t, MatchesFilter(f, reportLarge.Name(), reportLarge))
+
+	// invoice, old → matches second branch
+	invoiceOld := makeInfo(t, "invoice_jan.pdf", 100, time.Now().Add(-3*time.Hour))
+	assert.True(t, MatchesFilter(f, invoiceOld.Name(), invoiceOld))
+
+	// report, small → misses first branch; report ≠ invoice → misses second
+	reportSmall := makeInfo(t, "report_tiny.pdf", 100, time.Now())
+	assert.False(t, MatchesFilter(f, reportSmall.Name(), reportSmall))
+}
+
 // --- MeetsAgeSizeFilters ---
 
 func TestMeetsAgeSizeFilters(t *testing.T) {

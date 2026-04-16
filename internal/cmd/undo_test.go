@@ -76,7 +76,7 @@ func TestUndoBatch(t *testing.T) {
 			},
 			dryRun: true,
 			check: func(t *testing.T, srcFile, dstFile string) {
-				// Neither file should exist — nothing was created or moved
+				// Neither file should exist - nothing was created or moved
 				assert.NoFileExists(t, srcFile)
 				assert.NoFileExists(t, dstFile)
 			},

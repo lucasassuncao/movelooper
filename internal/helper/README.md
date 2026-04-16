@@ -16,6 +16,7 @@ import "github.com/lucasassuncao/movelooper/internal/helper"
 - [func GenerateLogArgs\(files \[\]os.DirEntry, extension string\) \[\]interface\{\}](<#GenerateLogArgs>)
 - [func HasExtension\(file os.DirEntry, extension string\) bool](<#HasExtension>)
 - [func MatchesAnyExtension\(fileName string, extensions \[\]string\) bool](<#MatchesAnyExtension>)
+- [func MatchesFilter\(f models.CategoryFilter, fileName string, info os.FileInfo\) bool](<#MatchesFilter>)
 - [func MatchesGlob\(fileName, pattern string, caseSensitive bool\) bool](<#MatchesGlob>)
 - [func MatchesIgnorePatterns\(fileName string, patterns \[\]string, caseSensitive bool\) bool](<#MatchesIgnorePatterns>)
 - [func MatchesNameFilters\(fileName string, f models.CategoryFilter\) bool](<#MatchesNameFilters>)
@@ -61,7 +62,7 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="GenerateLogArgs"></a>
-## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L217>)
+## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L248>)
 
 ```go
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
@@ -86,6 +87,15 @@ func MatchesAnyExtension(fileName string, extensions []string) bool
 ```
 
 MatchesAnyExtension reports whether fileName's extension matches any entry in the list. Comparison is case\-insensitive; leading dots are stripped before comparing. When the list contains "all", every file matches.
+
+<a name="MatchesFilter"></a>
+## func [MatchesFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L220>)
+
+```go
+func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) bool
+```
+
+MatchesFilter reports whether the file identified by fileName and info passes the filter f. It handles any/all recursively; plain filters \(no any/all\) are evaluated as leaves using the existing field\-level logic. An empty filter \(no fields, no any/all\) always returns true.
 
 <a name="MatchesGlob"></a>
 ## func [MatchesGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L31>)
@@ -199,35 +209,35 @@ Supported tokens:
 
 ```
 File identification:
-  {name}          — filename without extension
-  {ext}           — extension without dot, lowercase
-  {ext-upper}     — extension without dot, uppercase
+  {name}          - filename without extension
+  {ext}           - extension without dot, lowercase
+  {ext-upper}     - extension without dot, uppercase
 
 File modification date:
-  {mod-year}      — year  (2025)
-  {mod-month}     — month (04)
-  {mod-day}       — day   (08)
-  {mod-date}      — 2025-04-08
-  {mod-weekday}   — Tuesday
+  {mod-year}      - year  (2025)
+  {mod-month}     - month (04)
+  {mod-day}       - day   (08)
+  {mod-date}      - 2025-04-08
+  {mod-weekday}   - Tuesday
 
 File creation date (falls back to mod time on Linux):
-  {created-year}  — year
-  {created-month} — month
-  {created-day}   — day
-  {created-date}  — 2025-04-08
+  {created-year}  - year
+  {created-month} - month
+  {created-day}   - day
+  {created-date}  - 2025-04-08
 
 Run date (time.Now()):
-  {year}          — year
-  {month}         — month
-  {day}           — day
-  {date}          — 2025-04-08
-  {weekday}       — Tuesday
+  {year}          - year
+  {month}         - month
+  {day}           - day
+  {date}          - 2025-04-08
+  {weekday}       - Tuesday
 
 File size:
-  {size-range}    — tiny (<1 MB) | small (1 MB–100 MB) | medium (100 MB–1 GB) | large (≥1 GB)
+  {size-range}    - tiny (<1 MB) | small (1 MB–100 MB) | medium (100 MB–1 GB) | large (≥1 GB)
 
 Category:
-  {category}      — category name from config
+  {category}      - category name from config
 ```
 
 <a name="ResolveRename"></a>

@@ -110,7 +110,7 @@ func (r *newestResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
 		return "", false, err
 	}
 	if !srcInfo.ModTime().After(dstInfo.ModTime()) {
-		return "", false, nil // destination is newer or equal — keep it
+		return "", false, nil // destination is newer or equal - keep it
 	}
 	if err := os.Remove(dst); err != nil {
 		return "", false, fmt.Errorf("newest: failed to remove older destination: %w", err)
@@ -133,7 +133,7 @@ func (r *oldestResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
 		return "", false, err
 	}
 	if !srcInfo.ModTime().Before(dstInfo.ModTime()) {
-		return "", false, nil // destination is older or equal — keep it
+		return "", false, nil // destination is older or equal - keep it
 	}
 	if err := os.Remove(dst); err != nil {
 		return "", false, fmt.Errorf("oldest: failed to remove newer destination: %w", err)
@@ -156,7 +156,7 @@ func (r *largerResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
 		return "", false, err
 	}
 	if srcInfo.Size() <= dstInfo.Size() {
-		return "", false, nil // destination is larger or equal — keep it
+		return "", false, nil // destination is larger or equal - keep it
 	}
 	if err := os.Remove(dst); err != nil {
 		return "", false, fmt.Errorf("larger: failed to remove smaller destination: %w", err)
@@ -179,7 +179,7 @@ func (r *smallerResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
 		return "", false, err
 	}
 	if srcInfo.Size() >= dstInfo.Size() {
-		return "", false, nil // destination is smaller or equal — keep it
+		return "", false, nil // destination is smaller or equal - keep it
 	}
 	if err := os.Remove(dst); err != nil {
 		return "", false, fmt.Errorf("smaller: failed to remove larger destination: %w", err)
@@ -203,7 +203,7 @@ func (r *hashCheckResolver) Resolve(src, dst, destDir, fileName string) (string,
 		}
 		return "", false, nil
 	}
-	// Files differ — rename to avoid clobbering the existing destination.
+	// Files differ - rename to avoid clobbering the existing destination.
 	path, err := getUniqueDestinationPath(destDir, fileName)
 	if err != nil {
 		return "", false, err

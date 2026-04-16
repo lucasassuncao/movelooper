@@ -41,6 +41,76 @@ Each entry in the `categories` list has the following top-level fields:
 | `max-age`  | duration  | Only move files newer than this value (e.g. `720h`, `8760h`)           |
 | `min-size` | string    | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`)      |
 | `max-size` | string    | Only move files at most this large (e.g. `10MB`, `1GB`)                |
+| `any`      | []filter  | OR between groups — file passes if at least one group matches           |
+| `all`      | []filter  | AND between groups — file passes only if every group matches            |
+
+### Filter logic with `any` and `all`
+
+By default, all fields in `filter` are combined with AND — a file must satisfy every condition. Use `any` or `all` for explicit boolean logic between groups.
+
+**Rules:**
+- `any` and `all` are mutually exclusive at the same level
+- `any`/`all` and direct fields (`glob`, `regex`, `min-size`, etc.) cannot be mixed at the same level
+- `any`/`all` must contain at least one entry
+- Within each group, existing rules apply: `regex` and `glob` are mutually exclusive
+
+#### Simple filter — AND (unchanged)
+
+```yaml
+filter:
+  glob: "report_*"
+  min-size: 500KB
+  min-age: 1h
+# Matches: glob AND min-size AND min-age
+```
+
+#### `any` — OR between groups
+
+```yaml
+filter:
+  any:
+    - glob: "report_*"
+      min-size: 500KB
+    - glob: "invoice_*"
+      min-age: 1h
+# Matches: (report_* AND >500KB) OR (invoice_* AND >1h old)
+```
+
+#### `all` — explicit AND between groups
+
+```yaml
+filter:
+  all:
+    - glob: "report_*"
+    - min-size: 500KB
+# Equivalent to simple filter — both conditions must pass
+```
+
+#### `any` inside `all` — most useful nested case
+
+```yaml
+filter:
+  all:
+    - min-size: 1MB
+    - any:
+        - glob: "report_*"
+        - glob: "invoice_*"
+# Matches: (report_* OR invoice_*) AND >1MB
+```
+
+#### `all` inside `any`
+
+```yaml
+filter:
+  any:
+    - all:
+        - glob: "report_*"
+        - min-size: 500KB
+    - all:
+        - regex: '^\d{4}-.*'
+        - min-age: 24h
+# Matches: (report_* AND >500KB) OR (date-prefixed name AND >24h old)
+```
 
 ### `destination` block
 

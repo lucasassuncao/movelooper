@@ -157,7 +157,7 @@ func ParseSize(s string) (int64, error) {
 		}
 	}
 
-	// No suffix — treat as raw bytes
+	// No suffix - treat as raw bytes
 	var val int64
 	if _, err := fmt.Sscanf(s, "%d", &val); err != nil {
 		return 0, fmt.Errorf("unrecognised size format %q", s)
@@ -211,6 +211,37 @@ func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool {
 		MeetsMaxAge(info, f.MaxAge) &&
 		MeetsMinSize(info, f.MinSizeBytes) &&
 		MeetsMaxSize(info, f.MaxSizeBytes)
+}
+
+// MatchesFilter reports whether the file identified by fileName and info passes
+// the filter f. It handles any/all recursively; plain filters (no any/all) are
+// evaluated as leaves using the existing field-level logic.
+// An empty filter (no fields, no any/all) always returns true.
+func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) bool {
+	if len(f.Any) > 0 {
+		for _, child := range f.Any {
+			if MatchesFilter(child, fileName, info) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(f.All) > 0 {
+		for _, child := range f.All {
+			if !MatchesFilter(child, fileName, info) {
+				return false
+			}
+		}
+		return true
+	}
+	// Leaf: evaluate direct fields.
+	if MatchesIgnorePatterns(fileName, f.Ignore, f.CaseSensitive) {
+		return false
+	}
+	if !MatchesNameFilters(fileName, f) {
+		return false
+	}
+	return MeetsAgeSizeFilters(info, f)
 }
 
 // GenerateLogArgs generates log arguments for a given extension.

@@ -36,7 +36,7 @@ func TestParseLogLevel(t *testing.T) {
 		{"fatal", pterm.LogLevelFatal},
 		{"", pterm.LogLevelInfo},
 		{"unknown", pterm.LogLevelInfo},
-		{"INFO", pterm.LogLevelInfo}, // case sensitive — falls to default
+		{"INFO", pterm.LogLevelInfo}, // case sensitive - falls to default
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {

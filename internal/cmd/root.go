@@ -173,17 +173,11 @@ func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet
 	if !file.Type().IsRegular() || !helper.HasExtension(file, extension) {
 		return false
 	}
-	if helper.MatchesIgnorePatterns(file.Name(), category.Source.Filter.Ignore, category.Source.Filter.CaseSensitive) {
-		return false
-	}
-	if !helper.MatchesNameFilters(file.Name(), category.Source.Filter) {
-		return false
-	}
 	info, err := file.Info()
 	if err != nil {
 		return false
 	}
-	return helper.MeetsAgeSizeFilters(info, category.Source.Filter)
+	return helper.MatchesFilter(category.Source.Filter, file.Name(), info)
 }
 
 // logExtensionResult logs a summary of files found for an extension.
@@ -206,7 +200,7 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 
 // preRunHandler handles the necessary configuration before command execution.
 // It creates a short-lived koanf instance to read the YAML file, extracts all
-// values into typed structs, and discards it — the rest of the application
+// values into typed structs, and discards it - the rest of the application
 // works exclusively with m.Logger, m.Config, m.Categories, and m.History.
 func preRunHandler(m *models.Movelooper, configPath string) (retErr error) {
 	defer func() {
@@ -301,7 +295,7 @@ func resolveConfigPath(configPath string) (string, error) {
 }
 
 // validateDirectories warns about source or destination directories that do not exist.
-// It does not abort startup — missing directories are reported and skipped at runtime.
+// It does not abort startup - missing directories are reported and skipped at runtime.
 func validateDirectories(m *models.Movelooper) {
 	for _, cat := range m.Categories {
 		if !cat.IsEnabled() {

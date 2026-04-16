@@ -141,7 +141,7 @@ func dispatchAction(action, src, dst string) error {
 // whether the file should be skipped entirely.
 func applyConflictStrategy(ctx MoveContext, strategy, sourcePath, destPath, destDir, fileName string) (resolved string, skip bool) {
 	if _, err := os.Stat(destPath); err != nil {
-		// Destination does not exist — no conflict.
+		// Destination does not exist - no conflict.
 		return destPath, false
 	}
 	resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, fileName)
@@ -156,13 +156,13 @@ func applyConflictStrategy(ctx MoveContext, strategy, sourcePath, destPath, dest
 		case "hash_check":
 			ctx.Logger.Info("duplicate file removed from source", ctx.Logger.Args("file", fileName))
 		case "newest":
-			ctx.Logger.Info("file skipped — destination is newer", ctx.Logger.Args("file", fileName))
+			ctx.Logger.Info("file skipped - destination is newer", ctx.Logger.Args("file", fileName))
 		case "oldest":
-			ctx.Logger.Info("file skipped — destination is older", ctx.Logger.Args("file", fileName))
+			ctx.Logger.Info("file skipped - destination is older", ctx.Logger.Args("file", fileName))
 		case "larger":
-			ctx.Logger.Info("file skipped — destination is larger", ctx.Logger.Args("file", fileName))
+			ctx.Logger.Info("file skipped - destination is larger", ctx.Logger.Args("file", fileName))
 		case "smaller":
-			ctx.Logger.Info("file skipped — destination is smaller", ctx.Logger.Args("file", fileName))
+			ctx.Logger.Info("file skipped - destination is smaller", ctx.Logger.Args("file", fileName))
 		}
 		return "", true
 	}
@@ -179,7 +179,7 @@ func moveFile(src, dst string) error {
 
 	// os.Rename fails across different filesystems/drives (EXDEV on Unix,
 	// ERROR_NOT_SAME_DEVICE on Windows). Fall back to copy+delete only for
-	// that specific error — other errors (permissions, missing file) are returned as-is.
+	// that specific error - other errors (permissions, missing file) are returned as-is.
 	if !isCrossDeviceError(err) {
 		return err
 	}
@@ -205,7 +205,7 @@ func moveFile(src, dst string) error {
 //
 // On Unix the kernel returns EXDEV; on Windows it returns ERROR_NOT_SAME_DEVICE
 // (errno 17). Both are wrapped inside *os.LinkError by os.Rename, so we unwrap
-// to the inner syscall error before comparing — this avoids treating unrelated
+// to the inner syscall error before comparing - this avoids treating unrelated
 // *os.LinkError values (e.g. permission denied) as cross-device errors.
 func isCrossDeviceError(err error) bool {
 	var linkErr *os.LinkError

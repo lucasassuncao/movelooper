@@ -29,6 +29,7 @@ Overview of all test cases across the movelooper project.
 | `TestLoadConfig_WatchDelayFallback` | Missing `watch-delay` falls back to default | `WatchDelay == 5m` |
 | `TestValidateCategory_Action` | empty / move / copy / symlink / invalid / uppercase | Only `move`, `copy`, `symlink`, and empty are accepted; others error | no error for valid values, error containing `"action"` otherwise |
 | `TestValidateCategory_Rename` | empty / valid template / unknown token | Unknown tokens in `rename` are rejected at validation time | no error for valid, error containing `"rename"` for unknown token |
+| `TestValidateFilter_AnyAll` | valid any / valid all / valid nesting / any+all same level / any+direct fields / empty any / empty all / invalid child | Validates composite filter nodes recursively | no error for valid, descriptive error for each invalid case |
 
 ### `logging_test.go`
 
@@ -225,6 +226,11 @@ Overview of all test cases across the movelooper project.
 | `TestMeetsMinSize` | Checks if file is larger than the minimum | `true`/`false` per case |
 | `TestMeetsMaxSize` | Checks if file is smaller than the maximum | `true`/`false` per case |
 | `TestMeetsAgeSizeFilters_NoConstraints` | Without constraints, any file passes | `true` |
+| `TestMatchesFilter_Leaf` | empty / glob match / glob no match / ignore / size / age | Leaf filter behaves identically to existing field-level evaluation | `true`/`false` per scenario |
+| `TestMatchesFilter_Any` | first passes / second passes / none passes | `any` returns true when at least one group matches | `true`/`false` per scenario |
+| `TestMatchesFilter_All` | all pass / one fails | `all` returns true only when every group matches | `true`/`false` per scenario |
+| `TestMatchesFilter_AnyInsideAll` | large report passes / small report fails | `(report_* OR invoice_*) AND min-size:1MB` | `true`/`false` per scenario |
+| `TestMatchesFilter_AllInsideAny` | large report / old invoice / small report | `(report_* AND >1MB) OR (invoice_* AND >2h)` | `true`/`false` per scenario |
 
 ### `conflict_test.go`
 

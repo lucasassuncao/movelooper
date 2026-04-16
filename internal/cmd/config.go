@@ -104,7 +104,7 @@ func printFilterSummary(f models.CategoryFilter) {
 
 func orDash(s string) string {
 	if s == "" {
-		return "—"
+		return "-"
 	}
 	return s
 }

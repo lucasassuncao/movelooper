@@ -154,9 +154,9 @@ func fetchLatestRelease(repo, token string) (*ghRelease, error) {
 // Scoring weights used by selectAsset to rank release assets.
 // Higher weight = stronger signal of compatibility with the current platform.
 const (
-	scoreOS   = 5 // OS name match ("windows", "win64", …) — strongest signal
-	scoreArch = 3 // architecture match ("amd64", "x86_64", …) — secondary signal
-	scoreExe  = 2 // ".exe" extension — confirms Windows binary without OS name
+	scoreOS   = 5 // OS name match ("windows", "win64", …) - strongest signal
+	scoreArch = 3 // architecture match ("amd64", "x86_64", …) - secondary signal
+	scoreExe  = 2 // ".exe" extension - confirms Windows binary without OS name
 )
 
 // selectAsset picks the best asset for the current platform.

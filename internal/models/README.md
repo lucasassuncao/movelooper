@@ -21,7 +21,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L78-L83>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L80-L85>)
 
 Category represents a file category with its properties
 
@@ -44,7 +44,7 @@ func (c *Category) IsEnabled() bool
 IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
 
 <a name="CategoryDestination"></a>
-## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L69-L75>)
+## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L71-L77>)
 
 CategoryDestination holds the destination path and placement rules for a category
 
@@ -59,29 +59,31 @@ type CategoryDestination struct {
 ```
 
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L46-L59>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L46-L61>)
 
 CategoryFilter holds the optional filtering rules for a category
 
 ```go
 type CategoryFilter struct {
-    Regex         string         `yaml:"regex" mapstructure:"regex"`
-    Glob          string         `yaml:"glob" mapstructure:"glob"`
-    Include       []string       `yaml:"include" mapstructure:"include"`
-    Ignore        []string       `yaml:"ignore" mapstructure:"ignore"`
-    CaseSensitive bool           `yaml:"case-sensitive" mapstructure:"case-sensitive"`
-    MinAge        time.Duration  `yaml:"min-age" mapstructure:"min-age"`
-    MaxAge        time.Duration  `yaml:"max-age" mapstructure:"max-age"`
-    MinSize       string         `yaml:"min-size" mapstructure:"min-size"`
-    MaxSize       string         `yaml:"max-size" mapstructure:"max-size"`
-    CompiledRegex *regexp.Regexp `yaml:"-" mapstructure:"-"` // compiled from Regex
-    MinSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MinSize
-    MaxSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MaxSize
+    Regex         string           `yaml:"regex" mapstructure:"regex"`
+    Glob          string           `yaml:"glob" mapstructure:"glob"`
+    Include       []string         `yaml:"include" mapstructure:"include"`
+    Ignore        []string         `yaml:"ignore" mapstructure:"ignore"`
+    CaseSensitive bool             `yaml:"case-sensitive" mapstructure:"case-sensitive"`
+    MinAge        time.Duration    `yaml:"min-age" mapstructure:"min-age"`
+    MaxAge        time.Duration    `yaml:"max-age" mapstructure:"max-age"`
+    MinSize       string           `yaml:"min-size" mapstructure:"min-size"`
+    MaxSize       string           `yaml:"max-size" mapstructure:"max-size"`
+    CompiledRegex *regexp.Regexp   `yaml:"-" mapstructure:"-"` // compiled from Regex
+    MinSizeBytes  int64            `yaml:"-" mapstructure:"-"` // parsed from MinSize
+    MaxSizeBytes  int64            `yaml:"-" mapstructure:"-"` // parsed from MaxSize
+    Any           []CategoryFilter `yaml:"any" mapstructure:"any"`
+    All           []CategoryFilter `yaml:"all" mapstructure:"all"`
 }
 ```
 
 <a name="CategorySource"></a>
-## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L62-L66>)
+## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L64-L68>)
 
 CategorySource holds the source path, extensions, and filters for a category
 

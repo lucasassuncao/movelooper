@@ -56,7 +56,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview mode — log matched files without moving them")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview mode - log matched files without moving them")
 	return cmd
 }
 
@@ -190,10 +190,11 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 			if !helper.MatchesAnyExtension(file.Name(), cat.Source.Extensions) {
 				continue
 			}
-			if helper.MatchesIgnorePatterns(file.Name(), cat.Source.Filter.Ignore, cat.Source.Filter.CaseSensitive) {
+			info, err := file.Info()
+			if err != nil {
 				continue
 			}
-			if !helper.MatchesNameFilters(file.Name(), cat.Source.Filter) {
+			if !helper.MatchesFilter(cat.Source.Filter, file.Name(), info) {
 				continue
 			}
 			fullPath := filepath.Join(cat.Source.Path, file.Name())
@@ -279,9 +280,6 @@ func attemptMoveFile(m *models.Movelooper, path string, dryRun bool) error {
 		if filepath.Clean(filepath.Dir(path)) != filepath.Clean(cat.Source.Path) {
 			continue
 		}
-		if helper.MatchesIgnorePatterns(fileName, cat.Source.Filter.Ignore, cat.Source.Filter.CaseSensitive) {
-			continue
-		}
 		if !matchesExtensionAndFilters(cat, fileName, path) {
 			continue
 		}
@@ -301,14 +299,11 @@ func matchesExtensionAndFilters(cat *models.Category, fileName, path string) boo
 	if !helper.MatchesAnyExtension(fileName, cat.Source.Extensions) {
 		return false
 	}
-	if !helper.MatchesNameFilters(fileName, cat.Source.Filter) {
-		return false
-	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
-	return helper.MeetsAgeSizeFilters(info, cat.Source.Filter)
+	return helper.MatchesFilter(cat.Source.Filter, fileName, info)
 }
 
 func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext string) error {

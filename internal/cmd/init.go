@@ -224,7 +224,7 @@ func generateInteractiveConfig() *models.Config {
 
 	var historyLimitStr string
 	err = huh.NewInput().
-		Title("History limit (number of move operations to keep in history) — leave blank for default (100)").
+		Title("History limit (number of move operations to keep in history) - leave blank for default (100)").
 		Value(&historyLimitStr).
 		Placeholder("100").
 		Validate(func(str string) error {
@@ -442,7 +442,7 @@ func promptIncludePatterns() []string {
 	var addInclude bool
 	exitIfAborted(huh.NewConfirm().
 		Title("Do you want to add include patterns?").
-		Description("Glob patterns — only files matching these patterns will be moved (e.g., report_*, invoice_*)").
+		Description("Glob patterns - only files matching these patterns will be moved (e.g., report_*, invoice_*)").
 		Value(&addInclude).Run())
 	if addInclude {
 		return collectIncludePatterns()
@@ -560,7 +560,7 @@ func promptAgeFilter() (minAge, maxAge time.Duration) {
 
 	var minAgeStr string
 	exitIfAborted(huh.NewInput().
-		Title("Minimum file age before moving (e.g., 24h, 168h) — leave blank to disable").
+		Title("Minimum file age before moving (e.g., 24h, 168h) - leave blank to disable").
 		Description("Only files older than this duration will be moved").
 		Value(&minAgeStr).
 		Validate(validateDuration).
@@ -568,7 +568,7 @@ func promptAgeFilter() (minAge, maxAge time.Duration) {
 
 	var maxAgeStr string
 	exitIfAborted(huh.NewInput().
-		Title("Maximum file age before moving (e.g., 720h, 8760h) — leave blank to disable").
+		Title("Maximum file age before moving (e.g., 720h, 8760h) - leave blank to disable").
 		Description("Only files newer than this duration will be moved").
 		Value(&maxAgeStr).
 		Validate(validateDuration).
@@ -586,12 +586,12 @@ func promptAgeFilter() (minAge, maxAge time.Duration) {
 // promptSizeFilter asks the user for optional min-size and max-size filters.
 func promptSizeFilter() (minSize, maxSize string) {
 	exitIfAborted(huh.NewInput().
-		Title("Minimum file size before moving (e.g., 1MB, 500KB) — leave blank to disable").
+		Title("Minimum file size before moving (e.g., 1MB, 500KB) - leave blank to disable").
 		Description("Only files larger than this size will be moved").
 		Value(&minSize).Run())
 
 	exitIfAborted(huh.NewInput().
-		Title("Maximum file size before moving (e.g., 10MB, 1GB) — leave blank to disable").
+		Title("Maximum file size before moving (e.g., 10MB, 1GB) - leave blank to disable").
 		Description("Only files smaller than this size will be moved").
 		Value(&maxSize).Run())
 

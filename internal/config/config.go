@@ -63,7 +63,7 @@ func validateCategory(cat *models.Category) error {
 	}
 
 	if !validActions[cat.Destination.Action] {
-		return fmt.Errorf("category %q: invalid action %q — must be move, copy, or symlink", cat.Name, cat.Destination.Action)
+		return fmt.Errorf("category %q: invalid action %q - must be move, copy, or symlink", cat.Name, cat.Destination.Action)
 	}
 
 	if cat.Destination.Rename != "" {
@@ -75,8 +75,55 @@ func validateCategory(cat *models.Category) error {
 	return validateFilter(cat.Name, &cat.Source.Filter)
 }
 
-// validateFilter validates and pre-compiles all filter fields for a category.
+// hasDirectFilterFields reports whether f has any direct filter fields set.
+func hasDirectFilterFields(f *models.CategoryFilter) bool {
+	return f.Regex != "" || f.Glob != "" ||
+		len(f.Include) > 0 || len(f.Ignore) > 0 ||
+		f.MinAge != 0 || f.MaxAge != 0 ||
+		f.MinSize != "" || f.MaxSize != ""
+}
+
+// validateFilter validates a filter node recursively.
+// Nodes with any/all are validated as composite nodes; all others as leaves.
 func validateFilter(catName string, f *models.CategoryFilter) error {
+	hasAny := len(f.Any) > 0
+	hasAll := len(f.All) > 0
+
+	if f.Any != nil && !hasAny {
+		return fmt.Errorf("category %q: filter 'any' must have at least one entry", catName)
+	}
+	if f.All != nil && !hasAll {
+		return fmt.Errorf("category %q: filter 'all' must have at least one entry", catName)
+	}
+	if hasAny && hasAll {
+		return fmt.Errorf("category %q: filter cannot have both 'any' and 'all' at the same level", catName)
+	}
+	if (hasAny || hasAll) && hasDirectFilterFields(f) {
+		return fmt.Errorf("category %q: filter cannot mix 'any'/'all' with direct fields", catName)
+	}
+
+	if hasAny {
+		for i := range f.Any {
+			if err := validateFilter(catName, &f.Any[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if hasAll {
+		for i := range f.All {
+			if err := validateFilter(catName, &f.All[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	return validateLeafFilter(catName, f)
+}
+
+// validateLeafFilter validates a plain (non-composite) filter node.
+func validateLeafFilter(catName string, f *models.CategoryFilter) error {
 	if f.Regex != "" && f.Glob != "" {
 		return fmt.Errorf("category %q: source.filter regex and glob are mutually exclusive; use only one", catName)
 	}

@@ -45,35 +45,35 @@ const (
 // Supported tokens:
 //
 //	File identification:
-//	  {name}          — filename without extension
-//	  {ext}           — extension without dot, lowercase
-//	  {ext-upper}     — extension without dot, uppercase
+//	  {name}          - filename without extension
+//	  {ext}           - extension without dot, lowercase
+//	  {ext-upper}     - extension without dot, uppercase
 //
 //	File modification date:
-//	  {mod-year}      — year  (2025)
-//	  {mod-month}     — month (04)
-//	  {mod-day}       — day   (08)
-//	  {mod-date}      — 2025-04-08
-//	  {mod-weekday}   — Tuesday
+//	  {mod-year}      - year  (2025)
+//	  {mod-month}     - month (04)
+//	  {mod-day}       - day   (08)
+//	  {mod-date}      - 2025-04-08
+//	  {mod-weekday}   - Tuesday
 //
 //	File creation date (falls back to mod time on Linux):
-//	  {created-year}  — year
-//	  {created-month} — month
-//	  {created-day}   — day
-//	  {created-date}  — 2025-04-08
+//	  {created-year}  - year
+//	  {created-month} - month
+//	  {created-day}   - day
+//	  {created-date}  - 2025-04-08
 //
 //	Run date (time.Now()):
-//	  {year}          — year
-//	  {month}         — month
-//	  {day}           — day
-//	  {date}          — 2025-04-08
-//	  {weekday}       — Tuesday
+//	  {year}          - year
+//	  {month}         - month
+//	  {day}           - day
+//	  {date}          - 2025-04-08
+//	  {weekday}       - Tuesday
 //
 //	File size:
-//	  {size-range}    — tiny (<1 MB) | small (1 MB–100 MB) | medium (100 MB–1 GB) | large (≥1 GB)
+//	  {size-range}    - tiny (<1 MB) | small (1 MB–100 MB) | medium (100 MB–1 GB) | large (≥1 GB)
 //
 //	Category:
-//	  {category}      — category name from config
+//	  {category}      - category name from config
 func ResolveGroupBy(template string, info os.FileInfo, categoryName string, now time.Time) string {
 	if template == "" {
 		return ""

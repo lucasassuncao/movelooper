@@ -245,7 +245,7 @@ categories:
       path: /tmp/dst
 `,
 			check: func(t *testing.T, cats []*models.Category) {
-				// error is expected — this case is handled below
+				// error is expected - this case is handled below
 			},
 		},
 	}
@@ -336,10 +336,10 @@ func TestValidateCategory_Action(t *testing.T) {
 		action  string
 		wantErr bool
 	}{
-		{"empty defaults to move — ok", "", false},
-		{"move explicit — ok", "move", false},
-		{"copy — ok", "copy", false},
-		{"symlink — ok", "symlink", false},
+		{"empty defaults to move - ok", "", false},
+		{"move explicit - ok", "move", false},
+		{"copy - ok", "copy", false},
+		{"symlink - ok", "symlink", false},
 		{"invalid action", "link", true},
 		{"uppercase invalid", "MOVE", true},
 	}
@@ -372,9 +372,9 @@ func TestValidateCategory_Rename(t *testing.T) {
 		rename  string
 		wantErr bool
 	}{
-		{"empty — ok", "", false},
-		{"valid template — ok", "{mod-date}_{name}.{ext}", false},
-		{"unknown token — error", "{unknown}", true},
+		{"empty - ok", "", false},
+		{"valid template - ok", "{mod-date}_{name}.{ext}", false},
+		{"unknown token - error", "{unknown}", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -392,6 +392,105 @@ func TestValidateCategory_Rename(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "rename")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateFilter_AnyAll(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  models.CategoryFilter
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			"valid any with glob groups",
+			models.CategoryFilter{
+				Any: []models.CategoryFilter{
+					{Glob: "report_*"},
+					{Glob: "invoice_*"},
+				},
+			},
+			false, "",
+		},
+		{
+			"valid all with size and glob",
+			models.CategoryFilter{
+				All: []models.CategoryFilter{
+					{Glob: "report_*"},
+					{MinSize: "1MB"},
+				},
+			},
+			false, "",
+		},
+		{
+			"valid any inside all",
+			models.CategoryFilter{
+				All: []models.CategoryFilter{
+					{MinSize: "1MB"},
+					{
+						Any: []models.CategoryFilter{
+							{Glob: "report_*"},
+							{Glob: "invoice_*"},
+						},
+					},
+				},
+			},
+			false, "",
+		},
+		{
+			"any and all at same level - error",
+			models.CategoryFilter{
+				Any: []models.CategoryFilter{{Glob: "report_*"}},
+				All: []models.CategoryFilter{{Glob: "invoice_*"}},
+			},
+			true, "cannot have both 'any' and 'all'",
+		},
+		{
+			"any mixed with direct fields - error",
+			models.CategoryFilter{
+				Glob: "report_*",
+				Any:  []models.CategoryFilter{{Glob: "invoice_*"}},
+			},
+			true, "cannot mix 'any'/'all' with direct fields",
+		},
+		{
+			"all mixed with direct fields - error",
+			models.CategoryFilter{
+				MinSize: "1MB",
+				All:     []models.CategoryFilter{{Glob: "report_*"}},
+			},
+			true, "cannot mix 'any'/'all' with direct fields",
+		},
+		{
+			"any with invalid child - error",
+			models.CategoryFilter{
+				Any: []models.CategoryFilter{
+					{Regex: "invalid[", Glob: "report_*"}, // mutually exclusive
+				},
+			},
+			true, "mutually exclusive",
+		},
+		{
+			"valid any with regex in one group and glob in another",
+			models.CategoryFilter{
+				Any: []models.CategoryFilter{
+					{Regex: `^\d{4}-.*`},
+					{Glob: "report_*"},
+				},
+			},
+			false, "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateFilter("test", &tt.filter)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
 			} else {
 				assert.NoError(t, err)
 			}

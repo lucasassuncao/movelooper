@@ -44,18 +44,20 @@ type Configuration struct {
 
 // CategoryFilter holds the optional filtering rules for a category
 type CategoryFilter struct {
-	Regex         string         `yaml:"regex" mapstructure:"regex"`
-	Glob          string         `yaml:"glob" mapstructure:"glob"`
-	Include       []string       `yaml:"include" mapstructure:"include"`
-	Ignore        []string       `yaml:"ignore" mapstructure:"ignore"`
-	CaseSensitive bool           `yaml:"case-sensitive" mapstructure:"case-sensitive"`
-	MinAge        time.Duration  `yaml:"min-age" mapstructure:"min-age"`
-	MaxAge        time.Duration  `yaml:"max-age" mapstructure:"max-age"`
-	MinSize       string         `yaml:"min-size" mapstructure:"min-size"`
-	MaxSize       string         `yaml:"max-size" mapstructure:"max-size"`
-	CompiledRegex *regexp.Regexp `yaml:"-" mapstructure:"-"` // compiled from Regex
-	MinSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MinSize
-	MaxSizeBytes  int64          `yaml:"-" mapstructure:"-"` // parsed from MaxSize
+	Regex         string           `yaml:"regex" mapstructure:"regex"`
+	Glob          string           `yaml:"glob" mapstructure:"glob"`
+	Include       []string         `yaml:"include" mapstructure:"include"`
+	Ignore        []string         `yaml:"ignore" mapstructure:"ignore"`
+	CaseSensitive bool             `yaml:"case-sensitive" mapstructure:"case-sensitive"`
+	MinAge        time.Duration    `yaml:"min-age" mapstructure:"min-age"`
+	MaxAge        time.Duration    `yaml:"max-age" mapstructure:"max-age"`
+	MinSize       string           `yaml:"min-size" mapstructure:"min-size"`
+	MaxSize       string           `yaml:"max-size" mapstructure:"max-size"`
+	CompiledRegex *regexp.Regexp   `yaml:"-" mapstructure:"-"` // compiled from Regex
+	MinSizeBytes  int64            `yaml:"-" mapstructure:"-"` // parsed from MinSize
+	MaxSizeBytes  int64            `yaml:"-" mapstructure:"-"` // parsed from MaxSize
+	Any           []CategoryFilter `yaml:"any" mapstructure:"any"`
+	All           []CategoryFilter `yaml:"all" mapstructure:"all"`
 }
 
 // CategorySource holds the source path, extensions, and filters for a category
