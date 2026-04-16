@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,6 +75,11 @@ func TestUndoBatch(t *testing.T) {
 				return "batch_missing", srcFile, dstFile
 			},
 			dryRun: true,
+			check: func(t *testing.T, srcFile, dstFile string) {
+				// Neither file should exist — nothing was created or moved
+				assert.NoFileExists(t, srcFile)
+				assert.NoFileExists(t, dstFile)
+			},
 		},
 		{
 			name: "dry-run warns occupied source",
@@ -129,20 +136,23 @@ func TestUndoBatch(t *testing.T) {
 
 func TestPrintBatchList(t *testing.T) {
 	tests := []struct {
-		name  string
-		setup func(t *testing.T, m *models.Movelooper)
+		name      string
+		setup     func(t *testing.T, m *models.Movelooper)
+		wantInOut []string // substrings expected in stdout
 	}{
 		{
 			name:  "no batches",
 			setup: func(t *testing.T, m *models.Movelooper) {},
+			// empty history: nothing printed to stdout (logger.Info used instead)
 		},
 		{
-			name: "with batches",
+			name: "with batches prints batch IDs",
 			setup: func(t *testing.T, m *models.Movelooper) {
 				dst := t.TempDir()
 				addHistoryEntry(t, m.History, "batch_X", "/src/a.txt", filepath.Join(dst, "a.txt"))
 				addHistoryEntry(t, m.History, "batch_Y", "/src/b.txt", filepath.Join(dst, "b.txt"))
 			},
+			wantInOut: []string{"batch_X", "batch_Y", "BATCH ID"},
 		},
 	}
 
@@ -152,8 +162,25 @@ func TestPrintBatchList(t *testing.T) {
 			if m.History == nil {
 				t.Skip("history not available in this environment")
 			}
+
+			// Redirect stdout to capture tabwriter output.
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			origStdout := os.Stdout
+			os.Stdout = w
+			t.Cleanup(func() { os.Stdout = origStdout })
+
 			tt.setup(t, m)
-			assert.NoError(t, printBatchList(m))
+			require.NoError(t, printBatchList(m))
+
+			w.Close()
+			var buf bytes.Buffer
+			_, _ = io.Copy(&buf, r)
+			out := buf.String()
+
+			for _, want := range tt.wantInOut {
+				assert.Contains(t, out, want)
+			}
 		})
 	}
 }

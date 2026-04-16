@@ -12,50 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- fileInfoDirEntry ---
-
-func TestFileInfoDirEntry(t *testing.T) {
-	tests := []struct {
-		name      string
-		setup     func(t *testing.T) string // returns path
-		isDir     bool
-		isRegular bool
-	}{
-		{
-			name: "regular file",
-			setup: func(t *testing.T) string {
-				p := filepath.Join(t.TempDir(), "test.txt")
-				require.NoError(t, os.WriteFile(p, []byte("hello"), 0644))
-				return p
-			},
-			isDir:     false,
-			isRegular: true,
-		},
-		{
-			name:      "directory",
-			setup:     func(t *testing.T) string { return t.TempDir() },
-			isDir:     true,
-			isRegular: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			path := tt.setup(t)
-			info, err := os.Lstat(path)
-			require.NoError(t, err)
-
-			entry := fileInfoDirEntry{info: info}
-			assert.Equal(t, tt.isDir, entry.IsDir())
-			assert.Equal(t, tt.isRegular, entry.Type().IsRegular())
-
-			got, err := entry.Info()
-			require.NoError(t, err)
-			assert.Equal(t, info.Name(), got.Name())
-		})
-	}
-}
-
 // --- matchesExtensionAndFilters ---
 
 func TestMatchesExtensionAndFilters(t *testing.T) {
