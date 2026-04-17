@@ -2,7 +2,7 @@
 
 ## `movelooper` — move files once
 
-Scans all enabled categories and moves matching files from source to destination.
+Scans all enabled categories and moves matching files from source to destination. If a category defines `hooks`, the `before` hook runs before files are processed and the `after` hook runs when processing is complete.
 
 ```bash
 movelooper [flags]
@@ -26,7 +26,7 @@ movelooper --category archive --include-disabled  # run a disabled category expl
 
 ## `movelooper watch` — real-time monitoring
 
-Monitors all source directories and moves files as they appear, after they stabilize (controlled by `watch-delay`).
+Monitors all source directories and moves files as they appear, after they stabilize (controlled by `watch-delay`). Hooks are executed per category on each triggered move, same as in the default move command.
 
 ```bash
 movelooper watch

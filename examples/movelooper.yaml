@@ -116,6 +116,28 @@ categories:
       conflict-strategy: rename
       organize-by: "{ext}"
 
+    ## hooks: optional shell commands to run before/after processing this category.
+    ## shell: executable to use. For PowerShell use "pwsh" or "powershell".
+    ##        Defaults to cmd on Windows, $SHELL on Linux/macOS.
+    ## on-failure: "abort" stops the category on error; "warn" logs and continues.
+    ## run: list of commands executed in sequence.
+    ## Available env vars (before + after): ML_CATEGORY, ML_SOURCE_PATH, ML_DEST_PATH, ML_DRY_RUN, ML_ACTION
+    ## Available env vars (after only):     ML_FILES_MOVED, ML_FILES_FAILED, ML_BATCH_ID
+    # hooks:
+    #   before:
+    #     shell: pwsh
+    #     on-failure: warn
+    #     run:
+    #       - 'Write-Output "[$env:ML_CATEGORY] Starting..."'
+    #   after:
+    #     shell: pwsh
+    #     on-failure: warn
+    #     run:
+    #       - |
+    #         if ($env:ML_FILES_MOVED -gt 0) {
+    #           Write-Output "[$env:ML_CATEGORY] $env:ML_FILES_MOVED files moved. Batch: $env:ML_BATCH_ID"
+    #         }
+
   - name: "audio"
     source:
       path: "C:\\Users\\lucas\\Downloads\\"

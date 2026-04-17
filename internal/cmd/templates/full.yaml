@@ -27,6 +27,25 @@ categories:
       path: ~/Downloads/images
       conflict-strategy: rename
       organize-by: "{ext}"
+    # hooks: optional shell commands executed before/after this category is processed.
+    # shell defaults to $SHELL on Linux/macOS and cmd on Windows.
+    # Use "pwsh" or "powershell" for PowerShell (Windows); env vars are $env:ML_*.
+    # Available in before + after: ML_CATEGORY, ML_SOURCE_PATH, ML_DEST_PATH, ML_DRY_RUN, ML_ACTION
+    # Available in after only:     ML_FILES_MOVED, ML_FILES_FAILED, ML_BATCH_ID
+    # hooks:
+    #   before:
+    #     shell: bash
+    #     on-failure: warn
+    #     run:
+    #       - echo "[$ML_CATEGORY] Starting..."
+    #   after:
+    #     shell: bash
+    #     on-failure: warn
+    #     run:
+    #       - |
+    #         if [ "$ML_FILES_MOVED" -gt 0 ]; then
+    #           echo "[$ML_CATEGORY] $ML_FILES_MOVED files moved. Batch: $ML_BATCH_ID"
+    #         fi
 
   - name: videos
     source:

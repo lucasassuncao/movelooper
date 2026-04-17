@@ -24,6 +24,7 @@
 - Watch mode: monitors directories in real-time, moves files as they stabilize
 - Undo: revert the last batch or any specific batch from history
 - `--dry-run` on move, watch, and undo to preview before committing
+- Hooks: run shell commands before and after each category — notify, log, call webhooks, or trigger scripts
 
 ### Configure
 
@@ -98,6 +99,20 @@ categories:
       action: copy                          # keep original in Downloads
       rename: "{mod-date}_{name}.{ext}"    # photo.jpg → 2025-04-16_photo.jpg
       conflict-strategy: skip
+    hooks:
+      before:
+        shell: bash
+        on-failure: warn
+        run:
+          - echo "Starting $ML_CATEGORY..."
+      after:
+        shell: bash
+        on-failure: warn
+        run:
+          - |
+            if [ "$ML_FILES_MOVED" -gt 0 ]; then
+              echo "$ML_FILES_MOVED files moved. Batch: $ML_BATCH_ID"
+            fi
 ```
 
 ## Documentation
@@ -137,3 +152,5 @@ categories:
 - Use `watch` mode to automatically keep your Downloads folder clean at all times.
 - Add `movelooper watch` to a cron job or Windows Task Scheduler for fully automatic cleanup.
 - Run `movelooper self-update` to always stay on the latest release.
+- Use `hooks.after` with `$ML_BATCH_ID` to trigger an undo script if post-move validation fails.
+- On Windows, set `shell: pwsh` and use `$env:ML_*` syntax; on Linux/macOS use `shell: bash` and `$ML_*`.
