@@ -74,7 +74,7 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 			continue
 		}
 
-		destName := ResolveRename(category.Destination.Rename, info, category.Name, time.Now())
+		destName := ResolveRename(category.Destination.Rename, info, category.Name, time.Now(), destDir)
 		destPath := filepath.Join(destDir, destName)
 
 		strategy := category.Destination.ConflictStrategy

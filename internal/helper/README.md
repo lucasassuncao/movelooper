@@ -29,7 +29,8 @@ import "github.com/lucasassuncao/movelooper/internal/helper"
 - [func ParseSize\(s string\) \(int64, error\)](<#ParseSize>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
 - [func ResolveGroupBy\(template string, info os.FileInfo, categoryName string, now time.Time\) string](<#ResolveGroupBy>)
-- [func ResolveRename\(template string, info os.FileInfo, categoryName string, now time.Time\) string](<#ResolveRename>)
+- [func ResolveRename\(template string, info os.FileInfo, categoryName string, now time.Time, destDir string\) string](<#ResolveRename>)
+- [func ResolveSeq\(destDir string\) int](<#ResolveSeq>)
 - [func ValidateGlob\(pattern string\) error](<#ValidateGlob>)
 - [func ValidateTemplate\(template string\) error](<#ValidateTemplate>)
 - [type ConflictResolver](<#ConflictResolver>)
@@ -197,7 +198,7 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ReadDirectory reads the contents of a given directory and returns the files.
 
 <a name="ResolveGroupBy"></a>
-## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L77>)
+## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L100>)
 
 ```go
 func ResolveGroupBy(template string, info os.FileInfo, categoryName string, now time.Time) string
@@ -241,13 +242,22 @@ Category:
 ```
 
 <a name="ResolveRename"></a>
-## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L136>)
+## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L189>)
 
 ```go
-func ResolveRename(template string, info os.FileInfo, categoryName string, now time.Time) string
+func ResolveRename(template string, info os.FileInfo, categoryName string, now time.Time, destDir string) string
 ```
 
-ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
+ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy, plus \{seq\} and \{seq:N\}. \{seq\} inserts the next sequence number for destDir with no padding. \{seq:N\} inserts the next sequence number zero\-padded to N digits. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
+
+<a name="ResolveSeq"></a>
+## func [ResolveSeq](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L148>)
+
+```go
+func ResolveSeq(destDir string) int
+```
+
+ResolveSeq scans destDir for files whose names begin with a decimal number, finds the maximum, and returns max\+1. Returns 1 when the directory is empty, does not exist, or contains no files with a leading number.
 
 <a name="ValidateGlob"></a>
 ## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L72>)
@@ -259,13 +269,13 @@ func ValidateGlob(pattern string) error
 ValidateGlob checks that pattern is syntactically valid after brace expansion.
 
 <a name="ValidateTemplate"></a>
-## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L27>)
+## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/groupby.go#L32>)
 
 ```go
 func ValidateTemplate(template string) error
 ```
 
-ValidateTemplate returns an error if the template contains any unrecognised \{token\}.
+ValidateTemplate returns an error if the template contains any unrecognised or malformed \{token\}. \{seq\} and \{seq:N\} \(N between 1 and 20\) are valid.
 
 <a name="ConflictResolver"></a>
 ## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/conflict.go#L14-L16>)

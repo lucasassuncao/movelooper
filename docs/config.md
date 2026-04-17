@@ -154,6 +154,17 @@ destination:
   rename: "{mod-date}_{name}.{ext}"   # e.g., photo.jpg → 2025-04-16_photo.jpg
 ```
 
+Use `{seq:N}` to number files sequentially at the destination:
+
+```yaml
+destination:
+  path: ~/Images
+  organize-by: "{ext}"
+  rename: "{seq:4}_{name}.{ext}"      # e.g., photo.jpg → 0001_photo.jpg, 0002_photo.jpg
+```
+
+The counter is derived by scanning the destination directory for existing leading numbers — no external state file. Each subdirectory (when `organize-by` is set) maintains its own independent sequence.
+
 ### Filename filters (`filter.regex` and `filter.glob`)
 
 Both fields narrow which files within a category are matched, in addition to `extensions`.
@@ -188,6 +199,8 @@ These tokens are also valid in `destination.rename`.
 | `{weekday}`      | `Tuesday`    | Run date weekday                                                               |
 | `{size-range}`   | `small`      | `tiny` (<1 MB) · `small` (1–100 MB) · `medium` (100 MB–1 GB) · `large` (≥1 GB) |
 | `{category}`     | `images`     | Category name from config                                                      |
+| `{seq}`          | `1`          | Auto-incrementing sequence number (no padding). Valid in `rename` only         |
+| `{seq:N}`        | `0001`       | Sequence number zero-padded to N digits (1 ≤ N ≤ 20). Valid in `rename` only  |
 
 ## Full example
 

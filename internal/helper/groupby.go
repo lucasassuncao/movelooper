@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,12 +24,34 @@ var knownTokens = map[string]bool{
 
 var tokenPattern = regexp.MustCompile(`\{[^}]+\}`)
 
-// ValidateTemplate returns an error if the template contains any unrecognised {token}.
+// seqParamPattern matches the parameter part of {seq:N} — N must be digits only.
+var seqParamPattern = regexp.MustCompile(`^\d+$`)
+
+// ValidateTemplate returns an error if the template contains any unrecognised
+// or malformed {token}. {seq} and {seq:N} (N between 1 and 20) are valid.
 func ValidateTemplate(template string) error {
 	for _, tok := range tokenPattern.FindAllString(template, -1) {
-		if !knownTokens[tok] {
-			return fmt.Errorf("unknown token %q in template", tok)
+		if knownTokens[tok] {
+			continue
 		}
+		if tok == "{seq}" {
+			continue
+		}
+		if strings.HasPrefix(tok, "{seq:") && strings.HasSuffix(tok, "}") {
+			param := tok[len("{seq:") : len(tok)-1]
+			if param == "" {
+				return fmt.Errorf("token %q: missing padding value", tok)
+			}
+			if !seqParamPattern.MatchString(param) {
+				return fmt.Errorf("token %q: padding must be a positive integer", tok)
+			}
+			n, _ := strconv.Atoi(param)
+			if n < 1 || n > 20 {
+				return fmt.Errorf("token %q: padding must be between 1 and 20", tok)
+			}
+			continue
+		}
+		return fmt.Errorf("unknown token %q in template", tok)
 	}
 	return nil
 }
@@ -116,6 +139,31 @@ func ResolveGroupBy(template string, info os.FileInfo, categoryName string, now 
 	return filepath.FromSlash(r.Replace(template))
 }
 
+// leadingNumber matches a decimal number at the start of a filename.
+var leadingNumber = regexp.MustCompile(`^(\d+)`)
+
+// ResolveSeq scans destDir for files whose names begin with a decimal number,
+// finds the maximum, and returns max+1. Returns 1 when the directory is empty,
+// does not exist, or contains no files with a leading number.
+func ResolveSeq(destDir string) int {
+	entries, err := os.ReadDir(destDir)
+	if err != nil {
+		return 1
+	}
+	max := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if m := leadingNumber.FindStringSubmatch(e.Name()); m != nil {
+			if n, err := strconv.Atoi(m[1]); err == nil && n > max {
+				max = n
+			}
+		}
+	}
+	return max + 1
+}
+
 func fileSizeRange(size int64) string {
 	switch {
 	case size < sizeThresholdTiny:
@@ -129,14 +177,32 @@ func fileSizeRange(size int64) string {
 	}
 }
 
+// seqToken matches {seq} or {seq:N} where N is one or more digits.
+var seqToken = regexp.MustCompile(`\{seq(?::(\d+))?\}`)
+
 // ResolveRename applies a rename template to produce a destination filename.
-// It supports the same tokens as ResolveGroupBy. When template is empty, the
-// original filename is returned unchanged. Path separators are stripped from
-// the result so the output is always a plain filename.
-func ResolveRename(template string, info os.FileInfo, categoryName string, now time.Time) string {
+// It supports the same tokens as ResolveGroupBy, plus {seq} and {seq:N}.
+// {seq} inserts the next sequence number for destDir with no padding.
+// {seq:N} inserts the next sequence number zero-padded to N digits.
+// When template is empty, the original filename is returned unchanged.
+// Path separators are stripped from the result so the output is always a plain filename.
+func ResolveRename(template string, info os.FileInfo, categoryName string, now time.Time, destDir string) string {
 	if template == "" {
 		return info.Name()
 	}
+
+	if seqToken.MatchString(template) {
+		next := ResolveSeq(destDir)
+		template = seqToken.ReplaceAllStringFunc(template, func(tok string) string {
+			m := seqToken.FindStringSubmatch(tok)
+			if m[1] == "" {
+				return strconv.Itoa(next)
+			}
+			width, _ := strconv.Atoi(m[1])
+			return fmt.Sprintf("%0*d", width, next)
+		})
+	}
+
 	resolved := ResolveGroupBy(template, info, categoryName, now)
 	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "_")
 	resolved = strings.ReplaceAll(resolved, "/", "_")

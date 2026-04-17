@@ -11,6 +11,62 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestResolveSeq(t *testing.T) {
+	tests := []struct {
+		name     string
+		existing []string
+		nonExist bool
+		want     int
+	}{
+		{
+			name:     "empty directory returns 1",
+			existing: nil,
+			want:     1,
+		},
+		{
+			name:     "directory does not exist returns 1",
+			nonExist: true,
+			want:     1,
+		},
+		{
+			name:     "single file with leading number",
+			existing: []string{"0001_photo.jpg"},
+			want:     2,
+		},
+		{
+			name:     "multiple files picks max",
+			existing: []string{"0001_a.jpg", "0005_b.jpg", "0003_c.jpg"},
+			want:     6,
+		},
+		{
+			name:     "files without leading number are ignored",
+			existing: []string{"photo.jpg", "banner.png"},
+			want:     1,
+		},
+		{
+			name:     "mixed: some with numbers some without",
+			existing: []string{"0002_x.jpg", "logo.png"},
+			want:     3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var dir string
+			if tt.nonExist {
+				dir = filepath.Join(t.TempDir(), "nonexistent")
+			} else {
+				dir = t.TempDir()
+				for _, name := range tt.existing {
+					require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0644))
+				}
+			}
+			got := ResolveSeq(dir)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestFileSizeRange(t *testing.T) {
 	tests := []struct {
 		size int64
@@ -125,6 +181,16 @@ func TestValidateTemplate(t *testing.T) {
 		{"unknown token", "{unknown}", true},
 		{"mixed valid and unknown", "{name}_{foo}", true},
 		{"partial brace no token", "hello world", false},
+		// seq token cases
+		{"seq no padding", "{seq}", false},
+		{"seq with padding 4", "{seq:4}", false},
+		{"seq with padding 1", "{seq:1}", false},
+		{"seq with padding 20", "{seq:20}", false},
+		{"seq zero padding invalid", "{seq:0}", true},
+		{"seq padding too large", "{seq:21}", true},
+		{"seq non-numeric padding", "{seq:abc}", true},
+		{"seq empty padding", "{seq:}", true},
+		{"seq combined with other tokens", "{seq:4}_{name}.{ext}", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -149,6 +215,9 @@ func TestResolveRename(t *testing.T) {
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 
+	// empty destDir — seq starts at 1
+	destDir := t.TempDir()
+
 	tests := []struct {
 		name     string
 		template string
@@ -160,10 +229,13 @@ func TestResolveRename(t *testing.T) {
 		{"mod-date prefix", "{mod-date}_{name}.{ext}", "2024-03-05_photo.jpg"},
 		{"category token", "{category}_{name}.{ext}", "images_photo.jpg"},
 		{"run date", "{date}_{name}.{ext}", "2025-04-16_photo.jpg"},
+		{"seq no padding", "{seq}_{name}.{ext}", "1_photo.jpg"},
+		{"seq with padding 3", "{seq:3}_{name}.{ext}", "001_photo.jpg"},
+		{"seq with padding 4", "{seq:4}_{name}.{ext}", "0001_photo.jpg"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ResolveRename(tt.template, info, "images", now)
+			got := ResolveRename(tt.template, info, "images", now, destDir)
 			assert.Equal(t, tt.want, got)
 		})
 	}

@@ -72,6 +72,15 @@ func validateCategory(cat *models.Category) error {
 		}
 	}
 
+	if cat.Destination.OrganizeBy != "" {
+		if err := helper.ValidateTemplate(cat.Destination.OrganizeBy); err != nil {
+			return fmt.Errorf("category %q: invalid organize-by template: %w", cat.Name, err)
+		}
+		if containsSeqToken(cat.Destination.OrganizeBy) {
+			return fmt.Errorf("category %q: {seq} is not valid in organize-by; use it in rename only", cat.Name)
+		}
+	}
+
 	return validateFilter(cat.Name, &cat.Source.Filter)
 }
 
@@ -120,6 +129,14 @@ func validateFilter(catName string, f *models.CategoryFilter) error {
 	}
 
 	return validateLeafFilter(catName, f)
+}
+
+// seqInTemplate matches any {seq} or {seq:N} token in a template string.
+var seqInTemplate = regexp.MustCompile(`\{seq(?::\d+)?\}`)
+
+// containsSeqToken reports whether template contains a {seq} or {seq:N} token.
+func containsSeqToken(template string) bool {
+	return seqInTemplate.MatchString(template)
 }
 
 // validateLeafFilter validates a plain (non-composite) filter node.

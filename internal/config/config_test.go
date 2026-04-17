@@ -399,6 +399,44 @@ func TestValidateCategory_Rename(t *testing.T) {
 	}
 }
 
+func TestValidateCategory_OrganizeBy(t *testing.T) {
+	tests := []struct {
+		name       string
+		organizeBy string
+		wantErr    bool
+		errMsg     string
+	}{
+		{"empty - ok", "", false, ""},
+		{"valid tokens - ok", "{ext}/{mod-year}", false, ""},
+		{"unknown token - error", "{unknown}", true, "organize-by"},
+		{"seq in organize-by - error", "{seq:4}/{ext}", true, "{seq}"},
+		{"seq no padding in organize-by - error", "{seq}/{ext}", true, "{seq}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cat := &models.Category{
+				Name: "test",
+				Source: models.CategorySource{
+					Extensions: []string{"pdf"},
+				},
+				Destination: models.CategoryDestination{
+					Path:       "/tmp/dst",
+					OrganizeBy: tt.organizeBy,
+				},
+			}
+			err := validateCategory(cat)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateFilter_AnyAll(t *testing.T) {
 	tests := []struct {
 		name    string
