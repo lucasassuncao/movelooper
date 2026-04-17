@@ -8,12 +8,21 @@ Scans all enabled categories and moves matching files from source to destination
 movelooper [flags]
 ```
 
-| Flag           | Short | Description                                    |
-|----------------|-------|------------------------------------------------|
-| `--dry-run`    |       | Show what would be moved without moving files  |
-| `--show-files` |       | List individual files detected                 |
-| `--config`     | `-c`  | Path to a custom config file                   |
-| `--version`    |       | Print the current version                      |
+| Flag                  | Short | Description                                                          |
+|-----------------------|-------|----------------------------------------------------------------------|
+| `--dry-run`           |       | Show what would be moved without moving files                        |
+| `--show-files`        |       | List individual files detected                                       |
+| `--config`            | `-c`  | Path to a custom config file                                         |
+| `--version`           |       | Print the current version                                            |
+| `--category`          |       | Comma-separated list of category names to process (default: all)     |
+| `--include-disabled`  |       | Include categories with `enabled: false`                             |
+
+```bash
+movelooper --category images                 # run only the "images" category
+movelooper --category images,docs            # run "images" and "docs"
+movelooper --include-disabled                # run all categories including disabled
+movelooper --category archive --include-disabled  # run a disabled category explicitly
+```
 
 ## `movelooper watch` — real-time monitoring
 
@@ -23,29 +32,37 @@ Monitors all source directories and moves files as they appear, after they stabi
 movelooper watch
 movelooper watch --dry-run                         # preview matched files without moving
 movelooper watch --config /path/to/movelooper.yaml
+movelooper watch --category images                 # watch only the "images" category
 ```
 
-| Flag        | Description                                                           |
-|-------------|-----------------------------------------------------------------------|
-| `--dry-run` | Log matched files with their intended destination without moving them |
+| Flag                  | Description                                                               |
+|-----------------------|---------------------------------------------------------------------------|
+| `--dry-run`           | Log matched files with their intended destination without moving them     |
+| `--category`          | Comma-separated list of category names to monitor (default: all)          |
+| `--include-disabled`  | Include categories with `enabled: false`                                  |
 
 ## `movelooper undo` — revert a batch
 
 ```bash
-movelooper undo                              # undo the most recent batch
-movelooper undo --list                       # list all recorded batches
-movelooper undo --dry-run                    # preview what would be restored
-movelooper undo batch_1718000000             # undo a specific move batch
-movelooper undo batch_1718000000 --dry-run   # preview a specific batch restore
-movelooper undo watch_1718000000000000000    # undo a specific watch batch
+movelooper undo                                      # undo the most recent batch
+movelooper undo --list                               # list all recorded batches
+movelooper undo --dry-run                            # preview what would be restored
+movelooper undo batch_1718000000                     # undo a specific move batch
+movelooper undo batch_1718000000 --dry-run           # preview a specific batch restore
+movelooper undo watch_1718000000000000000            # undo a specific watch batch
+movelooper undo --category images                    # undo only "images" entries from the last batch
+movelooper undo batch_1718000000 --category images,docs  # partial undo on a specific batch
 ```
 
-| Flag        | Short | Description                                                    |
-|-------------|-------|----------------------------------------------------------------|
-| `--list`    | `-l`  | List all recorded batches                                      |
-| `--dry-run` |       | Preview which files would be restored without moving any files |
+| Flag          | Short | Description                                                        |
+|---------------|-------|--------------------------------------------------------------------|
+| `--list`      | `-l`  | List all recorded batches                                          |
+| `--dry-run`   |       | Preview which files would be restored without moving any files     |
+| `--category`  |       | Comma-separated list of category names to undo (default: all)      |
 
 > **Note:** Undoing a `copy` batch removes the copied file at the destination. Undoing a `symlink` batch removes the symbolic link. The source file is never touched in either case.
+>
+> When using `--category`, only entries from the specified categories are reverted. If the batch becomes empty after the partial undo, it is removed from history entirely. Entries recorded before category tracking was added (older history) are skipped with a warning.
 
 ## `movelooper init` — generate config
 

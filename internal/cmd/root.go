@@ -19,8 +19,10 @@ import (
 // RootCmd represents the base command when called without any subcommands
 func RootCmd(m *models.Movelooper, version string) *cobra.Command {
 	var (
-		dryRun    bool
-		showFiles bool
+		dryRun          bool
+		showFiles       bool
+		categoryFilter  string
+		includeDisabled bool
 	)
 
 	cmd := &cobra.Command{
@@ -43,13 +45,15 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMove(m, dryRun, showFiles)
+			return runMove(m, dryRun, showFiles, categoryFilter, includeDisabled)
 		},
 	}
 
 	cmd.PersistentFlags().StringP("config", "c", "", "Path to configuration file (e.g., /path/to/movelooper.yaml)")
 	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Preview mode! It shows what would be moved without moving files")
 	cmd.PersistentFlags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
+	cmd.Flags().StringVar(&categoryFilter, "category", "", "Comma-separated list of category names to process (default: all)")
+	cmd.Flags().BoolVar(&includeDisabled, "include-disabled", false, "Include categories with enabled: false")
 
 	// Add subcommands
 	cmd.AddCommand(InitCmd())
@@ -76,17 +80,18 @@ type runStats struct {
 }
 
 // runMove executes the default move operation across all configured categories.
-func runMove(m *models.Movelooper, dryRun, showFiles bool) error {
+func runMove(m *models.Movelooper, dryRun, showFiles bool, categoryFilter string, includeDisabled bool) error {
+	names := parseCategoryNames(categoryFilter)
+	categories, err := filterCategories(m.Categories, names, includeDisabled, m.Logger)
+	if err != nil {
+		return err
+	}
+
 	batchID := history.NewBatchID()
 	moved := make(movedSet)
 	var stats runStats
 
-	for _, category := range m.Categories {
-		if !category.IsEnabled() {
-			m.Logger.Info(fmt.Sprintf("[%s] category disabled, skipping", category.Name))
-			stats.skipped++
-			continue
-		}
+	for _, category := range categories {
 		processCategoryMove(m, category, moved, batchID, dryRun, showFiles, &stats)
 	}
 

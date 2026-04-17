@@ -166,7 +166,7 @@ func TestRunMove_Filters(t *testing.T) {
 
 			dryRun := tt.name == "show-files dry-run does not move"
 			showFiles := dryRun
-			require.NoError(t, runMove(m, dryRun, showFiles))
+			require.NoError(t, runMove(m, dryRun, showFiles, "", false))
 			if tt.check != nil {
 				tt.check(t, src, dst)
 			}
@@ -350,7 +350,7 @@ func TestRunMove(t *testing.T) {
 			cats := tt.cats(t, src, dstRef)
 			m := newSilentMovelooper(cats)
 
-			require.NoError(t, runMove(m, tt.dryRun, false))
+			require.NoError(t, runMove(m, tt.dryRun, false, "", false))
 			if tt.check != nil {
 				tt.check(t, src, dstRef)
 			}
@@ -372,7 +372,7 @@ func TestRunMove_MultipleCategories(t *testing.T) {
 	}
 	m := newSilentMovelooper(cats)
 
-	require.NoError(t, runMove(m, false, false))
+	require.NoError(t, runMove(m, false, false, "", false))
 
 	assert.FileExists(t, filepath.Join(dstPDF, "file.pdf"))
 	assert.FileExists(t, filepath.Join(dstJPG, "photo.jpg"))
@@ -391,7 +391,7 @@ func TestRunMove_FileClaimedByFirstCategory(t *testing.T) {
 	}
 	m := newSilentMovelooper(cats)
 
-	require.NoError(t, runMove(m, false, false))
+	require.NoError(t, runMove(m, false, false, "", false))
 
 	inDst1 := fileExists(filepath.Join(dst1, "file.txt"))
 	inDst2 := fileExists(filepath.Join(dst2, "file.txt"))

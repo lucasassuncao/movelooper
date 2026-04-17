@@ -37,6 +37,19 @@ func addHistoryEntry(t *testing.T, h *history.History, batchID, src, dst string)
 	}))
 }
 
+// addHistoryEntryWithCategory adds a history entry that includes the category name.
+func addHistoryEntryWithCategory(t *testing.T, h *history.History, batchID, src, dst, category string) {
+	t.Helper()
+	require.NoError(t, h.Add(history.Entry{
+		Source:      src,
+		Destination: dst,
+		Timestamp:   time.Now(),
+		BatchID:     batchID,
+		Action:      "move",
+		Category:    category,
+	}))
+}
+
 // --- undoBatch ---
 
 func TestUndoBatch(t *testing.T) {
@@ -117,7 +130,7 @@ func TestUndoBatch(t *testing.T) {
 			}
 
 			batchID, srcFile, dstFile := tt.setup(t, m)
-			err := undoBatch(m, batchID, tt.dryRun)
+			err := undoBatch(m, batchID, tt.dryRun, nil)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -237,6 +250,76 @@ func TestUndoBatch_CopyDryRun(t *testing.T) {
 		Timestamp:   time.Now(),
 	}))
 
-	require.NoError(t, undoBatch(m, "batch_copy", true))
+	require.NoError(t, undoBatch(m, "batch_copy", true, nil))
 	assert.FileExists(t, dst) // dry-run must not remove the file
+}
+
+// --- undoBatch partial by category ---
+
+func TestUndoBatch_PartialByCategory(t *testing.T) {
+	t.Run("dry-run reports only matching category files", func(t *testing.T) {
+		m := newSilentMovelooperWithHistory(t)
+
+		dst1 := t.TempDir()
+		imgDst := filepath.Join(dst1, "photo.jpg")
+		require.NoError(t, os.WriteFile(imgDst, []byte("img"), 0644))
+
+		dst2 := t.TempDir()
+		docDst := filepath.Join(dst2, "report.pdf")
+		require.NoError(t, os.WriteFile(docDst, []byte("doc"), 0644))
+
+		addHistoryEntryWithCategory(t, m.History, "partial_dry_b1", "/src/photo.jpg", imgDst, "images")
+		addHistoryEntryWithCategory(t, m.History, "partial_dry_b1", "/src/report.pdf", docDst, "docs")
+
+		err := undoBatch(m, "partial_dry_b1", true, []string{"images"})
+		require.NoError(t, err)
+
+		// dry-run: no files moved
+		assert.FileExists(t, imgDst)
+		assert.FileExists(t, docDst)
+	})
+
+	t.Run("no entries for category warns and returns without error", func(t *testing.T) {
+		m := newSilentMovelooperWithHistory(t)
+
+		dst := t.TempDir()
+		docDst := filepath.Join(dst, "report.pdf")
+		require.NoError(t, os.WriteFile(docDst, []byte("doc"), 0644))
+
+		addHistoryEntryWithCategory(t, m.History, "partial_nomatch_b1", "/src/report.pdf", docDst, "docs")
+
+		err := undoBatch(m, "partial_nomatch_b1", true, []string{"images"})
+		require.NoError(t, err)
+
+		// batch untouched
+		assert.FileExists(t, docDst)
+		assert.Len(t, m.History.GetBatch("partial_nomatch_b1"), 1)
+	})
+
+	t.Run("entry with empty Category is skipped when category filter is active", func(t *testing.T) {
+		m := newSilentMovelooperWithHistory(t)
+
+		dst := t.TempDir()
+		fileDst := filepath.Join(dst, "file.txt")
+		require.NoError(t, os.WriteFile(fileDst, []byte("data"), 0644))
+
+		// legacy entry without Category
+		addHistoryEntry(t, m.History, "partial_legacy_b1", "/src/file.txt", fileDst)
+
+		err := undoBatch(m, "partial_legacy_b1", true, []string{"images"})
+		require.NoError(t, err)
+
+		// no match found - file untouched
+		assert.FileExists(t, fileDst)
+	})
+
+	t.Run("unknown batch with category filter returns error", func(t *testing.T) {
+		m := newSilentMovelooperWithHistory(t)
+
+		addHistoryEntryWithCategory(t, m.History, "partial_known_b1", "/src/a.txt", "/dst/a.txt", "images")
+
+		err := undoBatch(m, "partial_unknown_b99", true, []string{"images"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found in history")
+	})
 }

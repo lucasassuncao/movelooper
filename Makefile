@@ -85,7 +85,7 @@ docs: ## Generate documentation with gomarkdoc
 		--repository.path / \
 		-o '{{.Dir}}/README.md' ./internal/...
 
-all: fmt lint security test-coverage test
+all: fmt docs lint security test-coverage
 
 run: ## Run the application
 	@go run $(MAIN_PATH)

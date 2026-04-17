@@ -108,6 +108,7 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 				Timestamp:   time.Now(),
 				BatchID:     batchID,
 				Action:      effectiveAction,
+				Category:    category.Name,
 			}); err != nil {
 				ctx.Logger.Warn("failed to add to history", ctx.Logger.Args("error", err.Error()))
 			}

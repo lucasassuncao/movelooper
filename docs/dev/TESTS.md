@@ -144,6 +144,32 @@ Overview of all test cases across the movelooper project.
 | `TestUndoCopyOrSymlink_RemovesDst` | — | `undoCopyOrSymlink` removes the destination file, leaving source intact | no error, dst removed, src unchanged |
 | `TestUndoSymlink_RemovesLink` | — | `undoCopyOrSymlink` removes a symlink without touching the original | no error, link removed, src intact |
 | `TestUndoBatch_CopyDryRun` | — | Dry-run of a `copy` batch reports removal without touching the file | no error, dst file still exists |
+| `TestUndoBatch_PartialByCategory` | dry-run reports only matching category files | Dry-run with category filter processes only matching entries | no error, files untouched in dry-run |
+| | no entries for category warns and returns without error | No matching category entries: warns and exits cleanly | no error, batch untouched |
+| | entry with empty Category is skipped when category filter is active | Legacy entries without Category field are skipped | no error, file untouched |
+| | unknown batch with category filter returns error | Non-existent batch returns error even when category filter is active | error containing `"not found in history"` |
+
+---
+
+## `internal/cmd` — Shared helpers
+
+### `categories_test.go`
+
+| Test | Subcases | What it verifies | Expected |
+|---|---|---|---|
+| `TestParseCategoryNames` | empty string | Empty input returns nil | `nil` |
+| | single name | Single value returned as one-element slice | `["images"]` |
+| | multiple names | Comma-separated values split into slice | `["images", "docs"]` |
+| | whitespace trimmed | Leading/trailing spaces removed from each name | `["images", "docs"]` |
+| | only separators | Input with only commas returns nil | `nil` |
+| `TestFilterCategories` | empty names returns all enabled | No filter: all enabled categories returned | 1 category |
+| | include-disabled returns all | `includeDisabled: true` with no filter returns enabled and disabled | 2 categories |
+| | single name match | One matching name: returns that category | 1 category |
+| | multiple names match | Two matching names: returns both | 2 categories |
+| | unknown name returns error | Non-existent category name causes error | error containing `"unknown category"` |
+| | disabled without flag excluded | Disabled category not returned when `includeDisabled` is false | error (not found) |
+| | disabled with flag included | Disabled category returned when `includeDisabled` is true | 1 category |
+| | one valid one unknown returns error | Mix of valid and unknown names causes error | error containing `"unknown category"` |
 
 ---
 
@@ -307,3 +333,7 @@ Overview of all test cases across the movelooper project.
 | `TestNewBatchID_HasPrefix` | Batch IDs start with `batch_` | ID contains `"batch_"` |
 | `TestNewWatchBatchID_HasPrefix` | Watch batch IDs start with `watch_` | ID contains `"watch_"` |
 | `TestNewWatchBatchID_UniquePerCall` | 50 consecutively generated IDs are all unique | no collisions in 50 iterations |
+| `TestRemoveCategoryFromBatch` | partial removal | Removes only entries matching the given categories | no error, non-matching entries retained |
+| | batch becomes empty | Batch with all entries removed is no longer present | no error, batch absent |
+| | empty Category not removed | Entries with empty Category field are not removed by category filter | entry retained |
+| | unknown batchID | Removing from non-existent batch is a no-op | no error, other batches intact |

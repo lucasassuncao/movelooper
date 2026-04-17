@@ -421,3 +421,75 @@ func TestHistory_LoadAndAddRoundTrip(t *testing.T) {
 	require.NoError(t, h2.load())
 	assert.Len(t, h2.Entries, 2)
 }
+
+// --- RemoveCategoryFromBatch ---
+
+func TestRemoveCategoryFromBatch(t *testing.T) {
+	tests := []struct {
+		name       string
+		setup      func(h *History)
+		batchID    string
+		categories []string
+		wantLen    int
+		wantBatch  bool
+	}{
+		{
+			name: "removes matching entries, keeps others",
+			setup: func(h *History) {
+				_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
+				_ = h.Add(Entry{Source: "/c", Destination: "/d", BatchID: "b1", Category: "docs"})
+			},
+			batchID:    "b1",
+			categories: []string{"images"},
+			wantLen:    1,
+			wantBatch:  true,
+		},
+		{
+			name: "batch becomes empty — no entries remain for that batch",
+			setup: func(h *History) {
+				_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
+			},
+			batchID:    "b1",
+			categories: []string{"images"},
+			wantLen:    0,
+			wantBatch:  false,
+		},
+		{
+			name: "entry with empty Category is not removed",
+			setup: func(h *History) {
+				_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: ""})
+			},
+			batchID:    "b1",
+			categories: []string{"images"},
+			wantLen:    1,
+			wantBatch:  true,
+		},
+		{
+			name: "unknown batchID — no-op, no error",
+			setup: func(h *History) {
+				_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
+			},
+			batchID:    "b99",
+			categories: []string{"images"},
+			wantLen:    1,     // b1 entry untouched
+			wantBatch:  false, // b99 was never present
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newTestHistory(t, 10)
+			tt.setup(h)
+			require.NoError(t, h.RemoveCategoryFromBatch(tt.batchID, tt.categories))
+			assert.Len(t, h.Entries, tt.wantLen)
+			hasBatch := false
+			for _, e := range h.Entries {
+				if e.BatchID == tt.batchID {
+					hasBatch = true
+					break
+				}
+			}
+			assert.Equal(t, tt.wantBatch, hasBatch)
+		})
+	}
+}

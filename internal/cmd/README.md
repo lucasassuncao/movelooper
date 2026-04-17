@@ -68,7 +68,7 @@ func SelfUpdateCmd(currentVersion string) *cobra.Command
 SelfUpdateCmd returns the self\-update command
 
 <a name="UndoCmd"></a>
-## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L16>)
+## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L18>)
 
 ```go
 func UndoCmd(m *models.Movelooper) *cobra.Command

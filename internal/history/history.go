@@ -34,6 +34,7 @@ type Entry struct {
 	Timestamp   time.Time `json:"timestamp"`
 	BatchID     string    `json:"batch_id"`
 	Action      string    `json:"action"`
+	Category    string    `json:"category"`
 }
 
 // History manages the log of file operations
@@ -189,6 +190,29 @@ func (h *History) RemoveBatch(batchID string) error {
 		}
 	}
 
+	h.Entries = newEntries
+	return h.save()
+}
+
+// RemoveCategoryFromBatch removes entries belonging to any of the given category
+// names from the specified batch. If the batch becomes empty after removal, its
+// reference is also gone. Entries with an empty Category field are never matched.
+func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	catSet := make(map[string]bool, len(categories))
+	for _, c := range categories {
+		catSet[c] = true
+	}
+
+	var newEntries []Entry
+	for _, e := range h.Entries {
+		if e.BatchID == batchID && e.Category != "" && catSet[e.Category] {
+			continue
+		}
+		newEntries = append(newEntries, e)
+	}
 	h.Entries = newEntries
 	return h.save()
 }
