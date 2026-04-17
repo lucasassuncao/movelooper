@@ -248,6 +248,88 @@ categories:
 				// error is expected - this case is handled below
 			},
 		},
+		{
+			name:    "hook with empty run list is rejected",
+			wantErr: `hooks.before.run must not be empty`,
+			yaml: `
+categories:
+  - name: docs
+    source:
+      path: /tmp/src
+      extensions: [pdf]
+    destination:
+      path: /tmp/dst
+    hooks:
+      before:
+        on-failure: abort
+        run: []
+`,
+		},
+		{
+			name:    "hook with invalid on-failure is rejected",
+			wantErr: `hooks.after.on-failure must be "abort" or "warn"`,
+			yaml: `
+categories:
+  - name: docs
+    source:
+      path: /tmp/src
+      extensions: [pdf]
+    destination:
+      path: /tmp/dst
+    hooks:
+      after:
+        on-failure: explode
+        run:
+          - echo done
+`,
+		},
+		{
+			name:    "hook with no on-failure is rejected",
+			wantErr: `hooks.before.on-failure must be "abort" or "warn"`,
+			yaml: `
+categories:
+  - name: docs
+    source:
+      path: /tmp/src
+      extensions: [pdf]
+    destination:
+      path: /tmp/dst
+    hooks:
+      before:
+        run:
+          - echo hi
+`,
+		},
+		{
+			name: "valid hook is accepted",
+			yaml: `
+categories:
+  - name: docs
+    source:
+      path: /tmp/src
+      extensions: [pdf]
+    destination:
+      path: /tmp/dst
+    hooks:
+      before:
+        on-failure: abort
+        run:
+          - echo starting
+      after:
+        on-failure: warn
+        run:
+          - echo done
+`,
+			check: func(t *testing.T, cats []*models.Category) {
+				require.Len(t, cats, 1)
+				require.NotNil(t, cats[0].Hooks)
+				require.NotNil(t, cats[0].Hooks.Before)
+				require.NotNil(t, cats[0].Hooks.After)
+				assert.Equal(t, "abort", cats[0].Hooks.Before.OnFailure)
+				assert.Equal(t, []string{"echo starting"}, cats[0].Hooks.Before.Run)
+				assert.Equal(t, "warn", cats[0].Hooks.After.OnFailure)
+			},
+		},
 	}
 
 	for _, tt := range tests {

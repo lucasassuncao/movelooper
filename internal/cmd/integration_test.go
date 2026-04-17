@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"testing"
 	"time"
 
@@ -615,4 +616,79 @@ func TestRunInit_Scan_ExistingOutputNoForce(t *testing.T) {
 
 	raw, _ := os.ReadFile(outFile)
 	assert.Equal(t, "existing", string(raw))
+}
+
+// --- Hook integration tests ---
+
+// hookFailCmd returns a shell command that always exits with code 1.
+func hookFailCmd() string {
+	if runtime.GOOS == "windows" {
+		return "exit /b 1"
+	}
+	return "exit 1"
+}
+
+func TestRunMove_Hooks(t *testing.T) {
+	t.Run("before hook abort skips category on failure", func(t *testing.T) {
+		src := t.TempDir()
+		dst := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(src, "a.pdf"), []byte("x"), 0644))
+
+		cat := buildCategory("docs", src, dst, []string{"pdf"})
+		cat.Hooks = &models.CategoryHooks{
+			Before: &models.CategoryHook{
+				OnFailure: "abort",
+				Run:       []string{hookFailCmd()},
+			},
+		}
+
+		m := newSilentMovelooper([]*models.Category{cat})
+		err := runMove(m, false, false, "", false)
+		require.NoError(t, err)
+
+		assert.FileExists(t, filepath.Join(src, "a.pdf"))
+		assert.NoFileExists(t, filepath.Join(dst, "a.pdf"))
+	})
+
+	t.Run("after hook warn does not prevent move", func(t *testing.T) {
+		src := t.TempDir()
+		dst := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(src, "b.pdf"), []byte("x"), 0644))
+
+		cat := buildCategory("docs", src, dst, []string{"pdf"})
+		cat.Hooks = &models.CategoryHooks{
+			After: &models.CategoryHook{
+				OnFailure: "warn",
+				Run:       []string{hookFailCmd()},
+			},
+		}
+
+		m := newSilentMovelooper([]*models.Category{cat})
+		err := runMove(m, false, false, "", false)
+		require.NoError(t, err)
+
+		assert.NoFileExists(t, filepath.Join(src, "b.pdf"))
+		assert.FileExists(t, filepath.Join(dst, "b.pdf"))
+	})
+
+	t.Run("before hook success then files are moved", func(t *testing.T) {
+		src := t.TempDir()
+		dst := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(src, "c.pdf"), []byte("x"), 0644))
+
+		cat := buildCategory("docs", src, dst, []string{"pdf"})
+		cat.Hooks = &models.CategoryHooks{
+			Before: &models.CategoryHook{
+				OnFailure: "abort",
+				Run:       []string{"echo before"},
+			},
+		}
+
+		m := newSilentMovelooper([]*models.Category{cat})
+		err := runMove(m, false, false, "", false)
+		require.NoError(t, err)
+
+		assert.NoFileExists(t, filepath.Join(src, "c.pdf"))
+		assert.FileExists(t, filepath.Join(dst, "c.pdf"))
+	})
 }

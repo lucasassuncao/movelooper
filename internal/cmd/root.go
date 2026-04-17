@@ -105,14 +105,59 @@ func runMove(m *models.Movelooper, dryRun, showFiles bool, categoryFilter string
 	return nil
 }
 
+// hookAfterVars carries the post-move stats needed for "after" hook env vars.
+type hookAfterVars struct {
+	moved   int
+	failed  int
+	batchID string
+}
+
+// hookEnv builds the environment variable map to inject into a hook process.
+// afterVars is non-nil only for "after" hooks.
+func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[string]string {
+	action := category.Destination.Action
+	if action == "" {
+		action = "move"
+	}
+	dry := "false"
+	if dryRun {
+		dry = "true"
+	}
+	env := map[string]string{
+		"ML_CATEGORY":    category.Name,
+		"ML_SOURCE_PATH": category.Source.Path,
+		"ML_DEST_PATH":   category.Destination.Path,
+		"ML_DRY_RUN":     dry,
+		"ML_ACTION":      action,
+	}
+	if after != nil {
+		env["ML_FILES_MOVED"] = fmt.Sprintf("%d", after.moved)
+		env["ML_FILES_SKIPPED"] = "0"
+		env["ML_FILES_FAILED"] = fmt.Sprintf("%d", after.failed)
+		env["ML_BATCH_ID"] = after.batchID
+	}
+	return env
+}
+
 // processCategoryMove handles all extensions for a single category.
 func processCategoryMove(m *models.Movelooper, category *models.Category, moved movedSet, batchID string, dryRun, showFiles bool, stats *runStats) {
+	if category.Hooks != nil && category.Hooks.Before != nil {
+		env := hookEnv(category, dryRun, nil)
+		if err := helper.RunHook(category.Hooks.Before, m.Logger, env); err != nil {
+			m.Logger.Warn("before hook failed, skipping category",
+				m.Logger.Args("category", category.Name, "error", err.Error()))
+			stats.skipped++
+			return
+		}
+	}
+
 	files, err := helper.ReadDirectory(category.Source.Path)
 	if err != nil {
 		m.Logger.Error("failed to read directory", m.Logger.Args("path", category.Source.Path, "error", err.Error()))
 		return
 	}
 
+	var totalMoved, totalFailed int
 	for _, extension := range category.Source.Extensions {
 		filteredFiles := filterFilesForExtension(category, files, moved, extension)
 		logExtensionResult(m, filteredFiles, category.Name, extension, showFiles)
@@ -127,18 +172,32 @@ func processCategoryMove(m *models.Movelooper, category *models.Category, moved 
 		}
 
 		if !dryRun && len(filteredFiles) > 0 {
-			moveExtension(m, category, filteredFiles, moved, extension, batchID)
+			names := moveExtensionWithResult(m, category, filteredFiles, moved, extension, batchID)
+			totalMoved += len(names)
+			totalFailed += len(filteredFiles) - len(names)
+		}
+	}
+
+	if category.Hooks != nil && category.Hooks.After != nil {
+		env := hookEnv(category, dryRun, &hookAfterVars{
+			moved:   totalMoved,
+			failed:  totalFailed,
+			batchID: batchID,
+		})
+		if err := helper.RunHook(category.Hooks.After, m.Logger, env); err != nil {
+			m.Logger.Warn("after hook failed",
+				m.Logger.Args("category", category.Name, "error", err.Error()))
 		}
 	}
 }
 
-// moveExtension moves filteredFiles for a single extension.
-// Directory creation is handled per-file inside MoveFiles based on the organize-by template.
-func moveExtension(m *models.Movelooper, category *models.Category, files []os.DirEntry, moved movedSet, extension, batchID string) {
+// moveExtensionWithResult moves filteredFiles for a single extension and returns moved file names.
+func moveExtensionWithResult(m *models.Movelooper, category *models.Category, files []os.DirEntry, moved movedSet, extension, batchID string) []string {
 	movedNames := helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, category, files, extension, batchID)
 	for _, name := range movedNames {
 		moved.mark(category.Source.Path, name)
 	}
+	return movedNames
 }
 
 // formatBytes converts a byte count to a human-readable string (e.g. "1.23 MB").

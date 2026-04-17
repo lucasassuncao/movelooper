@@ -202,6 +202,102 @@ These tokens are also valid in `destination.rename`.
 | `{seq}`          | `1`          | Auto-incrementing sequence number (no padding). Valid in `rename` only         |
 | `{seq:N}`        | `0001`       | Sequence number zero-padded to N digits (1 ≤ N ≤ 20). Valid in `rename` only  |
 
+### `hooks` block
+
+Optional. Defines shell commands to run before and/or after the category is processed.
+
+```yaml
+hooks:
+  before:
+    shell: bash          # optional — defaults to $SHELL on Unix/Mac, cmd on Windows
+    on-failure: abort    # abort | warn
+    run:
+      - echo "Starting $ML_CATEGORY..."
+      - notify-send "Movelooper" "Processing $ML_CATEGORY"
+  after:
+    shell: pwsh
+    on-failure: warn
+    run:
+      - Write-Host "$ML_FILES_MOVED files moved"
+      - Invoke-RestMethod "https://example.com/webhook" -Method Post
+```
+
+Both `before` and `after` are optional and independent. If `before` fails with `on-failure: abort`, the category is skipped entirely (no files are moved). If `after` fails, files are already moved and the error is logged.
+
+| Field | Required | Values | Description |
+|---|---|---|---|
+| `shell` | No | any executable | Shell used to run commands. Defaults to `$SHELL` (Unix/Mac) or `cmd` (Windows). Use `pwsh` or `powershell` for PowerShell on Windows. |
+| `on-failure` | Yes | `abort`, `warn` | What to do when a command returns a non-zero exit code. `abort` stops the sequence; `warn` logs and continues. |
+| `run` | Yes | list of strings | Commands executed in order, each as a separate shell invocation. |
+
+#### Environment variables injected into hook commands
+
+**Available in both `before` and `after`:**
+
+| Variable | Description |
+|---|---|
+| `ML_CATEGORY` | Category name |
+| `ML_SOURCE_PATH` | Source directory path |
+| `ML_DEST_PATH` | Destination root path |
+| `ML_DRY_RUN` | `true` or `false` |
+| `ML_ACTION` | `move`, `copy`, or `symlink` |
+
+**Available only in `after`:**
+
+| Variable | Description |
+|---|---|
+| `ML_FILES_MOVED` | Files successfully processed |
+| `ML_FILES_FAILED` | Files that failed to process |
+| `ML_BATCH_ID` | Batch ID usable with `movelooper undo` |
+
+All variables are prefixed with `ML_` to avoid collision with system environment variables.
+
+#### Hook examples
+
+**Windows — PowerShell Core (`pwsh`)**
+
+```yaml
+hooks:
+  before:
+    shell: pwsh
+    on-failure: warn
+    run:
+      - 'Write-Output "[$env:ML_CATEGORY] Iniciando processamento..."'
+  after:
+    shell: pwsh
+    on-failure: warn
+    run:
+      - |
+        if ($env:ML_FILES_MOVED -gt 0) {
+          Write-Output "[$env:ML_CATEGORY] $env:ML_FILES_MOVED arquivos movidos para $env:ML_DEST_PATH"
+          Write-Output "Batch ID para undo: $env:ML_BATCH_ID"
+        }
+```
+
+> **Note:** On Windows, `pwsh` and `powershell` are invoked with `-NonInteractive -NoProfile` automatically to avoid spawning new windows and prevent profile side effects. Use `$env:ML_*` syntax for environment variables.
+
+**Linux / macOS — Bash**
+
+```yaml
+hooks:
+  before:
+    shell: bash
+    on-failure: warn
+    run:
+      - 'echo "[$ML_CATEGORY] Iniciando processamento..."'
+  after:
+    shell: bash
+    on-failure: warn
+    run:
+      - |
+        if [ "$ML_FILES_MOVED" -gt 0 ]; then
+          echo "[$ML_CATEGORY] $ML_FILES_MOVED arquivos movidos para $ML_DEST_PATH"
+          echo "Batch ID para undo: $ML_BATCH_ID"
+        fi
+```
+
+> **Note:** On Linux/macOS, use `$ML_*` syntax for environment variables. Multi-line scripts can be written with YAML block scalars (`|`).
+
 ## Full example
 
 ```yaml

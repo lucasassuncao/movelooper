@@ -82,4 +82,18 @@ type Category struct {
 	Enabled     *bool               `yaml:"enabled" mapstructure:"enabled"`
 	Source      CategorySource      `yaml:"source" mapstructure:"source"`
 	Destination CategoryDestination `yaml:"destination" mapstructure:"destination"`
+	Hooks       *CategoryHooks      `yaml:"hooks" mapstructure:"hooks"`
+}
+
+// CategoryHook defines a list of shell commands to run at a lifecycle point.
+type CategoryHook struct {
+	Shell     string   `yaml:"shell" mapstructure:"shell"`
+	OnFailure string   `yaml:"on-failure" mapstructure:"on-failure"`
+	Run       []string `yaml:"run" mapstructure:"run"`
+}
+
+// CategoryHooks holds optional before/after hooks for a category.
+type CategoryHooks struct {
+	Before *CategoryHook `yaml:"before" mapstructure:"before"`
+	After  *CategoryHook `yaml:"after" mapstructure:"after"`
 }

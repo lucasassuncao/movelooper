@@ -81,7 +81,40 @@ func validateCategory(cat *models.Category) error {
 		}
 	}
 
+	if err := validateHooks(cat.Name, cat.Hooks); err != nil {
+		return err
+	}
+
 	return validateFilter(cat.Name, &cat.Source.Filter)
+}
+
+// validateHooks validates both before and after hooks for a category.
+func validateHooks(catName string, hooks *models.CategoryHooks) error {
+	if hooks == nil {
+		return nil
+	}
+	if hooks.Before != nil {
+		if err := validateHook(catName, "before", hooks.Before); err != nil {
+			return err
+		}
+	}
+	if hooks.After != nil {
+		if err := validateHook(catName, "after", hooks.After); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateHook validates a single CategoryHook.
+func validateHook(catName, position string, hook *models.CategoryHook) error {
+	if len(hook.Run) == 0 {
+		return fmt.Errorf("category %q: hooks.%s.run must not be empty", catName, position)
+	}
+	if hook.OnFailure != "abort" && hook.OnFailure != "warn" {
+		return fmt.Errorf("category %q: hooks.%s.on-failure must be \"abort\" or \"warn\"", catName, position)
+	}
+	return nil
 }
 
 // hasDirectFilterFields reports whether f has any direct filter fields set.

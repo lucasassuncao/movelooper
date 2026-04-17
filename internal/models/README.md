@@ -14,6 +14,8 @@ import "github.com/lucasassuncao/movelooper/internal/models"
   - [func \(c \*Category\) IsEnabled\(\) bool](<#Category.IsEnabled>)
 - [type CategoryDestination](<#CategoryDestination>)
 - [type CategoryFilter](<#CategoryFilter>)
+- [type CategoryHook](<#CategoryHook>)
+- [type CategoryHooks](<#CategoryHooks>)
 - [type CategorySource](<#CategorySource>)
 - [type Config](<#Config>)
 - [type Configuration](<#Configuration>)
@@ -21,7 +23,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L80-L85>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L80-L86>)
 
 Category represents a file category with its properties
 
@@ -31,6 +33,7 @@ type Category struct {
     Enabled     *bool               `yaml:"enabled" mapstructure:"enabled"`
     Source      CategorySource      `yaml:"source" mapstructure:"source"`
     Destination CategoryDestination `yaml:"destination" mapstructure:"destination"`
+    Hooks       *CategoryHooks      `yaml:"hooks" mapstructure:"hooks"`
 }
 ```
 
@@ -79,6 +82,31 @@ type CategoryFilter struct {
     MaxSizeBytes  int64            `yaml:"-" mapstructure:"-"` // parsed from MaxSize
     Any           []CategoryFilter `yaml:"any" mapstructure:"any"`
     All           []CategoryFilter `yaml:"all" mapstructure:"all"`
+}
+```
+
+<a name="CategoryHook"></a>
+## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L89-L93>)
+
+CategoryHook defines a list of shell commands to run at a lifecycle point.
+
+```go
+type CategoryHook struct {
+    Shell     string   `yaml:"shell" mapstructure:"shell"`
+    OnFailure string   `yaml:"on-failure" mapstructure:"on-failure"`
+    Run       []string `yaml:"run" mapstructure:"run"`
+}
+```
+
+<a name="CategoryHooks"></a>
+## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L96-L99>)
+
+CategoryHooks holds optional before/after hooks for a category.
+
+```go
+type CategoryHooks struct {
+    Before *CategoryHook `yaml:"before" mapstructure:"before"`
+    After  *CategoryHook `yaml:"after" mapstructure:"after"`
 }
 ```
 

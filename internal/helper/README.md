@@ -31,6 +31,7 @@ import "github.com/lucasassuncao/movelooper/internal/helper"
 - [func ResolveGroupBy\(template string, info os.FileInfo, categoryName string, now time.Time\) string](<#ResolveGroupBy>)
 - [func ResolveRename\(template string, info os.FileInfo, categoryName string, now time.Time, destDir string\) string](<#ResolveRename>)
 - [func ResolveSeq\(destDir string\) int](<#ResolveSeq>)
+- [func RunHook\(hook \*models.CategoryHook, logger \*pterm.Logger, env map\[string\]string\) error](<#RunHook>)
 - [func ValidateGlob\(pattern string\) error](<#ValidateGlob>)
 - [func ValidateTemplate\(template string\) error](<#ValidateTemplate>)
 - [type ConflictResolver](<#ConflictResolver>)
@@ -258,6 +259,18 @@ func ResolveSeq(destDir string) int
 ```
 
 ResolveSeq scans destDir for files whose names begin with a decimal number, finds the maximum, and returns max\+1. Returns 1 when the directory is empty, does not exist, or contains no files with a leading number.
+
+<a name="RunHook"></a>
+## func [RunHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/hooks.go#L18>)
+
+```go
+func RunHook(hook *models.CategoryHook, logger *pterm.Logger, env map[string]string) error
+```
+
+RunHook executes all commands in hook.Run sequentially, injecting env into each process environment. Returns nil when hook is nil. On command failure:
+
+- "abort": stops execution and returns the error.
+- "warn": logs the error and continues to the next command.
 
 <a name="ValidateGlob"></a>
 ## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/filters.go#L72>)
