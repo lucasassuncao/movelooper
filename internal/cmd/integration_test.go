@@ -534,3 +534,85 @@ func TestRunMove_SymlinkWithConflictRename(t *testing.T) {
 	_, err = os.Lstat(filepath.Join(dst, "file(1).txt"))
 	assert.NoError(t, err, "renamed symlink should exist")
 }
+
+// --- init --scan integration tests ---
+
+func TestRunInit_Scan_GeneratesConfig(t *testing.T) {
+	dir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "photo.jpg"), []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "clip.mp4"), []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "setup.exe"), []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "unknown.xyz"), []byte("x"), 0644))
+
+	outFile := filepath.Join(dir, "movelooper.yaml")
+	opts := initOptions{
+		scan:   dir,
+		output: outFile,
+	}
+
+	err := runInit(opts)
+	require.NoError(t, err)
+	require.FileExists(t, outFile)
+
+	raw, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	content := string(raw)
+
+	assert.Contains(t, content, "images")
+	assert.Contains(t, content, "jpg")
+	assert.Contains(t, content, "videos")
+	assert.Contains(t, content, "mp4")
+	assert.Contains(t, content, "installers")
+	assert.Contains(t, content, "hash_check")
+	assert.Contains(t, content, "everything-else")
+	assert.Contains(t, content, "enabled: false")
+	assert.NotContains(t, content, "xyz")
+}
+
+func TestRunInit_Scan_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	outFile := filepath.Join(dir, "movelooper.yaml")
+	opts := initOptions{
+		scan:   dir,
+		output: outFile,
+	}
+
+	err := runInit(opts)
+	require.NoError(t, err)
+	require.FileExists(t, outFile)
+
+	raw, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	content := string(raw)
+
+	assert.Contains(t, content, "everything-else")
+	assert.NotContains(t, content, "images")
+}
+
+func TestRunInit_Scan_PathDoesNotExist(t *testing.T) {
+	opts := initOptions{
+		scan:   "/nonexistent/path/xyz",
+		output: filepath.Join(t.TempDir(), "out.yaml"),
+	}
+	err := runInit(opts)
+	assert.Error(t, err)
+}
+
+func TestRunInit_Scan_ExistingOutputNoForce(t *testing.T) {
+	dir := t.TempDir()
+	outFile := filepath.Join(dir, "movelooper.yaml")
+	require.NoError(t, os.WriteFile(outFile, []byte("existing"), 0644))
+
+	opts := initOptions{
+		scan:   dir,
+		output: outFile,
+		force:  false,
+	}
+	// Should not overwrite — runInit returns nil but prints error (existing behavior).
+	err := runInit(opts)
+	require.NoError(t, err)
+
+	raw, _ := os.ReadFile(outFile)
+	assert.Equal(t, "existing", string(raw))
+}

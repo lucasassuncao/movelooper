@@ -41,7 +41,7 @@ func ConfigCmd(m *models.Movelooper) *cobra.Command
 ConfigCmd returns the "config" command group
 
 <a name="InitCmd"></a>
-## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L36>)
+## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L38>)
 
 ```go
 func InitCmd() *cobra.Command

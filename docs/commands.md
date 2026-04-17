@@ -71,6 +71,9 @@ movelooper init -i                           # interactive wizard
 movelooper init -t full                      # from template
 movelooper init -o /path/to/custom.yaml      # custom output path
 movelooper init -f                           # force overwrite existing config
+movelooper init --scan ~/Downloads           # scan directory and generate config
+movelooper init --scan ~/Downloads -o /path/to/movelooper.yaml  # custom output
+movelooper init --scan ~/Downloads -f        # overwrite existing config
 ```
 
 | Flag            | Short | Description                              |
@@ -79,6 +82,7 @@ movelooper init -f                           # force overwrite existing config
 | `--template`    | `-t`  | Template to use (default: `basic`)       |
 | `--output`      | `-o`  | Path to write the config file            |
 | `--force`       | `-f`  | Overwrite existing config file           |
+| `--scan`        |       | Scan a directory and generate a config from detected file types |
 
 ### Available templates
 

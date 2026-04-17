@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/scanner"
 	"github.com/lucasassuncao/movelooper/internal/terminal"
 
 	"github.com/pterm/pterm"
@@ -30,6 +31,7 @@ type initOptions struct {
 	interactive bool
 	template    string
 	output      string
+	scan        string // path to scan; empty means --scan not provided
 }
 
 // InitCmd generates a configuration file
@@ -53,6 +55,13 @@ Available templates:
   - regex:       Example using regex name filtering
   - full:        Complete example with multiple categories and all options
 
+Scan mode (--scan):
+  Analyzes a directory and generates a config based on the file types found.
+  Categories are built from a built-in dictionary (images, videos, audio,
+  documents, ebooks, archives, fonts, installers). Only categories with at
+  least one matching file are included. An 'everything-else' catch-all category
+  is always added at the end, disabled by default.
+
 By default the configuration file is created at: <executable_dir>/conf/movelooper.yaml`,
 		Example: `  # Interactive mode (recommended for first time)
   movelooper init -i
@@ -64,7 +73,12 @@ By default the configuration file is created at: <executable_dir>/conf/moveloope
   movelooper init -o /path/to/movelooper.yaml
 
   # Force overwrite existing config
-  movelooper init -f`,
+  movelooper init -f
+
+  # Scan a directory and generate a config from detected file types
+  movelooper init --scan ~/Downloads
+  movelooper init --scan ~/Downloads -o /path/to/movelooper.yaml
+  movelooper init --scan ~/Downloads -f`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInit(opts)
 		},
@@ -74,6 +88,7 @@ By default the configuration file is created at: <executable_dir>/conf/moveloope
 	cmd.Flags().BoolVarP(&opts.interactive, "interactive", "i", false, "Interactive mode with prompts")
 	cmd.Flags().StringVarP(&opts.template, "template", "t", "basic", "Template to use (basic, images, music, video, books, archives, installers, regex, full)")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Path to write the configuration file (default: <executable_dir>/conf/movelooper.yaml)")
+	cmd.Flags().StringVar(&opts.scan, "scan", "", "Scan a directory and generate a config from detected file types")
 
 	return cmd
 }
@@ -104,14 +119,21 @@ func runInit(opts initOptions) error {
 	}
 
 	var data []byte
-	if opts.interactive {
+	switch {
+	case opts.scan != "":
+		var err error
+		data, err = runScan(opts.scan)
+		if err != nil {
+			return err
+		}
+	case opts.interactive:
 		config := generateInteractiveConfig()
 		var err error
 		data, err = yaml.Marshal(config)
 		if err != nil {
 			return fmt.Errorf("error marshaling config: %v", err)
 		}
-	} else {
+	default:
 		var err error
 		data, err = loadTemplate(opts.template)
 		if err != nil {
@@ -127,6 +149,87 @@ func runInit(opts initOptions) error {
 	fmt.Printf("Config created: %s\n", configFile)
 
 	return nil
+}
+
+// scanCategory and friends are minimal YAML-only structs used exclusively
+// by runScan to produce a clean, omitempty output without the noise of
+// zero-value fields from the full models.Category type.
+type scanDestination struct {
+	Path             string `yaml:"path"`
+	ConflictStrategy string `yaml:"conflict-strategy"`
+}
+
+type scanSource struct {
+	Path       string   `yaml:"path"`
+	Extensions []string `yaml:"extensions"`
+}
+
+type scanCategory struct {
+	Name        string          `yaml:"name"`
+	Enabled     *bool           `yaml:"enabled"`
+	Source      scanSource      `yaml:"source"`
+	Destination scanDestination `yaml:"destination"`
+}
+
+type scanConfig struct {
+	Categories []scanCategory `yaml:"categories"`
+}
+
+// runScan scans scanPath, builds a config from detected categories, and
+// returns the marshaled YAML bytes.
+func runScan(scanPath string) ([]byte, error) {
+	result, err := scanner.Scan(scanPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result.Categories) == 0 {
+		pterm.Warning.Println("No known file types found in the scanned directory.")
+		pterm.Warning.Println("Generating config with only the everything-else catch-all category.")
+	}
+
+	trueVal := true
+	falseVal := false
+
+	var categories []scanCategory
+	for _, detected := range result.Categories {
+		strategy := "rename"
+		if detected.Name == "installers" {
+			strategy = "hash_check"
+		}
+		categories = append(categories, scanCategory{
+			Name:    detected.Name,
+			Enabled: &trueVal,
+			Source: scanSource{
+				Path:       scanPath,
+				Extensions: detected.Extensions,
+			},
+			Destination: scanDestination{
+				Path:             filepath.Join(scanPath, detected.Name),
+				ConflictStrategy: strategy,
+			},
+		})
+	}
+
+	// everything-else is always last, always disabled.
+	categories = append(categories, scanCategory{
+		Name:    "everything-else",
+		Enabled: &falseVal,
+		Source: scanSource{
+			Path:       scanPath,
+			Extensions: []string{"all"},
+		},
+		Destination: scanDestination{
+			Path:             filepath.Join(scanPath, "ToOrganize"),
+			ConflictStrategy: "rename",
+		},
+	})
+
+	data, err := yaml.Marshal(scanConfig{Categories: categories})
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling scanned config: %w", err)
+	}
+	return data, nil
 }
 
 // exitIfAborted exits cleanly when the user cancels an interactive prompt.
