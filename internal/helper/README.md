@@ -35,6 +35,7 @@ import "github.com/lucasassuncao/movelooper/internal/helper"
 - [func ValidateGlob\(pattern string\) error](<#ValidateGlob>)
 - [func ValidateTemplate\(template string\) error](<#ValidateTemplate>)
 - [type ConflictResolver](<#ConflictResolver>)
+- [type FileAction](<#FileAction>)
 - [type MoveContext](<#MoveContext>)
 
 
@@ -291,13 +292,25 @@ func ValidateTemplate(template string) error
 ValidateTemplate returns an error if the template contains any unrecognised or malformed \{token\}. \{seq\} and \{seq:N\} \(N between 1 and 20\) are valid.
 
 <a name="ConflictResolver"></a>
-## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/conflict.go#L14-L16>)
+## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/conflict.go#L15-L18>)
 
-ConflictResolver resolves a naming conflict when a destination file already exists. Resolve returns the final destination path, whether the move should proceed, and any error encountered. When shouldMove is false the caller must skip the file.
+ConflictResolver resolves a naming conflict when a destination file already exists. Resolve returns the final destination path, whether the move should proceed, and any error encountered. When shouldMove is false the caller must skip the file. SkipMessage returns the log message to emit when shouldMove is false; "" means no log.
 
 ```go
 type ConflictResolver interface {
     Resolve(src, dst, destDir, fileName string) (resolvedPath string, shouldMove bool, err error)
+    SkipMessage() string
+}
+```
+
+<a name="FileAction"></a>
+## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/helper/fileops.go#L124-L126>)
+
+FileAction executes a file operation from src to dst.
+
+```go
+type FileAction interface {
+    Execute(src, dst string) error
 }
 ```
 

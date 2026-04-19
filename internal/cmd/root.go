@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/knadh/koanf/v2"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/history"
@@ -263,9 +262,6 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 }
 
 // preRunHandler handles the necessary configuration before command execution.
-// It creates a short-lived koanf instance to read the YAML file, extracts all
-// values into typed structs, and discards it - the rest of the application
-// works exclusively with m.Logger, m.Config, m.Categories, and m.History.
 func preRunHandler(m *models.Movelooper, configPath string) (retErr error) {
 	defer func() {
 		if retErr != nil && m.LogCloser != nil {
@@ -273,105 +269,21 @@ func preRunHandler(m *models.Movelooper, configPath string) (retErr error) {
 			m.LogCloser = nil
 		}
 	}()
-	resolvedPath, err := resolveConfigPath(configPath)
-	if err != nil {
-		if errors.Is(err, config.ErrConfigNotFound) {
-			if configPath != "" {
-				return fmt.Errorf("configuration file not found at '%s'", configPath)
-			}
-			return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
+
+	err := config.NewAppBuilder(m, configPath).
+		ResolveConfig().
+		ConfigureLogger().
+		LoadConfig().
+		LoadCategories().
+		InitHistory().
+		ValidateDirectories().
+		Build()
+
+	if errors.Is(err, config.ErrConfigNotFound) {
+		if configPath != "" {
+			return fmt.Errorf("configuration file not found at '%s'", configPath)
 		}
-		return err
+		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
 	}
-
-	k := koanf.New(".")
-
-	if err := config.InitConfig(k, resolvedPath); err != nil {
-		if errors.Is(err, config.ErrConfigNotFound) {
-			if configPath != "" {
-				return fmt.Errorf("configuration file not found at '%s'", configPath)
-			}
-			return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
-		}
-		return err
-	}
-
-	logger, closer, err := config.ConfigureLogger(k)
-	if err != nil {
-		return fmt.Errorf("failed to configure logger: %v", err)
-	}
-	m.Logger = logger
-	m.LogCloser = closer
-
-	m.Config = config.LoadConfig(k)
-
-	categories, err := config.UnmarshalConfig(k)
-	if err != nil {
-		return err
-	}
-	m.Categories = categories
-
-	hist, err := history.NewHistory(m.Config.HistoryLimit)
-	if err != nil {
-		m.Logger.Warn("failed to initialize history tracking", m.Logger.Args("error", err.Error()))
-	} else {
-		m.History = hist
-	}
-
-	validateDirectories(m)
-
-	return nil
-}
-
-// resolveConfigPath returns the absolute path to the config file.
-// If configPath is provided it is used directly (after verifying existence).
-// Otherwise it searches for movelooper.yaml in the executable directory and
-// its conf/ subdirectory, returning ErrConfigNotFound if neither exists.
-func resolveConfigPath(configPath string) (string, error) {
-	if configPath != "" {
-		abs, err := filepath.Abs(configPath)
-		if err != nil {
-			return "", fmt.Errorf("resolving config path: %w", err)
-		}
-		if _, err := os.Stat(abs); os.IsNotExist(err) {
-			return "", fmt.Errorf("%w: %w", config.ErrConfigNotFound, err)
-		}
-		return abs, nil
-	}
-
-	ex, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("error getting executable: %v", err)
-	}
-	exDir := filepath.Dir(ex)
-
-	candidates := []string{
-		filepath.Join(exDir, "movelooper.yaml"),
-		filepath.Join(exDir, "conf", "movelooper.yaml"),
-	}
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			return p, nil
-		}
-	}
-
-	return "", fmt.Errorf("%w: movelooper.yaml not found in %s or %s/conf", config.ErrConfigNotFound, exDir, exDir)
-}
-
-// validateDirectories warns about source or destination directories that do not exist.
-// It does not abort startup - missing directories are reported and skipped at runtime.
-func validateDirectories(m *models.Movelooper) {
-	for _, cat := range m.Categories {
-		if !cat.IsEnabled() {
-			continue
-		}
-		if _, err := os.Stat(cat.Source.Path); os.IsNotExist(err) {
-			m.Logger.Warn("source directory does not exist",
-				m.Logger.Args("category", cat.Name, "path", cat.Source.Path))
-		}
-		if _, err := os.Stat(cat.Destination.Path); os.IsNotExist(err) {
-			m.Logger.Warn("destination directory does not exist",
-				m.Logger.Args("category", cat.Name, "path", cat.Destination.Path))
-		}
-	}
+	return err
 }

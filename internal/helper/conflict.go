@@ -11,8 +11,10 @@ import (
 // ConflictResolver resolves a naming conflict when a destination file already exists.
 // Resolve returns the final destination path, whether the move should proceed, and
 // any error encountered. When shouldMove is false the caller must skip the file.
+// SkipMessage returns the log message to emit when shouldMove is false; "" means no log.
 type ConflictResolver interface {
 	Resolve(src, dst, destDir, fileName string) (resolvedPath string, shouldMove bool, err error)
+	SkipMessage() string
 }
 
 // conflictResolvers maps strategy names to their ConflictResolver implementation.
@@ -28,16 +30,6 @@ var conflictResolvers = map[string]ConflictResolver{
 	"smaller":    &smallerResolver{},
 }
 
-// resolveConflict dispatches to the registered ConflictResolver for strategy.
-// Falls back to renameResolver for unknown or empty strategy names.
-func resolveConflict(strategy, src, dst, destDir, fileName string) (string, bool, error) {
-	resolver, ok := conflictResolvers[strategy]
-	if !ok {
-		resolver = conflictResolvers["rename"]
-	}
-	return resolver.Resolve(src, dst, destDir, fileName)
-}
-
 // renameResolver appends (n) to the file name until a free slot is found.
 type renameResolver struct{}
 
@@ -49,6 +41,8 @@ func (r *renameResolver) Resolve(_, _, destDir, fileName string) (string, bool, 
 	return path, true, nil
 }
 
+func (r *renameResolver) SkipMessage() string { return "" }
+
 // overwriteResolver removes the existing destination file so the source can take its place.
 type overwriteResolver struct{}
 
@@ -59,12 +53,16 @@ func (r *overwriteResolver) Resolve(_, dst, _, _ string) (string, bool, error) {
 	return dst, true, nil
 }
 
+func (r *overwriteResolver) SkipMessage() string { return "" }
+
 // skipResolver signals that the file should not be moved.
 type skipResolver struct{}
 
 func (r *skipResolver) Resolve(_, dst, _, _ string) (string, bool, error) {
 	return "", false, nil
 }
+
+func (r *skipResolver) SkipMessage() string { return "file skipped due to conflict strategy" }
 
 // compareFileHashes reports whether file1 and file2 have identical SHA-256 digests.
 func compareFileHashes(file1, file2 string) (bool, error) {
@@ -118,6 +116,8 @@ func (r *newestResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
 	return dst, true, nil
 }
 
+func (r *newestResolver) SkipMessage() string { return "file skipped - destination is newer" }
+
 // oldestResolver keeps whichever file has the oldest modification time.
 // If the destination is older or equal, the source is skipped.
 // If the source is older, the destination is overwritten.
@@ -140,6 +140,8 @@ func (r *oldestResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
 	}
 	return dst, true, nil
 }
+
+func (r *oldestResolver) SkipMessage() string { return "file skipped - destination is older" }
 
 // largerResolver keeps the larger of the two files.
 // If the destination is larger or equal, the source is skipped.
@@ -164,6 +166,8 @@ func (r *largerResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
 	return dst, true, nil
 }
 
+func (r *largerResolver) SkipMessage() string { return "file skipped - destination is larger" }
+
 // smallerResolver keeps the smaller of the two files.
 // If the destination is smaller or equal, the source is skipped.
 // If the source is smaller, the destination is overwritten.
@@ -186,6 +190,8 @@ func (r *smallerResolver) Resolve(src, dst, _, _ string) (string, bool, error) {
 	}
 	return dst, true, nil
 }
+
+func (r *smallerResolver) SkipMessage() string { return "file skipped - destination is smaller" }
 
 // hashCheckResolver compares source and destination by SHA-256 hash.
 // If identical, the source is removed (deduplication). If different,
@@ -210,3 +216,5 @@ func (r *hashCheckResolver) Resolve(src, dst, destDir, fileName string) (string,
 	}
 	return path, true, nil
 }
+
+func (r *hashCheckResolver) SkipMessage() string { return "duplicate file removed from source" }

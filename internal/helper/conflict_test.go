@@ -17,6 +17,30 @@ func writeFile(t *testing.T, path string, content []byte) {
 	require.NoError(t, os.WriteFile(path, content, 0644))
 }
 
+// --- ConflictResolver.SkipMessage ---
+
+func TestConflictResolvers_SkipMessages(t *testing.T) {
+	tests := []struct {
+		name     string
+		resolver ConflictResolver
+		wantMsg  string
+	}{
+		{"skip", &skipResolver{}, "file skipped due to conflict strategy"},
+		{"newest", &newestResolver{}, "file skipped - destination is newer"},
+		{"oldest", &oldestResolver{}, "file skipped - destination is older"},
+		{"larger", &largerResolver{}, "file skipped - destination is larger"},
+		{"smaller", &smallerResolver{}, "file skipped - destination is smaller"},
+		{"hash_check", &hashCheckResolver{}, "duplicate file removed from source"},
+		{"rename", &renameResolver{}, ""},
+		{"overwrite", &overwriteResolver{}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantMsg, tt.resolver.SkipMessage())
+		})
+	}
+}
+
 // --- getUniqueDestinationPath ---
 
 func TestGetUniqueDestinationPath(t *testing.T) {
@@ -40,34 +64,6 @@ func TestGetUniqueDestinationPath(t *testing.T) {
 			got, err := getUniqueDestinationPath(dir, tt.input)
 			require.NoError(t, err)
 			assert.Equal(t, filepath.Join(dir, tt.want), got)
-		})
-	}
-}
-
-// --- resolveConflict dispatch ---
-
-func TestResolveConflict(t *testing.T) {
-	tests := []struct {
-		name       string
-		strategy   string
-		wantMove   bool
-		wantSuffix string
-	}{
-		{"unknown falls to rename", "unknown_strategy", true, "dst(1).txt"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			src := filepath.Join(dir, "src.txt")
-			dst := filepath.Join(dir, "dst.txt")
-			writeFile(t, src, []byte("src"))
-			writeFile(t, dst, []byte("dst"))
-
-			path, shouldMove, err := resolveConflict(tt.strategy, src, dst, dir, "dst.txt")
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantMove, shouldMove)
-			assert.Contains(t, path, tt.wantSuffix)
 		})
 	}
 }

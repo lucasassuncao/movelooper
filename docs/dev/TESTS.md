@@ -50,6 +50,18 @@ Overview of all test cases across the movelooper project.
 | `TestConfigureLogger_UnknownOutputDefaultsToConsole` | Unknown output defaults to console without error | no error, closer is nil |
 | `TestConfigureLogger_ShowCallerEnabled` | `show-caller: true` sets `logger.ShowCaller` | `logger.ShowCaller == true` |
 
+### `builder_test.go`
+
+| Test | What it verifies | Expected |
+|---|---|---|
+| `TestAppBuilder_ErrorStopsChain` | An error in `ResolveConfig` stops the chain — `m.Logger` is never set | error returned, `m.Logger == nil` |
+| `TestAppBuilder_ResolveConfig_FileNotFound` | Non-existent config path returns error | error |
+| `TestAppBuilder_ConfigureLogger` | After `ResolveConfig` + `ConfigureLogger`, `m.Logger` is populated | no error, `m.Logger != nil` |
+| `TestAppBuilder_LoadConfig` | After `LoadConfig`, `m.Config.Output` reflects the YAML value | no error, `m.Config.Output == "console"` |
+| `TestAppBuilder_LoadCategories` | After `LoadCategories`, `m.Categories` has the expected entry | no error, 1 category named `"docs"` |
+| `TestAppBuilder_InvalidCategories_ReturnsError` | Category missing `extensions` causes error | error containing `"extensions"` |
+| `TestAppBuilder_Build_NilKoanf` | Zero-value builder with empty koanf returns no error | no error |
+
 ### `imports_test.go`
 
 | Test | What it verifies | Expected |
@@ -97,7 +109,6 @@ Overview of all test cases across the movelooper project.
 | | multiple extensions in one category | A category with multiple extensions moves all of them | no error, jpg and png in dst, pdf stays in src |
 | | all extension moves everything | Extension `all` moves any file type | no error, all 3 files in dst |
 | | show-files dry-run does not move | `show-files + dry-run` does not move and does not error | no error, file stays in src |
-| `TestValidateDirectories_MissingDirsNoError` | — | Missing directories only warn, no panic | no panic |
 | `TestResolveConfigPath` | explicit path returns path | Valid explicit path is resolved correctly | no error, resolved path equals input |
 | | explicit path not found returns error | Non-existent explicit path returns error | error |
 | `TestRunMove_CopyAction` | — | `action: copy` copies the file, leaving source intact | no error, file in dst and in src |
@@ -214,6 +225,8 @@ Overview of all test cases across the movelooper project.
 | `TestDispatchAction_Move` | `action: move` moves file to dst and removes src | no error, file in dst, absent from src |
 | `TestDispatchAction_Copy` | `action: copy` copies file to dst, source stays | no error, file in both src and dst, contents equal |
 | `TestDispatchAction_Symlink` | `action: symlink` creates a symlink at dst pointing to src | no error, dst is a symlink (skipped if privileges unavailable) |
+| `TestFileActions_UnknownDefaultsToMove` | Unknown action name falls back to `move` | no error, file in dst, absent from src |
+| `TestFileActions_EmptyDefaultsToMove` | Empty action name falls back to `move` | no error, file in dst, absent from src |
 | `TestMoveFiles_RenameTemplate` | `rename` template produces correctly named file at dst | no error, `images_photo.jpg` in dst, original stays in src |
 
 ### `filters_extra_test.go`
@@ -265,7 +278,7 @@ Overview of all test cases across the movelooper project.
 | `TestGetUniqueDestinationPath_NoConflict` | No conflict: returns the original path | no error, path unchanged |
 | `TestGetUniqueDestinationPath_Conflict` | Conflict: adds `(1)` suffix | no error, path contains `"(1)"` |
 | `TestGetUniqueDestinationPath_MultipleConflicts` | Multiple conflicts increment the suffix | no error, path contains `"(2)"` |
-| `TestResolveConflict_UnknownFallsToRename` | Unknown strategy falls back to rename | no error, renamed path returned |
+| `TestConflictResolvers_SkipMessages` | Each resolver returns the correct `SkipMessage()` string; `rename` and `overwrite` return `""` | correct message per resolver |
 | `TestRenameResolver` | `rename` strategy adds suffix to the file | no error, resolved path has suffix |
 | `TestOverwriteResolver_RemovesDst` | `overwrite` strategy deletes the destination | no error, dst file removed |
 | `TestSkipResolver` | `skip` strategy does not move the file | `shouldMove == false` |

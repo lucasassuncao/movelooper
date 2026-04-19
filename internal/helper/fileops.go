@@ -120,21 +120,34 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 	return moved
 }
 
+// FileAction executes a file operation from src to dst.
+type FileAction interface {
+	Execute(src, dst string) error
+}
+
+type moveAction struct{}
+type copyAction struct{}
+type symlinkAction struct{}
+
+func (a *moveAction) Execute(src, dst string) error    { return moveFile(src, dst) }
+func (a *copyAction) Execute(src, dst string) error    { return copyFile(src, dst) }
+func (a *symlinkAction) Execute(src, dst string) error { return os.Symlink(src, dst) }
+
+var fileActions = map[string]FileAction{
+	"move":    &moveAction{},
+	"copy":    &copyAction{},
+	"symlink": &symlinkAction{},
+}
+
 // dispatchAction performs the file operation indicated by action.
 // Supported values: "move" (default), "copy", "symlink".
-// On Windows, symlink creation may fail without elevated privileges; the error
-// is returned to the caller, which logs it as a warning per file.
+// Unknown or empty action names fall back to "move".
 func dispatchAction(action, src, dst string) error {
-	switch action {
-	case "", "move":
-		return moveFile(src, dst)
-	case "copy":
-		return copyFile(src, dst)
-	case "symlink":
-		return os.Symlink(src, dst)
-	default:
-		return fmt.Errorf("unknown action %q", action)
+	fa, ok := fileActions[action]
+	if !ok {
+		fa = fileActions["move"]
 	}
+	return fa.Execute(src, dst)
 }
 
 // applyConflictStrategy checks whether destPath already exists and resolves the
@@ -145,25 +158,18 @@ func applyConflictStrategy(ctx MoveContext, strategy, sourcePath, destPath, dest
 		// Destination does not exist - no conflict.
 		return destPath, false
 	}
-	resolvedPath, shouldMove, err := resolveConflict(strategy, sourcePath, destPath, destDir, fileName)
+	resolver, ok := conflictResolvers[strategy]
+	if !ok {
+		resolver = conflictResolvers["rename"]
+	}
+	resolvedPath, shouldMove, err := resolver.Resolve(sourcePath, destPath, destDir, fileName)
 	if err != nil {
 		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", fileName, "error", err.Error()))
 		return "", true
 	}
 	if !shouldMove {
-		switch strategy {
-		case "skip":
-			ctx.Logger.Info("file skipped due to conflict strategy", ctx.Logger.Args("file", fileName))
-		case "hash_check":
-			ctx.Logger.Info("duplicate file removed from source", ctx.Logger.Args("file", fileName))
-		case "newest":
-			ctx.Logger.Info("file skipped - destination is newer", ctx.Logger.Args("file", fileName))
-		case "oldest":
-			ctx.Logger.Info("file skipped - destination is older", ctx.Logger.Args("file", fileName))
-		case "larger":
-			ctx.Logger.Info("file skipped - destination is larger", ctx.Logger.Args("file", fileName))
-		case "smaller":
-			ctx.Logger.Info("file skipped - destination is smaller", ctx.Logger.Args("file", fileName))
+		if msg := resolver.SkipMessage(); msg != "" {
+			ctx.Logger.Info(msg, ctx.Logger.Args("file", fileName))
 		}
 		return "", true
 	}

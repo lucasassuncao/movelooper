@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/helper"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/pterm/pterm"
@@ -175,14 +176,6 @@ func TestRunMove_Filters(t *testing.T) {
 	}
 }
 
-// --- validateDirectories ---
-
-func TestValidateDirectories_MissingDirsNoError(t *testing.T) {
-	cat := buildCategory("Ghost", "/nonexistent/src", "/nonexistent/dst", []string{"txt"})
-	m := newSilentMovelooper([]*models.Category{cat})
-	assert.NotPanics(t, func() { validateDirectories(m) })
-}
-
 // --- resolveConfigPath ---
 
 func TestResolveConfigPath(t *testing.T) {
@@ -208,7 +201,7 @@ func TestResolveConfigPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resolved, err := resolveConfigPath(tt.path(t))
+			resolved, err := config.ResolveConfigPath(tt.path(t))
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

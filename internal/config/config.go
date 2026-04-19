@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/knadh/koanf/parsers/yaml"
@@ -241,4 +242,39 @@ func validateSizeAndAge(catName string, f *models.CategoryFilter) error {
 	}
 
 	return nil
+}
+
+// ResolveConfigPath returns the absolute path to the config file.
+// If configPath is provided it is used directly (after verifying existence).
+// Otherwise it searches for movelooper.yaml in the executable directory and
+// its conf/ subdirectory, returning ErrConfigNotFound if neither exists.
+func ResolveConfigPath(configPath string) (string, error) {
+	if configPath != "" {
+		abs, err := filepath.Abs(configPath)
+		if err != nil {
+			return "", fmt.Errorf("resolving config path: %w", err)
+		}
+		if _, err := os.Stat(abs); os.IsNotExist(err) {
+			return "", fmt.Errorf("%w: %w", ErrConfigNotFound, err)
+		}
+		return abs, nil
+	}
+
+	ex, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("error getting executable: %v", err)
+	}
+	exDir := filepath.Dir(ex)
+
+	candidates := []string{
+		filepath.Join(exDir, "movelooper.yaml"),
+		filepath.Join(exDir, "conf", "movelooper.yaml"),
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	return "", fmt.Errorf("%w: movelooper.yaml not found in %s or %s/conf", ErrConfigNotFound, exDir, exDir)
 }

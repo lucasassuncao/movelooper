@@ -492,6 +492,28 @@ func TestDispatchAction_Symlink(t *testing.T) {
 	assert.True(t, info.Mode()&os.ModeSymlink != 0, "dst should be a symlink")
 }
 
+func TestFileActions_UnknownDefaultsToMove(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "file.txt")
+	dst := filepath.Join(t.TempDir(), "file.txt")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
+
+	require.NoError(t, dispatchAction("unknown_action", src, dst))
+
+	assert.FileExists(t, dst)
+	assert.NoFileExists(t, src)
+}
+
+func TestFileActions_EmptyDefaultsToMove(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "file.txt")
+	dst := filepath.Join(t.TempDir(), "file.txt")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
+
+	require.NoError(t, dispatchAction("", src, dst))
+
+	assert.FileExists(t, dst)
+	assert.NoFileExists(t, src)
+}
+
 func readDir(t *testing.T, path string) []os.DirEntry {
 	t.Helper()
 	entries, err := os.ReadDir(path)
