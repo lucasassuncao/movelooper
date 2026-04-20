@@ -1,6 +1,7 @@
-package helper
+package hooks
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,7 +19,7 @@ func silentLogger() *pterm.Logger {
 }
 
 func TestRunHook_NilHook(t *testing.T) {
-	err := RunHook(nil, silentLogger(), map[string]string{})
+	err := RunHook(context.Background(), nil, silentLogger(), map[string]string{})
 	assert.NoError(t, err)
 }
 
@@ -30,7 +31,7 @@ func TestRunHook_WarnOnFailure_ContinuesOnError(t *testing.T) {
 		run = []string{"exit 1", "echo second"}
 	}
 	hook := &models.CategoryHook{OnFailure: "warn", Run: run}
-	err := RunHook(hook, silentLogger(), map[string]string{})
+	err := RunHook(context.Background(), hook, silentLogger(), map[string]string{})
 	assert.NoError(t, err)
 }
 
@@ -51,7 +52,7 @@ func TestRunHook_AbortOnFailure_StopsOnError(t *testing.T) {
 		}
 	}
 	hook := &models.CategoryHook{OnFailure: "abort", Run: run}
-	err := RunHook(hook, silentLogger(), map[string]string{})
+	err := RunHook(context.Background(), hook, silentLogger(), map[string]string{})
 	require.Error(t, err)
 	assert.NoFileExists(t, marker, "second command should not have run")
 }
@@ -66,7 +67,7 @@ func TestRunHook_EnvVarsInjected(t *testing.T) {
 		OnFailure: "abort",
 		Run:       []string{fmt.Sprintf(`echo "$ML_CATEGORY" > %s`, out)},
 	}
-	err := RunHook(hook, silentLogger(), map[string]string{"ML_CATEGORY": "images"})
+	err := RunHook(context.Background(), hook, silentLogger(), map[string]string{"ML_CATEGORY": "images"})
 	require.NoError(t, err)
 	data, _ := os.ReadFile(out)
 	assert.Contains(t, string(data), "images")

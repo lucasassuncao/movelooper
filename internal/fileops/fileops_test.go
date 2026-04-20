@@ -1,6 +1,7 @@
-package helper
+package fileops
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,14 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newTestLogger returns a silent pterm logger suitable for unit tests.
 func newTestLogger() *pterm.Logger {
 	l := pterm.DefaultLogger
 	l.Level = pterm.LogLevelDisabled
 	return &l
 }
 
-// newTestMoveContext returns a MoveContext with a silent logger and no history.
 func newTestMoveContext() MoveContext {
 	return MoveContext{Logger: newTestLogger()}
 }
@@ -261,7 +260,7 @@ func TestMoveFiles(t *testing.T) {
 			require.NoError(t, err)
 
 			cat := tt.category(src, dst)
-			moved := MoveFiles(newTestMoveContext(), cat, entries, tt.ext, tt.batchID)
+			moved := MoveFiles(context.Background(), newTestMoveContext(), cat, entries, tt.ext, tt.batchID)
 
 			if tt.wantMoved != nil {
 				assert.Equal(t, tt.wantMoved, moved)
@@ -281,8 +280,8 @@ func TestApplyConflictStrategy(t *testing.T) {
 		strategy   string
 		setup      func(t *testing.T, srcFile, dstFile string)
 		wantSkip   bool
-		wantEqDst  bool   // resolved == dstFile
-		wantSuffix string // substring in resolved path
+		wantEqDst  bool
+		wantSuffix string
 	}{
 		{
 			name:      "no conflict returns dst as-is",
@@ -383,7 +382,9 @@ func TestApplyConflictStrategy(t *testing.T) {
 			dstFile := filepath.Join(dst, "file.txt")
 			tt.setup(t, srcFile, dstFile)
 
-			resolved, skip := applyConflictStrategy(newTestMoveContext(), tt.strategy, srcFile, dstFile, dst, "file.txt")
+			resolved, skip := applyConflictStrategy(newTestMoveContext(), tt.strategy, ConflictArgs{
+				Src: srcFile, Dst: dstFile, DestDir: dst, FileName: "file.txt",
+			})
 			assert.Equal(t, tt.wantSkip, skip)
 			if !tt.wantSkip {
 				switch {
@@ -417,45 +418,11 @@ func TestIsCrossDeviceError(t *testing.T) {
 	}
 }
 
-// --- GenerateLogArgs ---
-
-func TestGenerateLogArgs(t *testing.T) {
-	tests := []struct {
-		name    string
-		files   []string
-		ext     string
-		wantLen int
-	}{
-		{"matches by extension", []string{"a.pdf", "b.pdf", "c.txt"}, "pdf", 4},
-		{"no match returns empty", []string{"file.txt"}, "pdf", 0},
-		{"all extension matches everything", []string{"a.pdf", "b.txt"}, "all", 4},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			for _, f := range tt.files {
-				require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0644))
-			}
-			entries, err := os.ReadDir(dir)
-			require.NoError(t, err)
-
-			args := GenerateLogArgs(entries, tt.ext)
-			assert.Len(t, args, tt.wantLen)
-			for i := 0; i < len(args)-1; i += 2 {
-				assert.Equal(t, "name", args[i])
-			}
-		})
-	}
-}
-
 func TestDispatchAction_Move(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "file.txt")
 	dst := filepath.Join(t.TempDir(), "file.txt")
 	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
 
-	ctx := MoveContext{Logger: newTestLogger()}
-	_ = ctx
 	require.NoError(t, dispatchAction("move", src, dst))
 
 	assert.FileExists(t, dst)
@@ -539,8 +506,7 @@ func TestMoveFiles_RenameTemplate(t *testing.T) {
 		},
 	}
 
-	ctx := MoveContext{Logger: newTestLogger()}
-	moved := MoveFiles(ctx, cat, readDir(t, src), "jpg", "batch_test")
+	moved := MoveFiles(context.Background(), newTestMoveContext(), cat, readDir(t, src), "jpg", "batch_test")
 
 	require.Len(t, moved, 1)
 	assert.FileExists(t, filepath.Join(dst, "images_photo.jpg"))

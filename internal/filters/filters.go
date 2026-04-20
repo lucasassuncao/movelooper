@@ -1,4 +1,4 @@
-package helper
+package filters
 
 import (
 	"fmt"
@@ -9,74 +9,6 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
-
-// MatchesIgnorePatterns reports whether fileName matches any of the provided
-// glob patterns. Patterns follow filepath.Match syntax: * matches any sequence
-// of characters, ? matches one character. Matching is case-insensitive unless
-// caseSensitive is true.
-func MatchesIgnorePatterns(fileName string, patterns []string, caseSensitive bool) bool {
-	name := normalizeCase(fileName, caseSensitive)
-	for _, pattern := range patterns {
-		matched, err := filepath.Match(normalizeCase(pattern, caseSensitive), name)
-		if err == nil && matched {
-			return true
-		}
-	}
-	return false
-}
-
-// MatchesGlob reports whether fileName matches the glob pattern.
-// Supports brace expansion: *.{jpg,png} expands to *.jpg and *.png.
-// Matching is case-insensitive unless caseSensitive is true.
-func MatchesGlob(fileName, pattern string, caseSensitive bool) bool {
-	name := normalizeCase(fileName, caseSensitive)
-	for _, p := range expandGlobPattern(normalizeCase(pattern, caseSensitive)) {
-		matched, err := filepath.Match(p, name)
-		if err == nil && matched {
-			return true
-		}
-	}
-	return false
-}
-
-// normalizeCase returns s lowercased when caseSensitive is false, otherwise s unchanged.
-func normalizeCase(s string, caseSensitive bool) string {
-	if caseSensitive {
-		return s
-	}
-	return strings.ToLower(s)
-}
-
-// expandGlobPattern expands a single {a,b,c} group into multiple patterns.
-// For example, "*.{jpg,png}" becomes ["*.jpg", "*.png"].
-// Only the first brace group is expanded; nested braces are not supported.
-func expandGlobPattern(pattern string) []string {
-	start := strings.Index(pattern, "{")
-	end := strings.Index(pattern, "}")
-	if start == -1 || end == -1 || end < start {
-		return []string{pattern}
-	}
-
-	prefix := pattern[:start]
-	suffix := pattern[end+1:]
-	alternatives := strings.Split(pattern[start+1:end], ",")
-
-	expanded := make([]string, 0, len(alternatives))
-	for _, alt := range alternatives {
-		expanded = append(expanded, prefix+strings.TrimSpace(alt)+suffix)
-	}
-	return expanded
-}
-
-// ValidateGlob checks that pattern is syntactically valid after brace expansion.
-func ValidateGlob(pattern string) error {
-	for _, p := range expandGlobPattern(pattern) {
-		if _, err := filepath.Match(p, ""); err != nil {
-			return fmt.Errorf("invalid glob pattern %q: %w", p, err)
-		}
-	}
-	return nil
-}
 
 // ExtAll is the sentinel value that matches files of any extension.
 const ExtAll = "all"
@@ -93,8 +25,6 @@ func HasExtension(file os.DirEntry, extension string) bool {
 }
 
 // MatchesAnyExtension reports whether fileName's extension matches any entry in the list.
-// Comparison is case-insensitive; leading dots are stripped before comparing.
-// When the list contains "all", every file matches.
 func MatchesAnyExtension(fileName string, extensions []string) bool {
 	for _, e := range extensions {
 		if strings.ToLower(e) == ExtAll {
@@ -110,24 +40,42 @@ func MatchesAnyExtension(fileName string, extensions []string) bool {
 	return false
 }
 
-// MatchesNameFilters reports whether fileName passes the category's name filters:
-// regex, glob, and include patterns. Returns true when no filters are configured.
-// When include patterns are set, the file must match at least one to pass.
-func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
-	if f.CompiledRegex != nil && !f.CompiledRegex.MatchString(fileName) {
-		return false
+// MatchesIgnorePatterns reports whether fileName matches any of the provided glob patterns.
+func MatchesIgnorePatterns(fileName string, patterns []string, caseSensitive bool) bool {
+	name := normalizeCase(fileName, caseSensitive)
+	for _, pattern := range patterns {
+		matched, err := filepath.Match(normalizeCase(pattern, caseSensitive), name)
+		if err == nil && matched {
+			return true
+		}
 	}
-	if f.Glob != "" && !MatchesGlob(fileName, f.Glob, f.CaseSensitive) {
-		return false
+	return false
+}
+
+// MatchesGlob reports whether fileName matches the glob pattern.
+// Supports brace expansion: *.{jpg,png} expands to *.jpg and *.png.
+func MatchesGlob(fileName, pattern string, caseSensitive bool) bool {
+	name := normalizeCase(fileName, caseSensitive)
+	for _, p := range expandGlobPattern(normalizeCase(pattern, caseSensitive)) {
+		matched, err := filepath.Match(p, name)
+		if err == nil && matched {
+			return true
+		}
 	}
-	if len(f.Include) > 0 && !MatchesIgnorePatterns(fileName, f.Include, f.CaseSensitive) {
-		return false
+	return false
+}
+
+// ValidateGlob checks that pattern is syntactically valid after brace expansion.
+func ValidateGlob(pattern string) error {
+	for _, p := range expandGlobPattern(pattern) {
+		if _, err := filepath.Match(p, ""); err != nil {
+			return fmt.Errorf("invalid glob pattern %q: %w", p, err)
+		}
 	}
-	return true
+	return nil
 }
 
 // ParseSize parses a human-readable size string (e.g. "10MB", "1.5GB") into bytes.
-// Supported suffixes (case-insensitive): B, KB, MB, GB, TB.
 func ParseSize(s string) (int64, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -157,7 +105,6 @@ func ParseSize(s string) (int64, error) {
 		}
 	}
 
-	// No suffix - treat as raw bytes
 	var val int64
 	if _, err := fmt.Sscanf(s, "%d", &val); err != nil {
 		return 0, fmt.Errorf("unrecognised size format %q", s)
@@ -166,7 +113,6 @@ func ParseSize(s string) (int64, error) {
 }
 
 // MeetsMinAge reports whether the file's modification time is older than minAge.
-// Always returns true when minAge is zero.
 func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool {
 	if minAge == 0 {
 		return true
@@ -175,7 +121,6 @@ func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool {
 }
 
 // MeetsMinSize reports whether the file size is at least minSizeBytes.
-// Always returns true when minSizeBytes is zero.
 func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool {
 	if minSizeBytes == 0 {
 		return true
@@ -184,7 +129,6 @@ func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool {
 }
 
 // MeetsMaxAge reports whether the file's modification time is newer than maxAge.
-// Always returns true when maxAge is zero.
 func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool {
 	if maxAge == 0 {
 		return true
@@ -193,7 +137,6 @@ func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool {
 }
 
 // MeetsMaxSize reports whether the file size is at most maxSizeBytes.
-// Always returns true when maxSizeBytes is zero.
 func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool {
 	if maxSizeBytes == 0 {
 		return true
@@ -201,8 +144,7 @@ func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool {
 	return info.Size() <= maxSizeBytes
 }
 
-// MeetsAgeSizeFilters reports whether info satisfies all age and size constraints
-// defined in f. Returns true immediately when no constraints are set.
+// MeetsAgeSizeFilters reports whether info satisfies all age and size constraints.
 func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool {
 	if f.MinAge == 0 && f.MaxAge == 0 && f.MinSizeBytes == 0 && f.MaxSizeBytes == 0 {
 		return true
@@ -213,10 +155,21 @@ func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool {
 		MeetsMaxSize(info, f.MaxSizeBytes)
 }
 
-// MatchesFilter reports whether the file identified by fileName and info passes
-// the filter f. It handles any/all recursively; plain filters (no any/all) are
-// evaluated as leaves using the existing field-level logic.
-// An empty filter (no fields, no any/all) always returns true.
+// MatchesNameFilters reports whether fileName passes the category's name filters.
+func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
+	if f.CompiledRegex != nil && !f.CompiledRegex.MatchString(fileName) {
+		return false
+	}
+	if f.Glob != "" && !MatchesGlob(fileName, f.Glob, f.CaseSensitive) {
+		return false
+	}
+	if len(f.Include) > 0 && !MatchesIgnorePatterns(fileName, f.Include, f.CaseSensitive) {
+		return false
+	}
+	return true
+}
+
+// MatchesFilter reports whether the file identified by fileName and info passes the filter f.
 func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) bool {
 	if len(f.Any) > 0 {
 		for _, child := range f.Any {
@@ -234,7 +187,6 @@ func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) b
 		}
 		return true
 	}
-	// Leaf: evaluate direct fields.
 	if MatchesIgnorePatterns(fileName, f.Ignore, f.CaseSensitive) {
 		return false
 	}
@@ -253,4 +205,29 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{} {
 		}
 	}
 	return logArgs
+}
+
+func normalizeCase(s string, caseSensitive bool) string {
+	if caseSensitive {
+		return s
+	}
+	return strings.ToLower(s)
+}
+
+func expandGlobPattern(pattern string) []string {
+	start := strings.Index(pattern, "{")
+	end := strings.Index(pattern, "}")
+	if start == -1 || end == -1 || end < start {
+		return []string{pattern}
+	}
+
+	prefix := pattern[:start]
+	suffix := pattern[end+1:]
+	alternatives := strings.Split(pattern[start+1:end], ",")
+
+	expanded := make([]string, 0, len(alternatives))
+	for _, alt := range alternatives {
+		expanded = append(expanded, prefix+strings.TrimSpace(alt)+suffix)
+	}
+	return expanded
 }

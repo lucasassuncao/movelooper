@@ -1,6 +1,7 @@
-package helper
+package fileops
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/pterm/pterm"
 )
 
@@ -21,8 +23,6 @@ import (
 var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
 
 // MoveContext carries the dependencies needed by file-move operations.
-// It is intentionally narrow: callers supply only Logger and History,
-// not the full Movelooper application object.
 type MoveContext struct {
 	Logger  *pterm.Logger
 	History *history.History
@@ -44,44 +44,54 @@ func ReadDirectory(path string) ([]os.DirEntry, error) {
 }
 
 // MoveFiles processes files matching the given extension in the category's source directory.
-// It resolves the destination directory (via organize-by), applies rename (if set),
-// checks for conflicts, then dispatches the configured action (move/copy/symlink).
 // Returns the names of files that were successfully processed.
-func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string {
+func MoveFiles(ctx context.Context, mctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string {
 	var moved []string
 	for _, file := range files {
-		if !HasExtension(file, extension) {
+		select {
+		case <-ctx.Done():
+			return moved
+		default:
+		}
+		if !hasExtension(file, extension) {
 			continue
 		}
 
 		info, err := file.Info()
 		if err != nil {
-			ctx.Logger.Error("failed to stat file", ctx.Logger.Args("file", file.Name(), "error", err.Error()))
+			mctx.Logger.Error("failed to stat file", mctx.Logger.Args("file", file.Name(), "error", err.Error()))
 			continue
 		}
 
 		sourcePath := filepath.Join(category.Source.Path, file.Name())
 
 		destDir := category.Destination.Path
+		tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath}
 		if template := category.Destination.OrganizeBy; template != "" {
-			if subdir := ResolveGroupBy(template, info, category.Name, time.Now()); subdir != "" {
+			if subdir := tokens.ResolveGroupBy(template, tctx); subdir != "" {
 				destDir = filepath.Join(category.Destination.Path, subdir)
 			}
 		}
 
 		if err := CreateDirectory(destDir); err != nil {
-			ctx.Logger.Error("failed to create directory", ctx.Logger.Args("path", destDir, "error", err.Error()))
+			mctx.Logger.Error("failed to create directory", mctx.Logger.Args("path", destDir, "error", err.Error()))
 			continue
 		}
 
-		destName := ResolveRename(category.Destination.Rename, info, category.Name, time.Now(), destDir)
+		tctx.DestDir = destDir
+		destName := tokens.ResolveRename(category.Destination.Rename, tctx)
 		destPath := filepath.Join(destDir, destName)
 
 		strategy := category.Destination.ConflictStrategy
 		if strategy == "" {
 			strategy = "rename"
 		}
-		resolved, skip := applyConflictStrategy(ctx, strategy, sourcePath, destPath, destDir, destName)
+		resolved, skip := applyConflictStrategy(mctx, strategy, ConflictArgs{
+			Src:      sourcePath,
+			Dst:      destPath,
+			DestDir:  destDir,
+			FileName: destName,
+		})
 		if skip {
 			continue
 		}
@@ -90,19 +100,19 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 		action := category.Destination.Action
 		if err := dispatchAction(action, sourcePath, destPath); err != nil {
 			if errors.Is(err, ErrTimestampPreserve) {
-				ctx.Logger.Warn("file processed but timestamps could not be preserved", ctx.Logger.Args("file", sourcePath))
+				mctx.Logger.Warn("file processed but timestamps could not be preserved", mctx.Logger.Args("file", sourcePath))
 			} else {
-				ctx.Logger.Warn("failed to perform action on file", ctx.Logger.Args("file", sourcePath, "action", action, "error", err.Error()))
+				mctx.Logger.Warn("failed to perform action on file", mctx.Logger.Args("file", sourcePath, "action", action, "error", err.Error()))
 				continue
 			}
 		}
 
-		if ctx.History != nil {
+		if mctx.History != nil {
 			effectiveAction := action
 			if effectiveAction == "" {
 				effectiveAction = "move"
 			}
-			if err := ctx.History.Add(history.Entry{
+			if err := mctx.History.Add(history.Entry{
 				Source:      sourcePath,
 				Destination: destPath,
 				Timestamp:   time.Now(),
@@ -110,11 +120,11 @@ func MoveFiles(ctx MoveContext, category *models.Category, files []os.DirEntry, 
 				Action:      effectiveAction,
 				Category:    category.Name,
 			}); err != nil {
-				ctx.Logger.Warn("failed to add to history", ctx.Logger.Args("error", err.Error()))
+				mctx.Logger.Warn("failed to add to history", mctx.Logger.Args("error", err.Error()))
 			}
 		}
 
-		ctx.Logger.Info("file processed", ctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
+		mctx.Logger.Info("file processed", mctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
 		moved = append(moved, file.Name())
 	}
 	return moved
@@ -141,7 +151,6 @@ var fileActions = map[string]FileAction{
 
 // dispatchAction performs the file operation indicated by action.
 // Supported values: "move" (default), "copy", "symlink".
-// Unknown or empty action names fall back to "move".
 func dispatchAction(action, src, dst string) error {
 	fa, ok := fileActions[action]
 	if !ok {
@@ -151,25 +160,23 @@ func dispatchAction(action, src, dst string) error {
 }
 
 // applyConflictStrategy checks whether destPath already exists and resolves the
-// conflict according to strategy. It returns the final destination path and
-// whether the file should be skipped entirely.
-func applyConflictStrategy(ctx MoveContext, strategy, sourcePath, destPath, destDir, fileName string) (resolved string, skip bool) {
-	if _, err := os.Stat(destPath); err != nil {
-		// Destination does not exist - no conflict.
-		return destPath, false
+// conflict according to strategy.
+func applyConflictStrategy(ctx MoveContext, strategy string, args ConflictArgs) (resolved string, skip bool) {
+	if _, err := os.Stat(args.Dst); err != nil {
+		return args.Dst, false
 	}
 	resolver, ok := conflictResolvers[strategy]
 	if !ok {
 		resolver = conflictResolvers["rename"]
 	}
-	resolvedPath, shouldMove, err := resolver.Resolve(sourcePath, destPath, destDir, fileName)
+	resolvedPath, shouldMove, err := resolver.Resolve(args)
 	if err != nil {
-		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", fileName, "error", err.Error()))
+		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", args.FileName, "error", err.Error()))
 		return "", true
 	}
 	if !shouldMove {
 		if msg := resolver.SkipMessage(); msg != "" {
-			ctx.Logger.Info(msg, ctx.Logger.Args("file", fileName))
+			ctx.Logger.Info(msg, ctx.Logger.Args("file", args.FileName))
 		}
 		return "", true
 	}
@@ -184,9 +191,6 @@ func moveFile(src, dst string) error {
 		return nil
 	}
 
-	// os.Rename fails across different filesystems/drives (EXDEV on Unix,
-	// ERROR_NOT_SAME_DEVICE on Windows). Fall back to copy+delete only for
-	// that specific error - other errors (permissions, missing file) are returned as-is.
 	if !isCrossDeviceError(err) {
 		return err
 	}
@@ -197,23 +201,15 @@ func moveFile(src, dst string) error {
 	}
 
 	if err := os.Remove(src); err != nil {
-		// Copy succeeded but source removal failed. Remove the destination copy
-		// to avoid silent duplication, then surface the error.
 		_ = os.Remove(dst)
 		return fmt.Errorf("cross-device move: copied to %s but could not remove source: %w", dst, err)
 	}
 
-	// Propagate timestamp warning so the caller can log it.
 	return copyErr
 }
 
 // isCrossDeviceError reports whether err is a rename failure caused by src and
 // dst being on different filesystems or drives.
-//
-// On Unix the kernel returns EXDEV; on Windows it returns ERROR_NOT_SAME_DEVICE
-// (errno 17). Both are wrapped inside *os.LinkError by os.Rename, so we unwrap
-// to the inner syscall error before comparing - this avoids treating unrelated
-// *os.LinkError values (e.g. permission denied) as cross-device errors.
 func isCrossDeviceError(err error) bool {
 	var linkErr *os.LinkError
 	if !errors.As(err, &linkErr) {
@@ -222,8 +218,6 @@ func isCrossDeviceError(err error) bool {
 
 	inner := linkErr.Err
 
-	// syscall.EXDEV is defined on all Unix-like platforms.
-	// On Windows, syscall.Errno(17) is ERROR_NOT_SAME_DEVICE.
 	const windowsErrorNotSameDevice = syscall.Errno(17)
 
 	switch runtime.GOOS {
@@ -269,8 +263,6 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
-	// Restore the original modification time so watchers and filters
-	// that use file age (min-age / max-age) behave consistently.
 	if err := os.Chtimes(dst, srcInfo.ModTime(), srcInfo.ModTime()); err != nil {
 		return fmt.Errorf("%w: %w", ErrTimestampPreserve, err)
 	}
@@ -281,7 +273,6 @@ func copyFile(src, dst string) error {
 const maxConflictAttempts = 1000
 
 // getUniqueDestinationPath ensures no file is overwritten by appending (n) if needed.
-// Returns an error if no free slot is found within maxConflictAttempts tries.
 func getUniqueDestinationPath(destDir, fileName string) (string, error) {
 	ext := filepath.Ext(fileName)
 	nameOnly := strings.TrimSuffix(fileName, ext)
@@ -296,4 +287,15 @@ func getUniqueDestinationPath(destDir, fileName string) (string, error) {
 	}
 
 	return "", fmt.Errorf("could not find a unique destination for %q after %d attempts", fileName, maxConflictAttempts)
+}
+
+// hasExtension checks if a file has a given extension (case-insensitive).
+// When extension is "all", every file matches.
+func hasExtension(file os.DirEntry, extension string) bool {
+	if strings.ToLower(extension) == "all" {
+		return true
+	}
+	ext := "." + extension
+	fileExt := strings.ToLower(filepath.Ext(file.Name()))
+	return fileExt == strings.ToLower(ext)
 }

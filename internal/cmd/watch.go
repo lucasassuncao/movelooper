@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,9 +13,11 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/lucasassuncao/movelooper/internal/helper"
+	"github.com/lucasassuncao/movelooper/internal/fileops"
+	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +59,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 		Use:   "watch",
 		Short: "Monitor folders and move files in real-time",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWatch(m, dryRun, categoryFilter, includeDisabled)
+			return runWatch(cmd.Context(), m, dryRun, categoryFilter, includeDisabled)
 		},
 	}
 
@@ -67,7 +70,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 }
 
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
-func runWatch(m *models.Movelooper, dryRun bool, categoryFilter string, includeDisabled bool) error {
+func runWatch(ctx context.Context, m *models.Movelooper, dryRun bool, categoryFilter string, includeDisabled bool) error {
 	names := parseCategoryNames(categoryFilter)
 	filtered, err := filterCategories(m.Categories, names, includeDisabled, m.Logger)
 	if err != nil {
@@ -96,13 +99,14 @@ func runWatch(m *models.Movelooper, dryRun bool, categoryFilter string, includeD
 	m.Logger.Info("performing initial scan for existing files")
 	performInitialScan(m, tracker)
 
-	done := make(chan struct{})
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	go runEventLoop(m, watcher, tracker, done)
-	go runSignalHandler(m, done)
-	go runTickerLoop(m, tracker, stabilityThreshold, dryRun, done)
+	go runEventLoop(ctx, m, watcher, tracker)
+	go runSignalHandler(m, cancel)
+	go runTickerLoop(ctx, m, tracker, stabilityThreshold, dryRun)
 
-	<-done
+	<-ctx.Done()
 	return nil
 }
 
@@ -125,7 +129,7 @@ func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
 }
 
 // runEventLoop captures fsnotify events and updates the tracker.
-func runEventLoop(m *models.Movelooper, watcher *fsnotify.Watcher, tracker *fileTracker, done <-chan struct{}) {
+func runEventLoop(ctx context.Context, m *models.Movelooper, watcher *fsnotify.Watcher, tracker *fileTracker) {
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -149,33 +153,32 @@ func runEventLoop(m *models.Movelooper, watcher *fsnotify.Watcher, tracker *file
 				return
 			}
 			m.Logger.Error("watcher error", m.Logger.Args("error", err.Error()))
-		case <-done:
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-// runSignalHandler closes done when SIGINT or SIGTERM is received.
-func runSignalHandler(m *models.Movelooper, done chan struct{}) {
-	var once sync.Once
+// runSignalHandler calls cancel when SIGINT or SIGTERM is received.
+func runSignalHandler(m *models.Movelooper, cancel context.CancelFunc) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	for range sigChan {
 		m.Logger.Info("shutting down watch mode")
-		once.Do(func() { close(done) })
+		cancel()
 		return
 	}
 }
 
 // runTickerLoop periodically checks for stable files and moves them.
-func runTickerLoop(m *models.Movelooper, tracker *fileTracker, threshold time.Duration, dryRun bool, done <-chan struct{}) {
+func runTickerLoop(ctx context.Context, m *models.Movelooper, tracker *fileTracker, threshold time.Duration, dryRun bool) {
 	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			processPendingFiles(m, tracker, threshold, dryRun)
-		case <-done:
+			processPendingFiles(ctx, m, tracker, threshold, dryRun)
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -190,7 +193,7 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 		if !cat.IsEnabled() {
 			continue
 		}
-		files, err := helper.ReadDirectory(cat.Source.Path)
+		files, err := fileops.ReadDirectory(cat.Source.Path)
 		if err != nil {
 			m.Logger.Warn("failed to read directory during initial scan", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
 			continue
@@ -200,14 +203,14 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 			if !file.Type().IsRegular() {
 				continue
 			}
-			if !helper.MatchesAnyExtension(file.Name(), cat.Source.Extensions) {
+			if !filters.MatchesAnyExtension(file.Name(), cat.Source.Extensions) {
 				continue
 			}
 			info, err := file.Info()
 			if err != nil {
 				continue
 			}
-			if !helper.MatchesFilter(cat.Source.Filter, file.Name(), info) {
+			if !filters.MatchesFilter(cat.Source.Filter, file.Name(), info) {
 				continue
 			}
 			fullPath := filepath.Join(cat.Source.Path, file.Name())
@@ -219,7 +222,7 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 }
 
 // processPendingFiles checks which files have "stabilized" (not used for the threshold duration) and attempts to move them
-func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold time.Duration, dryRun bool) {
+func processPendingFiles(ctx context.Context, m *models.Movelooper, tracker *fileTracker, threshold time.Duration, dryRun bool) {
 	now := time.Now()
 
 	// Snapshot tracked paths under lock to keep I/O outside the critical section
@@ -249,7 +252,7 @@ func processPendingFiles(m *models.Movelooper, tracker *fileTracker, threshold t
 
 		// Verifies if the file has stabilized based on its ModTime
 		if now.Sub(info.ModTime()) > threshold {
-			if err := attemptMoveFile(m, path, dryRun); err != nil {
+			if err := attemptMoveFile(ctx, m, path, dryRun); err != nil {
 				m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
 			}
 			// Remove from tracking after attempt (whether moved or ignored)
@@ -272,7 +275,8 @@ func resolveDryRunDest(cat *models.Category, path string) string {
 	if err != nil {
 		return destDir
 	}
-	if subdir := helper.ResolveGroupBy(template, info, cat.Name, time.Now()); subdir != "" {
+	tctx := tokens.TokenContext{Info: info, CategoryName: cat.Name, Now: time.Now()}
+	if subdir := tokens.ResolveGroupBy(template, tctx); subdir != "" {
 		return filepath.Join(destDir, subdir)
 	}
 	return destDir
@@ -282,11 +286,11 @@ func resolveDryRunDest(cat *models.Category, path string) string {
 // In dry-run mode it logs what would be moved without performing any I/O.
 // Returns an error if a matching category was found but the move failed.
 // Returns nil both when the file was moved successfully and when no category matched.
-func attemptMoveFile(m *models.Movelooper, path string, dryRun bool) error {
+func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, dryRun bool) error {
 	fileName := filepath.Base(path)
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 	if ext == "" {
-		ext = helper.ExtAll
+		ext = filters.ExtAll
 	}
 
 	for _, cat := range m.Categories {
@@ -301,7 +305,7 @@ func attemptMoveFile(m *models.Movelooper, path string, dryRun bool) error {
 				m.Logger.Args("file", fileName, "to", resolveDryRunDest(cat, path), "category", cat.Name))
 			return nil
 		}
-		return moveFileToCategory(m, *cat, path, ext)
+		return moveFileToCategory(ctx, m, *cat, path, ext)
 	}
 	return nil
 }
@@ -309,17 +313,17 @@ func attemptMoveFile(m *models.Movelooper, path string, dryRun bool) error {
 // matchesExtensionAndFilters reports whether the file matches the category's extension,
 // name filters (regex/glob), and age/size constraints.
 func matchesExtensionAndFilters(cat *models.Category, fileName, path string) bool {
-	if !helper.MatchesAnyExtension(fileName, cat.Source.Extensions) {
+	if !filters.MatchesAnyExtension(fileName, cat.Source.Extensions) {
 		return false
 	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
-	return helper.MatchesFilter(cat.Source.Filter, fileName, info)
+	return filters.MatchesFilter(cat.Source.Filter, fileName, info)
 }
 
-func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext string) error {
+func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Category, path, ext string) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return fmt.Errorf("failed to stat file before move: %w", err)
@@ -327,6 +331,6 @@ func moveFileToCategory(m *models.Movelooper, cat models.Category, path, ext str
 
 	targetFile := fileInfoDirEntry{info: info}
 	batchID := history.NewWatchBatchID()
-	helper.MoveFiles(helper.MoveContext{Logger: m.Logger, History: m.History}, &cat, []os.DirEntry{targetFile}, ext, batchID)
+	fileops.MoveFiles(ctx, fileops.MoveContext{Logger: m.Logger, History: m.History}, &cat, []os.DirEntry{targetFile}, ext, batchID)
 	return nil
 }

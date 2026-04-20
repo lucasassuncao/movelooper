@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/huh"
-	"github.com/lucasassuncao/movelooper/internal/helper"
+	"github.com/lucasassuncao/movelooper/internal/fileops"
+	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/scanner"
 	"github.com/lucasassuncao/movelooper/internal/terminal"
@@ -114,7 +115,7 @@ func runInit(opts initOptions) error {
 		return nil
 	}
 
-	if err := helper.CreateDirectory(configPath); err != nil {
+	if err := fileops.CreateDirectory(configPath); err != nil {
 		return fmt.Errorf("error creating config directory: %v", err)
 	}
 
@@ -524,7 +525,7 @@ func promptNameFilter() (regex, glob string) {
 				if s == "" {
 					return fmt.Errorf("glob pattern is required")
 				}
-				return helper.ValidateGlob(s)
+				return filters.ValidateGlob(s)
 			}).Run())
 	}
 	return regex, glob

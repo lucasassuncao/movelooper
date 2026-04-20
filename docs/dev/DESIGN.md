@@ -40,13 +40,16 @@ Koanf is used only during startup. Once `AppBuilder.Build()` returns, the koanf 
 | `internal/cmd` | CLI commands (cobra). Orchestrates operations; contains no file I/O logic. |
 | `internal/config` | Reads, validates, and builds configuration. Houses `AppBuilder`. |
 | `internal/models` | Pure data types shared across packages. No logic, no imports from other internal packages. |
-| `internal/helper` | File operations, filters, conflict resolution, hooks, groupby/rename templates. |
+| `internal/fileops` | File operations: move, copy, symlink, conflict resolution, `MoveContext`. |
+| `internal/filters` | Extension matching, regex/glob/ignore/age/size filters, `MatchesFilter`. |
+| `internal/hooks` | Shell hook execution (`RunHook`). |
+| `internal/tokens` | Template token resolution (`ResolveGroupBy`, `ResolveRename`) and validation. |
 | `internal/history` | Reads and writes the JSON operation log. Thread-safe. |
 | `internal/scanner` | Scans a directory and maps extensions to built-in category names (`init --scan`). |
 | `internal/terminal` | Terminal width detection for log formatting. |
 | `internal/updater` | Self-update logic (GitHub releases). |
 
-**Dependency rule:** `models` imports nothing internal. `helper` and `history` import only `models`. `config` imports `helper`, `history`, and `models`. `cmd` imports all of the above. This is a strict acyclic graph — no cycles, no upward imports.
+**Dependency rule:** `models` imports nothing internal. `fileops`, `filters`, `hooks`, `tokens`, and `history` import only `models`. `config` imports `filters`, `tokens`, `history`, and `models`. `cmd` imports all of the above. This is a strict acyclic graph — no cycles, no upward imports.
 
 ---
 
@@ -68,7 +71,7 @@ logWriterStrategies map[string]writerBuilder
 logWriterFactory(output string) writerBuilder
 ```
 
-**Conflict resolution** (`internal/helper/conflict.go`)
+**Conflict resolution** (`internal/fileops/conflict.go`)
 
 ```
 ConflictResolver interface { Resolve(...) / SkipMessage() string }
@@ -81,7 +84,7 @@ conflictResolvers map[string]ConflictResolver
 
 `SkipMessage()` is part of the interface so each resolver owns its own log message. `applyConflictStrategy` in `fileops.go` does not need to know strategy names to produce log output — adding a new resolver requires only a new struct and one map entry.
 
-**File actions** (`internal/helper/fileops.go`)
+**File actions** (`internal/fileops/fileops.go`)
 
 ```
 FileAction interface { Execute(src, dst string) error }
@@ -121,7 +124,7 @@ Each method is a no-op when a previous step has already set an error (error accu
 
 ### 3.3 Context Object
 
-`MoveContext` (`internal/helper/fileops.go`) carries the dependencies needed by file-move operations:
+`MoveContext` (`internal/fileops/fileops.go`) carries the dependencies needed by file-move operations:
 
 ```go
 type MoveContext struct {
@@ -130,7 +133,9 @@ type MoveContext struct {
 }
 ```
 
-It is intentionally narrow — callers supply only what file operations need, not the full `Movelooper` object. This prevents helper functions from depending on application-level state and makes them easier to test in isolation.
+It is intentionally narrow — callers supply only what file operations need, not the full `Movelooper` object. This prevents file operation functions from depending on application-level state and makes them easier to test in isolation.
+
+`MoveFiles` also accepts a `context.Context` as its first argument. The context is checked at the start of each file iteration, allowing the caller to cancel a long-running batch (e.g. on SIGINT in watch mode).
 
 ---
 
@@ -143,29 +148,30 @@ It is intentionally narrow — callers supply only what file operations need, no
 ## 4. Data flow — move operation
 
 ```
-runMove(m, ...)
+runMove(ctx, m, ...)
   │
   ├── filterCategories(m.Categories, names, includeDisabled)
   │
   └── for each category:
-        processCategoryMove(m, category, ...)
+        processCategoryMove(ctx, m, category, ...)
           │
-          ├── RunHook(category.Hooks.Before, ...)        ← optional
-          ├── helper.ReadDirectory(category.Source.Path)
+          ├── hooks.RunHook(ctx, category.Hooks.Before, ...)   ← optional
+          ├── fileops.ReadDirectory(category.Source.Path)
           │
           └── for each extension:
                 filterFilesForExtension(category, files, moved, extension)
-                  └── matchesCategory → MatchesFilter (recursive any/all/leaf)
+                  └── matchesCategory → filters.MatchesFilter (recursive any/all/leaf)
                 │
-                MoveFiles(MoveContext, category, filteredFiles, extension, batchID)
+                fileops.MoveFiles(ctx, MoveContext, category, filteredFiles, extension, batchID)
                   └── for each file:
-                        ResolveGroupBy  → destDir
-                        ResolveRename   → destName
-                        applyConflictStrategy → ConflictResolver.Resolve()
-                        dispatchAction  → FileAction.Execute()
+                        [ctx.Done() check]
+                        tokens.ResolveGroupBy  → destDir
+                        tokens.ResolveRename   → destName
+                        applyConflictStrategy  → ConflictResolver.Resolve()
+                        dispatchAction         → FileAction.Execute()
                         history.Add(Entry{...})
           │
-          └── RunHook(category.Hooks.After, ...)         ← optional
+          └── hooks.RunHook(ctx, category.Hooks.After, ...)    ← optional
 ```
 
 The `movedSet` in `runMove` tracks absolute paths already processed in the current batch. A file claimed by the first matching category cannot be claimed again by a later one.
@@ -196,7 +202,7 @@ After `AppBuilder.Build()` returns, koanf is discarded. No other part of the app
 
 ### Add a new file action (e.g. `hardlink`)
 
-1. In `internal/helper/fileops.go`, define:
+1. In `internal/fileops/fileops.go`, define:
    ```go
    type hardlinkAction struct{}
    func (a *hardlinkAction) Execute(src, dst string) error { return os.Link(src, dst) }
@@ -213,7 +219,7 @@ After `AppBuilder.Build()` returns, koanf is discarded. No other part of the app
 
 ### Add a new conflict strategy (e.g. `newest_or_rename`)
 
-1. In `internal/helper/conflict.go`, define a struct implementing `ConflictResolver`:
+1. In `internal/fileops/conflict.go`, define a struct implementing `ConflictResolver`:
    ```go
    type newestOrRenameResolver struct{}
    func (r *newestOrRenameResolver) Resolve(...) (string, bool, error) { ... }
@@ -228,10 +234,11 @@ After `AppBuilder.Build()` returns, koanf is discarded. No other part of the app
 2. Register it in `logWriterStrategies`.
 3. No other files change.
 
-### Add a new template token (e.g. `{hostname}`)
+### Add a new template token (e.g. `{mytoken}`)
 
-1. In `internal/helper/groupby.go`, add the token to `knownTokens`.
-2. Handle the token in `ResolveGroupBy` and/or `ResolveRename`.
+1. In `internal/tokens/resolve.go`, add the token to `buildStaticPairs`.
+2. Add the token name to `knownTokens` in `internal/tokens/validate.go`.
+3. No other files change — `ResolveGroupBy` and `ResolveRename` use `buildStaticPairs` generically.
 
 ### Add a new AppBuilder step
 

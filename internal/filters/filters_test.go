@@ -1,4 +1,4 @@
-package helper
+package filters
 
 import (
 	"os"
@@ -12,15 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// createTempFile creates a file with default content in dir and returns its path.
 func createTempFile(t *testing.T, dir, name string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
 	require.NoError(t, os.WriteFile(path, []byte("test"), 0644))
 	return path
 }
-
-// --- MatchesIgnorePatterns ---
 
 func TestMatchesIgnorePatterns(t *testing.T) {
 	tests := []struct {
@@ -47,8 +44,6 @@ func TestMatchesIgnorePatterns(t *testing.T) {
 	}
 }
 
-// --- expandGlobPattern ---
-
 func TestExpandGlobPattern(t *testing.T) {
 	tests := []struct {
 		pattern string
@@ -67,8 +62,6 @@ func TestExpandGlobPattern(t *testing.T) {
 		})
 	}
 }
-
-// --- MatchesGlob ---
 
 func TestMatchesGlob(t *testing.T) {
 	tests := []struct {
@@ -93,8 +86,6 @@ func TestMatchesGlob(t *testing.T) {
 	}
 }
 
-// --- ValidateGlob ---
-
 func TestValidateGlob(t *testing.T) {
 	tests := []struct {
 		pattern string
@@ -115,8 +106,6 @@ func TestValidateGlob(t *testing.T) {
 		})
 	}
 }
-
-// --- HasExtension ---
 
 func TestHasExtension(t *testing.T) {
 	dir := t.TempDir()
@@ -150,8 +139,6 @@ func TestHasExtension(t *testing.T) {
 	}
 }
 
-// --- MatchesAnyExtension ---
-
 func TestMatchesAnyExtension(t *testing.T) {
 	tests := []struct {
 		name string
@@ -170,8 +157,6 @@ func TestMatchesAnyExtension(t *testing.T) {
 		})
 	}
 }
-
-// --- MatchesNameFilters ---
 
 func TestMatchesNameFilters(t *testing.T) {
 	tests := []struct {
@@ -220,8 +205,6 @@ func TestMatchesNameFilters(t *testing.T) {
 	}
 }
 
-// --- ParseSize ---
-
 func TestParseSize(t *testing.T) {
 	tests := []struct {
 		input   string
@@ -251,13 +234,11 @@ func TestParseSize(t *testing.T) {
 	}
 }
 
-// --- MeetsMinAge / MeetsMaxAge ---
-
 func TestMeetsAge(t *testing.T) {
 	tests := []struct {
 		name      string
 		fn        func(os.FileInfo, time.Duration) bool
-		fileAge   time.Duration // how old to backdate the file
+		fileAge   time.Duration
 		threshold time.Duration
 		want      bool
 	}{
@@ -280,8 +261,6 @@ func TestMeetsAge(t *testing.T) {
 		})
 	}
 }
-
-// --- MeetsMinSize / MeetsMaxSize ---
 
 func TestMeetsSize(t *testing.T) {
 	tests := []struct {
@@ -310,9 +289,6 @@ func TestMeetsSize(t *testing.T) {
 	}
 }
 
-// --- MatchesFilter ---
-
-// makeInfo returns an os.FileInfo for a temp file with the given size and modtime.
 func makeInfo(t *testing.T, name string, size int, modTime time.Time) os.FileInfo {
 	t.Helper()
 	dir := t.TempDir()
@@ -333,46 +309,14 @@ func TestMatchesFilter_Leaf(t *testing.T) {
 		filter models.CategoryFilter
 		want   bool
 	}{
-		{
-			"empty filter - no restrictions",
-			models.CategoryFilter{},
-			true,
-		},
-		{
-			"glob matches",
-			models.CategoryFilter{Glob: "report_*"},
-			true,
-		},
-		{
-			"glob no match",
-			models.CategoryFilter{Glob: "invoice_*"},
-			false,
-		},
-		{
-			"ignore excludes file",
-			models.CategoryFilter{Ignore: []string{"report_*"}},
-			false,
-		},
-		{
-			"min-size passes",
-			models.CategoryFilter{MinSizeBytes: 512},
-			true,
-		},
-		{
-			"min-size fails",
-			models.CategoryFilter{MinSizeBytes: 1024 * 1024},
-			false,
-		},
-		{
-			"min-age passes",
-			models.CategoryFilter{MinAge: 1 * time.Hour},
-			true,
-		},
-		{
-			"min-age fails",
-			models.CategoryFilter{MinAge: 3 * time.Hour},
-			false,
-		},
+		{"empty filter - no restrictions", models.CategoryFilter{}, true},
+		{"glob matches", models.CategoryFilter{Glob: "report_*"}, true},
+		{"glob no match", models.CategoryFilter{Glob: "invoice_*"}, false},
+		{"ignore excludes file", models.CategoryFilter{Ignore: []string{"report_*"}}, false},
+		{"min-size passes", models.CategoryFilter{MinSizeBytes: 512}, true},
+		{"min-size fails", models.CategoryFilter{MinSizeBytes: 1024 * 1024}, false},
+		{"min-age passes", models.CategoryFilter{MinAge: 1 * time.Hour}, true},
+		{"min-age fails", models.CategoryFilter{MinAge: 3 * time.Hour}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -422,7 +366,7 @@ func TestMatchesFilter_All(t *testing.T) {
 		f := models.CategoryFilter{
 			All: []models.CategoryFilter{
 				{Glob: "report_*"},
-				{MinSizeBytes: 1024 * 1024}, // 1MB
+				{MinSizeBytes: 1024 * 1024},
 			},
 		}
 		assert.True(t, MatchesFilter(f, info.Name(), info))
@@ -432,7 +376,7 @@ func TestMatchesFilter_All(t *testing.T) {
 		f := models.CategoryFilter{
 			All: []models.CategoryFilter{
 				{Glob: "report_*"},
-				{MinSizeBytes: 10 * 1024 * 1024}, // 10MB - file is only 2MB
+				{MinSizeBytes: 10 * 1024 * 1024},
 			},
 		}
 		assert.False(t, MatchesFilter(f, info.Name(), info))
@@ -440,12 +384,11 @@ func TestMatchesFilter_All(t *testing.T) {
 }
 
 func TestMatchesFilter_AnyInsideAll(t *testing.T) {
-	// (report_* OR invoice_*) AND min-size:1MB
 	info := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now())
 
 	f := models.CategoryFilter{
 		All: []models.CategoryFilter{
-			{MinSizeBytes: 1024 * 1024}, // 1MB - passes (file is 2MB)
+			{MinSizeBytes: 1024 * 1024},
 			{
 				Any: []models.CategoryFilter{
 					{Glob: "report_*"},
@@ -456,13 +399,11 @@ func TestMatchesFilter_AnyInsideAll(t *testing.T) {
 	}
 	assert.True(t, MatchesFilter(f, info.Name(), info))
 
-	// Same structure but file is too small
 	smallInfo := makeInfo(t, "report_small.pdf", 512, time.Now())
 	assert.False(t, MatchesFilter(f, smallInfo.Name(), smallInfo))
 }
 
 func TestMatchesFilter_AllInsideAny(t *testing.T) {
-	// (report_* AND >1MB) OR (invoice_* AND >2h old)
 	f := models.CategoryFilter{
 		Any: []models.CategoryFilter{
 			{
@@ -480,25 +421,20 @@ func TestMatchesFilter_AllInsideAny(t *testing.T) {
 		},
 	}
 
-	// report, large → matches first branch
 	reportLarge := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now())
 	assert.True(t, MatchesFilter(f, reportLarge.Name(), reportLarge))
 
-	// invoice, old → matches second branch
 	invoiceOld := makeInfo(t, "invoice_jan.pdf", 100, time.Now().Add(-3*time.Hour))
 	assert.True(t, MatchesFilter(f, invoiceOld.Name(), invoiceOld))
 
-	// report, small → misses first branch; report ≠ invoice → misses second
 	reportSmall := makeInfo(t, "report_tiny.pdf", 100, time.Now())
 	assert.False(t, MatchesFilter(f, reportSmall.Name(), reportSmall))
 }
 
-// --- MeetsAgeSizeFilters ---
-
 func TestMeetsAgeSizeFilters(t *testing.T) {
 	tests := []struct {
 		name     string
-		fileAge  time.Duration // how old to backdate; zero = fresh
+		fileAge  time.Duration
 		fileSize int
 		filter   models.CategoryFilter
 		want     bool
@@ -537,6 +473,36 @@ func TestMeetsAgeSizeFilters(t *testing.T) {
 			info, err := os.Stat(path)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, MeetsAgeSizeFilters(info, tt.filter))
+		})
+	}
+}
+
+func TestGenerateLogArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		files   []string
+		ext     string
+		wantLen int
+	}{
+		{"matches by extension", []string{"a.pdf", "b.pdf", "c.txt"}, "pdf", 4},
+		{"no match returns empty", []string{"file.txt"}, "pdf", 0},
+		{"all extension matches everything", []string{"a.pdf", "b.txt"}, "all", 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, f := range tt.files {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0644))
+			}
+			entries, err := os.ReadDir(dir)
+			require.NoError(t, err)
+
+			args := GenerateLogArgs(entries, tt.ext)
+			assert.Len(t, args, tt.wantLen)
+			for i := 0; i < len(args)-1; i += 2 {
+				assert.Equal(t, "name", args[i])
+			}
 		})
 	}
 }

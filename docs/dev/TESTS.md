@@ -184,92 +184,24 @@ Overview of all test cases across the movelooper project.
 
 ---
 
-## `internal/helper` — File operations and filters
-
-### `fileops_extra_test.go`
-
-| Test | What it verifies | Expected |
-|---|---|---|
-| `TestApplyConflictStrategy_NoConflict` | No destination file — returns original path, no skip | `skip == false`, `resolved == dstFile` |
-| `TestApplyConflictStrategy_SkipStrategy` | `skip` strategy skips and leaves source untouched | `skip == true`, src file still exists |
-| `TestApplyConflictStrategy_RenameStrategy` | `rename` strategy returns a path with `(1)` suffix | `skip == false`, resolved path contains `"(1)"` |
-| `TestApplyConflictStrategy_OverwriteStrategy` | `overwrite` strategy returns the original destination path | `skip == false`, `resolved == dstFile` |
-| `TestApplyConflictStrategy_HashCheck_Duplicate` | Identical file (same hash): source removed, skip returned | `skip == true`, src file removed |
-| `TestApplyConflictStrategy_NewestStrategy_SrcNewer` | Source newer than destination: move proceeds | `skip == false`, `resolved == dstFile` |
-| `TestApplyConflictStrategy_OldestStrategy_SrcOlder` | Source older than destination: move proceeds | `skip == false`, `resolved == dstFile` |
-| `TestApplyConflictStrategy_LargerStrategy_SrcLarger` | Source larger than destination: move proceeds | `skip == false`, `resolved == dstFile` |
-| `TestApplyConflictStrategy_SmallerStrategy_SrcSmaller` | Source smaller than destination: move proceeds | `skip == false`, `resolved == dstFile` |
-| `TestApplyConflictStrategy_UnknownFallsToRename` | Unknown strategy falls back to rename | `skip == false`, resolved path contains `"(1)"` |
-| `TestIsCrossDeviceError_NonLinkError` | Non-`*os.LinkError` returns false | `false` |
-| `TestIsCrossDeviceError_NilError` | Nil error returns false | `false` |
-| `TestIsCrossDeviceError_LinkErrorWithPermission` | `*os.LinkError` with permission error returns false | `false` |
-| `TestGenerateLogArgs_ReturnsNamePairs` | Matching files produce `"name", "<filename>"` pairs | slice of length 4 (2 pdfs × 2 elements) |
-| `TestGenerateLogArgs_NoMatch` | No matching extension returns empty slice | empty slice |
-| `TestGenerateLogArgs_AllExtension` | Extension `all` matches every file | slice of length 4 (2 files × 2 elements) |
-| `TestMoveFiles_DefaultsToRenameWhenNoStrategy` | Empty `ConflictStrategy` defaults to rename | no error, `file(1).txt` exists in dst |
+## `internal/fileops` — File operations and conflict resolution
 
 ### `fileops_test.go`
 
 | Test | What it verifies | Expected |
 |---|---|---|
-| `TestCreateDirectory_CreatesNew` | Creates a directory that does not exist | no error, directory exists |
-| `TestCreateDirectory_Idempotent` | Does not fail if the directory already exists | no error |
-| `TestReadDirectory_ReturnsEntries` | Returns entries from an existing directory | no error, 2 entries returned |
-| `TestReadDirectory_NonExistentReturnsError` | Returns error for a non-existent directory | error |
-| `TestCopyFile_CopiesContent` | Copies file content correctly | no error, dst content equals src content |
-| `TestCopyFile_PreservesModTime` | Preserves the modification timestamp | no error, dst ModTime equals src ModTime |
-| `TestMoveFiles_MovesMatchingExtension` | Moves files by the correct extension | no error, pdf in dst, jpg stays in src |
-| `TestMoveFiles_SkipsOnConflictSkipStrategy` | `skip` strategy does not move on conflict | no error, empty moved list, src file still exists |
-| `TestMoveFiles_WithOrganizeBy` | `organize-by` template creates the correct subdirectory | no error, file at `dst/jpg/photo.jpg` |
-| `TestMoveFiles_ExtAllMovesAll` | Extension `all` moves any file | no error, 2 files moved |
-| `TestDispatchAction_Move` | `action: move` moves file to dst and removes src | no error, file in dst, absent from src |
-| `TestDispatchAction_Copy` | `action: copy` copies file to dst, source stays | no error, file in both src and dst, contents equal |
-| `TestDispatchAction_Symlink` | `action: symlink` creates a symlink at dst pointing to src | no error, dst is a symlink (skipped if privileges unavailable) |
-| `TestFileActions_UnknownDefaultsToMove` | Unknown action name falls back to `move` | no error, file in dst, absent from src |
-| `TestFileActions_EmptyDefaultsToMove` | Empty action name falls back to `move` | no error, file in dst, absent from src |
-| `TestMoveFiles_RenameTemplate` | `rename` template produces correctly named file at dst | no error, `images_photo.jpg` in dst, original stays in src |
-
-### `filters_extra_test.go`
-
-| Test | What it verifies | Expected |
-|---|---|---|
-| `TestMeetsAgeSizeFilters_MinAgeOnly` | File older than `min-age` passes | `true` |
-| `TestMeetsAgeSizeFilters_MinAgeFails` | File newer than `min-age` fails | `false` |
-| `TestMeetsAgeSizeFilters_MaxAgeOnly` | File newer than `max-age` passes | `true` |
-| `TestMeetsAgeSizeFilters_MaxAgeFails` | File older than `max-age` fails | `false` |
-| `TestMeetsAgeSizeFilters_MinSizeOnly` | File larger than `min-size` passes | `true` |
-| `TestMeetsAgeSizeFilters_MinSizeFails` | File smaller than `min-size` fails | `false` |
-| `TestMeetsAgeSizeFilters_MaxSizeOnly` | File smaller than `max-size` passes | `true` |
-| `TestMeetsAgeSizeFilters_MaxSizeFails` | File larger than `max-size` fails | `false` |
-| `TestMeetsAgeSizeFilters_AllConstraints_Pass` | File satisfying all age and size constraints passes | `true` |
-| `TestMeetsAgeSizeFilters_AllConstraints_OneFails` | File failing any single constraint fails overall | `false` |
-| `TestMatchesNameFilters_RegexMatch` | Compiled regex matches/rejects filenames correctly | `true` for match, `false` for non-match |
-| `TestMatchesNameFilters_RegexNoMatch` | Anchored regex rejects non-matching filename | `false` |
-| `TestMatchesNameFilters_IncludePatterns` | `include` list requires at least one pattern to match | `true` for matches, `false` otherwise |
-| `TestMatchesNameFilters_GlobMatch` | `glob` pattern matches/rejects filenames correctly | `true` for match, `false` for non-match |
-
-### `filters_test.go`
-
-| Test | What it verifies | Expected |
-|---|---|---|
-| `TestMatchesIgnorePatterns` | Ignore patterns are applied correctly | `true` for ignored files, `false` otherwise |
-| `TestExpandGlobPattern` | Expands `*.{jpg,png}` into separate patterns | correct list of expanded patterns |
-| `TestMatchesGlob` | Glob matches names with configurable case sensitivity | `true`/`false` per case |
-| `TestValidateGlob` | Validates glob pattern syntax | no error for valid, error for invalid |
-| `TestHasExtension` | Checks file extension (case insensitive) | `true`/`false` per case |
-| `TestMatchesAnyExtension` | Checks against a list of extensions | `true` if any matches, `false` otherwise |
-| `TestMatchesNameFilters` | Applies regex, glob, and include together | `true`/`false` per scenario |
-| `TestParseSize` | Converts strings like `"1 MB"` to bytes | correct int64 value or error for invalid input |
-| `TestMeetsMinAge` | Checks if file is older than the minimum | `true`/`false` per case |
-| `TestMeetsMaxAge` | Checks if file is newer than the maximum | `true`/`false` per case |
-| `TestMeetsMinSize` | Checks if file is larger than the minimum | `true`/`false` per case |
-| `TestMeetsMaxSize` | Checks if file is smaller than the maximum | `true`/`false` per case |
-| `TestMeetsAgeSizeFilters_NoConstraints` | Without constraints, any file passes | `true` |
-| `TestMatchesFilter_Leaf` | empty / glob match / glob no match / ignore / size / age | Leaf filter behaves identically to existing field-level evaluation | `true`/`false` per scenario |
-| `TestMatchesFilter_Any` | first passes / second passes / none passes | `any` returns true when at least one group matches | `true`/`false` per scenario |
-| `TestMatchesFilter_All` | all pass / one fails | `all` returns true only when every group matches | `true`/`false` per scenario |
-| `TestMatchesFilter_AnyInsideAll` | large report passes / small report fails | `(report_* OR invoice_*) AND min-size:1MB` | `true`/`false` per scenario |
-| `TestMatchesFilter_AllInsideAny` | large report / old invoice / small report | `(report_* AND >1MB) OR (invoice_* AND >2h)` | `true`/`false` per scenario |
+| `TestCreateDirectory` | Creates a nested directory; idempotent on existing path | no error, directory exists |
+| `TestReadDirectory` | Returns entries from an existing directory; error for non-existent | no error / error per case |
+| `TestCopyFile` | Copies file content correctly; preserves modification timestamp | no error, dst content and ModTime equal src |
+| `TestMoveFiles` | moves matching extension / skip strategy / organize-by / ext all / empty strategy defaults to rename | Core move loop covers conflict, subdirectory creation, and strategy fallback | no error, files in expected locations |
+| `TestApplyConflictStrategy` | no conflict / skip / rename / overwrite / hash_check duplicate / newest / oldest / larger / smaller / unknown | All conflict resolvers produce correct path or skip decision | correct `resolved` and `skip` per case |
+| `TestIsCrossDeviceError` | nil / non-link error / link error with permission | Returns false for non-cross-device errors | `false` per case |
+| `TestDispatchAction_Move` | `action: move` removes source | no error, file in dst, absent from src |
+| `TestDispatchAction_Copy` | `action: copy` leaves source intact | no error, file in both src and dst |
+| `TestDispatchAction_Symlink` | `action: symlink` creates a symlink | no error, dst is symlink (skipped if privileges unavailable) |
+| `TestFileActions_UnknownDefaultsToMove` | Unknown action name falls back to `move` | no error, file in dst |
+| `TestFileActions_EmptyDefaultsToMove` | Empty action name falls back to `move` | no error, file in dst |
+| `TestMoveFiles_RenameTemplate` | `rename` template produces correctly named file at dst | no error, `images_photo.jpg` in dst |
 
 ### `conflict_test.go`
 
@@ -293,11 +225,58 @@ Overview of all test cases across the movelooper project.
 | `TestSmallerResolver_SrcSmaller` | Smaller source replaces destination | `shouldMove == true` |
 | `TestSmallerResolver_DstSmaller` | Smaller destination: source is discarded | `shouldMove == false` |
 
-### `groupby_test.go`
+---
+
+## `internal/filters` — Extension matching and file filters
+
+### `filters_test.go`
 
 | Test | What it verifies | Expected |
 |---|---|---|
-| `TestFileSizeRange` | Classifies files as tiny/small/medium/large | correct label per size |
+| `TestMatchesIgnorePatterns` | Ignore patterns are applied correctly | `true` for ignored files, `false` otherwise |
+| `TestExpandGlobPattern` | Expands `*.{jpg,png}` into separate patterns | correct list of expanded patterns |
+| `TestMatchesGlob` | Glob matches names with configurable case sensitivity | `true`/`false` per case |
+| `TestValidateGlob` | Validates glob pattern syntax | no error for valid, error for invalid |
+| `TestHasExtension` | Checks file extension (case insensitive) | `true`/`false` per case |
+| `TestMatchesAnyExtension` | Checks against a list of extensions | `true` if any matches, `false` otherwise |
+| `TestMatchesNameFilters` | Applies regex, glob, and include together | `true`/`false` per scenario |
+| `TestParseSize` | Converts strings like `"1 MB"` to bytes | correct int64 value or error for invalid input |
+| `TestMeetsMinAge` | Checks if file is older than the minimum | `true`/`false` per case |
+| `TestMeetsMaxAge` | Checks if file is newer than the maximum | `true`/`false` per case |
+| `TestMeetsMinSize` | Checks if file is larger than the minimum | `true`/`false` per case |
+| `TestMeetsMaxSize` | Checks if file is smaller than the maximum | `true`/`false` per case |
+| `TestMeetsAgeSizeFilters_NoConstraints` | Without constraints, any file passes | `true` |
+| `TestMatchesFilter_Leaf` | empty / glob match / glob no match / ignore / size / age | Leaf filter behaves correctly per field | `true`/`false` per scenario |
+| `TestMatchesFilter_Any` | first passes / second passes / none passes | `any` returns true when at least one group matches | `true`/`false` per scenario |
+| `TestMatchesFilter_All` | all pass / one fails | `all` returns true only when every group matches | `true`/`false` per scenario |
+| `TestMatchesFilter_AnyInsideAll` | large report passes / small report fails | `(report_* OR invoice_*) AND min-size:1MB` | `true`/`false` per scenario |
+| `TestMatchesFilter_AllInsideAny` | large report / old invoice / small report | `(report_* AND >1MB) OR (invoice_* AND >2h)` | `true`/`false` per scenario |
+
+---
+
+## `internal/hooks` — Shell hook execution
+
+### `hooks_test.go`
+
+| Test | What it verifies | Expected |
+|---|---|---|
+| `TestRunHook_NilHook` | Nil hook returns nil without error | no error |
+| `TestRunHook_WarnOnFailure_ContinuesOnError` | `on-failure: warn` continues to next command on error | no error |
+| `TestRunHook_AbortOnFailure_StopsOnError` | `on-failure: abort` stops execution and returns error | error, second command not run |
+| `TestRunHook_EnvVarsInjected` | Env vars are injected into the hook process environment | no error, output contains injected value |
+| `TestDefaultShell_ReturnsNonEmpty` | Default shell detection returns a non-empty shell | non-empty shell and args |
+| `TestDefaultShell_Override` | Shell override is respected (pwsh, cmd, bash) | correct shell and flag per platform |
+| `TestBuildEnv_ContainsInjected` | Extra env vars are appended to the process environment | slice contains injected entries |
+
+---
+
+## `internal/tokens` — Template token resolution and validation
+
+### `tokens_test.go`
+
+| Test | What it verifies | Expected |
+|---|---|---|
+| `TestValidateTemplate` | empty / valid single / valid composite / all static tokens / unknown / seq variants / name-trunc / md5 / sha256 | Accepts all known tokens; rejects unknown or malformed parametric tokens | no error for valid, error for unknown/malformed |
 | `TestResolveGroupBy_EmptyTemplate` | Empty template returns empty string | `""` |
 | `TestResolveGroupBy_ExtToken` | `{ext}` returns the file extension | `"jpg"` |
 | `TestResolveGroupBy_ExtUpperToken` | `{ext-upper}` returns extension in uppercase | `"JPG"` |
@@ -306,7 +285,6 @@ Overview of all test cases across the movelooper project.
 | `TestResolveGroupBy_ModDateTokens` | `{mod-year}`, `{mod-month}`, `{mod-day}` return file modification date parts | correct date part strings |
 | `TestResolveGroupBy_SizeRange` | `{size-range}` returns the file size range | one of `tiny/small/medium/large` |
 | `TestResolveGroupBy_CombinedTemplate` | Combined template with multiple tokens | correctly interpolated string |
-| `TestValidateTemplate` | empty / valid / unknown / mixed tokens | Rejects unknown `{token}` values, accepts all known ones | no error for valid, error for unknown |
 | `TestResolveRename` | empty / ext / ext-upper / mod-date / category / run-date | Resolves rename template to correct filename using file metadata | expected filename string per case |
 
 ---

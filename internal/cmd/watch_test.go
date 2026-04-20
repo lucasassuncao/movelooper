@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -209,7 +210,7 @@ func TestAttemptMoveFile(t *testing.T) {
 			cat := buildCategory("cat", catSrc, dst, tt.catExts)
 			m := newSilentMovelooper([]*models.Category{cat})
 
-			err := attemptMoveFile(m, filePath, tt.dryRun)
+			err := attemptMoveFile(context.Background(), m, filePath, tt.dryRun)
 			assert.NoError(t, err)
 
 			if tt.wantMoved {
@@ -365,7 +366,7 @@ func TestProcessPendingFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m, dst, filePath, tracker := tt.setup(t)
-			processPendingFiles(m, tracker, tt.threshold, tt.dryRun)
+			processPendingFiles(context.Background(), m, tracker, tt.threshold, tt.dryRun)
 
 			fileName := filepath.Base(filePath)
 			switch {

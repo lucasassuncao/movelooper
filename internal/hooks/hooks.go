@@ -1,6 +1,7 @@
-package helper
+package hooks
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,7 +16,7 @@ import (
 // On command failure:
 //   - "abort": stops execution and returns the error.
 //   - "warn":  logs the error and continues to the next command.
-func RunHook(hook *models.CategoryHook, logger *pterm.Logger, env map[string]string) error {
+func RunHook(ctx context.Context, hook *models.CategoryHook, logger *pterm.Logger, env map[string]string) error {
 	if hook == nil {
 		return nil
 	}
@@ -24,8 +25,8 @@ func RunHook(hook *models.CategoryHook, logger *pterm.Logger, env map[string]str
 	combined := buildEnv(env)
 
 	for _, command := range hook.Run {
-		args := append(shellArgs, command)  //nolint:gocritic
-		cmd := exec.Command(shell, args...) //#nosec G204 -- shell and command are user-defined config values
+		args := append(shellArgs, command)              //nolint:gocritic
+		cmd := exec.CommandContext(ctx, shell, args...) //#nosec G204 -- shell and command are user-defined config values
 		cmd.Env = combined
 		setSysProcAttr(cmd)
 

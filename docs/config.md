@@ -176,31 +176,54 @@ Both fields narrow which files within a category are matched, in addition to `ex
 
 ### `organize-by` tokens
 
-These tokens are also valid in `destination.rename`.
+These tokens are also valid in `destination.rename` unless noted otherwise.
 
-| Token            | Example      | Description                                                                    |
-|------------------|--------------|--------------------------------------------------------------------------------|
-| `{ext}`          | `jpg`        | File extension, lowercase                                                      |
-| `{ext-upper}`    | `JPG`        | File extension, uppercase                                                      |
-| `{name}`         | `photo`      | Filename without extension                                                     |
-| `{mod-year}`     | `2025`       | File modification year                                                         |
-| `{mod-month}`    | `04`         | File modification month (zero-padded)                                          |
-| `{mod-day}`      | `08`         | File modification day (zero-padded)                                            |
-| `{mod-date}`     | `2025-04-08` | Shorthand for `{mod-year}-{mod-month}-{mod-day}`                               |
-| `{mod-weekday}`  | `Tuesday`    | File modification weekday                                                      |
-| `{created-year}` | `2025`       | File creation year (falls back to mod time on Linux)                           |
-| `{created-month}`| `04`         | File creation month                                                            |
-| `{created-day}`  | `08`         | File creation day                                                              |
-| `{created-date}` | `2025-04-08` | Shorthand for `{created-year}-{created-month}-{created-day}`                   |
-| `{year}`         | `2025`       | Run date year                                                                  |
-| `{month}`        | `04`         | Run date month                                                                 |
-| `{day}`          | `08`         | Run date day                                                                   |
-| `{date}`         | `2025-04-08` | Run date shorthand                                                             |
-| `{weekday}`      | `Tuesday`    | Run date weekday                                                               |
-| `{size-range}`   | `small`      | `tiny` (<1 MB) · `small` (1–100 MB) · `medium` (100 MB–1 GB) · `large` (≥1 GB) |
-| `{category}`     | `images`     | Category name from config                                                      |
-| `{seq}`          | `1`          | Auto-incrementing sequence number (no padding). Valid in `rename` only         |
-| `{seq:N}`        | `0001`       | Sequence number zero-padded to N digits (1 ≤ N ≤ 20). Valid in `rename` only  |
+| Token              | Example            | Description                                                                      |
+|--------------------|--------------------|----------------------------------------------------------------------------------|
+| `{ext}`            | `jpg`              | File extension, lowercase                                                        |
+| `{ext-upper}`      | `JPG`              | File extension, uppercase                                                        |
+| `{ext-lower}`      | `jpg`              | File extension, lowercase (explicit alias of `{ext}`)                            |
+| `{ext-reverse}`    | `gpj`              | File extension reversed                                                          |
+| `{name}`           | `photo`            | Filename without extension                                                       |
+| `{name-slug}`      | `my-file-name`     | Filename slugified: lowercase, spaces/specials → `-`                             |
+| `{name-snake}`     | `my_file_name`     | Filename snake-cased: lowercase, spaces/specials → `_`                           |
+| `{name-upper}`     | `PHOTO`            | Filename uppercased                                                              |
+| `{name-lower}`     | `photo`            | Filename lowercased                                                              |
+| `{name-trunc:N}`   | `phot` (N=4)       | Filename truncated to N runes; returned as-is if shorter. N: 1–255              |
+| `{name-alpha}`     | `photo2025`        | Filename with only alphanumeric characters kept                                  |
+| `{name-ascii}`     | `Acao_resume`      | Filename with accents/unicode normalized to ASCII equivalents                    |
+| `{name-initials}`  | `mvp`              | First letter of each word (split on space, `-`, `_`)                             |
+| `{name-reverse}`   | `otohp`            | Filename reversed                                                                |
+| `{mod-year}`       | `2025`             | File modification year                                                           |
+| `{mod-month}`      | `04`               | File modification month (zero-padded)                                            |
+| `{mod-day}`        | `08`               | File modification day (zero-padded)                                              |
+| `{mod-date}`       | `2025-04-08`       | Shorthand for `{mod-year}-{mod-month}-{mod-day}`                                 |
+| `{mod-weekday}`    | `Tuesday`          | File modification weekday                                                        |
+| `{created-year}`   | `2025`             | File creation year (falls back to mod time on Linux)                             |
+| `{created-month}`  | `04`               | File creation month                                                              |
+| `{created-day}`    | `08`               | File creation day                                                                |
+| `{created-date}`   | `2025-04-08`       | Shorthand for `{created-year}-{created-month}-{created-day}`                     |
+| `{year}`           | `2025`             | Run date year                                                                    |
+| `{month}`          | `04`               | Run date month                                                                   |
+| `{day}`            | `08`               | Run date day                                                                     |
+| `{date}`           | `2025-04-08`       | Run date shorthand                                                               |
+| `{weekday}`        | `Tuesday`          | Run date weekday                                                                 |
+| `{hour}`           | `14`               | Run time hour (24h, zero-padded)                                                 |
+| `{minute}`         | `35`               | Run time minute (zero-padded)                                                    |
+| `{second}`         | `00`               | Run time second (zero-padded)                                                    |
+| `{timestamp}`      | `20250416-143500`  | Run date+time compact: `YYYYMMDD-HHmmss`                                         |
+| `{size-range}`     | `small`            | `tiny` (<1 MB) · `small` (1–100 MB) · `medium` (100 MB–1 GB) · `large` (≥1 GB) |
+| `{category}`       | `images`           | Category name from config                                                        |
+| `{hostname}`       | `lucas-pc`         | Machine hostname (`unknown` on failure)                                          |
+| `{username}`       | `lucas`            | OS username (`unknown` on failure)                                               |
+| `{os}`             | `windows`          | Operating system (`windows`, `linux`, `darwin`, …)                               |
+| `{seq}`            | `1`                | Auto-incrementing sequence number (no padding). **`rename` only**                |
+| `{seq:N}`          | `0001`             | Sequence number zero-padded to N digits (1 ≤ N ≤ 20). **`rename` only**         |
+| `{seq-alpha}`      | `a`, `b`, `aa`     | Alphabetic sequence, Excel-style overflow (a→z→aa→ab…). **`rename` only**       |
+| `{seq-roman}`      | `i`, `ii`, `iii`   | Roman numeral sequence. **`rename` only**                                        |
+| `{md5}`            | `5d41402a`         | First 8 hex chars of file MD5. **`rename` only**                                 |
+| `{md5:N}`          | `5d41402abc4b`     | First N hex chars of MD5 (1 ≤ N ≤ 32). **`rename` only**                        |
+| `{sha256:N}`       | `2cf24dba5f`       | First N hex chars of SHA-256 (1 ≤ N ≤ 64). **`rename` only**                    |
 
 ### `hooks` block
 

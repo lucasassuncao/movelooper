@@ -9,8 +9,9 @@ import (
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/rawbytes"
 	"github.com/knadh/koanf/v2"
-	"github.com/lucasassuncao/movelooper/internal/helper"
+	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/tokens"
 )
 
 // ErrConfigNotFound is returned by InitConfig when the config file cannot be located.
@@ -68,13 +69,13 @@ func validateCategory(cat *models.Category) error {
 	}
 
 	if cat.Destination.Rename != "" {
-		if err := helper.ValidateTemplate(cat.Destination.Rename); err != nil {
+		if err := tokens.ValidateTemplate(cat.Destination.Rename); err != nil {
 			return fmt.Errorf("category %q: invalid rename template: %w", cat.Name, err)
 		}
 	}
 
 	if cat.Destination.OrganizeBy != "" {
-		if err := helper.ValidateTemplate(cat.Destination.OrganizeBy); err != nil {
+		if err := tokens.ValidateTemplate(cat.Destination.OrganizeBy); err != nil {
 			return fmt.Errorf("category %q: invalid organize-by template: %w", cat.Name, err)
 		}
 		if containsSeqToken(cat.Destination.OrganizeBy) {
@@ -184,13 +185,13 @@ func validateLeafFilter(catName string, f *models.CategoryFilter) error {
 	}
 
 	if f.Glob != "" {
-		if err := helper.ValidateGlob(f.Glob); err != nil {
+		if err := filters.ValidateGlob(f.Glob); err != nil {
 			return fmt.Errorf("category %q: %w", catName, err)
 		}
 	}
 
 	for _, p := range f.Include {
-		if err := helper.ValidateGlob(p); err != nil {
+		if err := filters.ValidateGlob(p); err != nil {
 			return fmt.Errorf("category %q: invalid include pattern: %w", catName, err)
 		}
 	}
@@ -218,7 +219,7 @@ func compileRegex(catName string, f *models.CategoryFilter) error {
 // validateSizeAndAge parses size strings and checks that min <= max for both size and age.
 func validateSizeAndAge(catName string, f *models.CategoryFilter) error {
 	if f.MinSize != "" {
-		b, err := helper.ParseSize(f.MinSize)
+		b, err := filters.ParseSize(f.MinSize)
 		if err != nil {
 			return fmt.Errorf("category %q: invalid min-size %q: %w", catName, f.MinSize, err)
 		}
@@ -226,7 +227,7 @@ func validateSizeAndAge(catName string, f *models.CategoryFilter) error {
 	}
 
 	if f.MaxSize != "" {
-		b, err := helper.ParseSize(f.MaxSize)
+		b, err := filters.ParseSize(f.MaxSize)
 		if err != nil {
 			return fmt.Errorf("category %q: invalid max-size %q: %w", catName, f.MaxSize, err)
 		}

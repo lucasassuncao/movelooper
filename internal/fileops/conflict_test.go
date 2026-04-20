@@ -1,4 +1,4 @@
-package helper
+package fileops
 
 import (
 	"os"
@@ -10,14 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// helpers
-
 func writeFile(t *testing.T, path string, content []byte) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(path, content, 0644))
 }
-
-// --- ConflictResolver.SkipMessage ---
 
 func TestConflictResolvers_SkipMessages(t *testing.T) {
 	tests := []struct {
@@ -41,14 +37,12 @@ func TestConflictResolvers_SkipMessages(t *testing.T) {
 	}
 }
 
-// --- getUniqueDestinationPath ---
-
 func TestGetUniqueDestinationPath(t *testing.T) {
 	tests := []struct {
 		name     string
-		existing []string // files to pre-create
+		existing []string
 		input    string
-		want     string // expected basename
+		want     string
 	}{
 		{"no conflict", nil, "file.txt", "file.txt"},
 		{"one conflict", []string{"file.txt"}, "file.txt", "file(1).txt"},
@@ -68,13 +62,11 @@ func TestGetUniqueDestinationPath(t *testing.T) {
 	}
 }
 
-// --- individual resolvers ---
-
 func TestResolvers(t *testing.T) {
 	type want struct {
 		move       bool
-		pathIsDst  bool   // result == dst
-		pathSuffix string // substring in result (when not dst and not empty)
+		pathIsDst  bool
+		pathSuffix string
 		srcRemoved bool
 		dstRemoved bool
 	}
@@ -82,7 +74,7 @@ func TestResolvers(t *testing.T) {
 	tests := []struct {
 		name    string
 		setup   func(t *testing.T, src, dst string)
-		resolve func(src, dst, dir, name string) (string, bool, error)
+		resolve func(ConflictArgs) (string, bool, error)
 		want    want
 	}{
 		{
@@ -215,7 +207,7 @@ func TestResolvers(t *testing.T) {
 			dst := filepath.Join(dir, "dst.txt")
 			tt.setup(t, src, dst)
 
-			path, shouldMove, err := tt.resolve(src, dst, dir, "dst.txt")
+			path, shouldMove, err := tt.resolve(ConflictArgs{Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt"})
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.move, shouldMove)
 

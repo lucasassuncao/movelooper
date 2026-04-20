@@ -107,7 +107,7 @@ refactor: replace dispatchAction switch with FileAction Strategy registry
 make test               # all packages, testdox format
 make test-watch         # rerun on file changes (useful during TDD)
 make test-coverage      # generates coverage.html and coverage.xml
-go test ./internal/helper/... -run TestMoveFiles -v   # single package, filtered
+go test ./internal/fileops/... -run TestMoveFiles -v   # single package, filtered
 ```
 
 ### Test organisation
@@ -243,10 +243,10 @@ Run `make lint` before opening a PR. The CI pipeline will fail if lint errors ar
 
 | What | Where |
 |---|---|
-| New file action (`hardlink`, etc.) | `internal/helper/fileops.go` (struct + map entry) + `internal/config/config.go` (`validActions`) |
-| New conflict strategy | `internal/helper/conflict.go` (struct + map entry) |
+| New file action (`hardlink`, etc.) | `internal/fileops/fileops.go` (struct + map entry) + `internal/config/config.go` (`validActions`) |
+| New conflict strategy | `internal/fileops/conflict.go` (struct + map entry) |
 | New log output mode | `internal/config/logging.go` (struct + map entry) |
-| New template token | `internal/helper/groupby.go` (`knownTokens` + handler in `ResolveGroupBy`/`ResolveRename`) |
+| New template token | `internal/tokens/resolve.go` (`buildStaticPairs`) + `internal/tokens/validate.go` (`knownTokens`) |
 | New startup step | `internal/config/builder.go` (method) + `internal/cmd/root.go` (chain call) |
 | New CLI command | `internal/cmd/<command>.go` + registered in `RootCmd` |
 | New config field | `internal/models/movelooper.go` (struct) + `internal/config/appconfig.go` (`LoadConfig`) |

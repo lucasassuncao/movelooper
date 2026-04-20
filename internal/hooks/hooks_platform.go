@@ -1,6 +1,4 @@
-//go:build windows
-
-package helper
+package hooks
 
 import "os/exec"
 
