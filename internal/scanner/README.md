@@ -13,6 +13,8 @@ Package scanner analyzes a directory and groups files by a built\-in extension d
 ## Index
 
 - [type DetectedCategory](<#DetectedCategory>)
+- [type FileEntry](<#FileEntry>)
+  - [func WalkSource\(source models.CategorySource, autoExclude \[\]string\) \(\[\]FileEntry, error\)](<#WalkSource>)
 - [type Result](<#Result>)
   - [func Scan\(path string\) \(Result, error\)](<#Scan>)
 
@@ -28,6 +30,27 @@ type DetectedCategory struct {
     Extensions []string // extensions actually found (no leading dot, e.g. "jpg")
 }
 ```
+
+<a name="FileEntry"></a>
+## type [FileEntry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L12-L15>)
+
+FileEntry pairs a regular file's containing directory with its DirEntry.
+
+```go
+type FileEntry struct {
+    Dir   string // absolute path of the directory containing Entry
+    Entry os.DirEntry
+}
+```
+
+<a name="WalkSource"></a>
+### func [WalkSource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L22>)
+
+```go
+func WalkSource(source models.CategorySource, autoExclude []string) ([]FileEntry, error)
+```
+
+WalkSource returns all regular files under source.Path that pass the exclusion and depth rules. autoExclude lists destination paths that are automatically excluded to prevent infinite loops when the destination is inside the source tree. When source.Recursive is false only the top\-level directory is read.
 
 <a name="Result"></a>
 ## type [Result](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/scanner.go#L20-L24>)

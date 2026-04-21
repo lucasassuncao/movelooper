@@ -201,3 +201,19 @@ categories:
     destination:
       path: "C:\\Users\\lucas\\Downloads\\Others\\fonts\\"
       conflict-strategy: rename
+
+## Recursive example: organise PDFs from Downloads including subdirectories.
+## The destination (Downloads\Sorted) is auto-excluded — no need to list it.
+##
+##  - name: documents-recursive
+##    source:
+##      path: "C:\Users\lucas\Downloads\\"
+##      extensions: ["pdf", "docx"]
+##      recursive: true
+##      max-depth: 3
+##      exclude-paths:
+##        - "C:\Users\lucas\Downloads\Archive\\"
+##    destination:
+##      path: "C:\Users\lucas\Downloads\Sorted\\"
+##      organize-by: "{ext}/{mod-year}"
+##      conflict-strategy: rename

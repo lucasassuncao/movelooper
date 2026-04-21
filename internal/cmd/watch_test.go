@@ -366,7 +366,8 @@ func TestProcessPendingFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m, dst, filePath, tracker := tt.setup(t)
-			processPendingFiles(context.Background(), m, tracker, tt.threshold, tt.dryRun)
+			cfg := watchConfig{tracker: tracker, threshold: tt.threshold, dryRun: tt.dryRun}
+			processPendingFiles(context.Background(), m, cfg)
 
 			fileName := filepath.Base(filePath)
 			switch {

@@ -260,7 +260,14 @@ func TestMoveFiles(t *testing.T) {
 			require.NoError(t, err)
 
 			cat := tt.category(src, dst)
-			moved := MoveFiles(context.Background(), newTestMoveContext(), cat, entries, tt.ext, tt.batchID)
+			req := MoveRequest{
+				Category:  cat,
+				Files:     entries,
+				Extension: tt.ext,
+				BatchID:   tt.batchID,
+				SourceDir: src,
+			}
+			moved := MoveFiles(context.Background(), newTestMoveContext(), req)
 
 			if tt.wantMoved != nil {
 				assert.Equal(t, tt.wantMoved, moved)
@@ -506,7 +513,14 @@ func TestMoveFiles_RenameTemplate(t *testing.T) {
 		},
 	}
 
-	moved := MoveFiles(context.Background(), newTestMoveContext(), cat, readDir(t, src), "jpg", "batch_test")
+	req := MoveRequest{
+		Category:  cat,
+		Files:     readDir(t, src),
+		Extension: "jpg",
+		BatchID:   "batch_test",
+		SourceDir: src,
+	}
+	moved := MoveFiles(context.Background(), newTestMoveContext(), req)
 
 	require.Len(t, moved, 1)
 	assert.FileExists(t, filepath.Join(dst, "images_photo.jpg"))

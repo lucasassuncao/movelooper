@@ -43,9 +43,20 @@ func ReadDirectory(path string) ([]os.DirEntry, error) {
 	return files, nil
 }
 
-// MoveFiles processes files matching the given extension in the category's source directory.
+// MoveRequest holds the operation-specific parameters for a MoveFiles call.
+type MoveRequest struct {
+	Category  *models.Category
+	Files     []os.DirEntry
+	Extension string
+	BatchID   string
+	SourceDir string // actual directory of the files; may differ from Category.Source.Path when recursive
+}
+
+// MoveFiles processes files matching the given extension in req.SourceDir.
 // Returns the names of files that were successfully processed.
-func MoveFiles(ctx context.Context, mctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string {
+func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string {
+	category := req.Category
+	files := req.Files
 	var moved []string
 	for _, file := range files {
 		select {
@@ -53,7 +64,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, category *models.Category,
 			return moved
 		default:
 		}
-		if !hasExtension(file, extension) {
+		if !hasExtension(file, req.Extension) {
 			continue
 		}
 
@@ -63,7 +74,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, category *models.Category,
 			continue
 		}
 
-		sourcePath := filepath.Join(category.Source.Path, file.Name())
+		sourcePath := filepath.Join(req.SourceDir, file.Name())
 
 		destDir := category.Destination.Path
 		tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath}
@@ -116,7 +127,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, category *models.Category,
 				Source:      sourcePath,
 				Destination: destPath,
 				Timestamp:   time.Now(),
-				BatchID:     batchID,
+				BatchID:     req.BatchID,
 				Action:      effectiveAction,
 				Category:    category.Name,
 			}); err != nil {

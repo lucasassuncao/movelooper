@@ -168,8 +168,8 @@ func TestRunMove_Filters(t *testing.T) {
 			m := newSilentMovelooper([]*models.Category{cat})
 
 			dryRun := tt.name == "show-files dry-run does not move"
-			showFiles := dryRun
-			require.NoError(t, runMove(context.Background(), m, dryRun, showFiles, "", false))
+			opts := MoveOptions{DryRun: dryRun, ShowFiles: dryRun}
+			require.NoError(t, runMove(context.Background(), m, opts))
 			if tt.check != nil {
 				tt.check(t, src, dst)
 			}
@@ -345,7 +345,8 @@ func TestRunMove(t *testing.T) {
 			cats := tt.cats(t, src, dstRef)
 			m := newSilentMovelooper(cats)
 
-			require.NoError(t, runMove(context.Background(), m, tt.dryRun, false, "", false))
+			opts := MoveOptions{DryRun: tt.dryRun}
+			require.NoError(t, runMove(context.Background(), m, opts))
 			if tt.check != nil {
 				tt.check(t, src, dstRef)
 			}
@@ -367,7 +368,7 @@ func TestRunMove_MultipleCategories(t *testing.T) {
 	}
 	m := newSilentMovelooper(cats)
 
-	require.NoError(t, runMove(context.Background(), m, false, false, "", false))
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
 
 	assert.FileExists(t, filepath.Join(dstPDF, "file.pdf"))
 	assert.FileExists(t, filepath.Join(dstJPG, "photo.jpg"))
@@ -386,7 +387,7 @@ func TestRunMove_FileClaimedByFirstCategory(t *testing.T) {
 	}
 	m := newSilentMovelooper(cats)
 
-	require.NoError(t, runMove(context.Background(), m, false, false, "", false))
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
 
 	inDst1 := fileExists(filepath.Join(dst1, "file.txt"))
 	inDst2 := fileExists(filepath.Join(dst2, "file.txt"))
@@ -481,7 +482,14 @@ func TestRunMove_CopyAction(t *testing.T) {
 	mctx := fileops.MoveContext{Logger: pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)}
 	files, err := fileops.ReadDirectory(src)
 	require.NoError(t, err)
-	moved := fileops.MoveFiles(context.Background(), mctx, cat, files, "pdf", "batch_test")
+	req := fileops.MoveRequest{
+		Category:  cat,
+		Files:     files,
+		Extension: "pdf",
+		BatchID:   "batch_test",
+		SourceDir: src,
+	}
+	moved := fileops.MoveFiles(context.Background(), mctx, req)
 
 	require.Len(t, moved, 1)
 	assert.FileExists(t, filepath.Join(dst, "report.pdf"))
@@ -500,7 +508,14 @@ func TestRunMove_CopyWithRename(t *testing.T) {
 	mctx := fileops.MoveContext{Logger: pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)}
 	files, err := fileops.ReadDirectory(src)
 	require.NoError(t, err)
-	moved := fileops.MoveFiles(context.Background(), mctx, cat, files, "jpg", "batch_test")
+	req := fileops.MoveRequest{
+		Category:  cat,
+		Files:     files,
+		Extension: "jpg",
+		BatchID:   "batch_test",
+		SourceDir: src,
+	}
+	moved := fileops.MoveFiles(context.Background(), mctx, req)
 
 	require.Len(t, moved, 1)
 	assert.FileExists(t, filepath.Join(dst, "images_photo.jpg"))
@@ -520,7 +535,14 @@ func TestRunMove_SymlinkWithConflictRename(t *testing.T) {
 	mctx := fileops.MoveContext{Logger: pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)}
 	files, err := fileops.ReadDirectory(src)
 	require.NoError(t, err)
-	moved := fileops.MoveFiles(context.Background(), mctx, cat, files, "txt", "batch_test")
+	req := fileops.MoveRequest{
+		Category:  cat,
+		Files:     files,
+		Extension: "txt",
+		BatchID:   "batch_test",
+		SourceDir: src,
+	}
+	moved := fileops.MoveFiles(context.Background(), mctx, req)
 
 	if len(moved) == 0 {
 		t.Skip("symlink not available (likely missing privilege on Windows)")
@@ -637,7 +659,7 @@ func TestRunMove_Hooks(t *testing.T) {
 		}
 
 		m := newSilentMovelooper([]*models.Category{cat})
-		err := runMove(context.Background(), m, false, false, "", false)
+		err := runMove(context.Background(), m, MoveOptions{})
 		require.NoError(t, err)
 
 		assert.FileExists(t, filepath.Join(src, "a.pdf"))
@@ -658,7 +680,7 @@ func TestRunMove_Hooks(t *testing.T) {
 		}
 
 		m := newSilentMovelooper([]*models.Category{cat})
-		err := runMove(context.Background(), m, false, false, "", false)
+		err := runMove(context.Background(), m, MoveOptions{})
 		require.NoError(t, err)
 
 		assert.NoFileExists(t, filepath.Join(src, "b.pdf"))
@@ -679,10 +701,57 @@ func TestRunMove_Hooks(t *testing.T) {
 		}
 
 		m := newSilentMovelooper([]*models.Category{cat})
-		err := runMove(context.Background(), m, false, false, "", false)
+		err := runMove(context.Background(), m, MoveOptions{})
 		require.NoError(t, err)
 
 		assert.NoFileExists(t, filepath.Join(src, "c.pdf"))
 		assert.FileExists(t, filepath.Join(dst, "c.pdf"))
 	})
+}
+
+func TestRunMove_Recursive_ExcludesDestinationSubdir(t *testing.T) {
+	src := t.TempDir()
+	dst := filepath.Join(src, "Sorted")
+	require.NoError(t, os.MkdirAll(dst, 0755))
+
+	writePDF := func(dir, name string) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("%PDF"), 0644))
+	}
+	writePDF(src, "file.pdf")
+	writePDF(dst, "already.pdf")
+
+	enabled := true
+	cat := &models.Category{
+		Name:    "docs",
+		Enabled: &enabled,
+		Source: models.CategorySource{
+			Path:       src,
+			Extensions: []string{"pdf"},
+			Recursive:  true,
+		},
+		Destination: models.CategoryDestination{
+			Path:             dst,
+			ConflictStrategy: "skip",
+		},
+	}
+
+	logger := pterm.DefaultLogger
+	logger.Level = pterm.LogLevelDisabled
+	m := &models.Movelooper{
+		Logger:     &logger,
+		Categories: []*models.Category{cat},
+	}
+
+	err := runMove(context.Background(), m, MoveOptions{})
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(src, "file.pdf"))
+	assert.True(t, os.IsNotExist(err), "file.pdf should have been moved out of src")
+
+	_, err = os.Stat(filepath.Join(dst, "file.pdf"))
+	assert.NoError(t, err, "file.pdf should exist in dst")
+
+	_, err = os.Stat(filepath.Join(dst, "already.pdf"))
+	assert.NoError(t, err, "already.pdf in destination subdir must not be touched")
 }

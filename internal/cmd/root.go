@@ -14,6 +14,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/hooks"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/scanner"
 
 	"github.com/spf13/cobra"
 )
@@ -47,7 +48,13 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMove(cmd.Context(), m, dryRun, showFiles, categoryFilter, includeDisabled)
+			opts := MoveOptions{
+				DryRun:          dryRun,
+				ShowFiles:       showFiles,
+				CategoryFilter:  categoryFilter,
+				IncludeDisabled: includeDisabled,
+			}
+			return runMove(cmd.Context(), m, opts)
 		},
 	}
 
@@ -81,23 +88,45 @@ type runStats struct {
 	skipped    int
 }
 
+// MoveOptions carries the CLI flags for the move command.
+type MoveOptions struct {
+	DryRun          bool
+	ShowFiles       bool
+	CategoryFilter  string
+	IncludeDisabled bool
+}
+
+// moveBatch groups the mutable state shared across a single move run.
+type moveBatch struct {
+	moved     movedSet
+	batchID   string
+	dryRun    bool
+	showFiles bool
+	stats     *runStats
+}
+
 // runMove executes the default move operation across all configured categories.
-func runMove(ctx context.Context, m *models.Movelooper, dryRun, showFiles bool, categoryFilter string, includeDisabled bool) error {
-	names := parseCategoryNames(categoryFilter)
-	categories, err := filterCategories(m.Categories, names, includeDisabled, m.Logger)
+func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error {
+	names := parseCategoryNames(opts.CategoryFilter)
+	categories, err := filterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
 	if err != nil {
 		return err
 	}
 
-	batchID := history.NewBatchID()
-	moved := make(movedSet)
 	var stats runStats
-
-	for _, category := range categories {
-		processCategoryMove(ctx, m, category, moved, batchID, dryRun, showFiles, &stats)
+	batch := moveBatch{
+		moved:     make(movedSet),
+		batchID:   history.NewBatchID(),
+		dryRun:    opts.DryRun,
+		showFiles: opts.ShowFiles,
+		stats:     &stats,
 	}
 
-	if dryRun {
+	for _, category := range categories {
+		processCategoryMove(ctx, m, category, batch)
+	}
+
+	if opts.DryRun {
 		m.Logger.Info("dry-run complete, no files were moved",
 			m.Logger.Args("matched", stats.totalFiles))
 	} else {
@@ -142,49 +171,70 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 }
 
 // processCategoryMove handles all extensions for a single category.
-func processCategoryMove(ctx context.Context, m *models.Movelooper, category *models.Category, moved movedSet, batchID string, dryRun, showFiles bool, stats *runStats) {
+func processCategoryMove(ctx context.Context, m *models.Movelooper, category *models.Category, batch moveBatch) {
 	if category.Hooks != nil && category.Hooks.Before != nil {
-		env := hookEnv(category, dryRun, nil)
+		env := hookEnv(category, batch.dryRun, nil)
 		if err := hooks.RunHook(ctx, category.Hooks.Before, m.Logger, env); err != nil {
 			m.Logger.Warn("before hook failed, skipping category",
 				m.Logger.Args("category", category.Name, "error", err.Error()))
-			stats.skipped++
+			batch.stats.skipped++
 			return
 		}
 	}
 
-	files, err := fileops.ReadDirectory(category.Source.Path)
+	autoExclude := []string{category.Destination.Path}
+	allEntries, err := scanner.WalkSource(category.Source, autoExclude)
 	if err != nil {
-		m.Logger.Error("failed to read directory", m.Logger.Args("path", category.Source.Path, "error", err.Error()))
+		m.Logger.Error("failed to scan directory", m.Logger.Args("path", category.Source.Path, "error", err.Error()))
 		return
 	}
 
 	var totalMoved, totalFailed int
 	for _, extension := range category.Source.Extensions {
-		filteredFiles := filterFilesForExtension(category, files, moved, extension)
-		logExtensionResult(m, filteredFiles, category.Name, extension, showFiles)
-
-		stats.totalFiles += len(filteredFiles)
-		for _, file := range filteredFiles {
-			if info, err := file.Info(); err == nil {
-				stats.totalBytes += info.Size()
-			} else {
-				m.Logger.Warn("could not stat file for size accounting", m.Logger.Args("file", file.Name(), "error", err.Error()))
+		var matched []scanner.FileEntry
+		for _, fe := range allEntries {
+			if matchesCategory(category, fe.Entry, batch.moved, extension) {
+				matched = append(matched, fe)
 			}
 		}
 
-		if !dryRun && len(filteredFiles) > 0 {
-			names := moveExtensionWithResult(ctx, m, category, filteredFiles, moved, extension, batchID)
-			totalMoved += len(names)
-			totalFailed += len(filteredFiles) - len(names)
+		asDirEntries := make([]os.DirEntry, len(matched))
+		for i, fe := range matched {
+			asDirEntries[i] = fe.Entry
+		}
+		logExtensionResult(m, asDirEntries, category.Name, extension, batch.showFiles)
+
+		batch.stats.totalFiles += len(matched)
+		for _, fe := range matched {
+			if info, err := fe.Entry.Info(); err == nil {
+				batch.stats.totalBytes += info.Size()
+			} else {
+				m.Logger.Warn("could not stat file for size accounting", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
+			}
+		}
+
+		if !batch.dryRun && len(matched) > 0 {
+			byDir := groupByDir(matched)
+			for dir, dirFiles := range byDir {
+				req := fileops.MoveRequest{
+					Category:  category,
+					Files:     dirFiles,
+					Extension: extension,
+					BatchID:   batch.batchID,
+					SourceDir: dir,
+				}
+				names := moveExtensionWithResult(ctx, m, req, batch.moved)
+				totalMoved += len(names)
+				totalFailed += len(dirFiles) - len(names)
+			}
 		}
 	}
 
 	if category.Hooks != nil && category.Hooks.After != nil {
-		env := hookEnv(category, dryRun, &hookAfterVars{
+		env := hookEnv(category, batch.dryRun, &hookAfterVars{
 			moved:   totalMoved,
 			failed:  totalFailed,
-			batchID: batchID,
+			batchID: batch.batchID,
 		})
 		if err := hooks.RunHook(ctx, category.Hooks.After, m.Logger, env); err != nil {
 			m.Logger.Warn("after hook failed",
@@ -193,11 +243,21 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	}
 }
 
-// moveExtensionWithResult moves filteredFiles for a single extension and returns moved file names.
-func moveExtensionWithResult(ctx context.Context, m *models.Movelooper, category *models.Category, files []os.DirEntry, moved movedSet, extension, batchID string) []string {
-	movedNames := fileops.MoveFiles(ctx, fileops.MoveContext{Logger: m.Logger, History: m.History}, category, files, extension, batchID)
+// groupByDir groups FileEntries by their containing directory.
+func groupByDir(entries []scanner.FileEntry) map[string][]os.DirEntry {
+	result := make(map[string][]os.DirEntry)
+	for _, fe := range entries {
+		result[fe.Dir] = append(result[fe.Dir], fe.Entry)
+	}
+	return result
+}
+
+// moveExtensionWithResult moves files described by req and returns the moved file names.
+func moveExtensionWithResult(ctx context.Context, m *models.Movelooper, req fileops.MoveRequest, moved movedSet) []string {
+	mctx := fileops.MoveContext{Logger: m.Logger, History: m.History}
+	movedNames := fileops.MoveFiles(ctx, mctx, req)
 	for _, name := range movedNames {
-		moved.mark(category.Source.Path, name)
+		moved.mark(req.SourceDir, name)
 	}
 	return movedNames
 }

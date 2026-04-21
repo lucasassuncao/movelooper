@@ -23,7 +23,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L80-L86>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L83-L89>)
 
 Category represents a file category with its properties
 
@@ -47,7 +47,7 @@ func (c *Category) IsEnabled() bool
 IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
 
 <a name="CategoryDestination"></a>
-## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L71-L77>)
+## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L74-L80>)
 
 CategoryDestination holds the destination path and placement rules for a category
 
@@ -86,7 +86,7 @@ type CategoryFilter struct {
 ```
 
 <a name="CategoryHook"></a>
-## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L89-L93>)
+## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L92-L96>)
 
 CategoryHook defines a list of shell commands to run at a lifecycle point.
 
@@ -99,7 +99,7 @@ type CategoryHook struct {
 ```
 
 <a name="CategoryHooks"></a>
-## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L96-L99>)
+## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L99-L102>)
 
 CategoryHooks holds optional before/after hooks for a category.
 
@@ -111,15 +111,18 @@ type CategoryHooks struct {
 ```
 
 <a name="CategorySource"></a>
-## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L64-L68>)
+## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L64-L71>)
 
 CategorySource holds the source path, extensions, and filters for a category
 
 ```go
 type CategorySource struct {
-    Path       string         `yaml:"path" mapstructure:"path"`
-    Extensions []string       `yaml:"extensions" mapstructure:"extensions"`
-    Filter     CategoryFilter `yaml:"filter" mapstructure:"filter"`
+    Path         string         `yaml:"path"          mapstructure:"path"`
+    Extensions   []string       `yaml:"extensions"    mapstructure:"extensions"`
+    Filter       CategoryFilter `yaml:"filter"        mapstructure:"filter"`
+    Recursive    bool           `yaml:"recursive"     mapstructure:"recursive"`
+    MaxDepth     int            `yaml:"max-depth"     mapstructure:"max-depth"`
+    ExcludePaths []string       `yaml:"exclude-paths" mapstructure:"exclude-paths"`
 }
 ```
 

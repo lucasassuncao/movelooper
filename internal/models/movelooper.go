@@ -62,9 +62,12 @@ type CategoryFilter struct {
 
 // CategorySource holds the source path, extensions, and filters for a category
 type CategorySource struct {
-	Path       string         `yaml:"path" mapstructure:"path"`
-	Extensions []string       `yaml:"extensions" mapstructure:"extensions"`
-	Filter     CategoryFilter `yaml:"filter" mapstructure:"filter"`
+	Path         string         `yaml:"path"          mapstructure:"path"`
+	Extensions   []string       `yaml:"extensions"    mapstructure:"extensions"`
+	Filter       CategoryFilter `yaml:"filter"        mapstructure:"filter"`
+	Recursive    bool           `yaml:"recursive"     mapstructure:"recursive"`
+	MaxDepth     int            `yaml:"max-depth"     mapstructure:"max-depth"`
+	ExcludePaths []string       `yaml:"exclude-paths" mapstructure:"exclude-paths"`
 }
 
 // CategoryDestination holds the destination path and placement rules for a category

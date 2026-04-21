@@ -12,12 +12,13 @@ import "github.com/lucasassuncao/movelooper/internal/fileops"
 
 - [Variables](<#variables>)
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
-- [func MoveFiles\(ctx context.Context, mctx MoveContext, category \*models.Category, files \[\]os.DirEntry, extension, batchID string\) \[\]string](<#MoveFiles>)
+- [func MoveFiles\(ctx context.Context, mctx MoveContext, req MoveRequest\) \[\]string](<#MoveFiles>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
 - [type ConflictArgs](<#ConflictArgs>)
 - [type ConflictResolver](<#ConflictResolver>)
 - [type FileAction](<#FileAction>)
 - [type MoveContext](<#MoveContext>)
+- [type MoveRequest](<#MoveRequest>)
 
 
 ## Variables
@@ -38,13 +39,13 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="MoveFiles"></a>
-## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L48>)
+## func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L57>)
 
 ```go
-func MoveFiles(ctx context.Context, mctx MoveContext, category *models.Category, files []os.DirEntry, extension, batchID string) []string
+func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string
 ```
 
-MoveFiles processes files matching the given extension in the category's source directory. Returns the names of files that were successfully processed.
+MoveFiles processes files matching the given extension in req.SourceDir. Returns the names of files that were successfully processed.
 
 <a name="ReadDirectory"></a>
 ## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L38>)
@@ -82,7 +83,7 @@ type ConflictResolver interface {
 ```
 
 <a name="FileAction"></a>
-## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L134-L136>)
+## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L145-L147>)
 
 FileAction executes a file operation from src to dst.
 
@@ -101,6 +102,21 @@ MoveContext carries the dependencies needed by file\-move operations.
 type MoveContext struct {
     Logger  *pterm.Logger
     History *history.History
+}
+```
+
+<a name="MoveRequest"></a>
+## type [MoveRequest](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L47-L53>)
+
+MoveRequest holds the operation\-specific parameters for a MoveFiles call.
+
+```go
+type MoveRequest struct {
+    Category  *models.Category
+    Files     []os.DirEntry
+    Extension string
+    BatchID   string
+    SourceDir string // actual directory of the files; may differ from Category.Source.Path when recursive
 }
 ```
 

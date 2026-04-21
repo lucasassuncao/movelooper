@@ -26,9 +26,12 @@ Each entry in the `categories` list has the following top-level fields:
 
 | Field        | Type     | Required | Description                                                                        |
 |--------------|----------|----------|------------------------------------------------------------------------------------|
-| `path`       | string   | yes      | Directory to scan for files                                                        |
-| `extensions` | []string | yes      | File extensions to match (without the dot). Use `["all"]` to match any extension  |
-| `filter`     | object   | no       | Optional filters applied to files in this source (see below)                      |
+| `path`           | string   | yes      | Directory to scan for files                                                                                       |
+| `extensions`     | []string | yes      | File extensions to match (without the dot). Use `["all"]` to match any extension                                 |
+| `filter`         | object   | no       | Optional filters applied to files in this source (see below)                                                     |
+| `recursive`      | bool     | no       | When `true`, scans subdirectories recursively (default: `false`)                                                  |
+| `max-depth`      | int      | no       | Maximum recursion depth; `0` means unlimited (only used when `recursive: true`, default: `0`)                    |
+| `exclude-paths`  | []string | no       | Absolute paths to skip during recursive walk. The destination path is always auto-excluded (default: `[]`)       |
 
 ### `source.filter` block
 

@@ -17,6 +17,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/scanner"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/spf13/cobra"
 )
@@ -47,6 +48,20 @@ type fileTracker struct {
 	files map[string]time.Time // absolute path → time of first detection
 }
 
+// WatchOptions carries the CLI flags for the watch command.
+type WatchOptions struct {
+	DryRun          bool
+	CategoryFilter  string
+	IncludeDisabled bool
+}
+
+// watchConfig groups the runtime state shared by the ticker and pending-files loops.
+type watchConfig struct {
+	tracker   *fileTracker
+	threshold time.Duration
+	dryRun    bool
+}
+
 // WatchCmd defines the "watch" command to monitor directories and move files in real-time
 func WatchCmd(m *models.Movelooper) *cobra.Command {
 	var (
@@ -59,7 +74,12 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 		Use:   "watch",
 		Short: "Monitor folders and move files in real-time",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWatch(cmd.Context(), m, dryRun, categoryFilter, includeDisabled)
+			opts := WatchOptions{
+				DryRun:          dryRun,
+				CategoryFilter:  categoryFilter,
+				IncludeDisabled: includeDisabled,
+			}
+			return runWatch(cmd.Context(), m, opts)
 		},
 	}
 
@@ -70,20 +90,18 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 }
 
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
-func runWatch(ctx context.Context, m *models.Movelooper, dryRun bool, categoryFilter string, includeDisabled bool) error {
-	names := parseCategoryNames(categoryFilter)
-	filtered, err := filterCategories(m.Categories, names, includeDisabled, m.Logger)
+func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) error {
+	names := parseCategoryNames(opts.CategoryFilter)
+	filtered, err := filterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
 	if err != nil {
 		return err
 	}
 	m.Categories = filtered
 
-	stabilityThreshold := m.Config.WatchDelay
-
-	if dryRun {
-		m.Logger.Info("starting watch mode (dry-run)", m.Logger.Args("stability_delay", stabilityThreshold.String()))
+	if opts.DryRun {
+		m.Logger.Info("starting watch mode (dry-run)", m.Logger.Args("stability_delay", m.Config.WatchDelay.String()))
 	} else {
-		m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", stabilityThreshold.String()))
+		m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", m.Config.WatchDelay.String()))
 	}
 
 	watcher, err := fsnotify.NewWatcher()
@@ -92,19 +110,23 @@ func runWatch(ctx context.Context, m *models.Movelooper, dryRun bool, categoryFi
 	}
 	defer watcher.Close()
 
-	tracker := &fileTracker{files: make(map[string]time.Time)}
+	cfg := watchConfig{
+		tracker:   &fileTracker{files: make(map[string]time.Time)},
+		threshold: m.Config.WatchDelay,
+		dryRun:    opts.DryRun,
+	}
 
 	registerSources(m, watcher)
 
 	m.Logger.Info("performing initial scan for existing files")
-	performInitialScan(m, tracker)
+	performInitialScan(m, cfg.tracker)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	go runEventLoop(ctx, m, watcher, tracker)
+	go runEventLoop(ctx, m, watcher, cfg.tracker)
 	go runSignalHandler(m, cancel)
-	go runTickerLoop(ctx, m, tracker, stabilityThreshold, dryRun)
+	go runTickerLoop(ctx, m, cfg)
 
 	<-ctx.Done()
 	return nil
@@ -171,13 +193,13 @@ func runSignalHandler(m *models.Movelooper, cancel context.CancelFunc) {
 }
 
 // runTickerLoop periodically checks for stable files and moves them.
-func runTickerLoop(ctx context.Context, m *models.Movelooper, tracker *fileTracker, threshold time.Duration, dryRun bool) {
+func runTickerLoop(ctx context.Context, m *models.Movelooper, cfg watchConfig) {
 	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			processPendingFiles(ctx, m, tracker, threshold, dryRun)
+			processPendingFiles(ctx, m, cfg)
 		case <-ctx.Done():
 			return
 		}
@@ -193,27 +215,25 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 		if !cat.IsEnabled() {
 			continue
 		}
-		files, err := fileops.ReadDirectory(cat.Source.Path)
+		autoExclude := []string{cat.Destination.Path}
+		entries, err := scanner.WalkSource(cat.Source, autoExclude)
 		if err != nil {
-			m.Logger.Warn("failed to read directory during initial scan", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
+			m.Logger.Warn("failed to scan directory during initial scan", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
 			continue
 		}
 
-		for _, file := range files {
-			if !file.Type().IsRegular() {
+		for _, fe := range entries {
+			if !filters.MatchesAnyExtension(fe.Entry.Name(), cat.Source.Extensions) {
 				continue
 			}
-			if !filters.MatchesAnyExtension(file.Name(), cat.Source.Extensions) {
-				continue
-			}
-			info, err := file.Info()
+			info, err := fe.Entry.Info()
 			if err != nil {
 				continue
 			}
-			if !filters.MatchesFilter(cat.Source.Filter, file.Name(), info) {
+			if !filters.MatchesFilter(cat.Source.Filter, fe.Entry.Name(), info) {
 				continue
 			}
-			fullPath := filepath.Join(cat.Source.Path, file.Name())
+			fullPath := filepath.Join(fe.Dir, fe.Entry.Name())
 			// The Ticker will check the real ModTime of the file.
 			// If the file is old, ModTime will be old and it will be moved on the first tick.
 			tracker.files[fullPath] = time.Now()
@@ -222,15 +242,15 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 }
 
 // processPendingFiles checks which files have "stabilized" (not used for the threshold duration) and attempts to move them
-func processPendingFiles(ctx context.Context, m *models.Movelooper, tracker *fileTracker, threshold time.Duration, dryRun bool) {
+func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg watchConfig) {
 	now := time.Now()
 
 	// Snapshot tracked paths under lock to keep I/O outside the critical section
 	paths := func() []string {
-		tracker.mu.Lock()
-		defer tracker.mu.Unlock()
-		ps := make([]string, 0, len(tracker.files))
-		for p := range tracker.files {
+		cfg.tracker.mu.Lock()
+		defer cfg.tracker.mu.Unlock()
+		ps := make([]string, 0, len(cfg.tracker.files))
+		for p := range cfg.tracker.files {
 			ps = append(ps, p)
 		}
 		return ps
@@ -240,9 +260,9 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, tracker *fil
 		// Verify if the file still exists (it may have been deleted or moved manually)
 		info, err := os.Stat(path)
 		if err != nil {
-			tracker.mu.Lock()
-			delete(tracker.files, path)
-			tracker.mu.Unlock()
+			cfg.tracker.mu.Lock()
+			delete(cfg.tracker.files, path)
+			cfg.tracker.mu.Unlock()
 			if !os.IsNotExist(err) {
 				m.Logger.Warn("failed to stat tracked file, removing from tracker",
 					m.Logger.Args("path", path, "error", err.Error()))
@@ -251,14 +271,14 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, tracker *fil
 		}
 
 		// Verifies if the file has stabilized based on its ModTime
-		if now.Sub(info.ModTime()) > threshold {
-			if err := attemptMoveFile(ctx, m, path, dryRun); err != nil {
+		if now.Sub(info.ModTime()) > cfg.threshold {
+			if err := attemptMoveFile(ctx, m, path, cfg.dryRun); err != nil {
 				m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
 			}
 			// Remove from tracking after attempt (whether moved or ignored)
-			tracker.mu.Lock()
-			delete(tracker.files, path)
-			tracker.mu.Unlock()
+			cfg.tracker.mu.Lock()
+			delete(cfg.tracker.files, path)
+			cfg.tracker.mu.Unlock()
 		}
 	}
 }
@@ -331,6 +351,12 @@ func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Ca
 
 	targetFile := fileInfoDirEntry{info: info}
 	batchID := history.NewWatchBatchID()
-	fileops.MoveFiles(ctx, fileops.MoveContext{Logger: m.Logger, History: m.History}, &cat, []os.DirEntry{targetFile}, ext, batchID)
+	fileops.MoveFiles(ctx, fileops.MoveContext{Logger: m.Logger, History: m.History}, fileops.MoveRequest{
+		Category:  &cat,
+		Files:     []os.DirEntry{targetFile},
+		Extension: ext,
+		BatchID:   batchID,
+		SourceDir: filepath.Dir(path),
+	})
 	return nil
 }

@@ -122,5 +122,18 @@ func validateDirectoriesFromBuilder(m *models.Movelooper) {
 			m.Logger.Warn("destination directory does not exist",
 				m.Logger.Args("category", cat.Name, "path", cat.Destination.Path))
 		}
+		if cat.Source.Recursive {
+			if cat.Source.MaxDepth < 0 {
+				m.Logger.Error("max-depth must be >= 0 (0 = unlimited)",
+					m.Logger.Args("category", cat.Name, "max-depth", cat.Source.MaxDepth))
+			}
+			for _, p := range cat.Source.ExcludePaths {
+				info, err := os.Stat(p)
+				if err != nil || !info.IsDir() {
+					m.Logger.Warn("exclude-path does not exist or is not a directory",
+						m.Logger.Args("category", cat.Name, "path", p))
+				}
+			}
+		}
 	}
 }
