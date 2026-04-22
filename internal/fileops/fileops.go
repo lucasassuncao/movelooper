@@ -150,9 +150,15 @@ type moveAction struct{}
 type copyAction struct{}
 type symlinkAction struct{}
 
-func (a *moveAction) Execute(src, dst string) error    { return moveFile(src, dst) }
-func (a *copyAction) Execute(src, dst string) error    { return copyFile(src, dst) }
-func (a *symlinkAction) Execute(src, dst string) error { return os.Symlink(src, dst) }
+func (a *moveAction) Execute(src, dst string) error { return moveFile(src, dst) }
+func (a *copyAction) Execute(src, dst string) error { return copyFile(src, dst) }
+func (a *symlinkAction) Execute(src, dst string) error {
+	absSrc, err := filepath.Abs(src)
+	if err != nil {
+		return err
+	}
+	return os.Symlink(absSrc, dst)
+}
 
 var fileActions = map[string]FileAction{
 	"move":    &moveAction{},

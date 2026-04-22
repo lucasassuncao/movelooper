@@ -80,18 +80,12 @@ func NewHistory(limit int) (*History, error) {
 }
 
 // Add appends a new entry to the history.
-// JSON serialization is done under the lock for a consistent snapshot;
-// the disk write happens outside to avoid blocking concurrent callers.
 func (h *History) Add(entry Entry) error {
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	h.Entries = append(h.Entries, entry)
 	h.prune()
-	data, err := json.MarshalIndent(h.Entries, "", "  ")
-	h.mu.Unlock()
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(h.path, data, 0600)
+	return h.save()
 }
 
 // prune removes the oldest batches, keeping at most maxBatches

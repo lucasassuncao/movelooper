@@ -43,7 +43,7 @@ func NewWatchBatchID() string
 NewWatchBatchID returns a collision\-resistant batch ID for a watch\-mode move operation.
 
 <a name="BatchSummary"></a>
-## type [BatchSummary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L127-L131>)
+## type [BatchSummary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L121-L125>)
 
 BatchSummary holds a brief description of a batch for listing purposes
 
@@ -93,16 +93,16 @@ func NewHistory(limit int) (*History, error)
 NewHistory creates a new History manager. limit controls the maximum number of batches retained; values less than 1 fall back to defaultMaxBatches.
 
 <a name="History.Add"></a>
-### func \(\*History\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L85>)
+### func \(\*History\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L83>)
 
 ```go
 func (h *History) Add(entry Entry) error
 ```
 
-Add appends a new entry to the history. JSON serialization is done under the lock for a consistent snapshot; the disk write happens outside to avoid blocking concurrent callers.
+Add appends a new entry to the history.
 
 <a name="History.GetAllBatches"></a>
-### func \(\*History\) [GetAllBatches](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L134>)
+### func \(\*History\) [GetAllBatches](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L128>)
 
 ```go
 func (h *History) GetAllBatches() []BatchSummary
@@ -111,7 +111,7 @@ func (h *History) GetAllBatches() []BatchSummary
 GetAllBatches returns one summary per batch, ordered oldest → newest
 
 <a name="History.GetBatch"></a>
-### func \(\*History\) [GetBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L168>)
+### func \(\*History\) [GetBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L162>)
 
 ```go
 func (h *History) GetBatch(batchID string) []Entry
@@ -120,7 +120,7 @@ func (h *History) GetBatch(batchID string) []Entry
 GetBatch returns all entries for a given batch ID
 
 <a name="History.GetLastBatchID"></a>
-### func \(\*History\) [GetLastBatchID](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L156>)
+### func \(\*History\) [GetLastBatchID](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L150>)
 
 ```go
 func (h *History) GetLastBatchID() (string, error)
@@ -129,7 +129,7 @@ func (h *History) GetLastBatchID() (string, error)
 GetLastBatchID returns the ID of the most recent batch
 
 <a name="History.RemoveBatch"></a>
-### func \(\*History\) [RemoveBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L182>)
+### func \(\*History\) [RemoveBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L176>)
 
 ```go
 func (h *History) RemoveBatch(batchID string) error
@@ -138,7 +138,7 @@ func (h *History) RemoveBatch(batchID string) error
 RemoveBatch removes all entries for a given batch ID
 
 <a name="History.RemoveCategoryFromBatch"></a>
-### func \(\*History\) [RemoveCategoryFromBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L200>)
+### func \(\*History\) [RemoveCategoryFromBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L194>)
 
 ```go
 func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) error
