@@ -13,9 +13,13 @@ import (
 
 const defaultMaxBatches = 50
 
-// NewBatchID returns a batch ID for a one-shot move operation.
+// NewBatchID returns a collision-resistant batch ID for a one-shot move operation.
 func NewBatchID() string {
-	return fmt.Sprintf("batch_%d", time.Now().Unix())
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("batch_%d", time.Now().UnixNano())
+	}
+	return "batch_" + hex.EncodeToString(b)
 }
 
 // NewWatchBatchID returns a collision-resistant batch ID for a watch-mode move operation.
