@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -84,7 +85,7 @@ func ResolveImports(path string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, absPath, err)
 		}
-		items, err := loadImportedCategories(impAbs, visited)
+		items, err := loadImportedCategories(impAbs, visited, []string{absPath})
 		if err != nil {
 			return nil, fmt.Errorf("importing %q: %w", imp, err)
 		}
@@ -96,9 +97,9 @@ func ResolveImports(path string) ([]byte, error) {
 
 // loadImportedCategories reads a YAML file, resolves its own `import:` entries
 // recursively, and returns the merged list of category sequence nodes.
-func loadImportedCategories(absPath string, visited map[string]bool) ([]*yaml.Node, error) {
+func loadImportedCategories(absPath string, visited map[string]bool, chain []string) ([]*yaml.Node, error) {
 	if visited[absPath] {
-		return nil, fmt.Errorf("circular import detected: %q", absPath)
+		return nil, fmt.Errorf("circular import detected: %s", strings.Join(append(chain, absPath), " → "))
 	}
 	visited[absPath] = true
 
@@ -141,7 +142,7 @@ func loadImportedCategories(absPath string, visited map[string]bool) ([]*yaml.No
 		if err != nil {
 			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, absPath, err)
 		}
-		nested, err := loadImportedCategories(impAbs, visited)
+		nested, err := loadImportedCategories(impAbs, visited, append(chain, absPath))
 		if err != nil {
 			return nil, fmt.Errorf("importing %q: %w", imp, err)
 		}

@@ -32,7 +32,7 @@ type DetectedCategory struct {
 ```
 
 <a name="FileEntry"></a>
-## type [FileEntry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L12-L15>)
+## type [FileEntry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L13-L16>)
 
 FileEntry pairs a regular file's containing directory with its DirEntry.
 
@@ -44,7 +44,7 @@ type FileEntry struct {
 ```
 
 <a name="WalkSource"></a>
-### func [WalkSource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L22>)
+### func [WalkSource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L23>)
 
 ```go
 func WalkSource(source models.CategorySource, autoExclude []string) ([]FileEntry, error)

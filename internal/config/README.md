@@ -64,7 +64,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L252>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L257>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)
@@ -73,7 +73,7 @@ func ResolveConfigPath(configPath string) (string, error)
 ResolveConfigPath returns the absolute path to the config file. If configPath is provided it is used directly \(after verifying existence\). Otherwise it searches for movelooper.yaml in the executable directory and its conf/ subdirectory, returning ErrConfigNotFound if neither exists.
 
 <a name="ResolveImports"></a>
-## func [ResolveImports](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/imports.go#L17>)
+## func [ResolveImports](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/imports.go#L18>)
 
 ```go
 func ResolveImports(path string) ([]byte, error)

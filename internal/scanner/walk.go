@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,9 @@ type FileEntry struct {
 // inside the source tree. When source.Recursive is false only the top-level
 // directory is read.
 func WalkSource(source models.CategorySource, autoExclude []string) ([]FileEntry, error) {
+	if source.Recursive && source.MaxDepth < 0 {
+		return nil, fmt.Errorf("max-depth must be >= 0 (0 = unlimited), got %d", source.MaxDepth)
+	}
 	if !source.Recursive {
 		return walkFlat(source.Path)
 	}

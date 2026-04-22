@@ -480,7 +480,8 @@ func TestRemoveCategoryFromBatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			tt.setup(h)
-			require.NoError(t, h.RemoveCategoryFromBatch(tt.batchID, tt.categories))
+			_, err := h.RemoveCategoryFromBatch(tt.batchID, tt.categories)
+			require.NoError(t, err)
 			assert.Len(t, h.Entries, tt.wantLen)
 			hasBatch := false
 			for _, e := range h.Entries {

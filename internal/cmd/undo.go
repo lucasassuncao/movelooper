@@ -112,15 +112,11 @@ func undoBatch(m *models.Movelooper, batchID string, dryRun bool, categoryNames 
 		return nil
 	}
 
-	restoreEntries(m, entries)
+	restored := restoreEntries(m, entries)
 
-	if partial {
-		if err := m.History.RemoveCategoryFromBatch(batchID, categoryNames); err != nil {
+	if len(restored) > 0 {
+		if err := m.History.RemoveEntries(restored); err != nil {
 			m.Logger.Error("failed to update history", m.Logger.Args("error", err.Error()))
-		}
-	} else {
-		if err := m.History.RemoveBatch(batchID); err != nil {
-			m.Logger.Error("failed to remove batch from history", m.Logger.Args("error", err.Error()))
 		}
 	}
 	return nil
@@ -201,8 +197,10 @@ func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) 
 }
 
 // restoreEntries moves files back to their source locations in reverse order.
-func restoreEntries(m *models.Movelooper, entries []history.Entry) {
-	successCount := 0
+// Returns the entries that were successfully restored so callers can remove
+// only those from history, leaving failed restores available for retry.
+func restoreEntries(m *models.Movelooper, entries []history.Entry) []history.Entry {
+	var restored []history.Entry
 	failCount := 0
 
 	m.Logger.Info("undoing batch", m.Logger.Args("files", len(entries)))
@@ -233,10 +231,11 @@ func restoreEntries(m *models.Movelooper, entries []history.Entry) {
 			continue
 		}
 		m.Logger.Info("file restored", m.Logger.Args("path", entry.Source))
-		successCount++
+		restored = append(restored, entry)
 	}
 
-	m.Logger.Info("undo completed", m.Logger.Args("restored", successCount, "failed", failCount))
+	m.Logger.Info("undo completed", m.Logger.Args("restored", len(restored), "failed", failCount))
+	return restored
 }
 
 // restoreEntry performs the actual file operation for a single history entry.

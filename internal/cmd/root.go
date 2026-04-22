@@ -193,7 +193,12 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	for _, extension := range category.Source.Extensions {
 		var matched []scanner.FileEntry
 		for _, fe := range allEntries {
-			if matchesCategory(category, fe.Entry, batch.moved, extension) {
+			ok, err := matchesCategory(category, fe.Entry, batch.moved, extension)
+			if err != nil {
+				m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
+				continue
+			}
+			if ok {
 				matched = append(matched, fe)
 			}
 		}
@@ -284,7 +289,7 @@ func formatBytes(b int64) string {
 func filterFilesForExtension(category *models.Category, files []os.DirEntry, moved movedSet, extension string) []os.DirEntry {
 	var filtered []os.DirEntry
 	for _, file := range files {
-		if matchesCategory(category, file, moved, extension) {
+		if ok, _ := matchesCategory(category, file, moved, extension); ok {
 			filtered = append(filtered, file)
 		}
 	}
@@ -292,18 +297,18 @@ func filterFilesForExtension(category *models.Category, files []os.DirEntry, mov
 }
 
 // matchesCategory reports whether a file passes all filters defined by the category.
-func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet, extension string) bool {
+func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet, extension string) (bool, error) {
 	if moved.has(category.Source.Path, file.Name()) {
-		return false
+		return false, nil
 	}
 	if !file.Type().IsRegular() || !filters.HasExtension(file, extension) {
-		return false
+		return false, nil
 	}
 	info, err := file.Info()
 	if err != nil {
-		return false
+		return false, fmt.Errorf("could not read metadata for %q: %w", file.Name(), err)
 	}
-	return filters.MatchesFilter(category.Source.Filter, file.Name(), info)
+	return filters.MatchesFilter(category.Source.Filter, file.Name(), info), nil
 }
 
 // logExtensionResult logs a summary of files found for an extension.
