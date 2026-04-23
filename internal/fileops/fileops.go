@@ -113,7 +113,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string 
 			if errors.Is(err, ErrTimestampPreserve) {
 				mctx.Logger.Warn("file processed but timestamps could not be preserved", mctx.Logger.Args("file", sourcePath))
 			} else {
-				mctx.Logger.Warn("failed to perform action on file", mctx.Logger.Args("file", sourcePath, "action", action, "error", err.Error()))
+				mctx.Logger.Warn("failed to perform action on file", mctx.Logger.Args("file", sourcePath, "action", action, "destination", destPath, "conflict_strategy", strategy, "error", err.Error()))
 				continue
 			}
 		}
@@ -305,7 +305,7 @@ func getUniqueDestinationPath(destDir, fileName string) (string, error) {
 		destPath = filepath.Join(destDir, newName)
 	}
 
-	return "", fmt.Errorf("could not find a unique destination for %q after %d attempts", fileName, maxConflictAttempts)
+	return "", fmt.Errorf("could not find a unique destination for %q in %q after %d attempts", fileName, destDir, maxConflictAttempts)
 }
 
 // hasExtension checks if a file has a given extension (case-insensitive).

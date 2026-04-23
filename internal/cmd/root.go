@@ -347,9 +347,9 @@ func preRunHandler(m *models.Movelooper, configPath string) (retErr error) {
 
 	if errors.Is(err, config.ErrConfigNotFound) {
 		if configPath != "" {
-			return fmt.Errorf("configuration file not found at '%s'", configPath)
+			return fmt.Errorf("configuration file not found at %q: %w", configPath, err)
 		}
-		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file")
+		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file: %w", err)
 	}
 	return err
 }
