@@ -83,13 +83,13 @@ type ConflictResolver interface {
 ```
 
 <a name="FileAction"></a>
-## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L145-L147>)
+## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L146-L148>)
 
 FileAction executes a file operation from src to dst.
 
 ```go
 type FileAction interface {
-    Execute(src, dst string) error
+    Execute(ctx context.Context, src, dst string) error
 }
 ```
 

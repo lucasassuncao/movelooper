@@ -38,7 +38,7 @@ func ResolveRename(template string, ctx TokenContext) string
 ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy, plus \{seq\}, \{seq:N\}, \{seq\-alpha\}, \{seq\-roman\}, \{md5\}, \{md5:N\}, and \{sha256:N\}. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
 
 <a name="ResolveSeq"></a>
-## func [ResolveSeq](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L21>)
+## func [ResolveSeq](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L39>)
 
 ```go
 func ResolveSeq(destDir string) int
@@ -47,7 +47,7 @@ func ResolveSeq(destDir string) int
 ResolveSeq scans destDir for files whose names begin with a decimal number, finds the maximum, and returns max\+1. Returns 1 when the directory is empty, does not exist, or contains no files with a leading number.
 
 <a name="ResolveSeqAlpha"></a>
-## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L64>)
+## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L82>)
 
 ```go
 func ResolveSeqAlpha(destDir string) string
@@ -56,7 +56,7 @@ func ResolveSeqAlpha(destDir string) string
 ResolveSeqAlpha scans destDir for files with leading lowercase alpha prefixes and returns the next label in Excel\-style sequence \(a, b, ..., z, aa, ab, ...\).
 
 <a name="ResolveSeqRoman"></a>
-## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L124>)
+## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L142>)
 
 ```go
 func ResolveSeqRoman(destDir string) string

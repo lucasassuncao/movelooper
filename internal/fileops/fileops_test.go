@@ -131,7 +131,7 @@ func TestCopyFile(t *testing.T) {
 			src := filepath.Join(dir, "src.txt")
 			dst := filepath.Join(dir, "dst.txt")
 			require.NoError(t, os.WriteFile(src, tt.content, 0644))
-			require.NoError(t, copyFile(src, dst))
+			require.NoError(t, copyFile(context.Background(), src, dst))
 			tt.check(t, src, dst)
 		})
 	}
@@ -430,7 +430,7 @@ func TestDispatchAction_Move(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "file.txt")
 	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
 
-	require.NoError(t, dispatchAction("move", src, dst))
+	require.NoError(t, dispatchAction(context.Background(), "move", src, dst))
 
 	assert.FileExists(t, dst)
 	assert.NoFileExists(t, src)
@@ -441,7 +441,7 @@ func TestDispatchAction_Copy(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "file.txt")
 	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
 
-	require.NoError(t, dispatchAction("copy", src, dst))
+	require.NoError(t, dispatchAction(context.Background(), "copy", src, dst))
 
 	assert.FileExists(t, dst)
 	assert.FileExists(t, src)
@@ -456,7 +456,7 @@ func TestDispatchAction_Symlink(t *testing.T) {
 	dst := filepath.Join(dir, "link.txt")
 	require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
 
-	err := dispatchAction("symlink", src, dst)
+	err := dispatchAction(context.Background(), "symlink", src, dst)
 	if err != nil {
 		t.Skipf("symlink not available (likely missing privilege on Windows): %v", err)
 	}
@@ -471,7 +471,7 @@ func TestFileActions_UnknownDefaultsToMove(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "file.txt")
 	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
 
-	require.NoError(t, dispatchAction("unknown_action", src, dst))
+	require.NoError(t, dispatchAction(context.Background(), "unknown_action", src, dst))
 
 	assert.FileExists(t, dst)
 	assert.NoFileExists(t, src)
@@ -482,7 +482,7 @@ func TestFileActions_EmptyDefaultsToMove(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "file.txt")
 	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
 
-	require.NoError(t, dispatchAction("", src, dst))
+	require.NoError(t, dispatchAction(context.Background(), "", src, dst))
 
 	assert.FileExists(t, dst)
 	assert.NoFileExists(t, src)

@@ -273,7 +273,11 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg watchCon
 		// Verifies if the file has stabilized based on its ModTime
 		if now.Sub(info.ModTime()) > cfg.threshold {
 			if err := attemptMoveFile(ctx, m, path, cfg.dryRun); err != nil {
-				m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
+				if os.IsNotExist(err) {
+					// File was removed externally between stat and move; not an error.
+				} else {
+					m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
+				}
 			}
 			// Remove from tracking after attempt (whether moved or ignored)
 			cfg.tracker.mu.Lock()

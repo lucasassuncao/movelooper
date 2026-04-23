@@ -103,9 +103,17 @@ func ResolveRename(template string, ctx TokenContext) string {
 	}
 
 	template = preProcessHash(template, ctx.SourcePath)
-	template = preProcessSeqAlpha(template, ctx.DestDir)
-	template = preProcessSeqRoman(template, ctx.DestDir)
-	template = preProcessSeq(template, ctx.DestDir)
+	if ctx.DestDir != "" && hasSeqToken(template) {
+		unlock := acquireSeqLock(ctx.DestDir)
+		template = preProcessSeqAlpha(template, ctx.DestDir)
+		template = preProcessSeqRoman(template, ctx.DestDir)
+		template = preProcessSeq(template, ctx.DestDir)
+		unlock()
+	} else {
+		template = preProcessSeqAlpha(template, ctx.DestDir)
+		template = preProcessSeqRoman(template, ctx.DestDir)
+		template = preProcessSeq(template, ctx.DestDir)
+	}
 
 	resolved := ResolveGroupBy(template, ctx)
 	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "_")

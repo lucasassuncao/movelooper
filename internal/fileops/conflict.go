@@ -191,7 +191,7 @@ func (r *hashCheckResolver) Resolve(args ConflictArgs) (string, bool, error) {
 		return "", false, err
 	}
 	if match {
-		if err := os.Remove(args.Src); err != nil {
+		if err := os.Remove(args.Src); err != nil && !os.IsNotExist(err) {
 			return "", false, fmt.Errorf("failed to remove duplicate source file: %w", err)
 		}
 		return "", false, nil

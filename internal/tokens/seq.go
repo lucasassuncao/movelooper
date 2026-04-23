@@ -6,7 +6,25 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
+
+// seqDirLocks serialises sequence-number resolution per destination directory
+// to prevent two concurrent moves to the same dir from receiving identical numbers.
+var seqDirLocks sync.Map
+
+func acquireSeqLock(destDir string) func() {
+	v, _ := seqDirLocks.LoadOrStore(destDir, &sync.Mutex{})
+	mu := v.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
+func hasSeqToken(template string) bool {
+	return seqToken.MatchString(template) ||
+		seqAlphaToken.MatchString(template) ||
+		seqRomanToken.MatchString(template)
+}
 
 // --- numeric sequence ---
 

@@ -109,7 +109,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string 
 		destPath = resolved
 
 		action := category.Destination.Action
-		if err := dispatchAction(action, sourcePath, destPath); err != nil {
+		if err := dispatchAction(ctx, action, sourcePath, destPath); err != nil {
 			if errors.Is(err, ErrTimestampPreserve) {
 				mctx.Logger.Warn("file processed but timestamps could not be preserved", mctx.Logger.Args("file", sourcePath))
 			} else {
@@ -131,7 +131,8 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string 
 				Action:      effectiveAction,
 				Category:    category.Name,
 			}); err != nil {
-				mctx.Logger.Warn("failed to add to history", mctx.Logger.Args("error", err.Error()))
+				mctx.Logger.Warn("failed to record history; undo will not work for this file",
+					mctx.Logger.Args("file", sourcePath, "error", err.Error()))
 			}
 		}
 
@@ -143,16 +144,24 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string 
 
 // FileAction executes a file operation from src to dst.
 type FileAction interface {
-	Execute(src, dst string) error
+	Execute(ctx context.Context, src, dst string) error
 }
 
 type moveAction struct{}
 type copyAction struct{}
 type symlinkAction struct{}
 
-func (a *moveAction) Execute(src, dst string) error { return moveFile(src, dst) }
-func (a *copyAction) Execute(src, dst string) error { return copyFile(src, dst) }
-func (a *symlinkAction) Execute(src, dst string) error {
+func (a *moveAction) Execute(ctx context.Context, src, dst string) error {
+	return moveFileCtx(ctx, src, dst)
+}
+
+func (a *copyAction) Execute(ctx context.Context, src, dst string) error {
+	return copyFile(ctx, src, dst)
+}
+func (a *symlinkAction) Execute(_ context.Context, src, dst string) error {
+	if _, err := os.Lstat(src); err != nil {
+		return fmt.Errorf("symlink source does not exist: %w", err)
+	}
 	absSrc, err := filepath.Abs(src)
 	if err != nil {
 		return err
@@ -168,12 +177,12 @@ var fileActions = map[string]FileAction{
 
 // dispatchAction performs the file operation indicated by action.
 // Supported values: "move" (default), "copy", "symlink".
-func dispatchAction(action, src, dst string) error {
+func dispatchAction(ctx context.Context, action, src, dst string) error {
 	fa, ok := fileActions[action]
 	if !ok {
 		fa = fileActions["move"]
 	}
-	return fa.Execute(src, dst)
+	return fa.Execute(ctx, src, dst)
 }
 
 // applyConflictStrategy checks whether destPath already exists and resolves the
@@ -200,9 +209,9 @@ func applyConflictStrategy(ctx MoveContext, strategy string, args ConflictArgs) 
 	return resolvedPath, false
 }
 
-// moveFile attempts to move a file from source to destination.
+// moveFileCtx attempts to move a file from source to destination.
 // Falls back to copy+delete when os.Rename fails across different devices/drives.
-func moveFile(src, dst string) error {
+func moveFileCtx(ctx context.Context, src, dst string) error {
 	err := os.Rename(src, dst)
 	if err == nil {
 		return nil
@@ -212,7 +221,7 @@ func moveFile(src, dst string) error {
 		return err
 	}
 
-	copyErr := copyFile(src, dst)
+	copyErr := copyFile(ctx, src, dst)
 	if copyErr != nil && !errors.Is(copyErr, ErrTimestampPreserve) {
 		return fmt.Errorf("cross-device copy failed: %w", copyErr)
 	}
@@ -247,8 +256,23 @@ func isCrossDeviceError(err error) bool {
 	}
 }
 
+// ctxReader wraps an io.Reader and aborts reads when the context is cancelled.
+type ctxReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (cr *ctxReader) Read(p []byte) (int, error) {
+	select {
+	case <-cr.ctx.Done():
+		return 0, cr.ctx.Err()
+	default:
+		return cr.r.Read(p)
+	}
+}
+
 // copyFile copies src to dst preserving the original file mode and timestamps.
-func copyFile(src, dst string) error {
+func copyFile(ctx context.Context, src, dst string) (retErr error) {
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -264,21 +288,26 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
+	outClosed := false
+	defer func() {
+		if retErr != nil {
+			if !outClosed {
+				out.Close()
+			}
+			os.Remove(dst)
+		}
+	}()
 
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		os.Remove(dst)
+	if _, err := io.Copy(out, &ctxReader{ctx: ctx, r: in}); err != nil {
 		return err
 	}
 
 	if err := out.Sync(); err != nil {
-		out.Close()
-		os.Remove(dst)
 		return err
 	}
 
+	outClosed = true
 	if err := out.Close(); err != nil {
-		os.Remove(dst)
 		return err
 	}
 
