@@ -193,13 +193,14 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	for _, extension := range category.Source.Extensions {
 		var matched []scanner.FileEntry
 		for _, fe := range allEntries {
-			ok, err := matchesCategory(category, fe.Entry, batch.moved, extension)
+			info, err := matchesCategory(category, fe.Entry, batch.moved, extension)
 			if err != nil {
 				m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
 				continue
 			}
-			if ok {
+			if info != nil {
 				matched = append(matched, fe)
+				batch.stats.totalBytes += info.Size()
 			}
 		}
 
@@ -208,15 +209,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 			asDirEntries[i] = fe.Entry
 		}
 		logExtensionResult(m, asDirEntries, category.Name, extension, batch.showFiles)
-
 		batch.stats.totalFiles += len(matched)
-		for _, fe := range matched {
-			if info, err := fe.Entry.Info(); err == nil {
-				batch.stats.totalBytes += info.Size()
-			} else {
-				m.Logger.Warn("could not stat file for size accounting", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
-			}
-		}
 
 		if !batch.dryRun && len(matched) > 0 {
 			byDir := groupByDir(matched)
@@ -289,26 +282,31 @@ func formatBytes(b int64) string {
 func filterFilesForExtension(category *models.Category, files []os.DirEntry, moved movedSet, extension string) []os.DirEntry {
 	var filtered []os.DirEntry
 	for _, file := range files {
-		if ok, _ := matchesCategory(category, file, moved, extension); ok {
+		if info, _ := matchesCategory(category, file, moved, extension); info != nil {
 			filtered = append(filtered, file)
 		}
 	}
 	return filtered
 }
 
-// matchesCategory reports whether a file passes all filters defined by the category.
-func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet, extension string) (bool, error) {
+// matchesCategory returns the file's FileInfo when it passes all category filters,
+// nil when it does not match, or an error if metadata could not be read.
+// Returning FileInfo avoids a second Info() call at the call site.
+func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet, extension string) (os.FileInfo, error) {
 	if moved.has(category.Source.Path, file.Name()) {
-		return false, nil
+		return nil, nil
 	}
 	if !file.Type().IsRegular() || !filters.HasExtension(file, extension) {
-		return false, nil
+		return nil, nil
 	}
 	info, err := file.Info()
 	if err != nil {
-		return false, fmt.Errorf("could not read metadata for %q: %w", file.Name(), err)
+		return nil, fmt.Errorf("could not read metadata for %q: %w", file.Name(), err)
 	}
-	return filters.MatchesFilter(category.Source.Filter, file.Name(), info), nil
+	if !filters.MatchesFilter(category.Source.Filter, file.Name(), info) {
+		return nil, nil
+	}
+	return info, nil
 }
 
 // logExtensionResult logs a summary of files found for an extension.

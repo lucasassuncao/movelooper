@@ -166,11 +166,8 @@ const (
 func selectAsset(assets []ghAsset) *ghAsset {
 	skip := []string{".sha256", ".sha512", ".sig", ".asc", "checksums", ".txt"}
 
-	type scored struct {
-		a     *ghAsset
-		score int
-	}
-	var candidates []scored
+	var best *ghAsset
+	bestScore := -1
 
 	for i := range assets {
 		lower := strings.ToLower(assets[i].Name)
@@ -201,19 +198,14 @@ func selectAsset(assets []ghAsset) *ghAsset {
 		if filepath.Ext(lower) == ".exe" {
 			score += scoreExe
 		}
-		candidates = append(candidates, scored{&assets[i], score})
-	}
 
-	if len(candidates) == 0 {
-		return nil
-	}
-	best := candidates[0]
-	for _, c := range candidates[1:] {
-		if c.score > best.score {
-			best = c
+		if score > bestScore {
+			bestScore = score
+			best = &assets[i]
 		}
 	}
-	return best.a
+
+	return best
 }
 
 // download fetches url into destPath.

@@ -78,6 +78,9 @@ func walkRecursive(
 			continue // depth limit reached, do not descend
 		}
 		childDir := filepath.Join(dir, e.Name())
+		if isExcluded(childDir, autoExclude) || isExcluded(childDir, source.ExcludePaths) {
+			continue // skip before incurring the ReadDir syscall inside the recursive call
+		}
 		if err := walkRecursive(childDir, childDepth, source, autoExclude, results); err != nil {
 			return err
 		}
