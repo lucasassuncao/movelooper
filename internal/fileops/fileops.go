@@ -218,7 +218,9 @@ func moveFile(src, dst string) error {
 	}
 
 	if err := os.Remove(src); err != nil {
-		_ = os.Remove(dst)
+		if cleanupErr := os.Remove(dst); cleanupErr != nil {
+			return fmt.Errorf("cross-device move: copied to %s, could not remove source (%w); cleanup of destination also failed (%s) — both copies exist", dst, err, cleanupErr)
+		}
 		return fmt.Errorf("cross-device move: copied to %s but could not remove source: %w", dst, err)
 	}
 

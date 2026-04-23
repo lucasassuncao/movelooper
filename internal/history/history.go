@@ -87,9 +87,15 @@ func NewHistory(limit int) (*History, error) {
 func (h *History) Add(entry Entry) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	snapshot := make([]Entry, len(h.Entries))
+	copy(snapshot, h.Entries)
 	h.Entries = append(h.Entries, entry)
 	h.prune()
-	return h.save()
+	if err := h.save(); err != nil {
+		h.Entries = snapshot
+		return err
+	}
+	return nil
 }
 
 // prune removes the oldest batches, keeping at most maxBatches
@@ -181,21 +187,27 @@ func (h *History) RemoveBatch(batchID string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	var newEntries []Entry
+	newEntries := make([]Entry, 0, len(h.Entries))
 	for _, entry := range h.Entries {
 		if entry.BatchID != batchID {
 			newEntries = append(newEntries, entry)
 		}
 	}
 
+	original := h.Entries
 	h.Entries = newEntries
-	return h.save()
+	if err := h.save(); err != nil {
+		h.Entries = original
+		return err
+	}
+	return nil
 }
 
 // RemoveCategoryFromBatch removes entries belonging to any of the given category
 // names from the specified batch. If the batch becomes empty after removal, its
 // reference is also gone. Entries with an empty Category field are never matched.
-func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) error {
+// Returns the number of entries removed.
+func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (int, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -204,15 +216,49 @@ func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) e
 		catSet[c] = true
 	}
 
-	var newEntries []Entry
+	newEntries := make([]Entry, 0, len(h.Entries))
 	for _, e := range h.Entries {
 		if e.BatchID == batchID && e.Category != "" && catSet[e.Category] {
 			continue
 		}
 		newEntries = append(newEntries, e)
 	}
+
+	removed := len(h.Entries) - len(newEntries)
+	original := h.Entries
 	h.Entries = newEntries
-	return h.save()
+	if err := h.save(); err != nil {
+		h.Entries = original
+		return 0, err
+	}
+	return removed, nil
+}
+
+// RemoveEntries removes specific entries from history, matched by BatchID and Source path.
+// Only successfully restored entries should be passed so failed restores remain in history.
+func (h *History) RemoveEntries(entries []Entry) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	toRemove := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		toRemove[e.BatchID+"\x00"+e.Source] = true
+	}
+
+	newEntries := make([]Entry, 0, len(h.Entries))
+	for _, e := range h.Entries {
+		if !toRemove[e.BatchID+"\x00"+e.Source] {
+			newEntries = append(newEntries, e)
+		}
+	}
+
+	original := h.Entries
+	h.Entries = newEntries
+	if err := h.save(); err != nil {
+		h.Entries = original
+		return err
+	}
+	return nil
 }
 
 func (h *History) load() error {

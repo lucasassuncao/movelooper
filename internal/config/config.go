@@ -64,6 +64,11 @@ func validateCategory(cat *models.Category) error {
 		return fmt.Errorf("category %q: source.extensions are required", cat.Name)
 	}
 
+	if cat.Source.Path != "" && cat.Destination.Path != "" &&
+		filepath.Clean(cat.Source.Path) == filepath.Clean(cat.Destination.Path) {
+		return fmt.Errorf("category %q: source and destination must be different directories", cat.Name)
+	}
+
 	if !validActions[cat.Destination.Action] {
 		return fmt.Errorf("category %q: invalid action %q - must be move, copy, or symlink", cat.Name, cat.Destination.Action)
 	}
