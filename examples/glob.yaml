@@ -1,0 +1,104 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## glob.yaml — glob patterns, include lists, and ignore lists
+##
+## glob matches the filename with shell-style wildcards:
+##   *      any sequence of characters (not including path separators)
+##   ?      any single character
+##   [abc]  character class
+##   {a,b}  brace expansion — equivalent to (a|b)
+##
+## glob is mutually exclusive with regex at the same filter level.
+##
+## include: whitelist — only files matching at least one pattern are processed.
+## ignore:  blacklist — files matching any pattern are always skipped.
+##
+## Both include and ignore accept the same wildcard syntax as glob.
+## Multiple patterns use OR logic (any match is sufficient).
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/glob.yaml
+##                                   -c path/to/glob.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  output: console
+  log-level: info
+
+categories:
+  ## ── Simple wildcard glob ──────────────────────────────────────────────────
+  ## Matches: Anna's Archive - Being and Time.epub
+  ##          Anna's Archive - Moby Dick.pdf
+  - name: "annas-archive"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "epub", "mobi"]
+      filter:
+        glob: "Anna's Archive*"
+    destination:
+      path: /home/user/Books
+      conflict-strategy: hash_check
+      organize-by: "{ext}"
+
+  ## ── Brace expansion — several known patterns in one glob ─────────────────
+  ## Matches: screenshot_001.png, screen-capture_2024.jpg
+  - name: "screenshots"
+    source:
+      path: /home/user/Downloads
+      extensions: ["png", "jpg"]
+      filter:
+        glob: "{screenshot,screen-capture}*"
+    destination:
+      path: /home/user/Pictures/Screenshots
+      conflict-strategy: rename
+
+  ## ── include: whitelist — accept only specific naming conventions ──────────
+  ## Extensions filter passes all PDFs, then include keeps only those starting
+  ## with a 4-digit year (e.g. 2024_budget.pdf, 2025-report.pdf).
+  - name: "yearly-documents"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "xlsx"]
+      filter:
+        include:
+          - "2024_*"
+          - "2025_*"
+          - "2024-*"
+          - "2025-*"
+    destination:
+      path: /home/user/Documents/Yearly
+      conflict-strategy: rename
+      organize-by: "{mod-year}"
+
+  ## ── ignore: blacklist — skip drafts, temps, and system files ─────────────
+  - name: "documents-no-drafts"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx", "txt"]
+      filter:
+        ignore:
+          - "draft_*"
+          - "~*"
+          - "*.tmp"
+          - "*.bak"
+          - "._*"         ## macOS resource forks
+    destination:
+      path: /home/user/Documents
+      conflict-strategy: rename
+
+  ## ── Combined glob + ignore ────────────────────────────────────────────────
+  ## Select files from a specific project but exclude auto-generated artifacts.
+  - name: "project-exports"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "png", "svg"]
+      filter:
+        glob: "project-*"
+        ignore:
+          - "*-draft*"
+          - "*-wip*"
+          - "*-temp*"
+    destination:
+      path: /home/user/Projects/Exports
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"

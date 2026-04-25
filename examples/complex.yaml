@@ -1,0 +1,77 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## complex.yaml — photography import pipeline (single-category showcase)
+##
+## Demonstrates in one category: recursive walk, nested composite filters
+## (all → leaf + any → all → any), copy action, hash_check deduplication,
+## date-based organize-by, collision-proof rename, and pre/post hooks.
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/complex.yaml
+##                                   -c path/to/complex.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  output: both
+  log-file: /var/log/movelooper-import.log
+  log-level: info
+
+categories:
+  - name: "camera-import"
+    source:
+      path: /media/camera/DCIM
+      extensions: ["jpg", "jpeg", "heic", "cr3", "nef", "arw", "mp4", "mov"]
+      recursive: true
+      max-depth: 4
+      exclude-paths:
+        - /media/camera/DCIM/.thumbnails
+        - /media/camera/DCIM/MISC
+      filter:
+        all:
+          ## Guard leaf — stability window, recency cap, skip already-processed files.
+          ## A single leaf node can carry multiple direct fields simultaneously.
+          ## 4320h = 180 days (Go durations top out at hours).
+          - min-age: 5m
+            max-age: 4320h
+            ignore:
+              - "*_edit*"
+              - "*_export*"
+              - "._*"           ## macOS resource forks
+          ## Content gate — must be a proper still OR a video clip (any = OR).
+          - any:
+              ## Branch A: RAW / JPEG still — ≥2 MB + known camera filename prefix.
+              - all:
+                  - min-size: 2MB
+                  - any:
+                      - glob: "IMG_*"
+                      - glob: "DSC*"
+                      - regex: '^\d{8}_\d{6}'   ## timestamp-named: 20250421_143022.jpg
+              ## Branch B: video clip — ≥20 MB + camera clip naming.
+              - all:
+                  - min-size: 20MB
+                  - any:
+                      - glob: "MVI_*"
+                      - glob: "CLIP_*"
+    destination:
+      path: /home/user/Pictures/Library
+      action: copy              ## keep originals on the card until verified
+      conflict-strategy: hash_check
+      organize-by: "{created-year}/{created-month}/{created-day}"
+      ## e.g. 2025-04-21_20250421-143022_a3f2c1d0.cr3
+      rename: "{created-date}_{timestamp}_{sha256:8}.{ext-lower}"
+    hooks:
+      before:
+        shell: bash
+        on-failure: abort       ## refuse to start if the disk is nearly full
+        run:
+          - |
+            avail=$(df -BG "$ML_DEST_PATH" 2>/dev/null | awk 'NR==2{gsub("G","");print $4}')
+            [ "${avail:-0}" -ge 5 ] || { echo "need ≥5 GB free, got ${avail:-?}GB" >&2; exit 1; }
+      after:
+        shell: bash
+        on-failure: warn
+        run:
+          - |
+            [ "$ML_FILES_MOVED" -gt 0 ] && \
+              notify-send "Camera Import" "$ML_FILES_MOVED file(s) imported — batch $ML_BATCH_ID" 2>/dev/null
+            logger -t movelooper "[$ML_CATEGORY] $ML_FILES_MOVED moved, $ML_FILES_FAILED failed, batch $ML_BATCH_ID"

@@ -1,0 +1,73 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## actions.yaml — move, copy, and symlink actions
+##
+## action controls what happens to each matched file:
+##
+##   "move"     (default) remove the file from source and place it in destination
+##   "copy"     keep the original in place and write a copy to destination
+##   "symlink"  keep the original in place and create a symlink in destination
+##              pointing to the absolute source path
+##
+## All three actions respect conflict-strategy when a same-name file exists.
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/actions.yaml
+##                                   -c path/to/actions.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  output: console
+  log-level: info
+
+categories:
+  ## ── move (default) ────────────────────────────────────────────────────────
+  ## Files are relocated; the source no longer exists after the operation.
+  - name: "move-downloads"
+    source:
+      path: /home/user/Downloads
+      extensions: ["zip", "tar", "7z"]
+    destination:
+      path: /home/user/Archives
+      action: move          ## explicit; identical to omitting the field
+      conflict-strategy: rename
+
+  ## ── copy — mirror without touching the original ───────────────────────────
+  ## Useful for backup-style workflows where the original must stay in place.
+  - name: "backup-photos"
+    source:
+      path: /home/user/Pictures
+      extensions: ["jpg", "jpeg", "heic", "raw"]
+      recursive: true
+    destination:
+      path: /mnt/backup/Pictures
+      action: copy
+      conflict-strategy: hash_check   ## skip identical files already backed up
+      organize-by: "{created-year}/{created-month}"
+
+  ## ── symlink — reference without duplicating ──────────────────────────────
+  ## Useful for media libraries (e.g. Plex, Kodi) that scan a single folder
+  ## tree but the actual files live somewhere else.
+  - name: "media-library-links"
+    source:
+      path: /home/user/Downloads
+      extensions: ["mp4", "mkv"]
+    destination:
+      path: /home/user/MediaLibrary/Movies
+      action: symlink
+      ## rename is intentionally omitted — symlink preserves the original name
+      conflict-strategy: skip       ## don't overwrite an existing link
+
+  ## ── copy with organized destination ──────────────────────────────────────
+  ## Distribute copies of all documents into a date-based archive while
+  ## keeping the originals in /home/user/Documents.
+  - name: "document-archive"
+    source:
+      path: /home/user/Documents
+      extensions: ["pdf", "docx", "xlsx", "pptx"]
+      recursive: true
+    destination:
+      path: /mnt/nas/DocumentArchive
+      action: copy
+      conflict-strategy: skip
+      organize-by: "{mod-year}/{mod-month}"

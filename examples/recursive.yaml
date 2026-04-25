@@ -1,0 +1,87 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## recursive.yaml — recursive directory scanning
+##
+## By default movelooper only looks at files directly inside source.path.
+## Set recursive: true to descend into subdirectories.
+##
+##   recursive     true | false (default: false)
+##   max-depth     maximum levels to descend; 0 means unlimited (default: 0)
+##   exclude-paths list of directories to skip entirely during the walk
+##
+## The destination directory is always excluded automatically from the walk,
+## even when it lives inside source.path.  You can safely point the destination
+## at a subdirectory of the source without creating a feedback loop where moved
+## files get picked up again on the next run.  No need to add it to exclude-paths.
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/recursive.yaml
+##                                   -c path/to/recursive.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  output: console
+  log-level: info
+
+categories:
+  ## ── Unlimited depth — collect PDFs from an entire tree ───────────────────
+  ## The destination (/home/user/Documents/Sorted/PDFs) is a subdirectory of
+  ## the source (/home/user/Documents).  movelooper excludes it automatically,
+  ## so files that land there are never re-processed on subsequent runs.
+  - name: "all-pdfs"
+    source:
+      path: /home/user/Documents
+      extensions: ["pdf"]
+      recursive: true
+      ## max-depth: 0 means no limit — scan the full tree
+    destination:
+      path: /home/user/Documents/Sorted/PDFs
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
+
+  ## ── Depth-limited — only two levels deep ─────────────────────────────────
+  ## Scans /home/user/Downloads/, its immediate subdirs, and one more level.
+  - name: "shallow-images"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "jpeg", "png", "webp"]
+      recursive: true
+      max-depth: 2
+    destination:
+      path: /home/user/Pictures
+      conflict-strategy: hash_check
+      organize-by: "{created-year}/{created-month}"
+
+  ## ── Excluded paths — skip known directories ───────────────────────────────
+  ## Useful when the source tree contains archives or system folders you don't
+  ## want to touch.
+  - name: "downloads-recursive"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "epub", "mobi"]
+      recursive: true
+      max-depth: 4
+      exclude-paths:
+        - /home/user/Downloads/Archive
+        - /home/user/Downloads/Incomplete
+        - /home/user/Downloads/.cache
+    destination:
+      path: /home/user/Books
+      conflict-strategy: rename
+      organize-by: "{ext}/{mod-year}"
+
+  ## ── Combined with regex — find matching files anywhere in the tree ────────
+  ## Again the destination sits inside the source tree.  The auto-exclusion
+  ## means you do not need to list /home/user/Documents/Finance in exclude-paths.
+  - name: "invoices-deep"
+    source:
+      path: /home/user/Documents
+      extensions: ["pdf"]
+      recursive: true
+      filter:
+        regex: "^(invoice|inv|receipt)[-_]"
+        case-sensitive: false
+    destination:
+      path: /home/user/Documents/Finance
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"

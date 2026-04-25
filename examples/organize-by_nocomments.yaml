@@ -1,0 +1,51 @@
+configuration:
+  output: console
+  log-level: info
+categories:
+  - name: "by-ext-and-date"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "png", "gif", "webp"]
+    destination:
+      path: /home/user/Pictures
+      conflict-strategy: rename
+      organize-by: "{ext}/{mod-year}/{mod-month}"
+  - name: "by-creation-year"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx", "xlsx"]
+    destination:
+      path: /home/user/Documents/Archive
+      conflict-strategy: rename
+      organize-by: "{created-year}"
+  - name: "by-weekday"
+    source:
+      path: /home/user/exports
+      extensions: ["csv", "xlsx"]
+    destination:
+      path: /home/user/Reports/Weekly
+      conflict-strategy: overwrite
+      organize-by: "{mod-weekday}"
+  - name: "by-size-range"
+    source:
+      path: /home/user/Downloads
+      extensions: ["mp4", "mkv", "avi", "mov"]
+    destination:
+      path: /home/user/Videos
+      conflict-strategy: rename
+      organize-by: "{size-range}"
+  - name: "alphabetical-index"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx"]
+    destination:
+      path: /home/user/Documents/Index
+      conflict-strategy: rename
+      organize-by: "{name-trunc:1}"
+  - name: "flat"
+    source:
+      path: /home/user/Downloads
+      extensions: ["txt", "md"]
+    destination:
+      path: /home/user/Notes
+      conflict-strategy: rename

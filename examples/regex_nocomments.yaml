@@ -1,0 +1,59 @@
+configuration:
+  output: console
+  log-level: info
+categories:
+  - name: "wallhaven"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "png", "webp"]
+      filter:
+        regex: "^wallhaven"
+    destination:
+      path: /home/user/Pictures/Wallhaven
+      conflict-strategy: hash_check
+      organize-by: "{mod-year}/{mod-month}"
+  - name: "dated-documents"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "xlsx", "docx"]
+      filter:
+        regex: '\d{4}[-_]\d{2}'
+    destination:
+      path: /home/user/Documents/Dated
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
+  - name: "formal-reports"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        regex: "^Report"
+        case-sensitive: true
+    destination:
+      path: /home/user/Documents/FormalReports
+      conflict-strategy: rename
+  - name: "invoices-and-receipts"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        regex: "^(inv|rec)[-_]"
+        case-sensitive: false
+    destination:
+      path: /home/user/Documents/Finance
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
+  - name: "camera-photos"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "jpeg", "heic"]
+      filter:
+        regex: "^IMG_"
+        ignore:
+          - "*_thumb*"
+          - "*_edit*"
+          - "*.bak"
+    destination:
+      path: /home/user/Pictures/Camera
+      conflict-strategy: rename
+      organize-by: "{created-year}/{created-month}"

@@ -1,0 +1,55 @@
+configuration:
+  output: both
+  log-file: /var/log/movelooper.log
+  log-level: info
+  show-caller: false
+  watch-delay: 5m
+  history-limit: 50
+categories:
+  - name: "full-example"
+    enabled: true
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx"]
+      recursive: true
+      max-depth: 3
+      exclude-paths:
+        - /home/user/Downloads/keep
+        - /home/user/Downloads/archive
+      filter:
+        regex: "^report_"
+        # glob: "report_*"
+        include:
+          - "2024_*"
+          - "2025_*"
+        ignore:
+          - "*.tmp"
+          - "~*"
+        case-sensitive: false
+        min-age: 10m
+        max-age: 720h
+        min-size: 10KB
+        max-size: 500MB
+        # any:
+        #   - regex: "^report_"
+        #   - glob: "invoice_*"
+        # all:
+        #   - min-size: 100KB
+        #   - min-age: 5m
+    destination:
+      path: /home/user/Documents
+      action: move
+      conflict-strategy: rename
+      organize-by: "{ext}/{mod-year}/{mod-month}"
+      rename: "{seq:4}_{name}.{ext}"
+    hooks:
+      before:
+        shell: bash
+        on-failure: warn
+        run:
+          - 'echo "[$ML_CATEGORY] starting — source: $ML_SOURCE_PATH"'
+      after:
+        shell: bash
+        on-failure: warn
+        run:
+          - 'echo "[$ML_CATEGORY] done — $ML_FILES_MOVED moved, batch: $ML_BATCH_ID"'

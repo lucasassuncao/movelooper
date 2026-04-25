@@ -1,0 +1,98 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## filters.yaml — size / age filters and composite any / all logic
+##
+## Size and age constraints:
+##   min-size / max-size  accept B, KB, MB, GB, TB (case-insensitive)
+##   min-age  / max-age   accept Go duration strings: "10m", "2h", "24h"
+##
+## Composite filters let you combine conditions with boolean logic:
+##   any: [ … ]  — OR  — file passes if at least one child matches
+##   all: [ … ]  — AND — file passes only if every child matches
+##
+## Rules:
+##   • any and all are mutually exclusive at the same level
+##   • any / all cannot be mixed with direct fields (regex, glob, min-size …)
+##     at the same level; nest the direct fields inside child nodes instead
+##   • composite nodes can be nested arbitrarily
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/filters.yaml
+##                                   -c path/to/filters.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  output: console
+  log-level: info
+
+categories:
+  ## ── Size filter — only large video files ─────────────────────────────────
+  - name: "large-videos"
+    source:
+      path: /home/user/Downloads
+      extensions: ["mp4", "mkv", "avi"]
+      filter:
+        min-size: 500MB
+    destination:
+      path: /home/user/Videos
+      conflict-strategy: rename
+
+  ## ── Age filter — only stable files (not recently modified) ───────────────
+  ## Useful for staging directories where files are still being written.
+  - name: "stable-archives"
+    source:
+      path: /home/user/Downloads
+      extensions: ["zip", "tar", "7z"]
+      filter:
+        min-age: 30m    ## only move once the file has been untouched for 30 min
+        max-size: 2GB   ## skip multi-GB archives
+    destination:
+      path: /home/user/Archives
+      conflict-strategy: hash_check
+
+  ## ── any (OR) — match files from multiple naming conventions ──────────────
+  ## Passes if the filename starts with "invoice_" OR "receipt_" OR "INV-".
+  - name: "financial-documents"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        any:
+          - regex: "^invoice_"
+          - regex: "^receipt_"
+          - glob: "INV-*"
+    destination:
+      path: /home/user/Documents/Finance
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
+
+  ## ── all (AND) — file must satisfy every condition ─────────────────────────
+  ## Passes only if the file is a large PDF that is at least 10 minutes old.
+  - name: "settled-large-pdfs"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        all:
+          - min-size: 1MB
+          - min-age: 10m
+    destination:
+      path: /home/user/Documents/Large
+      conflict-strategy: rename
+
+  ## ── Nested: all wrapping an any + a size constraint ──────────────────────
+  ## Passes if the file is ≥100 KB AND (starts with "report_" OR "summary_").
+  - name: "reports-and-summaries"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx"]
+      filter:
+        all:
+          - min-size: 100KB
+          - any:
+              - glob: "report_*"
+              - glob: "summary_*"
+    destination:
+      path: /home/user/Documents/Reports
+      conflict-strategy: rename
+      organize-by: "{mod-year}"

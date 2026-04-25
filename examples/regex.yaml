@@ -1,0 +1,90 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## regex.yaml — regex-based filename filtering
+##
+## The regex field uses RE2 syntax and is matched against the filename only,
+## not the full path.  It is mutually exclusive with glob at the same filter
+## level — use one or the other, not both.
+##
+## Case sensitivity is controlled by the case-sensitive field (default: false).
+## To pin behaviour regardless of the default, set it explicitly.
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/regex.yaml
+##                                   -c path/to/regex.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  output: console
+  log-level: info
+
+categories:
+  ## ── Anchor to a known prefix ──────────────────────────────────────────────
+  ## Matches: wallhaven-abc123.jpg, Wallhaven-xyz.png  (case-insensitive)
+  - name: "wallhaven"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "png", "webp"]
+      filter:
+        regex: "^wallhaven"
+    destination:
+      path: /home/user/Pictures/Wallhaven
+      conflict-strategy: hash_check
+      organize-by: "{mod-year}/{mod-month}"
+
+  ## ── Match a date-like segment anywhere in the filename ───────────────────
+  ## Matches: invoice_2024-03-15.pdf, report_2025_01.pdf, 2024-budget.xlsx
+  - name: "dated-documents"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "xlsx", "docx"]
+      filter:
+        regex: '\d{4}[-_]\d{2}'
+    destination:
+      path: /home/user/Documents/Dated
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
+
+  ## ── Case-sensitive match — exact casing required ─────────────────────────
+  ## Matches: Report.pdf, Report_Q1.pdf — does NOT match report.pdf or REPORT.pdf
+  - name: "formal-reports"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        regex: "^Report"
+        case-sensitive: true
+    destination:
+      path: /home/user/Documents/FormalReports
+      conflict-strategy: rename
+
+  ## ── Alternation — match one of several known prefixes ────────────────────
+  ## Matches: INV-001.pdf, inv_2024.pdf, REC-005.pdf, rec_march.pdf
+  - name: "invoices-and-receipts"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        regex: "^(inv|rec)[-_]"
+        case-sensitive: false
+    destination:
+      path: /home/user/Documents/Finance
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
+
+  ## ── Regex combined with ignore ────────────────────────────────────────────
+  ## Matches filenames starting with IMG_, but skips thumbnails and edits.
+  - name: "camera-photos"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "jpeg", "heic"]
+      filter:
+        regex: "^IMG_"
+        ignore:
+          - "*_thumb*"
+          - "*_edit*"
+          - "*.bak"
+    destination:
+      path: /home/user/Pictures/Camera
+      conflict-strategy: rename
+      organize-by: "{created-year}/{created-month}"

@@ -1,0 +1,40 @@
+configuration:
+  output: console
+  log-level: info
+categories:
+  - name: "move-downloads"
+    source:
+      path: /home/user/Downloads
+      extensions: ["zip", "tar", "7z"]
+    destination:
+      path: /home/user/Archives
+      action: move
+      conflict-strategy: rename
+  - name: "backup-photos"
+    source:
+      path: /home/user/Pictures
+      extensions: ["jpg", "jpeg", "heic", "raw"]
+      recursive: true
+    destination:
+      path: /mnt/backup/Pictures
+      action: copy
+      conflict-strategy: hash_check
+      organize-by: "{created-year}/{created-month}"
+  - name: "media-library-links"
+    source:
+      path: /home/user/Downloads
+      extensions: ["mp4", "mkv"]
+    destination:
+      path: /home/user/MediaLibrary/Movies
+      action: symlink
+      conflict-strategy: skip
+  - name: "document-archive"
+    source:
+      path: /home/user/Documents
+      extensions: ["pdf", "docx", "xlsx", "pptx"]
+      recursive: true
+    destination:
+      path: /mnt/nas/DocumentArchive
+      action: copy
+      conflict-strategy: skip
+      organize-by: "{mod-year}/{mod-month}"

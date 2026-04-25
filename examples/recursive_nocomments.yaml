@@ -1,0 +1,49 @@
+configuration:
+  output: console
+  log-level: info
+categories:
+  - name: "all-pdfs"
+    source:
+      path: /home/user/Documents
+      extensions: ["pdf"]
+      recursive: true
+    destination:
+      path: /home/user/Documents/Sorted/PDFs
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
+  - name: "shallow-images"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "jpeg", "png", "webp"]
+      recursive: true
+      max-depth: 2
+    destination:
+      path: /home/user/Pictures
+      conflict-strategy: hash_check
+      organize-by: "{created-year}/{created-month}"
+  - name: "downloads-recursive"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "epub", "mobi"]
+      recursive: true
+      max-depth: 4
+      exclude-paths:
+        - /home/user/Downloads/Archive
+        - /home/user/Downloads/Incomplete
+        - /home/user/Downloads/.cache
+    destination:
+      path: /home/user/Books
+      conflict-strategy: rename
+      organize-by: "{ext}/{mod-year}"
+  - name: "invoices-deep"
+    source:
+      path: /home/user/Documents
+      extensions: ["pdf"]
+      recursive: true
+      filter:
+        regex: "^(invoice|inv|receipt)[-_]"
+        case-sensitive: false
+    destination:
+      path: /home/user/Documents/Finance
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"

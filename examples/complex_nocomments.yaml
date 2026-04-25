@@ -1,0 +1,56 @@
+configuration:
+  output: both
+  log-file: /var/log/movelooper-import.log
+  log-level: info
+categories:
+  - name: "camera-import"
+    source:
+      path: /media/camera/DCIM
+      extensions: ["jpg", "jpeg", "heic", "cr3", "nef", "arw", "mp4", "mov"]
+      recursive: true
+      max-depth: 4
+      exclude-paths:
+        - /media/camera/DCIM/.thumbnails
+        - /media/camera/DCIM/MISC
+      filter:
+        all:
+          - min-age: 5m
+            max-age: 4320h
+            ignore:
+              - "*_edit*"
+              - "*_export*"
+              - "._*"
+          - any:
+              - all:
+                  - min-size: 2MB
+                  - any:
+                      - glob: "IMG_*"
+                      - glob: "DSC*"
+                      - regex: '^\d{8}_\d{6}'
+              - all:
+                  - min-size: 20MB
+                  - any:
+                      - glob: "MVI_*"
+                      - glob: "CLIP_*"
+    destination:
+      path: /home/user/Pictures/Library
+      action: copy
+      conflict-strategy: hash_check
+      organize-by: "{created-year}/{created-month}/{created-day}"
+      rename: "{created-date}_{timestamp}_{sha256:8}.{ext-lower}"
+    hooks:
+      before:
+        shell: bash
+        on-failure: abort
+        run:
+          - |
+            avail=$(df -BG "$ML_DEST_PATH" 2>/dev/null | awk 'NR==2{gsub("G","");print $4}')
+            [ "${avail:-0}" -ge 5 ] || { echo "need ≥5 GB free, got ${avail:-?}GB" >&2; exit 1; }
+      after:
+        shell: bash
+        on-failure: warn
+        run:
+          - |
+            [ "$ML_FILES_MOVED" -gt 0 ] && \
+              notify-send "Camera Import" "$ML_FILES_MOVED file(s) imported — batch $ML_BATCH_ID" 2>/dev/null
+            logger -t movelooper "[$ML_CATEGORY] $ML_FILES_MOVED moved, $ML_FILES_FAILED failed, batch $ML_BATCH_ID"

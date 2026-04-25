@@ -1,0 +1,62 @@
+configuration:
+  output: console
+  log-level: info
+categories:
+  - name: "padded-sequence"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+    destination:
+      path: /home/user/Documents/Numbered
+      conflict-strategy: rename
+      rename: "{seq:3}_{name}.{ext}"
+  - name: "date-prefixed"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx"]
+    destination:
+      path: /home/user/Documents/Dated
+      conflict-strategy: rename
+      rename: "{mod-date}_{name-slug}.{ext}"
+  - name: "alpha-sequence"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "png"]
+    destination:
+      path: /home/user/Pictures/Lettered
+      conflict-strategy: rename
+      rename: "{seq-alpha}_{name}.{ext}"
+  - name: "roman-sequence"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        glob: "chapter_*"
+    destination:
+      path: /home/user/Books/Chapters
+      conflict-strategy: rename
+      rename: "{seq-roman}_{name-slug}.{ext}"
+  - name: "hash-named"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "png", "webp"]
+    destination:
+      path: /home/user/Pictures/Hashed
+      conflict-strategy: skip
+      rename: "{sha256:8}_{name}.{ext}"
+  - name: "slug-names"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx", "xlsx"]
+    destination:
+      path: /home/user/Documents/Clean
+      conflict-strategy: rename
+      rename: "{name-slug}.{ext}"
+  - name: "initials-timestamp"
+    source:
+      path: /home/user/exports
+      extensions: ["pdf", "csv"]
+    destination:
+      path: /home/user/Exports/Archived
+      conflict-strategy: rename
+      rename: "{name-initials}_{timestamp}.{ext}"

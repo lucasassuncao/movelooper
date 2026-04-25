@@ -1,0 +1,229 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## full.yaml — complete field reference for movelooper
+##
+## Every supported field is shown with its accepted values and defaults.
+## Fields marked (required) must be present; all others are optional.
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/full.yaml
+##                                   -c path/to/full.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  ## output: where log messages are written.
+  ## Accepted: "console" | "file" | "both"   Default: "console"
+  output: both
+
+  ## log-file: path to the log file.
+  ## Required when output is "file" or "both".
+  log-file: /var/log/movelooper.log
+
+  ## log-level: minimum severity level to emit.
+  ## Accepted: "trace" | "debug" | "info" | "warn" | "error" | "fatal"
+  ## Default: "info"
+  log-level: info
+
+  ## show-caller: include the source file and line number in every log entry.
+  ## Default: false
+  show-caller: false
+
+  ## watch-delay: how long a file must be unchanged before it is processed in
+  ## watch mode.  Accepts Go duration strings: "30s", "5m", "1h".
+  ## Default: 5m
+  watch-delay: 5m
+
+  ## history-limit: maximum number of move batches kept in the undo history.
+  ## Default: 50
+  history-limit: 50
+
+categories:
+  - name: "full-example"       ## (required) Human-readable label used in logs and history.
+
+    ## enabled: when false this category is silently skipped.   Default: true
+    enabled: true
+
+    source:
+      path: /home/user/Downloads     ## (required) Directory to scan or watch.
+
+      ## extensions: file extensions to match, without leading dot.   (required)
+      ## Use ["all"] to match every extension.
+      extensions: ["pdf", "docx"]
+
+      ## recursive: descend into subdirectories.   Default: false
+      recursive: true
+
+      ## max-depth: maximum recursion depth (0 = unlimited).   Default: 0
+      ## Ignored when recursive is false.
+      max-depth: 3
+
+      ## exclude-paths: subdirectories to skip during a recursive walk.
+      ## The destination is always excluded automatically.
+      exclude-paths:
+        - /home/user/Downloads/keep
+        - /home/user/Downloads/archive
+
+      filter:
+        ## regex: RE2 regular expression matched against the filename only.
+        ## Mutually exclusive with glob.
+        regex: "^report_"
+
+        ## glob: shell glob matched against the filename.
+        ## Mutually exclusive with regex.
+        # glob: "report_*"
+
+        ## include: whitelist of glob patterns; only matching files are processed.
+        ## Applied after regex / glob, using OR logic among the patterns.
+        include:
+          - "2024_*"
+          - "2025_*"
+
+        ## ignore: blacklist of glob patterns; matching files are skipped.
+        ignore:
+          - "*.tmp"
+          - "~*"
+
+        ## case-sensitive: apply regex / glob matching with case sensitivity.
+        ## Default: false
+        case-sensitive: false
+
+        ## min-age: only process files older than this duration.
+        ## Accepts Go duration strings: "10m", "2h", "24h".
+        min-age: 10m
+
+        ## max-age: only process files newer than this duration.
+        max-age: 720h
+
+        ## min-size: only process files at least this large.
+        ## Accepted units: B, KB, MB, GB, TB (case-insensitive).
+        min-size: 10KB
+
+        ## max-size: only process files no larger than this.
+        max-size: 500MB
+
+        ## any / all: composite filter nodes (mutually exclusive with direct fields
+        ## and with each other at the same level).
+        ## See filters.yaml for detailed composite filter examples.
+        # any:
+        #   - regex: "^report_"
+        #   - glob: "invoice_*"
+        # all:
+        #   - min-size: 100KB
+        #   - min-age: 5m
+
+    destination:
+      path: /home/user/Documents     ## (required) Root directory for processed files.
+
+      ## action: file operation to perform.
+      ## Accepted: "move" (default) | "copy" | "symlink"
+      action: move
+
+      ## conflict-strategy: behaviour when a same-name file already exists.
+      ## Accepted:
+      ##   "rename"     — append a numeric suffix, e.g. report(1).pdf   [default]
+      ##   "overwrite"  — replace the existing file unconditionally
+      ##   "skip"       — leave the incoming file in the source directory
+      ##   "hash_check" — SHA-256 comparison: if identical, delete source (dedup);
+      ##                  if different, rename with numeric suffix
+      conflict-strategy: rename
+
+      ## organize-by: template for subdirectory structure under <path>.
+      ## All tokens below are available. Path separators in the result create
+      ## real subdirectory levels.
+      ##
+      ## File identification:
+      ##   {name}           bare filename without extension
+      ##   {ext}            extension, lowercase
+      ##   {ext-upper}      extension, UPPERCASE
+      ##   {ext-lower}      extension, lowercase (alias)
+      ##   {ext-reverse}    extension characters reversed
+      ##
+      ## Name transforms:
+      ##   {name-slug}      url-slug form (hyphens, lowercase, ASCII)
+      ##   {name-snake}     snake_case form
+      ##   {name-upper}     UPPERCASE
+      ##   {name-lower}     lowercase
+      ##   {name-alpha}     letters and digits only
+      ##   {name-ascii}     transliterated to ASCII
+      ##   {name-initials}  initials of each word
+      ##   {name-reverse}   characters reversed
+      ##   {name-trunc:N}   first N characters
+      ##
+      ## File modification date:
+      ##   {mod-year}       YYYY
+      ##   {mod-month}      MM
+      ##   {mod-day}        DD
+      ##   {mod-date}       YYYY-MM-DD
+      ##   {mod-weekday}    Monday … Sunday
+      ##
+      ## File creation date:
+      ##   {created-year}   YYYY
+      ##   {created-month}  MM
+      ##   {created-day}    DD
+      ##   {created-date}   YYYY-MM-DD
+      ##
+      ## Current run date/time:
+      ##   {year}           YYYY
+      ##   {month}          MM
+      ##   {day}            DD
+      ##   {date}           YYYY-MM-DD
+      ##   {weekday}        Monday … Sunday
+      ##   {hour}           HH (24 h)
+      ##   {minute}         MM
+      ##   {second}         SS
+      ##   {timestamp}      YYYYMMDD-HHMMSS
+      ##
+      ## Context:
+      ##   {size-range}     tiny (<1 MB) | small (<100 MB) | medium (<1 GB) | large (≥1 GB)
+      ##   {category}       category name
+      ##   {hostname}       machine hostname
+      ##   {username}       OS username
+      ##   {os}             operating system name
+      ##
+      ## Example: "{ext}/{mod-year}/{mod-month}"
+      ##   → /home/user/Documents/pdf/2025/04/file.pdf
+      organize-by: "{ext}/{mod-year}/{mod-month}"
+
+      ## rename: template for the destination filename (include the extension).
+      ## Supports all organize-by tokens above, plus these rename-only tokens:
+      ##
+      ##   {seq}        auto-incrementing integer: 1, 2, 3 …
+      ##   {seq:N}      zero-padded to N digits:  001, 002 …
+      ##   {seq-alpha}  Excel-style alpha:         a, b … z, aa, ab …
+      ##   {seq-roman}  Roman numerals:            i, ii, iii …
+      ##   {md5}        first 8 hex chars of MD5
+      ##   {md5:N}      first N hex chars of MD5
+      ##   {sha256:N}   first N hex chars of SHA-256
+      ##
+      ## Example: "{seq:4}_{name-slug}.{ext}"
+      ##   → 0001_quarterly-report.pdf
+      rename: "{seq:4}_{name}.{ext}"
+
+    ## hooks: shell commands executed before / after processing this category.
+    ##
+    ## Environment variables available in both before and after:
+    ##   ML_CATEGORY     category name
+    ##   ML_SOURCE_PATH  source directory
+    ##   ML_DEST_PATH    destination directory
+    ##   ML_DRY_RUN      "true" | "false"
+    ##   ML_ACTION       "move" | "copy" | "symlink"
+    ##
+    ## Environment variables available in after only:
+    ##   ML_FILES_MOVED  number of files successfully processed
+    ##   ML_FILES_FAILED number of files that failed
+    ##   ML_BATCH_ID     unique ID for this batch (use with `movelooper undo`)
+    hooks:
+      before:
+        ## shell: executable to run commands with.
+        ## Defaults to cmd on Windows, $SHELL on Linux / macOS.
+        ## Use "pwsh" or "powershell" for PowerShell.
+        shell: bash
+        ## on-failure: "abort" stops the category; "warn" logs the error and continues.
+        on-failure: warn
+        run:
+          - 'echo "[$ML_CATEGORY] starting — source: $ML_SOURCE_PATH"'
+      after:
+        shell: bash
+        on-failure: warn
+        run:
+          - 'echo "[$ML_CATEGORY] done — $ML_FILES_MOVED moved, batch: $ML_BATCH_ID"'

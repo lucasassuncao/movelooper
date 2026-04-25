@@ -1,0 +1,114 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## organize-by.yaml — subdirectory organisation with tokens
+##
+## organize-by is a template evaluated for each file to produce a relative
+## subdirectory path appended to the category destination.  Path separators
+## in the template create real directory levels.
+##
+## Available tokens:
+##
+##   File identity:
+##     {name}           bare filename without extension
+##     {ext}            extension, lowercase
+##     {ext-upper}      extension, UPPERCASE
+##     {name-slug}      url-slug  (My Report → my-report)
+##     {name-snake}     snake_case (My Report → my_report)
+##     {name-upper}     UPPERCASE
+##     {name-lower}     lowercase
+##     {name-alpha}     letters and digits only
+##     {name-ascii}     ASCII transliteration
+##     {name-initials}  initials of each word
+##     {name-trunc:N}   first N characters of the bare name
+##
+##   File modification date:
+##     {mod-year}  {mod-month}  {mod-day}  {mod-date}  {mod-weekday}
+##
+##   File creation date:
+##     {created-year}  {created-month}  {created-day}  {created-date}
+##
+##   Current run date/time:
+##     {year}  {month}  {day}  {date}  {weekday}
+##     {hour}  {minute}  {second}  {timestamp}
+##
+##   Context:
+##     {size-range}   tiny (<1 MB) | small (<100 MB) | medium (<1 GB) | large (≥1 GB)
+##     {category}     category name
+##     {hostname}     machine hostname
+##     {username}     OS username
+##     {os}           operating system name
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/organize-by.yaml
+##                                   -c path/to/organize-by.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  output: console
+  log-level: info
+
+categories:
+  ## ── Group by extension, then modification year and month ─────────────────
+  ## Result: /dest/jpg/2025/04/photo.jpg
+  - name: "by-ext-and-date"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "png", "gif", "webp"]
+    destination:
+      path: /home/user/Pictures
+      conflict-strategy: rename
+      organize-by: "{ext}/{mod-year}/{mod-month}"
+
+  ## ── Group by creation year only — for long-term archival ─────────────────
+  ## Result: /dest/2024/document.pdf
+  - name: "by-creation-year"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx", "xlsx"]
+    destination:
+      path: /home/user/Documents/Archive
+      conflict-strategy: rename
+      organize-by: "{created-year}"
+
+  ## ── Group by weekday — useful for recurring scheduled exports ─────────────
+  ## Result: /dest/Monday/report.pdf
+  - name: "by-weekday"
+    source:
+      path: /home/user/exports
+      extensions: ["csv", "xlsx"]
+    destination:
+      path: /home/user/Reports/Weekly
+      conflict-strategy: overwrite
+      organize-by: "{mod-weekday}"
+
+  ## ── Group by size range ───────────────────────────────────────────────────
+  ## Result: /dest/large/movie.mkv, /dest/small/clip.mp4
+  - name: "by-size-range"
+    source:
+      path: /home/user/Downloads
+      extensions: ["mp4", "mkv", "avi", "mov"]
+    destination:
+      path: /home/user/Videos
+      conflict-strategy: rename
+      organize-by: "{size-range}"
+
+  ## ── Group by first letter of filename (using name-trunc) ─────────────────
+  ## Result: /dest/q/quarterly-report.pdf, /dest/b/budget-2025.xlsx
+  - name: "alphabetical-index"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx"]
+    destination:
+      path: /home/user/Documents/Index
+      conflict-strategy: rename
+      organize-by: "{name-trunc:1}"
+
+  ## ── Flat destination — no subdirectory, just dump everything in <path> ────
+  ## Omit organize-by entirely (or leave it empty) to place files directly in path.
+  - name: "flat"
+    source:
+      path: /home/user/Downloads
+      extensions: ["txt", "md"]
+    destination:
+      path: /home/user/Notes
+      conflict-strategy: rename

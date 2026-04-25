@@ -1,0 +1,111 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## rename.yaml — destination filename templates
+##
+## rename produces the filename (including extension) for each moved file.
+## When omitted the original filename is preserved unchanged.
+##
+## All organize-by tokens are available, plus these rename-only tokens:
+##
+##   Sequences (auto-increment per destination directory):
+##     {seq}        integer:       1, 2, 3 …
+##     {seq:N}      zero-padded:   001, 002 … (N = total digits)
+##     {seq-alpha}  Excel-style:   a, b … z, aa, ab …
+##     {seq-roman}  Roman numeral: i, ii, iii …
+##
+##   Content hashes (computed from the file at move time):
+##     {md5}        first 8 hex chars of MD5   (e.g. a3f2c1d0)
+##     {md5:N}      first N hex chars of MD5
+##     {sha256:N}   first N hex chars of SHA-256
+##
+## Path separators in the result are replaced with underscores so the output
+## is always a plain filename, not a path.
+##
+## This file is an example only. To use it:
+##   • Rename or copy it to movelooper.yaml next to the executable, OR
+##   • Pass it directly:  movelooper --config path/to/rename.yaml
+##                                   -c path/to/rename.yaml
+## ─────────────────────────────────────────────────────────────────────────────
+
+configuration:
+  output: console
+  log-level: info
+
+categories:
+  ## ── Zero-padded sequence — predictable sort order ─────────────────────────
+  ## Result: 001_file.pdf, 002_file.pdf …
+  - name: "padded-sequence"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+    destination:
+      path: /home/user/Documents/Numbered
+      conflict-strategy: rename
+      rename: "{seq:3}_{name}.{ext}"
+
+  ## ── Date prefix — natural chronological sort ─────────────────────────────
+  ## Result: 2025-04-21_quarterly-report.pdf
+  - name: "date-prefixed"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx"]
+    destination:
+      path: /home/user/Documents/Dated
+      conflict-strategy: rename
+      rename: "{mod-date}_{name-slug}.{ext}"
+
+  ## ── Alphabetic sequence — when numeric order feels too rigid ──────────────
+  ## Result: a_photo.jpg, b_photo.jpg … z_photo.jpg, aa_photo.jpg …
+  - name: "alpha-sequence"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "png"]
+    destination:
+      path: /home/user/Pictures/Lettered
+      conflict-strategy: rename
+      rename: "{seq-alpha}_{name}.{ext}"
+
+  ## ── Roman numeral sequence ────────────────────────────────────────────────
+  ## Result: i_chapter.pdf, ii_chapter.pdf, iii_chapter.pdf …
+  - name: "roman-sequence"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        glob: "chapter_*"
+    destination:
+      path: /home/user/Books/Chapters
+      conflict-strategy: rename
+      rename: "{seq-roman}_{name-slug}.{ext}"
+
+  ## ── Content hash — collision-proof unique names ───────────────────────────
+  ## Result: a3f2c1d0_photo.jpg  (first 8 chars of SHA-256)
+  - name: "hash-named"
+    source:
+      path: /home/user/Downloads
+      extensions: ["jpg", "png", "webp"]
+    destination:
+      path: /home/user/Pictures/Hashed
+      conflict-strategy: skip   ## hash makes the name unique; skip is safe here
+      rename: "{sha256:8}_{name}.{ext}"
+
+  ## ── Name transforms — clean up messy filenames ───────────────────────────
+  ## Result: quarterly-report-q1-2025.pdf  (slug-ified, no weird characters)
+  - name: "slug-names"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx", "xlsx"]
+    destination:
+      path: /home/user/Documents/Clean
+      conflict-strategy: rename
+      rename: "{name-slug}.{ext}"
+
+  ## ── Initials prefix with timestamp ───────────────────────────────────────
+  ## Result: qr_20250421-143022.pdf  (initials of "quarterly report" + timestamp)
+  - name: "initials-timestamp"
+    source:
+      path: /home/user/exports
+      extensions: ["pdf", "csv"]
+    destination:
+      path: /home/user/Exports/Archived
+      conflict-strategy: rename
+      rename: "{name-initials}_{timestamp}.{ext}"

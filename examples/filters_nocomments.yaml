@@ -1,0 +1,61 @@
+configuration:
+  output: console
+  log-level: info
+categories:
+  - name: "large-videos"
+    source:
+      path: /home/user/Downloads
+      extensions: ["mp4", "mkv", "avi"]
+      filter:
+        min-size: 500MB
+    destination:
+      path: /home/user/Videos
+      conflict-strategy: rename
+  - name: "stable-archives"
+    source:
+      path: /home/user/Downloads
+      extensions: ["zip", "tar", "7z"]
+      filter:
+        min-age: 30m
+        max-size: 2GB
+    destination:
+      path: /home/user/Archives
+      conflict-strategy: hash_check
+  - name: "financial-documents"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        any:
+          - regex: "^invoice_"
+          - regex: "^receipt_"
+          - glob: "INV-*"
+    destination:
+      path: /home/user/Documents/Finance
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
+  - name: "settled-large-pdfs"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+      filter:
+        all:
+          - min-size: 1MB
+          - min-age: 10m
+    destination:
+      path: /home/user/Documents/Large
+      conflict-strategy: rename
+  - name: "reports-and-summaries"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx"]
+      filter:
+        all:
+          - min-size: 100KB
+          - any:
+              - glob: "report_*"
+              - glob: "summary_*"
+    destination:
+      path: /home/user/Documents/Reports
+      conflict-strategy: rename
+      organize-by: "{mod-year}"

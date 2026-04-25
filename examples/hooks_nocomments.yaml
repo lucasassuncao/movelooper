@@ -1,0 +1,80 @@
+configuration:
+  output: console
+  log-level: info
+categories:
+  - name: "bash-hooks"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf"]
+    destination:
+      path: /home/user/Documents/PDFs
+      conflict-strategy: rename
+    hooks:
+      before:
+        shell: bash
+        on-failure: warn
+        run:
+          - 'echo "[$ML_CATEGORY] starting — source: $ML_SOURCE_PATH"'
+      after:
+        shell: bash
+        on-failure: warn
+        run:
+          - 'echo "[$ML_CATEGORY] $ML_FILES_MOVED file(s) moved. Batch: $ML_BATCH_ID"'
+  - name: "powershell-hooks"
+    source:
+      path: "C:\\Users\\user\\Downloads"
+      extensions: ["docx", "xlsx"]
+    destination:
+      path: "C:\\Users\\user\\Documents\\Office"
+      conflict-strategy: rename
+    hooks:
+      before:
+        shell: pwsh
+        on-failure: warn
+        run:
+          - 'Write-Output "[$env:ML_CATEGORY] starting"'
+      after:
+        shell: pwsh
+        on-failure: warn
+        run:
+          - |
+            if ([int]$env:ML_FILES_MOVED -gt 0) {
+              Write-Output "[$env:ML_CATEGORY] $env:ML_FILES_MOVED file(s) moved. Batch: $env:ML_BATCH_ID"
+            }
+  - name: "strict-before-hook"
+    source:
+      path: /home/user/Downloads
+      extensions: ["zip"]
+    destination:
+      path: /home/user/Archives
+      conflict-strategy: skip
+    hooks:
+      before:
+        shell: bash
+        on-failure: abort
+        run:
+          - 'test -w "$ML_DEST_PATH" || (echo "destination not writable" && exit 1)'
+      after:
+        shell: bash
+        on-failure: warn
+        run:
+          - 'logger -t movelooper "[$ML_CATEGORY] batch $ML_BATCH_ID: $ML_FILES_MOVED moved"'
+  - name: "dry-run-aware"
+    source:
+      path: /home/user/Downloads
+      extensions: ["mp4", "mkv"]
+    destination:
+      path: /home/user/Videos
+      conflict-strategy: rename
+    hooks:
+      after:
+        shell: bash
+        on-failure: warn
+        run:
+          - |
+            if [ "$ML_DRY_RUN" = "true" ]; then
+              echo "[$ML_CATEGORY] dry-run: $ML_FILES_MOVED file(s) would be moved"
+            elif [ "$ML_FILES_MOVED" -gt 0 ]; then
+              echo "[$ML_CATEGORY] moved $ML_FILES_MOVED file(s), batch: $ML_BATCH_ID"
+              notify-send "movelooper" "$ML_FILES_MOVED video(s) organised"
+            fi

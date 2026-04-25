@@ -1,0 +1,65 @@
+configuration:
+  output: console
+  log-level: info
+categories:
+  - name: "annas-archive"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "epub", "mobi"]
+      filter:
+        glob: "Anna's Archive*"
+    destination:
+      path: /home/user/Books
+      conflict-strategy: hash_check
+      organize-by: "{ext}"
+  - name: "screenshots"
+    source:
+      path: /home/user/Downloads
+      extensions: ["png", "jpg"]
+      filter:
+        glob: "{screenshot,screen-capture}*"
+    destination:
+      path: /home/user/Pictures/Screenshots
+      conflict-strategy: rename
+  - name: "yearly-documents"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "xlsx"]
+      filter:
+        include:
+          - "2024_*"
+          - "2025_*"
+          - "2024-*"
+          - "2025-*"
+    destination:
+      path: /home/user/Documents/Yearly
+      conflict-strategy: rename
+      organize-by: "{mod-year}"
+  - name: "documents-no-drafts"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "docx", "txt"]
+      filter:
+        ignore:
+          - "draft_*"
+          - "~*"
+          - "*.tmp"
+          - "*.bak"
+          - "._*"
+    destination:
+      path: /home/user/Documents
+      conflict-strategy: rename
+  - name: "project-exports"
+    source:
+      path: /home/user/Downloads
+      extensions: ["pdf", "png", "svg"]
+      filter:
+        glob: "project-*"
+        ignore:
+          - "*-draft*"
+          - "*-wip*"
+          - "*-temp*"
+    destination:
+      path: /home/user/Projects/Exports
+      conflict-strategy: rename
+      organize-by: "{mod-year}/{mod-month}"
