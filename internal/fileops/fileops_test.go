@@ -267,10 +267,10 @@ func TestMoveFiles(t *testing.T) {
 				BatchID:   tt.batchID,
 				SourceDir: src,
 			}
-			moved := MoveFiles(context.Background(), newTestMoveContext(), req)
+			result := MoveFiles(context.Background(), newTestMoveContext(), req)
 
 			if tt.wantMoved != nil {
-				assert.Equal(t, tt.wantMoved, moved)
+				assert.Equal(t, tt.wantMoved, result.Moved)
 			}
 			if tt.check != nil {
 				tt.check(t, src, dst)
@@ -520,9 +520,9 @@ func TestMoveFiles_RenameTemplate(t *testing.T) {
 		BatchID:   "batch_test",
 		SourceDir: src,
 	}
-	moved := MoveFiles(context.Background(), newTestMoveContext(), req)
+	result := MoveFiles(context.Background(), newTestMoveContext(), req)
 
-	require.Len(t, moved, 1)
+	require.Len(t, result.Moved, 1)
 	assert.FileExists(t, filepath.Join(dst, "images_photo.jpg"))
 	assert.FileExists(t, filepath.Join(src, "photo.jpg"))
 }

@@ -489,9 +489,9 @@ func TestRunMove_CopyAction(t *testing.T) {
 		BatchID:   "batch_test",
 		SourceDir: src,
 	}
-	moved := fileops.MoveFiles(context.Background(), mctx, req)
+	result := fileops.MoveFiles(context.Background(), mctx, req)
 
-	require.Len(t, moved, 1)
+	require.Len(t, result.Moved, 1)
 	assert.FileExists(t, filepath.Join(dst, "report.pdf"))
 	assert.FileExists(t, filepath.Join(src, "report.pdf"))
 }
@@ -515,9 +515,9 @@ func TestRunMove_CopyWithRename(t *testing.T) {
 		BatchID:   "batch_test",
 		SourceDir: src,
 	}
-	moved := fileops.MoveFiles(context.Background(), mctx, req)
+	result := fileops.MoveFiles(context.Background(), mctx, req)
 
-	require.Len(t, moved, 1)
+	require.Len(t, result.Moved, 1)
 	assert.FileExists(t, filepath.Join(dst, "images_photo.jpg"))
 	assert.FileExists(t, filepath.Join(src, "photo.jpg"))
 }
@@ -542,9 +542,9 @@ func TestRunMove_SymlinkWithConflictRename(t *testing.T) {
 		BatchID:   "batch_test",
 		SourceDir: src,
 	}
-	moved := fileops.MoveFiles(context.Background(), mctx, req)
+	result := fileops.MoveFiles(context.Background(), mctx, req)
 
-	if len(moved) == 0 {
+	if len(result.Moved) == 0 {
 		t.Skip("symlink not available (likely missing privilege on Windows)")
 	}
 	assert.FileExists(t, filepath.Join(dst, "file.txt"))

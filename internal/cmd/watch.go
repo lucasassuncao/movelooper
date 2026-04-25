@@ -355,14 +355,14 @@ func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Ca
 
 	targetFile := fileInfoDirEntry{info: info}
 	batchID := history.NewWatchBatchID()
-	moved := fileops.MoveFiles(ctx, fileops.MoveContext{Logger: m.Logger, History: m.History}, fileops.MoveRequest{
+	result := fileops.MoveFiles(ctx, fileops.MoveContext{Logger: m.Logger, History: m.History}, fileops.MoveRequest{
 		Category:  &cat,
 		Files:     []os.DirEntry{targetFile},
 		Extension: ext,
 		BatchID:   batchID,
 		SourceDir: filepath.Dir(path),
 	})
-	if len(moved) == 0 {
+	if len(result.Moved) == 0 {
 		return fmt.Errorf("file was not moved: %s", filepath.Base(path))
 	}
 	return nil

@@ -52,16 +52,21 @@ type MoveRequest struct {
 	SourceDir string // actual directory of the files; may differ from Category.Source.Path when recursive
 }
 
+// MoveResult holds the outcome of a MoveFiles call.
+type MoveResult struct {
+	Moved   []string // names of files that were successfully processed
+	Skipped int      // files skipped by conflict strategy (skip / hash_check duplicate)
+}
+
 // MoveFiles processes files matching the given extension in req.SourceDir.
-// Returns the names of files that were successfully processed.
-func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string {
+func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResult {
 	category := req.Category
 	files := req.Files
-	var moved []string
+	var result MoveResult
 	for _, file := range files {
 		select {
 		case <-ctx.Done():
-			return moved
+			return result
 		default:
 		}
 		if !hasExtension(file, req.Extension) {
@@ -104,6 +109,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string 
 			FileName: destName,
 		})
 		if skip {
+			result.Skipped++
 			continue
 		}
 		destPath = resolved
@@ -137,9 +143,9 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) []string 
 		}
 
 		mctx.Logger.Info("file processed", mctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
-		moved = append(moved, file.Name())
+		result.Moved = append(result.Moved, file.Name())
 	}
-	return moved
+	return result
 }
 
 // FileAction executes a file operation from src to dst.

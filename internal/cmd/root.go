@@ -139,6 +139,7 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 // hookAfterVars carries the post-move stats needed for "after" hook env vars.
 type hookAfterVars struct {
 	moved   int
+	skipped int
 	failed  int
 	batchID string
 }
@@ -163,7 +164,7 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 	}
 	if after != nil {
 		env["ML_FILES_MOVED"] = fmt.Sprintf("%d", after.moved)
-		env["ML_FILES_SKIPPED"] = "0"
+		env["ML_FILES_SKIPPED"] = fmt.Sprintf("%d", after.skipped)
 		env["ML_FILES_FAILED"] = fmt.Sprintf("%d", after.failed)
 		env["ML_BATCH_ID"] = after.batchID
 	}
@@ -189,7 +190,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		return
 	}
 
-	var totalMoved, totalFailed int
+	var totalMoved, totalSkipped, totalFailed int
 	for _, extension := range category.Source.Extensions {
 		var matched []scanner.FileEntry
 		for _, fe := range allEntries {
@@ -221,9 +222,10 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 					BatchID:   batch.batchID,
 					SourceDir: dir,
 				}
-				names := moveExtensionWithResult(ctx, m, req, batch.moved)
-				totalMoved += len(names)
-				totalFailed += len(dirFiles) - len(names)
+				res := moveExtensionWithResult(ctx, m, req, batch.moved)
+				totalMoved += len(res.Moved)
+				totalSkipped += res.Skipped
+				totalFailed += len(dirFiles) - len(res.Moved) - res.Skipped
 			}
 		}
 	}
@@ -231,6 +233,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	if category.Hooks != nil && category.Hooks.After != nil {
 		env := hookEnv(category, batch.dryRun, &hookAfterVars{
 			moved:   totalMoved,
+			skipped: totalSkipped,
 			failed:  totalFailed,
 			batchID: batch.batchID,
 		})
@@ -250,14 +253,14 @@ func groupByDir(entries []scanner.FileEntry) map[string][]os.DirEntry {
 	return result
 }
 
-// moveExtensionWithResult moves files described by req and returns the moved file names.
-func moveExtensionWithResult(ctx context.Context, m *models.Movelooper, req fileops.MoveRequest, moved movedSet) []string {
+// moveExtensionWithResult moves files described by req and returns the MoveResult.
+func moveExtensionWithResult(ctx context.Context, m *models.Movelooper, req fileops.MoveRequest, moved movedSet) fileops.MoveResult {
 	mctx := fileops.MoveContext{Logger: m.Logger, History: m.History}
-	movedNames := fileops.MoveFiles(ctx, mctx, req)
-	for _, name := range movedNames {
+	result := fileops.MoveFiles(ctx, mctx, req)
+	for _, name := range result.Moved {
 		moved.mark(req.SourceDir, name)
 	}
-	return movedNames
+	return result
 }
 
 // formatBytes converts a byte count to a human-readable string (e.g. "1.23 MB").
