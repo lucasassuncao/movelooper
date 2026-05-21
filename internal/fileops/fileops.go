@@ -115,6 +115,9 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		destPath = resolved
 
 		action := category.Destination.Action
+		if action == "" {
+			action = "move"
+		}
 		if err := dispatchAction(ctx, action, sourcePath, destPath); err != nil {
 			if errors.Is(err, ErrTimestampPreserve) {
 				mctx.Logger.Warn("file processed but timestamps could not be preserved", mctx.Logger.Args("file", sourcePath))
@@ -125,16 +128,12 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		}
 
 		if mctx.History != nil {
-			effectiveAction := action
-			if effectiveAction == "" {
-				effectiveAction = "move"
-			}
 			if err := mctx.History.Add(history.Entry{
 				Source:      sourcePath,
 				Destination: destPath,
 				Timestamp:   time.Now(),
 				BatchID:     req.BatchID,
-				Action:      effectiveAction,
+				Action:      action,
 				Category:    category.Name,
 			}); err != nil {
 				mctx.Logger.Warn("failed to record history; undo will not work for this file",
