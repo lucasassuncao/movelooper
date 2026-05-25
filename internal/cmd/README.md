@@ -16,6 +16,7 @@ Package cmd contains the command line interface commands for the Movelooper appl
 
 - [Variables](<#variables>)
 - [func ConfigCmd\(m \*models.Movelooper\) \*cobra.Command](<#ConfigCmd>)
+- [func EditCmd\(\) \*cobra.Command](<#EditCmd>)
 - [func InitCmd\(\) \*cobra.Command](<#InitCmd>)
 - [func RootCmd\(m \*models.Movelooper, version string\) \*cobra.Command](<#RootCmd>)
 - [func SelfUpdateCmd\(currentVersion string\) \*cobra.Command](<#SelfUpdateCmd>)
@@ -41,6 +42,15 @@ func ConfigCmd(m *models.Movelooper) *cobra.Command
 ```
 
 ConfigCmd returns the "config" command group
+
+<a name="EditCmd"></a>
+## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L15>)
+
+```go
+func EditCmd() *cobra.Command
+```
+
+EditCmd returns the "edit" command, which opens an interactive TUI editor for the movelooper configuration file.
 
 <a name="InitCmd"></a>
 ## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L39>)
@@ -88,7 +98,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command
 WatchCmd defines the "watch" command to monitor directories and move files in real\-time
 
 <a name="MoveOptions"></a>
-## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L92-L97>)
+## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L93-L98>)
 
 MoveOptions carries the CLI flags for the move command.
 

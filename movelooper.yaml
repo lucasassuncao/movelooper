@@ -1,0 +1,80 @@
+configuration:
+  output: both
+  log-file: "D:\\Scripts\\go\\logs\\movelooper.log"
+  log-level: info
+  show-caller: false
+  watch-delay: 10s
+  history-limit: 100
+
+import:
+  - ./movelooper/miscellaneous.yaml
+  - ./movelooper/wallhaven.yaml
+  - ./movelooper/annas-archive.yaml
+  - ./movelooper/everything-else.yaml
+
+categories:
+  - name: "images"
+    enabled: true
+    source:
+      path: "C:\\Users\\lucas\\Downloads\\"
+      extensions: ["jpg", "jpeg", "png", "gif", "webp", "bmp"]
+      filter:
+        ignore:
+          - "wallhaven*"
+    destination:
+      path: "C:\\Users\\lucas\\Downloads\\Media\\Images\\"
+      conflict-strategy: rename
+      organize-by: "{ext}"
+
+  - name: "audio"
+    enabled: true
+    source:
+      path: "C:\\Users\\lucas\\Downloads\\"
+      extensions: ["mp3", "m4a", "aac", "ogg"]
+    destination:
+      path: "C:\\Users\\lucas\\Downloads\\Media\\Audio\\"
+      conflict-strategy: rename
+      organize-by: "{ext}"
+
+  - name: "video"
+    enabled: true
+    source:
+      path: "C:\\Users\\lucas\\Downloads\\"
+      extensions: ["mp4", "mkv"]
+    destination:
+      path: "C:\\Users\\lucas\\Downloads\\Media\\Video\\"
+      conflict-strategy: rename
+      organize-by: "{ext}"
+
+  - name: "documents"
+    enabled: true
+    source:
+      path: "C:\\Users\\lucas\\Downloads\\"
+      extensions: ["pdf", "txt", "docx", "pptx", "epub", "mobi", "md"]
+      filter:
+        ignore:
+          - "*Anna's Archive*"
+    destination:
+      path: "C:\\Users\\lucas\\Downloads\\Documents\\"
+      conflict-strategy: rename
+      organize-by: "{ext}"
+
+  - name: "compressed"
+    enabled: true
+    source:
+      path: "C:\\Users\\lucas\\Downloads\\"
+      extensions: ["zip", "rar", "7z"]
+    destination:
+      path: "C:\\Users\\lucas\\Downloads\\Compressed\\"
+      conflict-strategy: rename
+      organize-by: "{ext}"
+
+  - name: "installers"
+    enabled: true
+    source:
+      path: "C:\\Users\\lucas\\Downloads\\"
+      extensions: ["exe", "msi", "apk", "pkg", "jar"]
+    destination:
+      path: "C:\\Users\\lucas\\Downloads\\Installers\\"
+      conflict-strategy: hash_check
+      organize-by: "{ext}"
