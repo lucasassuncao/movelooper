@@ -71,13 +71,13 @@ func RootCmd(m *models.Movelooper, version string) *cobra.Command
 RootCmd represents the base command when called without any subcommands
 
 <a name="SelfUpdateCmd"></a>
-## func [SelfUpdateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/selfupdate.go#L12>)
+## func [SelfUpdateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/selfupdate.go#L17>)
 
 ```go
 func SelfUpdateCmd(currentVersion string) *cobra.Command
 ```
 
-SelfUpdateCmd returns the self\-update command
+SelfUpdateCmd returns the self\-update command.
 
 <a name="UndoCmd"></a>
 ## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L18>)

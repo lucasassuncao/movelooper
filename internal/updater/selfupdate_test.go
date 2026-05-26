@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,9 +37,15 @@ func (r redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 
 func withTestServer(t *testing.T, srv *httptest.Server, fn func()) {
 	t.Helper()
-	orig := http.DefaultClient
-	http.DefaultClient = &http.Client{Transport: redirectTransport{target: srv.Listener.Addr().String()}}
-	t.Cleanup(func() { http.DefaultClient = orig })
+	rt := redirectTransport{target: srv.Listener.Addr().String()}
+	origAPI := apiClient
+	origDownload := downloadClient
+	apiClient = &http.Client{Transport: rt}
+	downloadClient = &http.Client{Transport: rt}
+	t.Cleanup(func() {
+		apiClient = origAPI
+		downloadClient = origDownload
+	})
 	fn()
 }
 
@@ -82,20 +89,25 @@ func TestSelectAsset(t *testing.T) {
 			"",
 		},
 		{
-			"prefers windows exe",
+			"prefers current os over other os",
 			[]ghAsset{
 				{Name: "movelooper_linux_amd64"},
 				{Name: "movelooper_windows_amd64.exe"},
 			},
-			"movelooper_windows_amd64.exe",
+			func() string {
+				if runtime.GOOS == "windows" {
+					return "movelooper_windows_amd64.exe"
+				}
+				return "movelooper_linux_amd64"
+			}(),
 		},
 		{
 			"falls back to first on tie",
 			[]ghAsset{
-				{Name: "movelooper_linux_arm64"},
-				{Name: "movelooper_darwin_arm64"},
+				{Name: "movelooper_unknown_v1"},
+				{Name: "movelooper_unknown_v2"},
 			},
-			"movelooper_linux_arm64",
+			"movelooper_unknown_v1",
 		},
 		{
 			"scores arch match",
@@ -156,7 +168,7 @@ func TestFetchLatestRelease(t *testing.T) {
 		{
 			name:    "404 returns not found error",
 			server:  func() *httptest.Server { return serveFakeRelease(t, http.StatusNotFound, nil) },
-			wantErr: "no releases found",
+			wantErr: "not found (404)",
 		},
 		{
 			name:    "500 returns status error",
@@ -185,7 +197,7 @@ func TestFetchLatestRelease(t *testing.T) {
 					_, _ = w.Write([]byte("not json"))
 				}))
 			},
-			wantErr: "decoding release",
+			wantErr: "decoding response",
 		},
 	}
 
@@ -217,12 +229,13 @@ func TestDownload(t *testing.T) {
 	content := []byte("fake binary content")
 
 	tests := []struct {
-		name    string
-		server  func() *httptest.Server
-		destFn  func(dir string) string
-		token   string
-		wantErr string
-		check   func(t *testing.T, dest string)
+		name         string
+		server       func() *httptest.Server
+		destFn       func(dir string) string
+		token        string
+		expectedSize int64
+		wantErr      string
+		check        func(t *testing.T, dest string)
 	}{
 		{
 			name: "writes content to dest",
@@ -232,7 +245,8 @@ func TestDownload(t *testing.T) {
 					_, _ = w.Write(content)
 				}))
 			},
-			destFn: func(dir string) string { return filepath.Join(dir, "binary") },
+			destFn:       func(dir string) string { return filepath.Join(dir, "binary") },
+			expectedSize: int64(len(content)),
 			check: func(t *testing.T, dest string) {
 				got, err := os.ReadFile(dest)
 				require.NoError(t, err)
@@ -246,8 +260,9 @@ func TestDownload(t *testing.T) {
 					w.WriteHeader(http.StatusForbidden)
 				}))
 			},
-			destFn:  func(dir string) string { return filepath.Join(dir, "binary") },
-			wantErr: "403",
+			destFn:       func(dir string) string { return filepath.Join(dir, "binary") },
+			expectedSize: 0,
+			wantErr:      "403",
 		},
 		{
 			name: "invalid dest path returns error",
@@ -257,8 +272,9 @@ func TestDownload(t *testing.T) {
 					_, _ = w.Write([]byte("data"))
 				}))
 			},
-			destFn:  func(_ string) string { return "/nonexistent/dir/binary" },
-			wantErr: "creating temp binary",
+			destFn:       func(_ string) string { return "/nonexistent/dir/binary" },
+			expectedSize: 0,
+			wantErr:      "creating temp binary",
 		},
 		{
 			name: "sends bearer token",
@@ -269,11 +285,24 @@ func TestDownload(t *testing.T) {
 					_, _ = w.Write([]byte("data"))
 				}))
 			},
-			destFn: func(dir string) string { return filepath.Join(dir, "binary") },
-			token:  "tok123",
+			destFn:       func(dir string) string { return filepath.Join(dir, "binary") },
+			expectedSize: int64(len([]byte("data"))),
+			token:        "tok123",
 			check: func(t *testing.T, _ string) {
 				assert.Equal(t, "Bearer tok123", capturedAuth)
 			},
+		},
+		{
+			name: "truncated download returns error",
+			server: func() *httptest.Server {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte("short"))
+				}))
+			},
+			destFn:       func(dir string) string { return filepath.Join(dir, "binary") },
+			expectedSize: 1000,
+			wantErr:      "download truncated",
 		},
 	}
 
@@ -283,7 +312,7 @@ func TestDownload(t *testing.T) {
 			defer srv.Close()
 
 			dest := tt.destFn(t.TempDir())
-			err := download(srv.URL, dest, tt.token)
+			err := download(srv.URL, dest, tt.token, tt.expectedSize)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -365,7 +394,7 @@ func TestSelfUpdate(t *testing.T) {
 				srv := serveFakeRelease(t, http.StatusOK, tt.release)
 				defer srv.Close()
 				withTestServer(t, srv, func() {
-					err := SelfUpdate(tt.repo, "", tt.currentVersion)
+					err := SelfUpdate(tt.repo, "", tt.currentVersion, "", false)
 					if tt.wantErr != "" {
 						require.Error(t, err)
 						assert.Contains(t, err.Error(), tt.wantErr)
@@ -375,7 +404,7 @@ func TestSelfUpdate(t *testing.T) {
 				})
 				return
 			}
-			err := SelfUpdate(tt.repo, "", tt.currentVersion)
+			err := SelfUpdate(tt.repo, "", tt.currentVersion, "", false)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -414,7 +443,7 @@ func TestSelfUpdate_DownloadsAndReplacesBinary(t *testing.T) {
 	t.Cleanup(func() { osExecutable = origExecutable })
 
 	withTestServer(t, srv, func() {
-		require.NoError(t, SelfUpdate("owner/repo", "", "v1.0.0"))
+		require.NoError(t, SelfUpdate("owner/repo", "", "v1.0.0", "", false))
 	})
 
 	got, err := os.ReadFile(fakeBin)
