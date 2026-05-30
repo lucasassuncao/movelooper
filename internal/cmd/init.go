@@ -2,7 +2,6 @@
 package cmd
 
 import (
-	"embed"
 	"errors"
 	"fmt"
 	"os"
@@ -23,13 +22,11 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-//go:embed templates/*.yaml
-var templateFS embed.FS
-
 // initOptions holds the flag values for the init command.
 type initOptions struct {
 	force       bool
 	interactive bool
+	list        bool
 	template    string
 	output      string
 	scan        string // path to scan; empty means --scan not provided
@@ -87,7 +84,8 @@ By default the configuration file is created at: <executable_dir>/conf/moveloope
 
 	cmd.Flags().BoolVarP(&opts.force, "force", "f", false, "Overwrite existing configuration file")
 	cmd.Flags().BoolVarP(&opts.interactive, "interactive", "i", false, "Interactive mode with prompts")
-	cmd.Flags().StringVarP(&opts.template, "template", "t", "basic", "Template to use (basic, images, music, video, books, archives, installers, regex, full)")
+	cmd.Flags().BoolVarP(&opts.list, "list", "l", false, "List available templates")
+	cmd.Flags().StringVarP(&opts.template, "template", "t", "basic", "Template to use (run --list to see available templates)")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Path to write the configuration file (default: <executable_dir>/conf/movelooper.yaml)")
 	cmd.Flags().StringVar(&opts.scan, "scan", "", "Scan a directory and generate a config from detected file types")
 
@@ -96,6 +94,13 @@ By default the configuration file is created at: <executable_dir>/conf/moveloope
 
 // runInit executes the init command with the given options.
 func runInit(opts initOptions) error {
+	if opts.list {
+		for _, name := range ListOfConfigPresets() {
+			fmt.Println(name)
+		}
+		return nil
+	}
+
 	var configFile string
 	if opts.output != "" {
 		configFile = opts.output
@@ -135,10 +140,15 @@ func runInit(opts initOptions) error {
 			return fmt.Errorf("error marshaling config: %v", err)
 		}
 	default:
+		cfg := ConfigPreset(opts.template)
+		if cfg == nil {
+			pterm.Warning.Printf("Unknown template %q, using 'basic'\n", opts.template)
+			cfg = ConfigPreset("basic")
+		}
 		var err error
-		data, err = loadTemplate(opts.template)
+		data, err = yaml.Marshal(cfg)
 		if err != nil {
-			return err
+			return fmt.Errorf("error marshaling config: %v", err)
 		}
 	}
 
@@ -750,22 +760,6 @@ func getDefaultCategory() models.Category {
 			ConflictStrategy: "rename",
 		},
 	}
-}
-
-// knownTemplates lists all valid template names.
-var knownTemplates = map[string]struct{}{
-	"basic": {}, "images": {}, "music": {}, "video": {},
-	"books": {}, "archives": {}, "installers": {}, "regex": {}, "full": {},
-}
-
-// loadTemplate reads an embedded YAML template by name and returns its bytes.
-// Falls back to "basic" when the name is unknown.
-func loadTemplate(name string) ([]byte, error) {
-	if _, ok := knownTemplates[name]; !ok {
-		pterm.Warning.Printf("Unknown template %q, using 'basic'\n", name)
-		name = "basic"
-	}
-	return templateFS.ReadFile("templates/" + name + ".yaml")
 }
 
 // getDefaultSourcePath returns the default source path (Downloads folder).
