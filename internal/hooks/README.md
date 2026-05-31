@@ -14,7 +14,7 @@ import "github.com/lucasassuncao/movelooper/internal/hooks"
 
 
 <a name="RunHook"></a>
-## func [RunHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/hooks/hooks.go#L19>)
+## func [RunHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/hooks/hooks.go#L21>)
 
 ```go
 func RunHook(ctx context.Context, hook *models.CategoryHook, logger *pterm.Logger, env map[string]string) error

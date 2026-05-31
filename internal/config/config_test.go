@@ -12,14 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// writeYAML writes content to a temp file and returns its path.
-func writeYAML(t *testing.T, dir, name, content string) string {
-	t.Helper()
-	path := filepath.Join(dir, name)
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
-	return path
-}
-
 const minimalCategory = `
 categories:
   - name: docs
@@ -30,23 +22,29 @@ categories:
       path: /tmp/dst
 `
 
-// --- InitConfig ---
+// testInitConfig defines the structure for test cases of the InitConfig function,
+// containing YAML content, a non-existent path flag, an error expectation flag,
+// and an optional specific error to check with errors.Is.
+type testInitConfig struct {
+	name        string
+	yaml        string
+	nonExistent bool
+	wantErr     bool
+	errIs       error
+}
 
+// testInitConfigTestCases defines a set of test cases for the InitConfig function,
+// covering file not found, malformed YAML, valid minimal config, and empty file scenarios.
+var testInitConfigTestCases = []testInitConfig{
+	{"file not found", "", true, true, ErrConfigNotFound},
+	{"malformed yaml", "categories: [invalid: yaml: :", false, true, nil},
+	{"valid minimal config", minimalCategory, false, false, nil},
+	{"empty file is valid", "", false, false, nil},
+}
+
+// TestInitConfig tests the InitConfig function to ensure it correctly loads and validates config files.
 func TestInitConfig(t *testing.T) {
-	tests := []struct {
-		name        string
-		yaml        string
-		nonExistent bool
-		wantErr     bool
-		errIs       error
-	}{
-		{"file not found", "", true, true, ErrConfigNotFound},
-		{"malformed yaml", "categories: [invalid: yaml: :", false, true, nil},
-		{"valid minimal config", minimalCategory, false, false, nil},
-		{"empty file is valid", "", false, false, nil},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testInitConfigTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			var path string
@@ -71,18 +69,23 @@ func TestInitConfig(t *testing.T) {
 	}
 }
 
-// --- UnmarshalConfig ---
+// testUnmarshalConfig defines the structure for test cases of the UnmarshalConfig function,
+// containing YAML content, expected error substring, any-error flag, and a check function.
+type testUnmarshalConfig struct {
+	name       string
+	yaml       string
+	wantErr    string
+	wantAnyErr bool
+	check      func(t *testing.T, cats []*models.Category)
+}
 
-func TestUnmarshalConfig(t *testing.T) {
-	tests := []struct {
-		name    string
-		yaml    string
-		wantErr string // substring; empty = no error expected
-		check   func(t *testing.T, cats []*models.Category)
-	}{
-		{
-			name: "valid category",
-			yaml: `
+// testUnmarshalConfigTestCases defines a set of test cases for the UnmarshalConfig function,
+// covering valid categories, missing extensions, invalid regex, mutually exclusive filters,
+// size/age constraints, regex compilation, size bytes population, invalid glob, and hook validation.
+var testUnmarshalConfigTestCases = []testUnmarshalConfig{
+	{
+		name: "valid category",
+		yaml: `
 categories:
   - name: docs
     source:
@@ -91,16 +94,16 @@ categories:
     destination:
       path: /tmp/dst
 `,
-			check: func(t *testing.T, cats []*models.Category) {
-				require.Len(t, cats, 1)
-				assert.Equal(t, "docs", cats[0].Name)
-				assert.ElementsMatch(t, []string{"pdf", "txt"}, cats[0].Source.Extensions)
-			},
+		check: func(t *testing.T, cats []*models.Category) {
+			require.Len(t, cats, 1)
+			assert.Equal(t, "docs", cats[0].Name)
+			assert.ElementsMatch(t, []string{"pdf", "txt"}, cats[0].Source.Extensions)
 		},
-		{
-			name:    "missing extensions",
-			wantErr: "source.extensions are required",
-			yaml: `
+	},
+	{
+		name:    "missing extensions",
+		wantErr: "source.extensions are required",
+		yaml: `
 categories:
   - name: broken
     source:
@@ -108,11 +111,11 @@ categories:
     destination:
       path: /tmp/dst
 `,
-		},
-		{
-			name:    "invalid regex",
-			wantErr: "invalid regex",
-			yaml: `
+	},
+	{
+		name:    "invalid regex",
+		wantErr: "invalid regex",
+		yaml: `
 categories:
   - name: bad-regex
     source:
@@ -123,11 +126,11 @@ categories:
     destination:
       path: /tmp/dst
 `,
-		},
-		{
-			name:    "regex and glob mutually exclusive",
-			wantErr: "mutually exclusive",
-			yaml: `
+	},
+	{
+		name:    "regex and glob mutually exclusive",
+		wantErr: "mutually exclusive",
+		yaml: `
 categories:
   - name: both-filters
     source:
@@ -139,11 +142,11 @@ categories:
     destination:
       path: /tmp/dst
 `,
-		},
-		{
-			name:    "min-size greater than max-size",
-			wantErr: "min-size",
-			yaml: `
+	},
+	{
+		name:    "min-size greater than max-size",
+		wantErr: "min-size",
+		yaml: `
 categories:
   - name: bad-size
     source:
@@ -155,11 +158,11 @@ categories:
     destination:
       path: /tmp/dst
 `,
-		},
-		{
-			name:    "min-age greater than max-age",
-			wantErr: "min-age",
-			yaml: `
+	},
+	{
+		name:    "min-age greater than max-age",
+		wantErr: "min-age",
+		yaml: `
 categories:
   - name: bad-age
     source:
@@ -171,10 +174,10 @@ categories:
     destination:
       path: /tmp/dst
 `,
-		},
-		{
-			name: "case-insensitive regex compiled",
-			yaml: `
+	},
+	{
+		name: "case-insensitive regex compiled",
+		yaml: `
 categories:
   - name: ci-regex
     source:
@@ -186,14 +189,14 @@ categories:
     destination:
       path: /tmp/dst
 `,
-			check: func(t *testing.T, cats []*models.Category) {
-				require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
-				assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
-			},
+		check: func(t *testing.T, cats []*models.Category) {
+			require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
+			assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
 		},
-		{
-			name: "case-sensitive regex compiled",
-			yaml: `
+	},
+	{
+		name: "case-sensitive regex compiled",
+		yaml: `
 categories:
   - name: cs-regex
     source:
@@ -205,15 +208,15 @@ categories:
     destination:
       path: /tmp/dst
 `,
-			check: func(t *testing.T, cats []*models.Category) {
-				require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
-				assert.False(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
-				assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("report"))
-			},
+		check: func(t *testing.T, cats []*models.Category) {
+			require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
+			assert.False(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
+			assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("report"))
 		},
-		{
-			name: "size bytes populated",
-			yaml: `
+	},
+	{
+		name: "size bytes populated",
+		yaml: `
 categories:
   - name: sized
     source:
@@ -225,15 +228,15 @@ categories:
     destination:
       path: /tmp/dst
 `,
-			check: func(t *testing.T, cats []*models.Category) {
-				assert.Equal(t, int64(1024), cats[0].Source.Filter.MinSizeBytes)
-				assert.Equal(t, int64(10*1024*1024), cats[0].Source.Filter.MaxSizeBytes)
-			},
+		check: func(t *testing.T, cats []*models.Category) {
+			assert.Equal(t, int64(1024), cats[0].Source.Filter.MinSizeBytes)
+			assert.Equal(t, int64(10*1024*1024), cats[0].Source.Filter.MaxSizeBytes)
 		},
-		{
-			name:    "invalid glob",
-			wantErr: "",
-			yaml: `
+	},
+	{
+		name:       "invalid glob returns error",
+		wantAnyErr: true,
+		yaml: `
 categories:
   - name: bad-glob
     source:
@@ -244,14 +247,11 @@ categories:
     destination:
       path: /tmp/dst
 `,
-			check: func(t *testing.T, cats []*models.Category) {
-				// error is expected - this case is handled below
-			},
-		},
-		{
-			name:    "hook with empty run list is rejected",
-			wantErr: `hooks.before.run must not be empty`,
-			yaml: `
+	},
+	{
+		name:    "hook with empty run list is rejected",
+		wantErr: `hooks.before.run must not be empty`,
+		yaml: `
 categories:
   - name: docs
     source:
@@ -264,11 +264,11 @@ categories:
         on-failure: abort
         run: []
 `,
-		},
-		{
-			name:    "hook with invalid on-failure is rejected",
-			wantErr: `hooks.after.on-failure must be "abort" or "warn"`,
-			yaml: `
+	},
+	{
+		name:    "hook with invalid on-failure is rejected",
+		wantErr: `hooks.after.on-failure must be "abort" or "warn"`,
+		yaml: `
 categories:
   - name: docs
     source:
@@ -282,11 +282,11 @@ categories:
         run:
           - echo done
 `,
-		},
-		{
-			name:    "hook with no on-failure is rejected",
-			wantErr: `hooks.before.on-failure must be "abort" or "warn"`,
-			yaml: `
+	},
+	{
+		name:    "hook with no on-failure is rejected",
+		wantErr: `hooks.before.on-failure must be "abort" or "warn"`,
+		yaml: `
 categories:
   - name: docs
     source:
@@ -299,10 +299,10 @@ categories:
         run:
           - echo hi
 `,
-		},
-		{
-			name: "valid hook is accepted",
-			yaml: `
+	},
+	{
+		name: "valid hook is accepted",
+		yaml: `
 categories:
   - name: docs
     source:
@@ -320,19 +320,22 @@ categories:
         run:
           - echo done
 `,
-			check: func(t *testing.T, cats []*models.Category) {
-				require.Len(t, cats, 1)
-				require.NotNil(t, cats[0].Hooks)
-				require.NotNil(t, cats[0].Hooks.Before)
-				require.NotNil(t, cats[0].Hooks.After)
-				assert.Equal(t, "abort", cats[0].Hooks.Before.OnFailure)
-				assert.Equal(t, []string{"echo starting"}, cats[0].Hooks.Before.Run)
-				assert.Equal(t, "warn", cats[0].Hooks.After.OnFailure)
-			},
+		check: func(t *testing.T, cats []*models.Category) {
+			require.Len(t, cats, 1)
+			require.NotNil(t, cats[0].Hooks)
+			require.NotNil(t, cats[0].Hooks.Before)
+			require.NotNil(t, cats[0].Hooks.After)
+			assert.Equal(t, "abort", cats[0].Hooks.Before.OnFailure)
+			assert.Equal(t, []string{"echo starting"}, cats[0].Hooks.Before.Run)
+			assert.Equal(t, "warn", cats[0].Hooks.After.OnFailure)
 		},
-	}
+	},
+}
 
-	for _, tt := range tests {
+// TestUnmarshalConfig tests the UnmarshalConfig function to ensure it correctly
+// parses and validates category configurations from koanf.
+func TestUnmarshalConfig(t *testing.T) {
+	for _, tt := range testUnmarshalConfigTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			path := writeYAML(t, dir, "cfg.yaml", tt.yaml)
@@ -341,65 +344,70 @@ categories:
 
 			cats, err := UnmarshalConfig(k)
 
-			if tt.name == "invalid glob" {
+			switch {
+			case tt.wantAnyErr:
 				assert.Error(t, err)
-				return
-			}
-			if tt.wantErr != "" {
+			case tt.wantErr != "":
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
-				return
-			}
-			require.NoError(t, err)
-			if tt.check != nil {
-				tt.check(t, cats)
+			default:
+				require.NoError(t, err)
+				if tt.check != nil {
+					tt.check(t, cats)
+				}
 			}
 		})
 	}
 }
 
-// --- LoadConfig ---
+// testLoadConfig defines the structure for test cases of the LoadConfig function,
+// containing YAML content and a check function for assertions on the resulting Configuration.
+type testLoadConfig struct {
+	name  string
+	yaml  string
+	check func(t *testing.T, cfg models.Configuration)
+}
 
-func TestLoadConfig(t *testing.T) {
-	tests := []struct {
-		name  string
-		yaml  string
-		check func(t *testing.T, cfg models.Configuration)
-	}{
-		{
-			name: "defaults when not set",
-			yaml: "",
-			check: func(t *testing.T, cfg models.Configuration) {
-				assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
-				assert.Equal(t, defaultHistoryLimit, cfg.HistoryLimit)
-			},
+// testLoadConfigTestCases defines a set of test cases for the LoadConfig function,
+// covering default values, custom values, and watch-delay fallback.
+var testLoadConfigTestCases = []testLoadConfig{
+	{
+		name: "defaults when not set",
+		yaml: "",
+		check: func(t *testing.T, cfg models.Configuration) {
+			assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
+			assert.Equal(t, defaultHistoryLimit, cfg.HistoryLimit)
 		},
-		{
-			name: "custom values",
-			yaml: `
+	},
+	{
+		name: "custom values",
+		yaml: `
 configuration:
   output: json
   log-level: debug
   watch-delay: 2m
   history-limit: 100
 `,
-			check: func(t *testing.T, cfg models.Configuration) {
-				assert.Equal(t, "json", cfg.Output)
-				assert.Equal(t, "debug", cfg.LogLevel)
-				assert.Equal(t, 2*time.Minute, cfg.WatchDelay)
-				assert.Equal(t, 100, cfg.HistoryLimit)
-			},
+		check: func(t *testing.T, cfg models.Configuration) {
+			assert.Equal(t, "json", cfg.Output)
+			assert.Equal(t, "debug", cfg.LogLevel)
+			assert.Equal(t, 2*time.Minute, cfg.WatchDelay)
+			assert.Equal(t, 100, cfg.HistoryLimit)
 		},
-		{
-			name: "watch-delay fallback to default",
-			yaml: "configuration:\n  output: text\n",
-			check: func(t *testing.T, cfg models.Configuration) {
-				assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
-			},
+	},
+	{
+		name: "watch-delay fallback to default",
+		yaml: "configuration:\n  output: text\n",
+		check: func(t *testing.T, cfg models.Configuration) {
+			assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
 		},
-	}
+	},
+}
 
-	for _, tt := range tests {
+// TestLoadConfig tests the LoadConfig function to ensure it correctly applies
+// defaults and parses custom configuration values.
+func TestLoadConfig(t *testing.T) {
+	for _, tt := range testLoadConfigTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			path := writeYAML(t, dir, "cfg.yaml", tt.yaml)
@@ -412,30 +420,33 @@ configuration:
 	}
 }
 
-func TestValidateCategory_Action(t *testing.T) {
-	tests := []struct {
-		name    string
-		action  string
-		wantErr bool
-	}{
-		{"empty defaults to move - ok", "", false},
-		{"move explicit - ok", "move", false},
-		{"copy - ok", "copy", false},
-		{"symlink - ok", "symlink", false},
-		{"invalid action", "link", true},
-		{"uppercase invalid", "MOVE", true},
-	}
-	for _, tt := range tests {
+// testValidateCategoryAction defines the structure for test cases of the validateCategory function
+// for the action field, containing the action value and an error expectation flag.
+type testValidateCategoryAction struct {
+	name    string
+	action  string
+	wantErr bool
+}
+
+// testValidateCategoryActionTestCases defines a set of test cases for validateCategory action validation,
+// covering empty, valid, and invalid action values.
+var testValidateCategoryActionTestCases = []testValidateCategoryAction{
+	{"empty defaults to move - ok", "", false},
+	{"move explicit - ok", "move", false},
+	{"copy - ok", "copy", false},
+	{"symlink - ok", "symlink", false},
+	{"invalid action", "link", true},
+	{"uppercase invalid", "MOVE", true},
+}
+
+// TestValidateCategoryAction tests validateCategory to ensure it correctly validates the action field.
+func TestValidateCategoryAction(t *testing.T) {
+	for _, tt := range testValidateCategoryActionTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			cat := &models.Category{
-				Name: "test",
-				Source: models.CategorySource{
-					Extensions: []string{"pdf"},
-				},
-				Destination: models.CategoryDestination{
-					Path:   "/tmp/dst",
-					Action: tt.action,
-				},
+				Name:        "test",
+				Source:      models.CategorySource{Extensions: []string{"pdf"}},
+				Destination: models.CategoryDestination{Path: "/tmp/dst", Action: tt.action},
 			}
 			err := validateCategory(cat)
 			if tt.wantErr {
@@ -448,27 +459,30 @@ func TestValidateCategory_Action(t *testing.T) {
 	}
 }
 
-func TestValidateCategory_Rename(t *testing.T) {
-	tests := []struct {
-		name    string
-		rename  string
-		wantErr bool
-	}{
-		{"empty - ok", "", false},
-		{"valid template - ok", "{mod-date}_{name}.{ext}", false},
-		{"unknown token - error", "{unknown}", true},
-	}
-	for _, tt := range tests {
+// testValidateCategoryRename defines the structure for test cases of the validateCategory function
+// for the rename field, containing the rename template and an error expectation flag.
+type testValidateCategoryRename struct {
+	name    string
+	rename  string
+	wantErr bool
+}
+
+// testValidateCategoryRenameTestCases defines a set of test cases for validateCategory rename validation,
+// covering empty, valid, and unknown token rename templates.
+var testValidateCategoryRenameTestCases = []testValidateCategoryRename{
+	{"empty - ok", "", false},
+	{"valid template - ok", "{mod-date}_{name}.{ext}", false},
+	{"unknown token - error", "{unknown}", true},
+}
+
+// TestValidateCategoryRename tests validateCategory to ensure it correctly validates the rename field.
+func TestValidateCategoryRename(t *testing.T) {
+	for _, tt := range testValidateCategoryRenameTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			cat := &models.Category{
-				Name: "test",
-				Source: models.CategorySource{
-					Extensions: []string{"pdf"},
-				},
-				Destination: models.CategoryDestination{
-					Path:   "/tmp/dst",
-					Rename: tt.rename,
-				},
+				Name:        "test",
+				Source:      models.CategorySource{Extensions: []string{"pdf"}},
+				Destination: models.CategoryDestination{Path: "/tmp/dst", Rename: tt.rename},
 			}
 			err := validateCategory(cat)
 			if tt.wantErr {
@@ -481,30 +495,33 @@ func TestValidateCategory_Rename(t *testing.T) {
 	}
 }
 
-func TestValidateCategory_OrganizeBy(t *testing.T) {
-	tests := []struct {
-		name       string
-		organizeBy string
-		wantErr    bool
-		errMsg     string
-	}{
-		{"empty - ok", "", false, ""},
-		{"valid tokens - ok", "{ext}/{mod-year}", false, ""},
-		{"unknown token - error", "{unknown}", true, "organize-by"},
-		{"seq in organize-by - error", "{seq:4}/{ext}", true, "{seq}"},
-		{"seq no padding in organize-by - error", "{seq}/{ext}", true, "{seq}"},
-	}
-	for _, tt := range tests {
+// testValidateCategoryOrganizeBy defines the structure for test cases of the validateCategory function
+// for the organize-by field, containing the template, error expectation, and expected error message.
+type testValidateCategoryOrganizeBy struct {
+	name       string
+	organizeBy string
+	wantErr    bool
+	errMsg     string
+}
+
+// testValidateCategoryOrganizeByTestCases defines a set of test cases for validateCategory organize-by validation,
+// covering empty, valid, unknown token, and seq-in-organize-by scenarios.
+var testValidateCategoryOrganizeByTestCases = []testValidateCategoryOrganizeBy{
+	{"empty - ok", "", false, ""},
+	{"valid tokens - ok", "{ext}/{mod-year}", false, ""},
+	{"unknown token - error", "{unknown}", true, "organize-by"},
+	{"seq in organize-by - error", "{seq:4}/{ext}", true, "{seq}"},
+	{"seq no padding in organize-by - error", "{seq}/{ext}", true, "{seq}"},
+}
+
+// TestValidateCategoryOrganizeBy tests validateCategory to ensure it correctly validates the organize-by field.
+func TestValidateCategoryOrganizeBy(t *testing.T) {
+	for _, tt := range testValidateCategoryOrganizeByTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			cat := &models.Category{
-				Name: "test",
-				Source: models.CategorySource{
-					Extensions: []string{"pdf"},
-				},
-				Destination: models.CategoryDestination{
-					Path:       "/tmp/dst",
-					OrganizeBy: tt.organizeBy,
-				},
+				Name:        "test",
+				Source:      models.CategorySource{Extensions: []string{"pdf"}},
+				Destination: models.CategoryDestination{Path: "/tmp/dst", OrganizeBy: tt.organizeBy},
 			}
 			err := validateCategory(cat)
 			if tt.wantErr {
@@ -519,93 +536,104 @@ func TestValidateCategory_OrganizeBy(t *testing.T) {
 	}
 }
 
-func TestValidateFilter_AnyAll(t *testing.T) {
-	tests := []struct {
-		name    string
-		filter  models.CategoryFilter
-		wantErr bool
-		errMsg  string
-	}{
-		{
-			"valid any with glob groups",
-			models.CategoryFilter{
-				Any: []models.CategoryFilter{
+// testValidateFilterAnyAll defines the structure for test cases of the validateFilter function
+// for Any/All composite filters, containing the filter, error expectation, and expected error message.
+type testValidateFilterAnyAll struct {
+	name    string
+	filter  models.CategoryFilter
+	wantErr bool
+	errMsg  string
+}
+
+// testValidateFilterAnyAllTestCases defines a set of test cases for validateFilter Any/All validation,
+// covering valid compositions, invalid combinations, and invalid child filters.
+var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
+	{
+		name: "valid any with glob groups",
+		filter: models.CategoryFilter{
+			Any: []models.CategoryFilter{
+				{Glob: "report_*"},
+				{Glob: "invoice_*"},
+			},
+		},
+		wantErr: false,
+	},
+	{
+		name: "valid all with size and glob",
+		filter: models.CategoryFilter{
+			All: []models.CategoryFilter{
+				{Glob: "report_*"},
+				{MinSize: "1MB"},
+			},
+		},
+		wantErr: false,
+	},
+	{
+		name: "valid any inside all",
+		filter: models.CategoryFilter{
+			All: []models.CategoryFilter{
+				{MinSize: "1MB"},
+				{Any: []models.CategoryFilter{
 					{Glob: "report_*"},
 					{Glob: "invoice_*"},
-				},
+				}},
 			},
-			false, "",
 		},
-		{
-			"valid all with size and glob",
-			models.CategoryFilter{
-				All: []models.CategoryFilter{
-					{Glob: "report_*"},
-					{MinSize: "1MB"},
-				},
+		wantErr: false,
+	},
+	{
+		name: "any and all at same level - error",
+		filter: models.CategoryFilter{
+			Any: []models.CategoryFilter{{Glob: "report_*"}},
+			All: []models.CategoryFilter{{Glob: "invoice_*"}},
+		},
+		wantErr: true,
+		errMsg:  "cannot have both 'any' and 'all'",
+	},
+	{
+		name: "any mixed with direct fields - error",
+		filter: models.CategoryFilter{
+			Glob: "report_*",
+			Any:  []models.CategoryFilter{{Glob: "invoice_*"}},
+		},
+		wantErr: true,
+		errMsg:  "cannot mix 'any'/'all' with direct fields",
+	},
+	{
+		name: "all mixed with direct fields - error",
+		filter: models.CategoryFilter{
+			MinSize: "1MB",
+			All:     []models.CategoryFilter{{Glob: "report_*"}},
+		},
+		wantErr: true,
+		errMsg:  "cannot mix 'any'/'all' with direct fields",
+	},
+	{
+		name: "any with invalid child - error",
+		filter: models.CategoryFilter{
+			Any: []models.CategoryFilter{
+				{Regex: "invalid[", Glob: "report_*"},
 			},
-			false, "",
 		},
-		{
-			"valid any inside all",
-			models.CategoryFilter{
-				All: []models.CategoryFilter{
-					{MinSize: "1MB"},
-					{
-						Any: []models.CategoryFilter{
-							{Glob: "report_*"},
-							{Glob: "invoice_*"},
-						},
-					},
-				},
+		wantErr: true,
+		errMsg:  "mutually exclusive",
+	},
+	{
+		name: "valid any with regex in one group and glob in another",
+		filter: models.CategoryFilter{
+			Any: []models.CategoryFilter{
+				{Regex: `^\d{4}-.*`},
+				{Glob: "report_*"},
 			},
-			false, "",
 		},
-		{
-			"any and all at same level - error",
-			models.CategoryFilter{
-				Any: []models.CategoryFilter{{Glob: "report_*"}},
-				All: []models.CategoryFilter{{Glob: "invoice_*"}},
-			},
-			true, "cannot have both 'any' and 'all'",
-		},
-		{
-			"any mixed with direct fields - error",
-			models.CategoryFilter{
-				Glob: "report_*",
-				Any:  []models.CategoryFilter{{Glob: "invoice_*"}},
-			},
-			true, "cannot mix 'any'/'all' with direct fields",
-		},
-		{
-			"all mixed with direct fields - error",
-			models.CategoryFilter{
-				MinSize: "1MB",
-				All:     []models.CategoryFilter{{Glob: "report_*"}},
-			},
-			true, "cannot mix 'any'/'all' with direct fields",
-		},
-		{
-			"any with invalid child - error",
-			models.CategoryFilter{
-				Any: []models.CategoryFilter{
-					{Regex: "invalid[", Glob: "report_*"}, // mutually exclusive
-				},
-			},
-			true, "mutually exclusive",
-		},
-		{
-			"valid any with regex in one group and glob in another",
-			models.CategoryFilter{
-				Any: []models.CategoryFilter{
-					{Regex: `^\d{4}-.*`},
-					{Glob: "report_*"},
-				},
-			},
-			false, "",
-		},
-	}
-	for _, tt := range tests {
+		wantErr: false,
+	},
+}
+
+// TestValidateFilterAnyAll tests the validateFilter function with Any/All composite filters
+// to ensure it correctly validates nested filter compositions.
+func TestValidateFilterAnyAll(t *testing.T) {
+	for _, tt := range testValidateFilterAnyAllTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateFilter("test", &tt.filter)
 			if tt.wantErr {
@@ -616,4 +644,12 @@ func TestValidateFilter_AnyAll(t *testing.T) {
 			}
 		})
 	}
+}
+
+// writeYAML writes content to a temp file and returns its path.
+func writeYAML(t *testing.T, dir, name, content string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	return path
 }

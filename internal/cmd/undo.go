@@ -61,7 +61,7 @@ Use --category to undo only files from specific categories within a batch.`,
 				}
 			}
 
-			names := parseCategoryNames(categoryFilter)
+			names := models.ParseCategoryNames(categoryFilter)
 			return undoBatch(m, batchID, dryRun, names)
 		},
 	}

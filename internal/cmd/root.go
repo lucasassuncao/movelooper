@@ -108,8 +108,8 @@ type moveBatch struct {
 
 // runMove executes the default move operation across all configured categories.
 func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error {
-	names := parseCategoryNames(opts.CategoryFilter)
-	categories, err := filterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
+	names := models.ParseCategoryNames(opts.CategoryFilter)
+	categories, err := models.FilterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
 	if err != nil {
 		return err
 	}
@@ -280,17 +280,6 @@ func formatBytes(b int64) string {
 		exp = len(prefixes) - 1
 	}
 	return fmt.Sprintf("%.2f %cB", float64(b)/float64(div), prefixes[exp])
-}
-
-// filterFilesForExtension returns the files that match all criteria for a given extension.
-func filterFilesForExtension(category *models.Category, files []os.DirEntry, moved movedSet, extension string) []os.DirEntry {
-	var filtered []os.DirEntry
-	for _, file := range files {
-		if info, _ := matchesCategory(category, file, moved, extension); info != nil {
-			filtered = append(filtered, file)
-		}
-	}
-	return filtered
 }
 
 // matchesCategory returns the file's FileInfo when it passes all category filters,

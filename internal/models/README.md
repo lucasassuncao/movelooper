@@ -10,7 +10,9 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 ## Index
 
+- [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
 - [type Category](<#Category>)
+  - [func FilterCategories\(all \[\]\*Category, names \[\]string, includeDisabled bool, logger \*pterm.Logger\) \(\[\]\*Category, error\)](<#FilterCategories>)
   - [func \(c \*Category\) IsEnabled\(\) bool](<#Category.IsEnabled>)
 - [type CategoryDestination](<#CategoryDestination>)
 - [type CategoryFilter](<#CategoryFilter>)
@@ -22,8 +24,17 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 - [type Movelooper](<#Movelooper>)
 
 
+<a name="ParseCategoryNames"></a>
+## func [ParseCategoryNames](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/categories.go#L12>)
+
+```go
+func ParseCategoryNames(raw string) []string
+```
+
+ParseCategoryNames splits a comma\-separated category string into a slice of trimmed names. Returns nil when raw is empty or contains only separators.
+
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L83-L89>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L9-L15>)
 
 Category represents a file category with its properties
 
@@ -37,8 +48,21 @@ type Category struct {
 }
 ```
 
+<a name="FilterCategories"></a>
+### func [FilterCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/categories.go#L36>)
+
+```go
+func FilterCategories(all []*Category, names []string, includeDisabled bool, logger *pterm.Logger) ([]*Category, error)
+```
+
+FilterCategories returns the subset of all that should be processed.
+
+When names is empty, all categories are returned. Without includeDisabled, categories with enabled: false are silently excluded \(same behavior as today\). With includeDisabled, all categories are returned regardless of their enabled field.
+
+When names is non\-empty, each name is validated against the config. An unknown name returns an error. A disabled category without includeDisabled is skipped with a warning that suggests the flag.
+
 <a name="Category.IsEnabled"></a>
-### func \(\*Category\) [IsEnabled](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L25>)
+### func \(\*Category\) [IsEnabled](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L19>)
 
 ```go
 func (c *Category) IsEnabled() bool
@@ -47,7 +71,7 @@ func (c *Category) IsEnabled() bool
 IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
 
 <a name="CategoryDestination"></a>
-## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L74-L80>)
+## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L34-L40>)
 
 CategoryDestination holds the destination path and placement rules for a category
 
@@ -62,7 +86,7 @@ type CategoryDestination struct {
 ```
 
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L46-L61>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L43-L58>)
 
 CategoryFilter holds the optional filtering rules for a category
 
@@ -86,7 +110,7 @@ type CategoryFilter struct {
 ```
 
 <a name="CategoryHook"></a>
-## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L92-L96>)
+## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L67-L71>)
 
 CategoryHook defines a list of shell commands to run at a lifecycle point.
 
@@ -99,7 +123,7 @@ type CategoryHook struct {
 ```
 
 <a name="CategoryHooks"></a>
-## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L99-L102>)
+## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L61-L64>)
 
 CategoryHooks holds optional before/after hooks for a category.
 
@@ -111,7 +135,7 @@ type CategoryHooks struct {
 ```
 
 <a name="CategorySource"></a>
-## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L64-L71>)
+## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L24-L31>)
 
 CategorySource holds the source path, extensions, and filters for a category
 
@@ -127,7 +151,7 @@ type CategorySource struct {
 ```
 
 <a name="Config"></a>
-## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L30-L33>)
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L6-L9>)
 
 Config represents the complete structure of the movelooper.yaml file
 
@@ -139,7 +163,7 @@ type Config struct {
 ```
 
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L36-L43>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L12-L19>)
 
 Configuration holds the general settings for Movelooper
 
@@ -155,7 +179,7 @@ type Configuration struct {
 ```
 
 <a name="Movelooper"></a>
-## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L15-L21>)
+## type [Movelooper](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/movelooper.go#L13-L19>)
 
 Movelooper holds the app dependencies and runtime state. Viper is intentionally absent: it is used only during initialisation in preRunHandler and discarded afterwards.
 

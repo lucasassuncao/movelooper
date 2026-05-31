@@ -1,16 +1,15 @@
-package cmd
+package models
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/pterm/pterm"
 )
 
-// parseCategoryNames splits a comma-separated category string into a slice of trimmed names.
+// ParseCategoryNames splits a comma-separated category string into a slice of trimmed names.
 // Returns nil when raw is empty or contains only separators.
-func parseCategoryNames(raw string) []string {
+func ParseCategoryNames(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil
@@ -25,7 +24,7 @@ func parseCategoryNames(raw string) []string {
 	return names
 }
 
-// filterCategories returns the subset of all that should be processed.
+// FilterCategories returns the subset of all that should be processed.
 //
 // When names is empty, all categories are returned. Without includeDisabled,
 // categories with enabled: false are silently excluded (same behavior as today).
@@ -34,12 +33,12 @@ func parseCategoryNames(raw string) []string {
 // When names is non-empty, each name is validated against the config. An unknown
 // name returns an error. A disabled category without includeDisabled is skipped
 // with a warning that suggests the flag.
-func filterCategories(all []*models.Category, names []string, includeDisabled bool, logger *pterm.Logger) ([]*models.Category, error) {
+func FilterCategories(all []*Category, names []string, includeDisabled bool, logger *pterm.Logger) ([]*Category, error) {
 	if len(names) == 0 {
 		if includeDisabled {
 			return all, nil
 		}
-		var result []*models.Category
+		var result []*Category
 		for _, cat := range all {
 			if cat.IsEnabled() {
 				result = append(result, cat)
@@ -48,12 +47,12 @@ func filterCategories(all []*models.Category, names []string, includeDisabled bo
 		return result, nil
 	}
 
-	index := make(map[string]*models.Category, len(all))
+	index := make(map[string]*Category, len(all))
 	for _, cat := range all {
 		index[cat.Name] = cat
 	}
 
-	var result []*models.Category
+	var result []*Category
 	for _, name := range names {
 		cat, ok := index[name]
 		if !ok {

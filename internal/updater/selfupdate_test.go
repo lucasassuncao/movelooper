@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
 func serveFakeRelease(t *testing.T, statusCode int, body interface{}) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -49,8 +47,6 @@ func withTestServer(t *testing.T, srv *httptest.Server, fn func()) {
 	fn()
 }
 
-// ── normalizeVersion ──────────────────────────────────────────────────────────
-
 func TestNormalizeVersion(t *testing.T) {
 	tests := []struct {
 		input string
@@ -68,8 +64,6 @@ func TestNormalizeVersion(t *testing.T) {
 		})
 	}
 }
-
-// ── selectAsset ───────────────────────────────────────────────────────────────
 
 func TestSelectAsset(t *testing.T) {
 	tests := []struct {
@@ -139,8 +133,6 @@ func TestSelectAsset(t *testing.T) {
 		})
 	}
 }
-
-// ── fetchLatestRelease ────────────────────────────────────────────────────────
 
 func TestFetchLatestRelease(t *testing.T) {
 	var capturedAuth string
@@ -221,8 +213,6 @@ func TestFetchLatestRelease(t *testing.T) {
 		})
 	}
 }
-
-// ── download ──────────────────────────────────────────────────────────────────
 
 func TestDownload(t *testing.T) {
 	var capturedAuth string
@@ -327,8 +317,6 @@ func TestDownload(t *testing.T) {
 	}
 }
 
-// ── CleanOldBinary ────────────────────────────────────────────────────────────
-
 func TestCleanOldBinary(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -357,8 +345,6 @@ func TestCleanOldBinary(t *testing.T) {
 		})
 	}
 }
-
-// ── SelfUpdate ────────────────────────────────────────────────────────────────
 
 func TestSelfUpdate(t *testing.T) {
 	tests := []struct {

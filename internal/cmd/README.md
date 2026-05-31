@@ -37,7 +37,7 @@ var DefaultRepo = ""
 ```
 
 <a name="ConfigCmd"></a>
-## func [ConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/config.go#L13>)
+## func [ConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/config.go#L9>)
 
 ```go
 func ConfigCmd(m *models.Movelooper) *cobra.Command

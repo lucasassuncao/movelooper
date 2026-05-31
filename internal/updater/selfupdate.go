@@ -212,8 +212,6 @@ func normalizeVersion(v string) string {
 	return strings.TrimPrefix(v, "v")
 }
 
-// ── GitHub API ────────────────────────────────────────────────────────────────
-
 type ghRelease struct {
 	TagName     string    `json:"tag_name"`
 	Prerelease  bool      `json:"prerelease"`

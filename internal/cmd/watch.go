@@ -91,8 +91,8 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
 func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) error {
-	names := parseCategoryNames(opts.CategoryFilter)
-	filtered, err := filterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
+	names := models.ParseCategoryNames(opts.CategoryFilter)
+	filtered, err := models.FilterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
 	if err != nil {
 		return err
 	}

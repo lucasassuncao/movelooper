@@ -11,6 +11,8 @@ import (
 	"github.com/pterm/pterm"
 )
 
+func setSysProcAttr(cmd *exec.Cmd) {}
+
 // RunHook executes all commands in hook.Run sequentially, injecting env into
 // each process environment. Returns nil when hook is nil.
 // On command failure:

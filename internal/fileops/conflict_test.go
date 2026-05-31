@@ -10,46 +10,58 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func writeFile(t *testing.T, path string, content []byte) {
-	t.Helper()
-	require.NoError(t, os.WriteFile(path, content, 0644))
+// testConflictResolverSkipMessage defines the structure for test cases of the SkipMessage method,
+// containing the resolver under test and the expected message.
+type testConflictResolverSkipMessage struct {
+	name     string
+	resolver ConflictResolver
+	wantMsg  string
 }
 
+// testConflictResolverSkipMessageTestCases defines a set of test cases for the SkipMessage method
+// across all resolver types.
+var testConflictResolverSkipMessageTestCases = []testConflictResolverSkipMessage{
+	{"skip", &skipResolver{}, "file skipped due to conflict strategy"},
+	{"newest", &newestResolver{}, "file skipped - destination is newer"},
+	{"oldest", &oldestResolver{}, "file skipped - destination is older"},
+	{"larger", &largerResolver{}, "file skipped - destination is larger"},
+	{"smaller", &smallerResolver{}, "file skipped - destination is smaller"},
+	{"hash_check", &hashCheckResolver{}, "duplicate file removed from source"},
+	{"rename", &renameResolver{}, ""},
+	{"overwrite", &overwriteResolver{}, ""},
+}
+
+// TestConflictResolvers_SkipMessages tests the SkipMessage method for all conflict resolvers
+// to ensure each returns the correct message.
 func TestConflictResolvers_SkipMessages(t *testing.T) {
-	tests := []struct {
-		name     string
-		resolver ConflictResolver
-		wantMsg  string
-	}{
-		{"skip", &skipResolver{}, "file skipped due to conflict strategy"},
-		{"newest", &newestResolver{}, "file skipped - destination is newer"},
-		{"oldest", &oldestResolver{}, "file skipped - destination is older"},
-		{"larger", &largerResolver{}, "file skipped - destination is larger"},
-		{"smaller", &smallerResolver{}, "file skipped - destination is smaller"},
-		{"hash_check", &hashCheckResolver{}, "duplicate file removed from source"},
-		{"rename", &renameResolver{}, ""},
-		{"overwrite", &overwriteResolver{}, ""},
-	}
-	for _, tt := range tests {
+	for _, tt := range testConflictResolverSkipMessageTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.wantMsg, tt.resolver.SkipMessage())
 		})
 	}
 }
 
-func TestGetUniqueDestinationPath(t *testing.T) {
-	tests := []struct {
-		name     string
-		existing []string
-		input    string
-		want     string
-	}{
-		{"no conflict", nil, "file.txt", "file.txt"},
-		{"one conflict", []string{"file.txt"}, "file.txt", "file(1).txt"},
-		{"multiple conflicts", []string{"file.txt", "file(1).txt", "file(2).txt"}, "file.txt", "file(3).txt"},
-	}
+// testGetUniqueDestinationPath defines the structure for test cases of the getUniqueDestinationPath function,
+// containing existing files, input filename, and expected output filename.
+type testGetUniqueDestinationPath struct {
+	name     string
+	existing []string
+	input    string
+	want     string
+}
 
-	for _, tt := range tests {
+// testGetUniqueDestinationPathTestCases defines a set of test cases for the getUniqueDestinationPath function,
+// covering no conflict, one conflict, and multiple sequential conflicts.
+var testGetUniqueDestinationPathTestCases = []testGetUniqueDestinationPath{
+	{"no conflict", nil, "file.txt", "file.txt"},
+	{"one conflict", []string{"file.txt"}, "file.txt", "file(1).txt"},
+	{"multiple conflicts", []string{"file.txt", "file(1).txt", "file(2).txt"}, "file.txt", "file(3).txt"},
+}
+
+// TestGetUniqueDestinationPath tests the getUniqueDestinationPath function to ensure it correctly
+// generates unique filenames when conflicts exist.
+func TestGetUniqueDestinationPath(t *testing.T) {
+	for _, tt := range testGetUniqueDestinationPathTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			for _, f := range tt.existing {
@@ -62,145 +74,154 @@ func TestGetUniqueDestinationPath(t *testing.T) {
 	}
 }
 
+// testResolver defines the structure for test cases of individual conflict resolvers,
+// containing setup logic, the resolve function, and expected outcome fields.
+type testResolver struct {
+	name    string
+	setup   func(t *testing.T, src, dst string)
+	resolve func(ConflictArgs) (string, bool, error)
+	want    testResolverWant
+}
+
+// testResolverWant defines the expected outcome fields for resolver test cases.
+type testResolverWant struct {
+	move       bool
+	pathIsDst  bool
+	pathSuffix string
+	srcRemoved bool
+	dstRemoved bool
+}
+
+// testResolverTestCases defines a set of test cases for all conflict resolver implementations,
+// covering rename, overwrite, skip, hash_check, newest, oldest, larger, and smaller strategies.
+var testResolverTestCases = []testResolver{
+	{
+		name: "rename/conflict renames",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("src"))
+			writeFile(t, dst, []byte("existing"))
+		},
+		resolve: (&renameResolver{}).Resolve,
+		want:    testResolverWant{move: true, pathSuffix: "(1)"},
+	},
+	{
+		name: "overwrite/removes dst",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("src"))
+			writeFile(t, dst, []byte("old"))
+		},
+		resolve: (&overwriteResolver{}).Resolve,
+		want:    testResolverWant{move: true, pathIsDst: true, dstRemoved: true},
+	},
+	{
+		name: "skip/does not move",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("src"))
+			writeFile(t, dst, []byte("dst"))
+		},
+		resolve: (&skipResolver{}).Resolve,
+		want:    testResolverWant{move: false},
+	},
+	{
+		name: "hash_check/duplicate removes src",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("identical"))
+			writeFile(t, dst, []byte("identical"))
+		},
+		resolve: (&hashCheckResolver{}).Resolve,
+		want:    testResolverWant{move: false, srcRemoved: true},
+	},
+	{
+		name: "hash_check/different renames",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("content A"))
+			writeFile(t, dst, []byte("content B"))
+		},
+		resolve: (&hashCheckResolver{}).Resolve,
+		want:    testResolverWant{move: true, pathSuffix: "(1)"},
+	},
+	{
+		name: "newest/src newer moves",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("src"))
+			writeFile(t, dst, []byte("dst"))
+			require.NoError(t, os.Chtimes(dst, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
+		},
+		resolve: (&newestResolver{}).Resolve,
+		want:    testResolverWant{move: true, pathIsDst: true},
+	},
+	{
+		name: "newest/dst newer skips",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("src"))
+			writeFile(t, dst, []byte("dst"))
+			require.NoError(t, os.Chtimes(src, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
+		},
+		resolve: (&newestResolver{}).Resolve,
+		want:    testResolverWant{move: false},
+	},
+	{
+		name: "oldest/src older moves",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("src"))
+			writeFile(t, dst, []byte("dst"))
+			require.NoError(t, os.Chtimes(src, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
+		},
+		resolve: (&oldestResolver{}).Resolve,
+		want:    testResolverWant{move: true, pathIsDst: true},
+	},
+	{
+		name: "oldest/dst older skips",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, []byte("src"))
+			writeFile(t, dst, []byte("dst"))
+			require.NoError(t, os.Chtimes(dst, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
+		},
+		resolve: (&oldestResolver{}).Resolve,
+		want:    testResolverWant{move: false},
+	},
+	{
+		name: "larger/src larger moves",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, make([]byte, 200))
+			writeFile(t, dst, make([]byte, 100))
+		},
+		resolve: (&largerResolver{}).Resolve,
+		want:    testResolverWant{move: true, pathIsDst: true},
+	},
+	{
+		name: "larger/dst larger skips",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, make([]byte, 100))
+			writeFile(t, dst, make([]byte, 200))
+		},
+		resolve: (&largerResolver{}).Resolve,
+		want:    testResolverWant{move: false},
+	},
+	{
+		name: "smaller/src smaller moves",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, make([]byte, 100))
+			writeFile(t, dst, make([]byte, 200))
+		},
+		resolve: (&smallerResolver{}).Resolve,
+		want:    testResolverWant{move: true, pathIsDst: true},
+	},
+	{
+		name: "smaller/dst smaller skips",
+		setup: func(t *testing.T, src, dst string) {
+			writeFile(t, src, make([]byte, 200))
+			writeFile(t, dst, make([]byte, 100))
+		},
+		resolve: (&smallerResolver{}).Resolve,
+		want:    testResolverWant{move: false},
+	},
+}
+
+// TestResolvers tests all conflict resolver implementations to ensure they correctly
+// handle move, skip, rename, and removal scenarios.
 func TestResolvers(t *testing.T) {
-	type want struct {
-		move       bool
-		pathIsDst  bool
-		pathSuffix string
-		srcRemoved bool
-		dstRemoved bool
-	}
-
-	tests := []struct {
-		name    string
-		setup   func(t *testing.T, src, dst string)
-		resolve func(ConflictArgs) (string, bool, error)
-		want    want
-	}{
-		{
-			name: "rename/conflict renames",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("src"))
-				writeFile(t, dst, []byte("existing"))
-			},
-			resolve: (&renameResolver{}).Resolve,
-			want:    want{move: true, pathSuffix: "(1)"},
-		},
-		{
-			name: "overwrite/removes dst",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("src"))
-				writeFile(t, dst, []byte("old"))
-			},
-			resolve: (&overwriteResolver{}).Resolve,
-			want:    want{move: true, pathIsDst: true, dstRemoved: true},
-		},
-		{
-			name: "skip/does not move",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("src"))
-				writeFile(t, dst, []byte("dst"))
-			},
-			resolve: (&skipResolver{}).Resolve,
-			want:    want{move: false},
-		},
-		{
-			name: "hash_check/duplicate removes src",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("identical"))
-				writeFile(t, dst, []byte("identical"))
-			},
-			resolve: (&hashCheckResolver{}).Resolve,
-			want:    want{move: false, srcRemoved: true},
-		},
-		{
-			name: "hash_check/different renames",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("content A"))
-				writeFile(t, dst, []byte("content B"))
-			},
-			resolve: (&hashCheckResolver{}).Resolve,
-			want:    want{move: true, pathSuffix: "(1)"},
-		},
-		{
-			name: "newest/src newer moves",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("src"))
-				writeFile(t, dst, []byte("dst"))
-				require.NoError(t, os.Chtimes(dst, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
-			},
-			resolve: (&newestResolver{}).Resolve,
-			want:    want{move: true, pathIsDst: true},
-		},
-		{
-			name: "newest/dst newer skips",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("src"))
-				writeFile(t, dst, []byte("dst"))
-				require.NoError(t, os.Chtimes(src, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
-			},
-			resolve: (&newestResolver{}).Resolve,
-			want:    want{move: false},
-		},
-		{
-			name: "oldest/src older moves",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("src"))
-				writeFile(t, dst, []byte("dst"))
-				require.NoError(t, os.Chtimes(src, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
-			},
-			resolve: (&oldestResolver{}).Resolve,
-			want:    want{move: true, pathIsDst: true},
-		},
-		{
-			name: "oldest/dst older skips",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, []byte("src"))
-				writeFile(t, dst, []byte("dst"))
-				require.NoError(t, os.Chtimes(dst, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
-			},
-			resolve: (&oldestResolver{}).Resolve,
-			want:    want{move: false},
-		},
-		{
-			name: "larger/src larger moves",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, make([]byte, 200))
-				writeFile(t, dst, make([]byte, 100))
-			},
-			resolve: (&largerResolver{}).Resolve,
-			want:    want{move: true, pathIsDst: true},
-		},
-		{
-			name: "larger/dst larger skips",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, make([]byte, 100))
-				writeFile(t, dst, make([]byte, 200))
-			},
-			resolve: (&largerResolver{}).Resolve,
-			want:    want{move: false},
-		},
-		{
-			name: "smaller/src smaller moves",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, make([]byte, 100))
-				writeFile(t, dst, make([]byte, 200))
-			},
-			resolve: (&smallerResolver{}).Resolve,
-			want:    want{move: true, pathIsDst: true},
-		},
-		{
-			name: "smaller/dst smaller skips",
-			setup: func(t *testing.T, src, dst string) {
-				writeFile(t, src, make([]byte, 200))
-				writeFile(t, dst, make([]byte, 100))
-			},
-			resolve: (&smallerResolver{}).Resolve,
-			want:    want{move: false},
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testResolverTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			src := filepath.Join(dir, "src.txt")
@@ -228,4 +249,9 @@ func TestResolvers(t *testing.T) {
 			}
 		})
 	}
+}
+
+func writeFile(t *testing.T, path string, content []byte) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(path, content, 0644))
 }

@@ -32,34 +32,39 @@ func makeEntry(batchID string) Entry {
 	}
 }
 
-// --- Add ---
+// testAdd defines the structure for test cases of the Add function,
+// containing the entries to add, an error expectation flag, expected length, and a bad path flag.
+type testAdd struct {
+	name    string
+	entries []Entry
+	wantLen int
+	wantErr bool
+	badPath bool
+}
 
+// testAddTestCases defines a set of test cases for the Add function,
+// covering single entry persistence and unwritable path errors.
+var testAddTestCases = []testAdd{
+	{
+		name:    "persists single entry to disk",
+		entries: []Entry{makeEntry("batch_1")},
+		wantLen: 1,
+	},
+	{
+		name:    "unwritable path returns error",
+		entries: []Entry{makeEntry("batch_fail")},
+		wantErr: true,
+		badPath: true,
+	},
+}
+
+// TestAdd tests the Add function to ensure it correctly persists entries and handles errors.
 func TestAdd(t *testing.T) {
-	tests := []struct {
-		name    string
-		entries []Entry
-		wantLen int
-		wantErr bool
-		badPath bool
-	}{
-		{
-			name:    "persists single entry to disk",
-			entries: []Entry{makeEntry("batch_1")},
-			wantLen: 1,
-		},
-		{
-			name:    "unwritable path returns error",
-			entries: []Entry{makeEntry("batch_fail")},
-			wantErr: true,
-			badPath: true,
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testAddTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			if tt.badPath {
-				h.path = t.TempDir() // directory, not a file
+				h.path = t.TempDir()
 			}
 
 			var lastErr error
@@ -82,21 +87,26 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-// --- GetBatch ---
+// testGetBatch defines the structure for test cases of the GetBatch function,
+// containing batch IDs to add, the query batch ID, and the expected result length.
+type testGetBatch struct {
+	name    string
+	add     []string
+	query   string
+	wantLen int
+}
 
+// testGetBatchTestCases defines a set of test cases for the GetBatch function,
+// covering known batch, single entry batch, and unknown batch scenarios.
+var testGetBatchTestCases = []testGetBatch{
+	{"known batch returns entries", []string{"A", "A", "B"}, "A", 2},
+	{"single entry batch", []string{"A", "A", "B"}, "B", 1},
+	{"unknown batch returns empty", []string{"A"}, "nonexistent", 0},
+}
+
+// TestGetBatch tests the GetBatch function to ensure it correctly retrieves entries by batch ID.
 func TestGetBatch(t *testing.T) {
-	tests := []struct {
-		name    string
-		add     []string // batchIDs to add
-		query   string
-		wantLen int
-	}{
-		{"known batch returns entries", []string{"A", "A", "B"}, "A", 2},
-		{"single entry batch", []string{"A", "A", "B"}, "B", 1},
-		{"unknown batch returns empty", []string{"A"}, "nonexistent", 0},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testGetBatchTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			for _, id := range tt.add {
@@ -107,20 +117,25 @@ func TestGetBatch(t *testing.T) {
 	}
 }
 
-// --- GetLastBatchID ---
+// testGetLastBatchID defines the structure for test cases of the GetLastBatchID function,
+// containing batch IDs to add, the expected batch ID, and an error expectation flag.
+type testGetLastBatchID struct {
+	name    string
+	add     []string
+	want    string
+	wantErr bool
+}
 
+// testGetLastBatchIDTestCases defines a set of test cases for the GetLastBatchID function,
+// covering populated history and empty history scenarios.
+var testGetLastBatchIDTestCases = []testGetLastBatchID{
+	{"returns last added batch", []string{"batch_1", "batch_2"}, "batch_2", false},
+	{"empty history errors", nil, "", true},
+}
+
+// TestGetLastBatchID tests the GetLastBatchID function to ensure it correctly identifies the last batch.
 func TestGetLastBatchID(t *testing.T) {
-	tests := []struct {
-		name    string
-		add     []string
-		want    string
-		wantErr bool
-	}{
-		{"returns last added batch", []string{"batch_1", "batch_2"}, "batch_2", false},
-		{"empty history errors", nil, "", true},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testGetLastBatchIDTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			for _, id := range tt.add {
@@ -137,32 +152,37 @@ func TestGetLastBatchID(t *testing.T) {
 	}
 }
 
-// --- GetAllBatches ---
+// testGetAllBatches defines the structure for test cases of the GetAllBatches function,
+// containing batch IDs to add and a check function for assertions.
+type testGetAllBatches struct {
+	name  string
+	add   []string
+	check func(t *testing.T, batches []BatchSummary)
+}
 
+// testGetAllBatchesTestCases defines a set of test cases for the GetAllBatches function,
+// covering empty history and ordered batches with counts.
+var testGetAllBatchesTestCases = []testGetAllBatches{
+	{
+		name:  "empty history",
+		check: func(t *testing.T, batches []BatchSummary) { assert.Empty(t, batches) },
+	},
+	{
+		name: "ordered oldest first with counts",
+		add:  []string{"batch_1", "batch_2", "batch_1"},
+		check: func(t *testing.T, batches []BatchSummary) {
+			require.Len(t, batches, 2)
+			assert.Equal(t, "batch_1", batches[0].BatchID)
+			assert.Equal(t, 2, batches[0].Count)
+			assert.Equal(t, "batch_2", batches[1].BatchID)
+			assert.Equal(t, 1, batches[1].Count)
+		},
+	},
+}
+
+// TestGetAllBatches tests the GetAllBatches function to ensure it returns batches in the correct order with counts.
 func TestGetAllBatches(t *testing.T) {
-	tests := []struct {
-		name  string
-		add   []string
-		check func(t *testing.T, batches []BatchSummary)
-	}{
-		{
-			name:  "empty history",
-			check: func(t *testing.T, batches []BatchSummary) { assert.Empty(t, batches) },
-		},
-		{
-			name: "ordered oldest first with counts",
-			add:  []string{"batch_1", "batch_2", "batch_1"},
-			check: func(t *testing.T, batches []BatchSummary) {
-				require.Len(t, batches, 2)
-				assert.Equal(t, "batch_1", batches[0].BatchID)
-				assert.Equal(t, 2, batches[0].Count)
-				assert.Equal(t, "batch_2", batches[1].BatchID)
-				assert.Equal(t, 1, batches[1].Count)
-			},
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testGetAllBatchesTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			for _, id := range tt.add {
@@ -173,43 +193,48 @@ func TestGetAllBatches(t *testing.T) {
 	}
 }
 
-// --- RemoveBatch ---
+// testRemoveBatch defines the structure for test cases of the RemoveBatch function,
+// containing batch IDs to add, the batch to remove, and a check function for assertions.
+type testRemoveBatch struct {
+	name   string
+	add    []string
+	remove string
+	check  func(t *testing.T, h *History)
+}
 
+// testRemoveBatchTestCases defines a set of test cases for the RemoveBatch function,
+// covering successful removal and non-existent batch scenarios.
+var testRemoveBatchTestCases = []testRemoveBatch{
+	{
+		name:   "removes entries and persists to disk",
+		add:    []string{"batch_1", "batch_2"},
+		remove: "batch_1",
+		check: func(t *testing.T, h *History) {
+			assert.Empty(t, h.GetBatch("batch_1"))
+			assert.Len(t, h.GetBatch("batch_2"), 1)
+
+			data, err := os.ReadFile(h.path)
+			require.NoError(t, err)
+			var loaded []Entry
+			require.NoError(t, json.Unmarshal(data, &loaded))
+			for _, e := range loaded {
+				assert.NotEqual(t, "batch_1", e.BatchID)
+			}
+		},
+	},
+	{
+		name:   "non-existent batch no error",
+		add:    []string{"batch_keep"},
+		remove: "batch_ghost",
+		check: func(t *testing.T, h *History) {
+			assert.Len(t, h.GetBatch("batch_keep"), 1)
+		},
+	},
+}
+
+// TestRemoveBatch tests the RemoveBatch function to ensure it correctly removes entries and persists changes.
 func TestRemoveBatch(t *testing.T) {
-	tests := []struct {
-		name   string
-		add    []string
-		remove string
-		check  func(t *testing.T, h *History)
-	}{
-		{
-			name:   "removes entries and persists to disk",
-			add:    []string{"batch_1", "batch_2"},
-			remove: "batch_1",
-			check: func(t *testing.T, h *History) {
-				assert.Empty(t, h.GetBatch("batch_1"))
-				assert.Len(t, h.GetBatch("batch_2"), 1)
-
-				data, err := os.ReadFile(h.path)
-				require.NoError(t, err)
-				var loaded []Entry
-				require.NoError(t, json.Unmarshal(data, &loaded))
-				for _, e := range loaded {
-					assert.NotEqual(t, "batch_1", e.BatchID)
-				}
-			},
-		},
-		{
-			name:   "non-existent batch no error",
-			add:    []string{"batch_keep"},
-			remove: "batch_ghost",
-			check: func(t *testing.T, h *History) {
-				assert.Len(t, h.GetBatch("batch_keep"), 1)
-			},
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testRemoveBatchTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			for _, id := range tt.add {
@@ -221,32 +246,37 @@ func TestRemoveBatch(t *testing.T) {
 	}
 }
 
-// --- prune ---
+// testPrune defines the structure for test cases of the prune function,
+// containing the max batch limit, batch IDs to add, and expected present/absent IDs.
+type testPrune struct {
+	name       string
+	maxBatches int
+	add        []string
+	wantIDs    []string
+	notWantIDs []string
+}
 
+// testPruneTestCases defines a set of test cases for the prune function,
+// covering eviction of oldest batches and single batch under limit.
+var testPruneTestCases = []testPrune{
+	{
+		name:       "evicts oldest when over limit",
+		maxBatches: 2,
+		add:        []string{"batch_1", "batch_2", "batch_3"},
+		wantIDs:    []string{"batch_2", "batch_3"},
+		notWantIDs: []string{"batch_1"},
+	},
+	{
+		name:       "single batch under limit kept",
+		maxBatches: 5,
+		add:        []string{"batch_only"},
+		wantIDs:    []string{"batch_only"},
+	},
+}
+
+// TestPrune tests the prune function to ensure it correctly evicts oldest batches when the limit is exceeded.
 func TestPrune(t *testing.T) {
-	tests := []struct {
-		name       string
-		maxBatches int
-		add        []string
-		wantIDs    []string
-		notWantIDs []string
-	}{
-		{
-			name:       "evicts oldest when over limit",
-			maxBatches: 2,
-			add:        []string{"batch_1", "batch_2", "batch_3"},
-			wantIDs:    []string{"batch_2", "batch_3"},
-			notWantIDs: []string{"batch_1"},
-		},
-		{
-			name:       "single batch under limit kept",
-			maxBatches: 5,
-			add:        []string{"batch_only"},
-			wantIDs:    []string{"batch_only"},
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testPruneTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, tt.maxBatches)
 			for _, id := range tt.add {
@@ -267,21 +297,26 @@ func TestPrune(t *testing.T) {
 	}
 }
 
-// --- NewBatchID / NewWatchBatchID ---
+// testBatchID defines the structure for test cases of the NewBatchID and NewWatchBatchID functions,
+// containing the function under test, expected prefix, and a uniqueness check flag.
+type testBatchID struct {
+	name      string
+	fn        func() string
+	prefix    string
+	checkUniq bool
+}
 
+// testBatchIDTestCases defines a set of test cases for the batch ID generator functions,
+// covering prefix validation and uniqueness across multiple calls.
+var testBatchIDTestCases = []testBatchID{
+	{"NewBatchID has prefix", NewBatchID, "batch_", false},
+	{"NewWatchBatchID has prefix", NewWatchBatchID, "watch_", false},
+	{"NewWatchBatchID unique per call", NewWatchBatchID, "watch_", true},
+}
+
+// TestBatchIDs tests the NewBatchID and NewWatchBatchID functions to ensure they produce correct prefixes and unique IDs.
 func TestBatchIDs(t *testing.T) {
-	tests := []struct {
-		name      string
-		fn        func() string
-		prefix    string
-		checkUniq bool
-	}{
-		{"NewBatchID has prefix", NewBatchID, "batch_", false},
-		{"NewWatchBatchID has prefix", NewWatchBatchID, "watch_", false},
-		{"NewWatchBatchID unique per call", NewWatchBatchID, "watch_", true},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testBatchIDTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.checkUniq {
 				ids := make(map[string]bool)
@@ -297,41 +332,46 @@ func TestBatchIDs(t *testing.T) {
 	}
 }
 
-// --- load ---
+// testLoad defines the structure for test cases of the load function,
+// containing setup logic, expected entry count, error expectation, and a non-existent path flag.
+type testLoad struct {
+	name     string
+	setup    func(t *testing.T, h *History)
+	wantLen  int
+	wantErr  bool
+	notExist bool
+}
 
+// testLoadTestCases defines a set of test cases for the load function,
+// covering valid JSON, corrupt JSON, and non-existent file scenarios.
+var testLoadTestCases = []testLoad{
+	{
+		name: "valid json",
+		setup: func(t *testing.T, h *History) {
+			entries := []Entry{{Source: "/src/a.txt", Destination: "/dst/a.txt", Timestamp: time.Now(), BatchID: "batch_1"}}
+			data, err := json.MarshalIndent(entries, "", "  ")
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(h.path, data, 0644))
+		},
+		wantLen: 1,
+	},
+	{
+		name: "corrupt json",
+		setup: func(t *testing.T, h *History) {
+			require.NoError(t, os.WriteFile(h.path, []byte("not valid json {{{"), 0644))
+		},
+		wantErr: true,
+	},
+	{
+		name:     "file not exist",
+		notExist: true,
+		wantErr:  true,
+	},
+}
+
+// TestLoad tests the load function to ensure it correctly reads and parses history files.
 func TestLoad(t *testing.T) {
-	tests := []struct {
-		name     string
-		setup    func(t *testing.T, h *History)
-		wantLen  int
-		wantErr  bool
-		notExist bool
-	}{
-		{
-			name: "valid json",
-			setup: func(t *testing.T, h *History) {
-				entries := []Entry{{Source: "/src/a.txt", Destination: "/dst/a.txt", Timestamp: time.Now(), BatchID: "batch_1"}}
-				data, err := json.MarshalIndent(entries, "", "  ")
-				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(h.path, data, 0644))
-			},
-			wantLen: 1,
-		},
-		{
-			name: "corrupt json",
-			setup: func(t *testing.T, h *History) {
-				require.NoError(t, os.WriteFile(h.path, []byte("not valid json {{{"), 0644))
-			},
-			wantErr: true,
-		},
-		{
-			name:     "file not exist",
-			notExist: true,
-			wantErr:  true,
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testLoadTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			if tt.notExist {
@@ -351,34 +391,39 @@ func TestLoad(t *testing.T) {
 	}
 }
 
-// --- save ---
+// testSave defines the structure for test cases of the save function,
+// containing entries to persist and a check function for assertions on the written file.
+type testSave struct {
+	name    string
+	entries []Entry
+	check   func(t *testing.T, data []byte)
+}
 
+// testSaveTestCases defines a set of test cases for the save function,
+// covering entries with data and empty entry arrays.
+var testSaveTestCases = []testSave{
+	{
+		name:    "writes json with entries",
+		entries: []Entry{{Source: "/src/b.txt", Destination: "/dst/b.txt", Timestamp: time.Now(), BatchID: "batch_save"}},
+		check: func(t *testing.T, data []byte) {
+			var loaded []Entry
+			require.NoError(t, json.Unmarshal(data, &loaded))
+			require.Len(t, loaded, 1)
+			assert.Equal(t, "batch_save", loaded[0].BatchID)
+		},
+	},
+	{
+		name:    "empty entries writes empty array",
+		entries: []Entry{},
+		check: func(t *testing.T, data []byte) {
+			assert.Contains(t, string(data), "[]")
+		},
+	},
+}
+
+// TestSave tests the save function to ensure it correctly serializes and writes history entries.
 func TestSave(t *testing.T) {
-	tests := []struct {
-		name    string
-		entries []Entry
-		check   func(t *testing.T, data []byte)
-	}{
-		{
-			name:    "writes json with entries",
-			entries: []Entry{{Source: "/src/b.txt", Destination: "/dst/b.txt", Timestamp: time.Now(), BatchID: "batch_save"}},
-			check: func(t *testing.T, data []byte) {
-				var loaded []Entry
-				require.NoError(t, json.Unmarshal(data, &loaded))
-				require.Len(t, loaded, 1)
-				assert.Equal(t, "batch_save", loaded[0].BatchID)
-			},
-		},
-		{
-			name:    "empty entries writes empty array",
-			entries: []Entry{},
-			check: func(t *testing.T, data []byte) {
-				assert.Contains(t, string(data), "[]")
-			},
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testSaveTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			h.Entries = tt.entries
@@ -391,8 +436,7 @@ func TestSave(t *testing.T) {
 	}
 }
 
-// --- concurrent Add ---
-
+// TestAdd_ConcurrentSafe tests that concurrent Add calls are safe and all entries are persisted.
 func TestAdd_ConcurrentSafe(t *testing.T) {
 	h := newTestHistory(t, 100)
 	done := make(chan struct{})
@@ -408,8 +452,8 @@ func TestAdd_ConcurrentSafe(t *testing.T) {
 	assert.Len(t, h.GetBatch("batch_concurrent"), 10)
 }
 
-// --- load then Add round-trip ---
-
+// TestHistory_LoadAndAddRoundTrip tests that entries added to one History instance
+// are correctly loaded by a second instance reading the same file.
 func TestHistory_LoadAndAddRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "movelooper.json")
 	h := &History{path: path, maxBatches: 10}
@@ -422,61 +466,67 @@ func TestHistory_LoadAndAddRoundTrip(t *testing.T) {
 	assert.Len(t, h2.Entries, 2)
 }
 
-// --- RemoveCategoryFromBatch ---
+// testRemoveCategoryFromBatch defines the structure for test cases of the RemoveCategoryFromBatch function,
+// containing setup logic, the target batch ID, categories to remove, and expected state assertions.
+type testRemoveCategoryFromBatch struct {
+	name       string
+	setup      func(h *History)
+	batchID    string
+	categories []string
+	wantLen    int
+	wantBatch  bool
+}
 
+// testRemoveCategoryFromBatchTestCases defines a set of test cases for the RemoveCategoryFromBatch function,
+// covering partial removal, full removal, empty category, and unknown batch ID scenarios.
+var testRemoveCategoryFromBatchTestCases = []testRemoveCategoryFromBatch{
+	{
+		name: "removes matching entries keeps others",
+		setup: func(h *History) {
+			_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
+			_ = h.Add(Entry{Source: "/c", Destination: "/d", BatchID: "b1", Category: "docs"})
+		},
+		batchID:    "b1",
+		categories: []string{"images"},
+		wantLen:    1,
+		wantBatch:  true,
+	},
+	{
+		name: "batch becomes empty no entries remain",
+		setup: func(h *History) {
+			_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
+		},
+		batchID:    "b1",
+		categories: []string{"images"},
+		wantLen:    0,
+		wantBatch:  false,
+	},
+	{
+		name: "entry with empty category is not removed",
+		setup: func(h *History) {
+			_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: ""})
+		},
+		batchID:    "b1",
+		categories: []string{"images"},
+		wantLen:    1,
+		wantBatch:  true,
+	},
+	{
+		name: "unknown batchID no-op no error",
+		setup: func(h *History) {
+			_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
+		},
+		batchID:    "b99",
+		categories: []string{"images"},
+		wantLen:    1,
+		wantBatch:  false,
+	},
+}
+
+// TestRemoveCategoryFromBatch tests the RemoveCategoryFromBatch function to ensure it correctly
+// removes entries by category while leaving other entries intact.
 func TestRemoveCategoryFromBatch(t *testing.T) {
-	tests := []struct {
-		name       string
-		setup      func(h *History)
-		batchID    string
-		categories []string
-		wantLen    int
-		wantBatch  bool
-	}{
-		{
-			name: "removes matching entries, keeps others",
-			setup: func(h *History) {
-				_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
-				_ = h.Add(Entry{Source: "/c", Destination: "/d", BatchID: "b1", Category: "docs"})
-			},
-			batchID:    "b1",
-			categories: []string{"images"},
-			wantLen:    1,
-			wantBatch:  true,
-		},
-		{
-			name: "batch becomes empty — no entries remain for that batch",
-			setup: func(h *History) {
-				_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
-			},
-			batchID:    "b1",
-			categories: []string{"images"},
-			wantLen:    0,
-			wantBatch:  false,
-		},
-		{
-			name: "entry with empty Category is not removed",
-			setup: func(h *History) {
-				_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: ""})
-			},
-			batchID:    "b1",
-			categories: []string{"images"},
-			wantLen:    1,
-			wantBatch:  true,
-		},
-		{
-			name: "unknown batchID — no-op, no error",
-			setup: func(h *History) {
-				_ = h.Add(Entry{Source: "/a", Destination: "/b", BatchID: "b1", Category: "images"})
-			},
-			batchID:    "b99",
-			categories: []string{"images"},
-			wantLen:    1,     // b1 entry untouched
-			wantBatch:  false, // b99 was never present
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testRemoveCategoryFromBatchTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
 			tt.setup(h)

@@ -19,83 +19,128 @@ func createTempFile(t *testing.T, dir, name string) string {
 	return path
 }
 
+func makeInfo(t *testing.T, name string, size int, modTime time.Time) os.FileInfo {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, name)
+	content := make([]byte, size)
+	require.NoError(t, os.WriteFile(path, content, 0644))
+	require.NoError(t, os.Chtimes(path, modTime, modTime))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	return info
+}
+
+// testMatchesIgnorePatterns defines the structure for test cases of the MatchesIgnorePatterns function,
+// containing the file name, patterns, case sensitivity flag, and expected result.
+type testMatchesIgnorePatterns struct {
+	name          string
+	fileName      string
+	patterns      []string
+	caseSensitive bool
+	want          bool
+}
+
+// testMatchesIgnorePatternsTestCases defines a set of test cases for the MatchesIgnorePatterns function,
+// covering no patterns, simple match, no match, case sensitivity, and multiple patterns.
+var testMatchesIgnorePatternsTestCases = []testMatchesIgnorePatterns{
+	{"no patterns", "file.txt", nil, false, false},
+	{"simple match", "file.txt", []string{"*.txt"}, false, true},
+	{"no match", "file.go", []string{"*.txt"}, false, false},
+	{"case insensitive match", "FILE.TXT", []string{"*.txt"}, false, true},
+	{"case sensitive no match", "FILE.TXT", []string{"*.txt"}, true, false},
+	{"case sensitive match", "file.txt", []string{"*.txt"}, true, true},
+	{"multiple patterns first matches", "file.txt", []string{"*.txt", "*.go"}, false, true},
+	{"multiple patterns second matches", "file.go", []string{"*.txt", "*.go"}, false, true},
+	{"invalid pattern skipped", "file.txt", []string{"["}, false, false},
+}
+
+// TestMatchesIgnorePatterns tests the MatchesIgnorePatterns function with various patterns
+// to ensure it correctly identifies files matching ignore patterns.
 func TestMatchesIgnorePatterns(t *testing.T) {
-	tests := []struct {
-		name          string
-		fileName      string
-		patterns      []string
-		caseSensitive bool
-		want          bool
-	}{
-		{"no patterns", "file.txt", nil, false, false},
-		{"simple match", "file.txt", []string{"*.txt"}, false, true},
-		{"no match", "file.go", []string{"*.txt"}, false, false},
-		{"case insensitive match", "FILE.TXT", []string{"*.txt"}, false, true},
-		{"case sensitive no match", "FILE.TXT", []string{"*.txt"}, true, false},
-		{"case sensitive match", "file.txt", []string{"*.txt"}, true, true},
-		{"multiple patterns first matches", "file.txt", []string{"*.txt", "*.go"}, false, true},
-		{"multiple patterns second matches", "file.go", []string{"*.txt", "*.go"}, false, true},
-		{"invalid pattern skipped", "file.txt", []string{"["}, false, false},
-	}
-	for _, tt := range tests {
+	for _, tt := range testMatchesIgnorePatternsTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, MatchesIgnorePatterns(tt.fileName, tt.patterns, tt.caseSensitive))
 		})
 	}
 }
 
+// testExpandGlobPattern defines the structure for test cases of the expandGlobPattern function,
+// containing the input pattern and the expected expanded patterns.
+type testExpandGlobPattern struct {
+	pattern string
+	want    []string
+}
+
+// testExpandGlobPatternTestCases defines a set of test cases for the expandGlobPattern function,
+// covering simple patterns, brace expansion, and whitespace trimming.
+var testExpandGlobPatternTestCases = []testExpandGlobPattern{
+	{"*.txt", []string{"*.txt"}},
+	{"*.{jpg,png}", []string{"*.jpg", "*.png"}},
+	{"file.{go,py,js}", []string{"file.go", "file.py", "file.js"}},
+	{"{a,b}", []string{"a", "b"}},
+	{"no braces", []string{"no braces"}},
+	{"*.{ jpg , png }", []string{"*.jpg", "*.png"}},
+}
+
+// TestExpandGlobPattern tests the expandGlobPattern function to ensure it correctly expands brace patterns.
 func TestExpandGlobPattern(t *testing.T) {
-	tests := []struct {
-		pattern string
-		want    []string
-	}{
-		{"*.txt", []string{"*.txt"}},
-		{"*.{jpg,png}", []string{"*.jpg", "*.png"}},
-		{"file.{go,py,js}", []string{"file.go", "file.py", "file.js"}},
-		{"{a,b}", []string{"a", "b"}},
-		{"no braces", []string{"no braces"}},
-		{"*.{ jpg , png }", []string{"*.jpg", "*.png"}},
-	}
-	for _, tt := range tests {
+	for _, tt := range testExpandGlobPatternTestCases {
 		t.Run(tt.pattern, func(t *testing.T) {
 			assert.Equal(t, tt.want, expandGlobPattern(tt.pattern))
 		})
 	}
 }
 
+// testMatchesGlob defines the structure for test cases of the MatchesGlob function,
+// containing the file name, glob pattern, case sensitivity flag, and expected result.
+type testMatchesGlob struct {
+	name          string
+	fileName      string
+	pattern       string
+	caseSensitive bool
+	want          bool
+}
+
+// testMatchesGlobTestCases defines a set of test cases for the MatchesGlob function,
+// covering simple match, brace expansion, case sensitivity, and wildcard name patterns.
+var testMatchesGlobTestCases = []testMatchesGlob{
+	{"simple match", "photo.jpg", "*.jpg", false, true},
+	{"brace expansion match", "photo.jpg", "*.{jpg,png}", false, true},
+	{"brace expansion second", "photo.png", "*.{jpg,png}", false, true},
+	{"no match", "photo.gif", "*.{jpg,png}", false, false},
+	{"case insensitive", "PHOTO.JPG", "*.jpg", false, true},
+	{"case sensitive no match", "PHOTO.JPG", "*.jpg", true, false},
+	{"wildcard name", "report_2024.pdf", "report_*.pdf", false, true},
+}
+
+// TestMatchesGlob tests the MatchesGlob function to ensure it correctly matches file names against glob patterns.
 func TestMatchesGlob(t *testing.T) {
-	tests := []struct {
-		name          string
-		fileName      string
-		pattern       string
-		caseSensitive bool
-		want          bool
-	}{
-		{"simple match", "photo.jpg", "*.jpg", false, true},
-		{"brace expansion match", "photo.jpg", "*.{jpg,png}", false, true},
-		{"brace expansion second", "photo.png", "*.{jpg,png}", false, true},
-		{"no match", "photo.gif", "*.{jpg,png}", false, false},
-		{"case insensitive", "PHOTO.JPG", "*.jpg", false, true},
-		{"case sensitive no match", "PHOTO.JPG", "*.jpg", true, false},
-		{"wildcard name", "report_2024.pdf", "report_*.pdf", false, true},
-	}
-	for _, tt := range tests {
+	for _, tt := range testMatchesGlobTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, MatchesGlob(tt.fileName, tt.pattern, tt.caseSensitive))
 		})
 	}
 }
 
+// testValidateGlob defines the structure for test cases of the ValidateGlob function,
+// containing the glob pattern and an error expectation flag.
+type testValidateGlob struct {
+	pattern string
+	wantErr bool
+}
+
+// testValidateGlobTestCases defines a set of test cases for the ValidateGlob function,
+// covering valid patterns, brace expansion, and invalid patterns.
+var testValidateGlobTestCases = []testValidateGlob{
+	{"*.txt", false},
+	{"*.{jpg,png}", false},
+	{"[invalid", true},
+}
+
+// TestValidateGlob tests the ValidateGlob function to ensure it correctly validates glob patterns.
 func TestValidateGlob(t *testing.T) {
-	tests := []struct {
-		pattern string
-		wantErr bool
-	}{
-		{"*.txt", false},
-		{"*.{jpg,png}", false},
-		{"[invalid", true},
-	}
-	for _, tt := range tests {
+	for _, tt := range testValidateGlobTestCases {
 		t.Run(tt.pattern, func(t *testing.T) {
 			err := ValidateGlob(tt.pattern)
 			if tt.wantErr {
@@ -107,6 +152,26 @@ func TestValidateGlob(t *testing.T) {
 	}
 }
 
+// testHasExtension defines the structure for test cases of the HasExtension function,
+// containing the file name to look up, the extension to check, and the expected result.
+type testHasExtension struct {
+	name     string
+	fileName string
+	ext      string
+	want     bool
+}
+
+// testHasExtensionTestCases defines a set of test cases for the HasExtension function,
+// covering exact match, case insensitivity, all extension, wrong extension, and no extension.
+var testHasExtensionTestCases = []testHasExtension{
+	{"exact match", "doc.pdf", "pdf", true},
+	{"case insensitive", "image.PNG", "png", true},
+	{"all matches any", "doc.pdf", "all", true},
+	{"wrong ext", "doc.pdf", "txt", false},
+	{"no ext vs txt", "noext", "txt", false},
+}
+
+// TestHasExtension tests the HasExtension function to ensure it correctly identifies file extensions.
 func TestHasExtension(t *testing.T) {
 	dir := t.TempDir()
 	createTempFile(t, dir, "doc.pdf")
@@ -120,108 +185,112 @@ func TestHasExtension(t *testing.T) {
 		byName[e.Name()] = e
 	}
 
-	tests := []struct {
-		name  string
-		entry os.DirEntry
-		ext   string
-		want  bool
-	}{
-		{"exact match", byName["doc.pdf"], "pdf", true},
-		{"case insensitive", byName["image.PNG"], "png", true},
-		{"all matches any", byName["doc.pdf"], "all", true},
-		{"wrong ext", byName["doc.pdf"], "txt", false},
-		{"no ext vs txt", byName["noext"], "txt", false},
-	}
-	for _, tt := range tests {
+	for _, tt := range testHasExtensionTestCases {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, HasExtension(tt.entry, tt.ext))
+			assert.Equal(t, tt.want, HasExtension(byName[tt.fileName], tt.ext))
 		})
 	}
 }
 
+// testMatchesAnyExtension defines the structure for test cases of the MatchesAnyExtension function,
+// containing the file name, list of extensions, and expected result.
+type testMatchesAnyExtension struct {
+	name string
+	file string
+	exts []string
+	want bool
+}
+
+// testMatchesAnyExtensionTestCases defines a set of test cases for the MatchesAnyExtension function,
+// covering first ext match, case insensitivity, all extension, and no match.
+var testMatchesAnyExtensionTestCases = []testMatchesAnyExtension{
+	{"matches first ext", "file.txt", []string{"txt", "pdf"}, true},
+	{"case insensitive", "file.PDF", []string{"pdf"}, true},
+	{"all matches any", "file.go", []string{"all"}, true},
+	{"no match", "file.go", []string{"txt", "pdf"}, false},
+}
+
+// TestMatchesAnyExtension tests the MatchesAnyExtension function to ensure it correctly
+// matches file names against a list of extensions.
 func TestMatchesAnyExtension(t *testing.T) {
-	tests := []struct {
-		name string
-		file string
-		exts []string
-		want bool
-	}{
-		{"matches first ext", "file.txt", []string{"txt", "pdf"}, true},
-		{"case insensitive", "file.PDF", []string{"pdf"}, true},
-		{"all matches any", "file.go", []string{"all"}, true},
-		{"no match", "file.go", []string{"txt", "pdf"}, false},
-	}
-	for _, tt := range tests {
+	for _, tt := range testMatchesAnyExtensionTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, MatchesAnyExtension(tt.file, tt.exts))
 		})
 	}
 }
 
+// testMatchesNameFilters defines the structure for test cases of the MatchesNameFilters function,
+// containing the file name, the category filter, and the expected result.
+type testMatchesNameFilters struct {
+	name     string
+	fileName string
+	filter   models.CategoryFilter
+	want     bool
+}
+
+// testMatchesNameFiltersTestCases defines a set of test cases for the MatchesNameFilters function,
+// covering no filters, glob, include, regex, and combined filter scenarios.
+var testMatchesNameFiltersTestCases = []testMatchesNameFilters{
+	{"no filters passes all", "anything.txt", models.CategoryFilter{}, true},
+	{"glob matches", "report_2024.pdf", models.CategoryFilter{Glob: "report_*"}, true},
+	{"glob no match", "invoice.pdf", models.CategoryFilter{Glob: "report_*"}, false},
+	{"include matches first", "file.pdf", models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}, true},
+	{"include no match", "file.txt", models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}, false},
+	{"include multiple patterns first", "IMG_001.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, true},
+	{"include multiple patterns second", "DSC_100.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, true},
+	{"include no match multiple", "photo.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, false},
+	{
+		"regex match",
+		"report_2024.pdf",
+		models.CategoryFilter{Regex: "report", CompiledRegex: regexp.MustCompile("(?i)report")},
+		true,
+	},
+	{
+		"regex no match",
+		"invoice.pdf",
+		models.CategoryFilter{Regex: "^report", CompiledRegex: regexp.MustCompile("^report")},
+		false,
+	},
+	{"glob filter match", "report_2024.pdf", models.CategoryFilter{Glob: "report_*.pdf"}, true},
+	{"glob filter no match", "invoice.pdf", models.CategoryFilter{Glob: "report_*.pdf"}, false},
+}
+
+// TestMatchesNameFilters tests the MatchesNameFilters function to ensure it correctly
+// applies name-based filters to file names.
 func TestMatchesNameFilters(t *testing.T) {
-	tests := []struct {
-		name     string
-		fileName string
-		filter   models.CategoryFilter
-		want     bool
-	}{
-		{"no filters passes all", "anything.txt", models.CategoryFilter{}, true},
-		{"glob matches", "report_2024.pdf", models.CategoryFilter{Glob: "report_*"}, true},
-		{"glob no match", "invoice.pdf", models.CategoryFilter{Glob: "report_*"}, false},
-		{"include matches first", "file.pdf", models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}, true},
-		{"include no match", "file.txt", models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}, false},
-		{"include multiple patterns first", "IMG_001.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, true},
-		{"include multiple patterns second", "DSC_100.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, true},
-		{"include no match multiple", "photo.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, false},
-		{
-			"regex match",
-			"report_2024.pdf",
-			models.CategoryFilter{Regex: "report", CompiledRegex: regexp.MustCompile("(?i)report")},
-			true,
-		},
-		{
-			"regex no match",
-			"invoice.pdf",
-			models.CategoryFilter{Regex: "^report", CompiledRegex: regexp.MustCompile("^report")},
-			false,
-		},
-		{
-			"glob filter match",
-			"report_2024.pdf",
-			models.CategoryFilter{Glob: "report_*.pdf"},
-			true,
-		},
-		{
-			"glob filter no match",
-			"invoice.pdf",
-			models.CategoryFilter{Glob: "report_*.pdf"},
-			false,
-		},
-	}
-	for _, tt := range tests {
+	for _, tt := range testMatchesNameFiltersTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, MatchesNameFilters(tt.fileName, tt.filter))
 		})
 	}
 }
 
+// testParseSize defines the structure for test cases of the ParseSize function,
+// containing the input string, expected byte count, and an error expectation flag.
+type testParseSize struct {
+	input   string
+	want    int64
+	wantErr bool
+}
+
+// testParseSizeTestCases defines a set of test cases for the ParseSize function,
+// covering bytes, kilobytes, megabytes, gigabytes, terabytes, decimals, bare numbers, and invalid input.
+var testParseSizeTestCases = []testParseSize{
+	{"100B", 100, false},
+	{"1KB", 1024, false},
+	{"1MB", 1 << 20, false},
+	{"1GB", 1 << 30, false},
+	{"1TB", 1 << 40, false},
+	{"1.5MB", int64(1.5 * float64(1<<20)), false},
+	{"500", 500, false},
+	{"", 0, true},
+	{"abcXB", 0, true},
+}
+
+// TestParseSize tests the ParseSize function to ensure it correctly parses human-readable size strings.
 func TestParseSize(t *testing.T) {
-	tests := []struct {
-		input   string
-		want    int64
-		wantErr bool
-	}{
-		{"100B", 100, false},
-		{"1KB", 1024, false},
-		{"1MB", 1 << 20, false},
-		{"1GB", 1 << 30, false},
-		{"1TB", 1 << 40, false},
-		{"1.5MB", int64(1.5 * float64(1<<20)), false},
-		{"500", 500, false},
-		{"", 0, true},
-		{"abcXB", 0, true},
-	}
-	for _, tt := range tests {
+	for _, tt := range testParseSizeTestCases {
 		t.Run(tt.input, func(t *testing.T) {
 			got, err := ParseSize(tt.input)
 			if tt.wantErr {
@@ -234,23 +303,30 @@ func TestParseSize(t *testing.T) {
 	}
 }
 
-func TestMeetsAge(t *testing.T) {
-	tests := []struct {
-		name      string
-		fn        func(os.FileInfo, time.Duration) bool
-		fileAge   time.Duration
-		threshold time.Duration
-		want      bool
-	}{
-		{"min: zero threshold always passes", MeetsMinAge, 10 * time.Minute, 0, true},
-		{"min: file older than threshold", MeetsMinAge, 10 * time.Minute, 5 * time.Minute, true},
-		{"min: file newer than threshold", MeetsMinAge, 10 * time.Minute, 20 * time.Minute, false},
-		{"max: zero threshold always passes", MeetsMaxAge, 10 * time.Minute, 0, true},
-		{"max: file within threshold", MeetsMaxAge, 10 * time.Minute, 20 * time.Minute, true},
-		{"max: file exceeds threshold", MeetsMaxAge, 10 * time.Minute, 5 * time.Minute, false},
-	}
+// testMeetsAge defines the structure for test cases of the MeetsMinAge and MeetsMaxAge functions,
+// containing the function under test, file age, threshold, and expected result.
+type testMeetsAge struct {
+	name      string
+	fn        func(os.FileInfo, time.Duration) bool
+	fileAge   time.Duration
+	threshold time.Duration
+	want      bool
+}
 
-	for _, tt := range tests {
+// testMeetsAgeTestCases defines a set of test cases for the MeetsMinAge and MeetsMaxAge functions,
+// covering zero threshold, file older/newer than threshold, and max age scenarios.
+var testMeetsAgeTestCases = []testMeetsAge{
+	{"min: zero threshold always passes", MeetsMinAge, 10 * time.Minute, 0, true},
+	{"min: file older than threshold", MeetsMinAge, 10 * time.Minute, 5 * time.Minute, true},
+	{"min: file newer than threshold", MeetsMinAge, 10 * time.Minute, 20 * time.Minute, false},
+	{"max: zero threshold always passes", MeetsMaxAge, 10 * time.Minute, 0, true},
+	{"max: file within threshold", MeetsMaxAge, 10 * time.Minute, 20 * time.Minute, true},
+	{"max: file exceeds threshold", MeetsMaxAge, 10 * time.Minute, 5 * time.Minute, false},
+}
+
+// TestMeetsAge tests the MeetsMinAge and MeetsMaxAge functions to ensure they correctly evaluate file age.
+func TestMeetsAge(t *testing.T) {
+	for _, tt := range testMeetsAgeTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			path := createTempFile(t, t.TempDir(), "file.txt")
 			ts := time.Now().Add(-tt.fileAge)
@@ -262,23 +338,30 @@ func TestMeetsAge(t *testing.T) {
 	}
 }
 
-func TestMeetsSize(t *testing.T) {
-	tests := []struct {
-		name      string
-		fn        func(os.FileInfo, int64) bool
-		fileSize  int
-		threshold int64
-		want      bool
-	}{
-		{"min: zero threshold always passes", MeetsMinSize, 500, 0, true},
-		{"min: file bigger than threshold", MeetsMinSize, 500, 100, true},
-		{"min: file smaller than threshold", MeetsMinSize, 500, 1000, false},
-		{"max: zero threshold always passes", MeetsMaxSize, 500, 0, true},
-		{"max: file within threshold", MeetsMaxSize, 500, 1000, true},
-		{"max: file exceeds threshold", MeetsMaxSize, 500, 100, false},
-	}
+// testMeetsSize defines the structure for test cases of the MeetsMinSize and MeetsMaxSize functions,
+// containing the function under test, file size, threshold, and expected result.
+type testMeetsSize struct {
+	name      string
+	fn        func(os.FileInfo, int64) bool
+	fileSize  int
+	threshold int64
+	want      bool
+}
 
-	for _, tt := range tests {
+// testMeetsSizeTestCases defines a set of test cases for the MeetsMinSize and MeetsMaxSize functions,
+// covering zero threshold, file bigger/smaller than threshold, and max size scenarios.
+var testMeetsSizeTestCases = []testMeetsSize{
+	{"min: zero threshold always passes", MeetsMinSize, 500, 0, true},
+	{"min: file bigger than threshold", MeetsMinSize, 500, 100, true},
+	{"min: file smaller than threshold", MeetsMinSize, 500, 1000, false},
+	{"max: zero threshold always passes", MeetsMaxSize, 500, 0, true},
+	{"max: file within threshold", MeetsMaxSize, 500, 1000, true},
+	{"max: file exceeds threshold", MeetsMaxSize, 500, 100, false},
+}
+
+// TestMeetsSize tests the MeetsMinSize and MeetsMaxSize functions to ensure they correctly evaluate file size.
+func TestMeetsSize(t *testing.T) {
+	for _, tt := range testMeetsSizeTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			path := createTempFile(t, t.TempDir(), "file.bin")
 			require.NoError(t, os.WriteFile(path, make([]byte, tt.fileSize), 0644))
@@ -289,180 +372,237 @@ func TestMeetsSize(t *testing.T) {
 	}
 }
 
-func makeInfo(t *testing.T, name string, size int, modTime time.Time) os.FileInfo {
-	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, name)
-	content := make([]byte, size)
-	require.NoError(t, os.WriteFile(path, content, 0644))
-	require.NoError(t, os.Chtimes(path, modTime, modTime))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-	return info
+// testMatchesFilterLeaf defines the structure for test cases of the MatchesFilter function
+// with leaf (non-composite) filters, containing the filter and expected result.
+type testMatchesFilterLeaf struct {
+	name   string
+	filter models.CategoryFilter
+	want   bool
 }
 
+// testMatchesFilterLeafTestCases defines a set of test cases for the MatchesFilter function
+// with leaf filters, covering empty filter, glob, ignore, min-size, and min-age scenarios.
+var testMatchesFilterLeafTestCases = []testMatchesFilterLeaf{
+	{"empty filter - no restrictions", models.CategoryFilter{}, true},
+	{"glob matches", models.CategoryFilter{Glob: "report_*"}, true},
+	{"glob no match", models.CategoryFilter{Glob: "invoice_*"}, false},
+	{"ignore excludes file", models.CategoryFilter{Ignore: []string{"report_*"}}, false},
+	{"min-size passes", models.CategoryFilter{MinSizeBytes: 512}, true},
+	{"min-size fails", models.CategoryFilter{MinSizeBytes: 1024 * 1024}, false},
+	{"min-age passes", models.CategoryFilter{MinAge: 1 * time.Hour}, true},
+	{"min-age fails", models.CategoryFilter{MinAge: 3 * time.Hour}, false},
+}
+
+// TestMatchesFilter_Leaf tests the MatchesFilter function with leaf filters
+// to ensure it correctly evaluates individual filter conditions.
 func TestMatchesFilter_Leaf(t *testing.T) {
 	info := makeInfo(t, "report_2024.pdf", 1024, time.Now().Add(-2*time.Hour))
-
-	tests := []struct {
-		name   string
-		filter models.CategoryFilter
-		want   bool
-	}{
-		{"empty filter - no restrictions", models.CategoryFilter{}, true},
-		{"glob matches", models.CategoryFilter{Glob: "report_*"}, true},
-		{"glob no match", models.CategoryFilter{Glob: "invoice_*"}, false},
-		{"ignore excludes file", models.CategoryFilter{Ignore: []string{"report_*"}}, false},
-		{"min-size passes", models.CategoryFilter{MinSizeBytes: 512}, true},
-		{"min-size fails", models.CategoryFilter{MinSizeBytes: 1024 * 1024}, false},
-		{"min-age passes", models.CategoryFilter{MinAge: 1 * time.Hour}, true},
-		{"min-age fails", models.CategoryFilter{MinAge: 3 * time.Hour}, false},
-	}
-	for _, tt := range tests {
+	for _, tt := range testMatchesFilterLeafTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, MatchesFilter(tt.filter, info.Name(), info))
 		})
 	}
 }
 
-func TestMatchesFilter_Any(t *testing.T) {
-	info := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
-
-	t.Run("any - first group passes", func(t *testing.T) {
-		f := models.CategoryFilter{
-			Any: []models.CategoryFilter{
-				{Glob: "report_*"},
-				{Glob: "invoice_*"},
-			},
-		}
-		assert.True(t, MatchesFilter(f, info.Name(), info))
-	})
-
-	t.Run("any - second group passes", func(t *testing.T) {
-		f := models.CategoryFilter{
-			Any: []models.CategoryFilter{
-				{Glob: "invoice_*"},
-				{Glob: "report_*"},
-			},
-		}
-		assert.True(t, MatchesFilter(f, info.Name(), info))
-	})
-
-	t.Run("any - no group passes", func(t *testing.T) {
-		f := models.CategoryFilter{
-			Any: []models.CategoryFilter{
-				{Glob: "invoice_*"},
-				{Glob: "draft_*"},
-			},
-		}
-		assert.False(t, MatchesFilter(f, info.Name(), info))
-	})
+// testMatchesFilterComposite defines the structure for composite (Any/All) filter test cases,
+// containing the filter, a file info builder, and the expected result.
+type testMatchesFilterComposite struct {
+	name   string
+	filter models.CategoryFilter
+	info   func(t *testing.T) os.FileInfo
+	want   bool
 }
 
-func TestMatchesFilter_All(t *testing.T) {
-	info := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
-
-	t.Run("all - all groups pass", func(t *testing.T) {
-		f := models.CategoryFilter{
-			All: []models.CategoryFilter{
+// testMatchesFilterCompositeTestCases defines a set of test cases for the MatchesFilter function
+// with Any and All composite filters, including nested combinations.
+var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
+	{
+		name: "any - first group passes",
+		filter: models.CategoryFilter{Any: []models.CategoryFilter{
+			{Glob: "report_*"},
+			{Glob: "invoice_*"},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
+		},
+		want: true,
+	},
+	{
+		name: "any - second group passes",
+		filter: models.CategoryFilter{Any: []models.CategoryFilter{
+			{Glob: "invoice_*"},
+			{Glob: "report_*"},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
+		},
+		want: true,
+	},
+	{
+		name: "any - no group passes",
+		filter: models.CategoryFilter{Any: []models.CategoryFilter{
+			{Glob: "invoice_*"},
+			{Glob: "draft_*"},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
+		},
+		want: false,
+	},
+	{
+		name: "all - all groups pass",
+		filter: models.CategoryFilter{All: []models.CategoryFilter{
+			{Glob: "report_*"},
+			{MinSizeBytes: 1024 * 1024},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
+		},
+		want: true,
+	},
+	{
+		name: "all - one group fails",
+		filter: models.CategoryFilter{All: []models.CategoryFilter{
+			{Glob: "report_*"},
+			{MinSizeBytes: 10 * 1024 * 1024},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
+		},
+		want: false,
+	},
+	{
+		name: "any inside all - passes",
+		filter: models.CategoryFilter{All: []models.CategoryFilter{
+			{MinSizeBytes: 1024 * 1024},
+			{Any: []models.CategoryFilter{
+				{Glob: "report_*"},
+				{Glob: "invoice_*"},
+			}},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now())
+		},
+		want: true,
+	},
+	{
+		name: "any inside all - size fails",
+		filter: models.CategoryFilter{All: []models.CategoryFilter{
+			{MinSizeBytes: 1024 * 1024},
+			{Any: []models.CategoryFilter{
+				{Glob: "report_*"},
+				{Glob: "invoice_*"},
+			}},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_small.pdf", 512, time.Now())
+		},
+		want: false,
+	},
+	{
+		name: "all inside any - first branch passes",
+		filter: models.CategoryFilter{Any: []models.CategoryFilter{
+			{All: []models.CategoryFilter{
 				{Glob: "report_*"},
 				{MinSizeBytes: 1024 * 1024},
-			},
-		}
-		assert.True(t, MatchesFilter(f, info.Name(), info))
-	})
-
-	t.Run("all - one group fails", func(t *testing.T) {
-		f := models.CategoryFilter{
-			All: []models.CategoryFilter{
+			}},
+			{All: []models.CategoryFilter{
+				{Glob: "invoice_*"},
+				{MinAge: 2 * time.Hour},
+			}},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now())
+		},
+		want: true,
+	},
+	{
+		name: "all inside any - second branch passes",
+		filter: models.CategoryFilter{Any: []models.CategoryFilter{
+			{All: []models.CategoryFilter{
 				{Glob: "report_*"},
-				{MinSizeBytes: 10 * 1024 * 1024},
-			},
-		}
-		assert.False(t, MatchesFilter(f, info.Name(), info))
-	})
-}
-
-func TestMatchesFilter_AnyInsideAll(t *testing.T) {
-	info := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now())
-
-	f := models.CategoryFilter{
-		All: []models.CategoryFilter{
-			{MinSizeBytes: 1024 * 1024},
-			{
-				Any: []models.CategoryFilter{
-					{Glob: "report_*"},
-					{Glob: "invoice_*"},
-				},
-			},
+				{MinSizeBytes: 1024 * 1024},
+			}},
+			{All: []models.CategoryFilter{
+				{Glob: "invoice_*"},
+				{MinAge: 2 * time.Hour},
+			}},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "invoice_jan.pdf", 100, time.Now().Add(-3*time.Hour))
 		},
-	}
-	assert.True(t, MatchesFilter(f, info.Name(), info))
-
-	smallInfo := makeInfo(t, "report_small.pdf", 512, time.Now())
-	assert.False(t, MatchesFilter(f, smallInfo.Name(), smallInfo))
-}
-
-func TestMatchesFilter_AllInsideAny(t *testing.T) {
-	f := models.CategoryFilter{
-		Any: []models.CategoryFilter{
-			{
-				All: []models.CategoryFilter{
-					{Glob: "report_*"},
-					{MinSizeBytes: 1024 * 1024},
-				},
-			},
-			{
-				All: []models.CategoryFilter{
-					{Glob: "invoice_*"},
-					{MinAge: 2 * time.Hour},
-				},
-			},
+		want: true,
+	},
+	{
+		name: "all inside any - no branch passes",
+		filter: models.CategoryFilter{Any: []models.CategoryFilter{
+			{All: []models.CategoryFilter{
+				{Glob: "report_*"},
+				{MinSizeBytes: 1024 * 1024},
+			}},
+			{All: []models.CategoryFilter{
+				{Glob: "invoice_*"},
+				{MinAge: 2 * time.Hour},
+			}},
+		}},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_tiny.pdf", 100, time.Now())
 		},
-	}
-
-	reportLarge := makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now())
-	assert.True(t, MatchesFilter(f, reportLarge.Name(), reportLarge))
-
-	invoiceOld := makeInfo(t, "invoice_jan.pdf", 100, time.Now().Add(-3*time.Hour))
-	assert.True(t, MatchesFilter(f, invoiceOld.Name(), invoiceOld))
-
-	reportSmall := makeInfo(t, "report_tiny.pdf", 100, time.Now())
-	assert.False(t, MatchesFilter(f, reportSmall.Name(), reportSmall))
+		want: false,
+	},
 }
 
+// TestMatchesFilter_Composite tests the MatchesFilter function with composite Any/All filters
+// to ensure it correctly evaluates nested filter conditions.
+func TestMatchesFilter_Composite(t *testing.T) {
+	for _, tt := range testMatchesFilterCompositeTestCases {
+		t.Run(tt.name, func(t *testing.T) {
+			info := tt.info(t)
+			assert.Equal(t, tt.want, MatchesFilter(tt.filter, info.Name(), info))
+		})
+	}
+}
+
+// testMeetsAgeSizeFilters defines the structure for test cases of the MeetsAgeSizeFilters function,
+// containing the file age, file size, filter, and expected result.
+type testMeetsAgeSizeFilters struct {
+	name     string
+	fileAge  time.Duration
+	fileSize int
+	filter   models.CategoryFilter
+	want     bool
+}
+
+// testMeetsAgeSizeFiltersTestCases defines a set of test cases for the MeetsAgeSizeFilters function,
+// covering no constraints, individual age and size filters, and all constraints combined.
+var testMeetsAgeSizeFiltersTestCases = []testMeetsAgeSizeFilters{
+	{"no constraints passes", 0, 4, models.CategoryFilter{}, true},
+	{"min-age only: passes", 2 * time.Hour, 1, models.CategoryFilter{MinAge: 1 * time.Hour}, true},
+	{"min-age only: fails", 0, 1, models.CategoryFilter{MinAge: 1 * time.Hour}, false},
+	{"max-age only: passes", 0, 1, models.CategoryFilter{MaxAge: 1 * time.Hour}, true},
+	{"max-age only: fails", 2 * time.Hour, 1, models.CategoryFilter{MaxAge: 1 * time.Hour}, false},
+	{"min-size only: passes", 0, 2048, models.CategoryFilter{MinSizeBytes: 1024}, true},
+	{"min-size only: fails", 0, 4, models.CategoryFilter{MinSizeBytes: 1024}, false},
+	{"max-size only: passes", 0, 4, models.CategoryFilter{MaxSizeBytes: 1024}, true},
+	{"max-size only: fails", 0, 2048, models.CategoryFilter{MaxSizeBytes: 1024}, false},
+	{
+		"all constraints pass",
+		2 * time.Hour, 512,
+		models.CategoryFilter{MinAge: 1 * time.Hour, MaxAge: 24 * time.Hour, MinSizeBytes: 100, MaxSizeBytes: 1024},
+		true,
+	},
+	{
+		"all constraints: size fails",
+		2 * time.Hour, 2048,
+		models.CategoryFilter{MinAge: 1 * time.Hour, MaxAge: 24 * time.Hour, MinSizeBytes: 100, MaxSizeBytes: 1024},
+		false,
+	},
+}
+
+// TestMeetsAgeSizeFilters tests the MeetsAgeSizeFilters function to ensure it correctly
+// evaluates combined age and size constraints.
 func TestMeetsAgeSizeFilters(t *testing.T) {
-	tests := []struct {
-		name     string
-		fileAge  time.Duration
-		fileSize int
-		filter   models.CategoryFilter
-		want     bool
-	}{
-		{"no constraints passes", 0, 4, models.CategoryFilter{}, true},
-		{"min-age only: passes", 2 * time.Hour, 1, models.CategoryFilter{MinAge: 1 * time.Hour}, true},
-		{"min-age only: fails", 0, 1, models.CategoryFilter{MinAge: 1 * time.Hour}, false},
-		{"max-age only: passes", 0, 1, models.CategoryFilter{MaxAge: 1 * time.Hour}, true},
-		{"max-age only: fails", 2 * time.Hour, 1, models.CategoryFilter{MaxAge: 1 * time.Hour}, false},
-		{"min-size only: passes", 0, 2048, models.CategoryFilter{MinSizeBytes: 1024}, true},
-		{"min-size only: fails", 0, 4, models.CategoryFilter{MinSizeBytes: 1024}, false},
-		{"max-size only: passes", 0, 4, models.CategoryFilter{MaxSizeBytes: 1024}, true},
-		{"max-size only: fails", 0, 2048, models.CategoryFilter{MaxSizeBytes: 1024}, false},
-		{
-			"all constraints pass",
-			2 * time.Hour, 512,
-			models.CategoryFilter{MinAge: 1 * time.Hour, MaxAge: 24 * time.Hour, MinSizeBytes: 100, MaxSizeBytes: 1024},
-			true,
-		},
-		{
-			"all constraints: size fails",
-			2 * time.Hour, 2048,
-			models.CategoryFilter{MinAge: 1 * time.Hour, MaxAge: 24 * time.Hour, MinSizeBytes: 100, MaxSizeBytes: 1024},
-			false,
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testMeetsAgeSizeFiltersTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			path := createTempFile(t, t.TempDir(), "file.txt")
 			require.NoError(t, os.WriteFile(path, make([]byte, tt.fileSize), 0644))
@@ -477,19 +617,27 @@ func TestMeetsAgeSizeFilters(t *testing.T) {
 	}
 }
 
-func TestGenerateLogArgs(t *testing.T) {
-	tests := []struct {
-		name    string
-		files   []string
-		ext     string
-		wantLen int
-	}{
-		{"matches by extension", []string{"a.pdf", "b.pdf", "c.txt"}, "pdf", 4},
-		{"no match returns empty", []string{"file.txt"}, "pdf", 0},
-		{"all extension matches everything", []string{"a.pdf", "b.txt"}, "all", 4},
-	}
+// testGenerateLogArgs defines the structure for test cases of the GenerateLogArgs function,
+// containing the files to create, the extension to filter by, and the expected argument count.
+type testGenerateLogArgs struct {
+	name    string
+	files   []string
+	ext     string
+	wantLen int
+}
 
-	for _, tt := range tests {
+// testGenerateLogArgsTestCases defines a set of test cases for the GenerateLogArgs function,
+// covering extension match, no match, and all extension scenarios.
+var testGenerateLogArgsTestCases = []testGenerateLogArgs{
+	{"matches by extension", []string{"a.pdf", "b.pdf", "c.txt"}, "pdf", 4},
+	{"no match returns empty", []string{"file.txt"}, "pdf", 0},
+	{"all extension matches everything", []string{"a.pdf", "b.txt"}, "all", 4},
+}
+
+// TestGenerateLogArgs tests the GenerateLogArgs function to ensure it correctly
+// generates log argument pairs for matching files.
+func TestGenerateLogArgs(t *testing.T) {
+	for _, tt := range testGenerateLogArgsTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			for _, f := range tt.files {
