@@ -95,7 +95,7 @@ By default the configuration file is created at: <executable_dir>/conf/moveloope
 // runInit executes the init command with the given options.
 func runInit(opts initOptions) error {
 	if opts.list {
-		for _, name := range ListOfConfigPresets() {
+		for _, name := range ListOfCategoriesPresets() {
 			fmt.Println(name)
 		}
 		return nil
@@ -140,10 +140,14 @@ func runInit(opts initOptions) error {
 			return fmt.Errorf("error marshaling config: %v", err)
 		}
 	default:
-		cfg := ConfigPreset(opts.template)
-		if cfg == nil {
-			pterm.Warning.Printf("Unknown template %q, using 'basic'\n", opts.template)
-			cfg = ConfigPreset("basic")
+		cats := CategoriesPreset(opts.template)
+		if cats == nil {
+			pterm.Warning.Printf("Unknown template %q, using 'base'\n", opts.template)
+			cats = CategoriesPreset("base")
+		}
+		cfg := &models.Config{
+			Configuration: *ConfigurationPreset("base"),
+			Categories:    cats,
 		}
 		var err error
 		data, err = yaml.Marshal(cfg)

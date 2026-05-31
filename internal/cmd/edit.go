@@ -50,9 +50,10 @@ points to (or the default path when --config is absent).`,
 			}
 
 			return editor.Run(editor.Config{
-				Path:   configPath,
-				Schema: &models.Config{},
-				Title:  "movelooper",
+				Path:    configPath,
+				Schema:  &models.Config{},
+				Title:   "movelooper",
+				Presets: configPresetSource{},
 			})
 		},
 	}

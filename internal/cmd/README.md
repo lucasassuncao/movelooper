@@ -15,11 +15,13 @@ Package cmd contains the command line interface commands for the Movelooper appl
 ## Index
 
 - [Variables](<#variables>)
+- [func CategoriesPreset\(name string\) \[\]models.Category](<#CategoriesPreset>)
 - [func ConfigCmd\(m \*models.Movelooper\) \*cobra.Command](<#ConfigCmd>)
-- [func ConfigPreset\(name string\) \*models.Config](<#ConfigPreset>)
+- [func ConfigurationPreset\(name string\) \*models.Configuration](<#ConfigurationPreset>)
 - [func EditCmd\(\) \*cobra.Command](<#EditCmd>)
 - [func InitCmd\(\) \*cobra.Command](<#InitCmd>)
-- [func ListOfConfigPresets\(\) \[\]string](<#ListOfConfigPresets>)
+- [func ListOfCategoriesPresets\(\) \[\]string](<#ListOfCategoriesPresets>)
+- [func ListOfConfigurationPresets\(\) \[\]string](<#ListOfConfigurationPresets>)
 - [func RootCmd\(m \*models.Movelooper, version string\) \*cobra.Command](<#RootCmd>)
 - [func SelfUpdateCmd\(currentVersion string\) \*cobra.Command](<#SelfUpdateCmd>)
 - [func UndoCmd\(m \*models.Movelooper\) \*cobra.Command](<#UndoCmd>)
@@ -36,6 +38,15 @@ Package cmd contains the command line interface commands for the Movelooper appl
 var DefaultRepo = ""
 ```
 
+<a name="CategoriesPreset"></a>
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L423>)
+
+```go
+func CategoriesPreset(name string) []models.Category
+```
+
+
+
 <a name="ConfigCmd"></a>
 ## func [ConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/config.go#L9>)
 
@@ -45,14 +56,14 @@ func ConfigCmd(m *models.Movelooper) *cobra.Command
 
 ConfigCmd returns the "config" command group
 
-<a name="ConfigPreset"></a>
-## func [ConfigPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L251>)
+<a name="ConfigurationPreset"></a>
+## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L99>)
 
 ```go
-func ConfigPreset(name string) *models.Config
+func ConfigurationPreset(name string) *models.Configuration
 ```
 
-ConfigPreset returns the Config for the named preset, or nil if not found.
+
 
 <a name="EditCmd"></a>
 ## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L15>)
@@ -72,14 +83,23 @@ func InitCmd() *cobra.Command
 
 InitCmd generates a configuration file
 
-<a name="ListOfConfigPresets"></a>
-## func [ListOfConfigPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L256>)
+<a name="ListOfCategoriesPresets"></a>
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L427>)
 
 ```go
-func ListOfConfigPresets() []string
+func ListOfCategoriesPresets() []string
 ```
 
-ListOfConfigPresets returns the sorted list of available preset names.
+
+
+<a name="ListOfConfigurationPresets"></a>
+## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L103>)
+
+```go
+func ListOfConfigurationPresets() []string
+```
+
+
 
 <a name="RootCmd"></a>
 ## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L23>)
