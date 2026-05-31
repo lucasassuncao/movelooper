@@ -127,6 +127,8 @@ github.com/lithammer/fuzzysearch v1.1.8 h1:/HIuJnjHuXS8bKaiTMeeDlW2/AyIWk2brx1V8
 github.com/lithammer/fuzzysearch v1.1.8/go.mod h1:IdqeyBClc3FFqSzYq/MXESsS4S0FsZ5ajtkr5xPLts4=
 github.com/lucasassuncao/yedit v0.9.1 h1:YBqSR2DVTNVp8Tsa7Bhf6YL7jlaoi8RyHOB90HJtx4E=
 github.com/lucasassuncao/yedit v0.9.1/go.mod h1:LkdQkgBizma8usvuPWOaJoLTfWqY2fzF89oY2e/90ks=
+github.com/lucasassuncao/yedit v0.10.0 h1:k1RA8saZbHnNXQ8E0zgd+i5DJ665qqI8C+jmWHlu3c0=
+github.com/lucasassuncao/yedit v0.10.0/go.mod h1:LkdQkgBizma8usvuPWOaJoLTfWqY2fzF89oY2e/90ks=
 github.com/lucasb-eyer/go-colorful v1.3.0 h1:2/yBRLdWBZKrf7gB40FoiKfAWYQ0lqNcbuQwVHXptag=
 github.com/lucasb-eyer/go-colorful v1.3.0/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
