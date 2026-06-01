@@ -79,7 +79,6 @@ History manages the log of file operations
 
 ```go
 type History struct {
-    Entries []Entry `json:"entries"`
     // contains filtered or unexported fields
 }
 ```

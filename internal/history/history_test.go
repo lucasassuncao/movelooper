@@ -386,7 +386,7 @@ func TestLoad(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Len(t, h.Entries, tt.wantLen)
+			assert.Len(t, h.entries, tt.wantLen)
 		})
 	}
 }
@@ -426,7 +426,7 @@ func TestSave(t *testing.T) {
 	for _, tt := range testSaveTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newTestHistory(t, 10)
-			h.Entries = tt.entries
+			h.entries = tt.entries
 			require.NoError(t, h.save())
 
 			data, err := os.ReadFile(h.path)
@@ -463,7 +463,7 @@ func TestHistory_LoadAndAddRoundTrip(t *testing.T) {
 
 	h2 := &History{path: path, maxBatches: 10}
 	require.NoError(t, h2.load())
-	assert.Len(t, h2.Entries, 2)
+	assert.Len(t, h2.entries, 2)
 }
 
 // testRemoveCategoryFromBatch defines the structure for test cases of the RemoveCategoryFromBatch function,
@@ -532,9 +532,9 @@ func TestRemoveCategoryFromBatch(t *testing.T) {
 			tt.setup(h)
 			_, err := h.RemoveCategoryFromBatch(tt.batchID, tt.categories)
 			require.NoError(t, err)
-			assert.Len(t, h.Entries, tt.wantLen)
+			assert.Len(t, h.entries, tt.wantLen)
 			hasBatch := false
-			for _, e := range h.Entries {
+			for _, e := range h.entries {
 				if e.BatchID == tt.batchID {
 					hasBatch = true
 					break

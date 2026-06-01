@@ -44,7 +44,7 @@ type Entry struct {
 // History manages the log of file operations
 type History struct {
 	mu         sync.Mutex
-	Entries    []Entry `json:"entries"`
+	entries    []Entry
 	path       string
 	maxBatches int
 }
@@ -87,12 +87,12 @@ func NewHistory(limit int) (*History, error) {
 func (h *History) Add(entry Entry) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	snapshot := make([]Entry, len(h.Entries))
-	copy(snapshot, h.Entries)
-	h.Entries = append(h.Entries, entry)
+	snapshot := make([]Entry, len(h.entries))
+	copy(snapshot, h.entries)
+	h.entries = append(h.entries, entry)
 	h.prune()
 	if err := h.save(); err != nil {
-		h.Entries = snapshot
+		h.entries = snapshot
 		return err
 	}
 	return nil
@@ -102,7 +102,7 @@ func (h *History) Add(entry Entry) error {
 func (h *History) prune() {
 	seen := make(map[string]bool)
 	var batchOrder []string
-	for _, e := range h.Entries {
+	for _, e := range h.entries {
 		if !seen[e.BatchID] {
 			seen[e.BatchID] = true
 			batchOrder = append(batchOrder, e.BatchID)
@@ -119,12 +119,12 @@ func (h *History) prune() {
 	}
 
 	var newEntries []Entry
-	for _, e := range h.Entries {
+	for _, e := range h.entries {
 		if !toRemove[e.BatchID] {
 			newEntries = append(newEntries, e)
 		}
 	}
-	h.Entries = newEntries
+	h.entries = newEntries
 }
 
 // BatchSummary holds a brief description of a batch for listing purposes
@@ -141,7 +141,7 @@ func (h *History) GetAllBatches() []BatchSummary {
 
 	seen := make(map[string]*BatchSummary)
 	var order []string
-	for _, e := range h.Entries {
+	for _, e := range h.entries {
 		if _, ok := seen[e.BatchID]; !ok {
 			seen[e.BatchID] = &BatchSummary{BatchID: e.BatchID, Timestamp: e.Timestamp}
 			order = append(order, e.BatchID)
@@ -161,11 +161,11 @@ func (h *History) GetLastBatchID() (string, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if len(h.Entries) == 0 {
+	if len(h.entries) == 0 {
 		return "", fmt.Errorf("history is empty")
 	}
 
-	return h.Entries[len(h.Entries)-1].BatchID, nil
+	return h.entries[len(h.entries)-1].BatchID, nil
 }
 
 // GetBatch returns all entries for a given batch ID
@@ -174,7 +174,7 @@ func (h *History) GetBatch(batchID string) []Entry {
 	defer h.mu.Unlock()
 
 	var batch []Entry
-	for _, entry := range h.Entries {
+	for _, entry := range h.entries {
 		if entry.BatchID == batchID {
 			batch = append(batch, entry)
 		}
@@ -187,17 +187,17 @@ func (h *History) RemoveBatch(batchID string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	newEntries := make([]Entry, 0, len(h.Entries))
-	for _, entry := range h.Entries {
+	newEntries := make([]Entry, 0, len(h.entries))
+	for _, entry := range h.entries {
 		if entry.BatchID != batchID {
 			newEntries = append(newEntries, entry)
 		}
 	}
 
-	original := h.Entries
-	h.Entries = newEntries
+	original := h.entries
+	h.entries = newEntries
 	if err := h.save(); err != nil {
-		h.Entries = original
+		h.entries = original
 		return err
 	}
 	return nil
@@ -216,19 +216,19 @@ func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (
 		catSet[c] = true
 	}
 
-	newEntries := make([]Entry, 0, len(h.Entries))
-	for _, e := range h.Entries {
+	newEntries := make([]Entry, 0, len(h.entries))
+	for _, e := range h.entries {
 		if e.BatchID == batchID && e.Category != "" && catSet[e.Category] {
 			continue
 		}
 		newEntries = append(newEntries, e)
 	}
 
-	removed := len(h.Entries) - len(newEntries)
-	original := h.Entries
-	h.Entries = newEntries
+	removed := len(h.entries) - len(newEntries)
+	original := h.entries
+	h.entries = newEntries
 	if err := h.save(); err != nil {
-		h.Entries = original
+		h.entries = original
 		return 0, err
 	}
 	return removed, nil
@@ -245,17 +245,17 @@ func (h *History) RemoveEntries(entries []Entry) error {
 		toRemove[e.BatchID+"\x00"+e.Source] = true
 	}
 
-	newEntries := make([]Entry, 0, len(h.Entries))
-	for _, e := range h.Entries {
+	newEntries := make([]Entry, 0, len(h.entries))
+	for _, e := range h.entries {
 		if !toRemove[e.BatchID+"\x00"+e.Source] {
 			newEntries = append(newEntries, e)
 		}
 	}
 
-	original := h.Entries
-	h.Entries = newEntries
+	original := h.entries
+	h.entries = newEntries
 	if err := h.save(); err != nil {
-		h.Entries = original
+		h.entries = original
 		return err
 	}
 	return nil
@@ -267,11 +267,16 @@ func (h *History) load() error {
 		return err
 	}
 
-	return json.Unmarshal(data, &h.Entries)
+	var entries []Entry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return err
+	}
+	h.entries = entries
+	return nil
 }
 
 func (h *History) save() error {
-	data, err := json.MarshalIndent(h.Entries, "", "  ")
+	data, err := json.MarshalIndent(h.entries, "", "  ")
 	if err != nil {
 		return err
 	}
