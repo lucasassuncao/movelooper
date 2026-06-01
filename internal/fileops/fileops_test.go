@@ -166,9 +166,16 @@ var testMoveFilesTestCases = []testMoveFiles{
 		category: func(src, dst string) *models.Category {
 			enabled := true
 			return &models.Category{
-				Name: "PDFs", Enabled: &enabled,
-				Source:      models.CategorySource{Path: src, Extensions: []string{"pdf"}},
-				Destination: models.CategoryDestination{Path: dst, ConflictStrategy: "rename"},
+				Name:    "PDFs",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       src,
+					Extensions: []string{"pdf"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             dst,
+					ConflictStrategy: models.ConflictStrategyRename,
+				},
 			}
 		},
 		ext: "pdf", batchID: "batch_test",
@@ -188,9 +195,16 @@ var testMoveFilesTestCases = []testMoveFiles{
 		category: func(src, dst string) *models.Category {
 			enabled := true
 			return &models.Category{
-				Name: "Texts", Enabled: &enabled,
-				Source:      models.CategorySource{Path: src, Extensions: []string{"txt"}},
-				Destination: models.CategoryDestination{Path: dst, ConflictStrategy: "skip"},
+				Name:    "Texts",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       src,
+					Extensions: []string{"txt"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             dst,
+					ConflictStrategy: models.ConflictStrategySkip,
+				},
 			}
 		},
 		ext: "txt", batchID: "batch_skip",
@@ -207,9 +221,17 @@ var testMoveFilesTestCases = []testMoveFiles{
 		category: func(src, dst string) *models.Category {
 			enabled := true
 			return &models.Category{
-				Name: "Photos", Enabled: &enabled,
-				Source:      models.CategorySource{Path: src, Extensions: []string{"jpg"}},
-				Destination: models.CategoryDestination{Path: dst, OrganizeBy: "{ext}", ConflictStrategy: "rename"},
+				Name:    "Photos",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       src,
+					Extensions: []string{"jpg"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             dst,
+					OrganizeBy:       "{ext}",
+					ConflictStrategy: models.ConflictStrategyRename,
+				},
 			}
 		},
 		ext: "jpg", batchID: "batch_org",
@@ -227,9 +249,13 @@ var testMoveFilesTestCases = []testMoveFiles{
 		category: func(src, dst string) *models.Category {
 			enabled := true
 			return &models.Category{
-				Name: "All", Enabled: &enabled,
-				Source:      models.CategorySource{Path: src},
-				Destination: models.CategoryDestination{Path: dst, ConflictStrategy: "rename"},
+				Name:    "All",
+				Enabled: &enabled,
+				Source:  models.CategorySource{Path: src},
+				Destination: models.CategoryDestination{
+					Path:             dst,
+					ConflictStrategy: models.ConflictStrategyRename,
+				},
 			}
 		},
 		ext: "all", batchID: "batch_all",
@@ -247,9 +273,15 @@ var testMoveFilesTestCases = []testMoveFiles{
 		category: func(src, dst string) *models.Category {
 			enabled := true
 			return &models.Category{
-				Name: "Texts", Enabled: &enabled,
-				Source:      models.CategorySource{Path: src, Extensions: []string{"txt"}},
-				Destination: models.CategoryDestination{Path: dst, ConflictStrategy: ""},
+				Name:    "Texts",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       src,
+					Extensions: []string{"txt"},
+				},
+				Destination: models.CategoryDestination{
+					Path: dst,
+				},
 			}
 		},
 		ext: "txt", batchID: "batch_default",
@@ -320,7 +352,7 @@ func TestMoveFiles(t *testing.T) {
 // containing the strategy, setup logic, and expected outcome fields.
 type testApplyConflictStrategy struct {
 	name       string
-	strategy   string
+	strategy   models.ConflictStrategy
 	setup      func(t *testing.T, srcFile, dstFile string)
 	wantSkip   bool
 	wantEqDst  bool
@@ -332,13 +364,13 @@ type testApplyConflictStrategy struct {
 var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 	{
 		name:      "no conflict returns dst as-is",
-		strategy:  "rename",
+		strategy:  models.ConflictStrategyRename,
 		setup:     func(t *testing.T, srcFile, dstFile string) { writeFile(t, srcFile, []byte("data")) },
 		wantEqDst: true,
 	},
 	{
 		name:     "skip strategy skips",
-		strategy: "skip",
+		strategy: models.ConflictStrategySkip,
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("new"))
 			writeFile(t, dstFile, []byte("existing"))
@@ -347,7 +379,7 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 	},
 	{
 		name:     "rename strategy renames",
-		strategy: "rename",
+		strategy: models.ConflictStrategyRename,
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("new"))
 			writeFile(t, dstFile, []byte("existing"))
@@ -356,7 +388,7 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 	},
 	{
 		name:     "overwrite strategy returns dst",
-		strategy: "overwrite",
+		strategy: models.ConflictStrategyOverwrite,
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("new"))
 			writeFile(t, dstFile, []byte("existing"))
@@ -365,7 +397,7 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 	},
 	{
 		name:     "hash_check duplicate skips and removes src",
-		strategy: "hash_check",
+		strategy: models.ConflictStrategyHashCheck,
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("identical content"))
 			writeFile(t, dstFile, []byte("identical content"))
@@ -374,7 +406,7 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 	},
 	{
 		name:     "newest/src newer moves to dst",
-		strategy: "newest",
+		strategy: models.ConflictStrategyNewest,
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("new"))
 			writeFile(t, dstFile, []byte("old"))
@@ -385,7 +417,7 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 	},
 	{
 		name:     "oldest/src older moves to dst",
-		strategy: "oldest",
+		strategy: models.ConflictStrategyOldest,
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("old"))
 			writeFile(t, dstFile, []byte("new"))
@@ -396,7 +428,7 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 	},
 	{
 		name:     "larger/src larger moves to dst",
-		strategy: "larger",
+		strategy: models.ConflictStrategyLarger,
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("larger content here"))
 			writeFile(t, dstFile, []byte("small"))
@@ -405,7 +437,7 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 	},
 	{
 		name:     "smaller/src smaller moves to dst",
-		strategy: "smaller",
+		strategy: models.ConflictStrategySmaller,
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("tiny"))
 			writeFile(t, dstFile, []byte("much larger content here"))
@@ -480,7 +512,7 @@ func TestIsCrossDeviceError(t *testing.T) {
 // containing the action, and a check function for assertions on src and dst after dispatch.
 type testDispatchAction struct {
 	name   string
-	action string
+	action models.Action
 	check  func(t *testing.T, src, dst string)
 	skip   func(t *testing.T, src, dst string) bool
 }
@@ -490,7 +522,7 @@ type testDispatchAction struct {
 var testDispatchActionTestCases = []testDispatchAction{
 	{
 		name:   "move removes src and creates dst",
-		action: "move",
+		action: models.ActionMove,
 		check: func(t *testing.T, src, dst string) {
 			assert.FileExists(t, dst)
 			assert.NoFileExists(t, src)
@@ -498,7 +530,7 @@ var testDispatchActionTestCases = []testDispatchAction{
 	},
 	{
 		name:   "copy keeps src and creates dst",
-		action: "copy",
+		action: models.ActionCopy,
 		check: func(t *testing.T, src, dst string) {
 			assert.FileExists(t, dst)
 			assert.FileExists(t, src)
@@ -509,7 +541,7 @@ var testDispatchActionTestCases = []testDispatchAction{
 	},
 	{
 		name:   "symlink creates symlink at dst",
-		action: "symlink",
+		action: models.ActionSymlink,
 		skip: func(t *testing.T, src, dst string) bool {
 			if err := os.Symlink(src, dst+"_probe"); err != nil {
 				t.Logf("symlink not available: %v", err)

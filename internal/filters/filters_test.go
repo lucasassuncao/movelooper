@@ -243,13 +243,19 @@ var testMatchesNameFiltersTestCases = []testMatchesNameFilters{
 	{
 		"regex match",
 		"report_2024.pdf",
-		models.CategoryFilter{Regex: "report", CompiledRegex: regexp.MustCompile("(?i)report")},
+		models.CategoryFilter{
+			Regex:         "report",
+			CompiledRegex: regexp.MustCompile("(?i)report"),
+		},
 		true,
 	},
 	{
 		"regex no match",
 		"invoice.pdf",
-		models.CategoryFilter{Regex: "^report", CompiledRegex: regexp.MustCompile("^report")},
+		models.CategoryFilter{
+			Regex:         "^report",
+			CompiledRegex: regexp.MustCompile("^report"),
+		},
 		false,
 	},
 	{"glob filter match", "report_2024.pdf", models.CategoryFilter{Glob: "report_*.pdf"}, true},
@@ -588,13 +594,23 @@ var testMeetsAgeSizeFiltersTestCases = []testMeetsAgeSizeFilters{
 	{
 		"all constraints pass",
 		2 * time.Hour, 512,
-		models.CategoryFilter{MinAge: 1 * time.Hour, MaxAge: 24 * time.Hour, MinSizeBytes: 100, MaxSizeBytes: 1024},
+		models.CategoryFilter{
+			MinAge:       1 * time.Hour,
+			MaxAge:       24 * time.Hour,
+			MinSizeBytes: 100,
+			MaxSizeBytes: 1024,
+		},
 		true,
 	},
 	{
 		"all constraints: size fails",
 		2 * time.Hour, 2048,
-		models.CategoryFilter{MinAge: 1 * time.Hour, MaxAge: 24 * time.Hour, MinSizeBytes: 100, MaxSizeBytes: 1024},
+		models.CategoryFilter{
+			MinAge:       1 * time.Hour,
+			MaxAge:       24 * time.Hour,
+			MinSizeBytes: 100,
+			MaxSizeBytes: 1024,
+		},
 		false,
 	},
 }

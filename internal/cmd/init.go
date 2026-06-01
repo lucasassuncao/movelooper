@@ -490,7 +490,7 @@ Leave blank to move files directly into destination.`).
 		Destination: models.CategoryDestination{
 			Path:             destination,
 			OrganizeBy:       organizeBy,
-			ConflictStrategy: strategy,
+			ConflictStrategy: models.ConflictStrategy(strategy),
 		},
 	}
 }
@@ -761,7 +761,7 @@ func getDefaultCategory() models.Category {
 		},
 		Destination: models.CategoryDestination{
 			Path:             filepath.Join(source, "images"),
-			ConflictStrategy: "rename",
+			ConflictStrategy: models.ConflictStrategyRename,
 		},
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
 // ConflictArgs carries the paths needed by a ConflictResolver.
@@ -26,15 +28,15 @@ type ConflictResolver interface {
 }
 
 // conflictResolvers maps strategy names to their ConflictResolver implementation.
-var conflictResolvers = map[string]ConflictResolver{
-	"rename":     &renameResolver{},
-	"overwrite":  &overwriteResolver{},
-	"skip":       &skipResolver{},
-	"hash_check": &hashCheckResolver{},
-	"newest":     &newestResolver{},
-	"oldest":     &oldestResolver{},
-	"larger":     &largerResolver{},
-	"smaller":    &smallerResolver{},
+var conflictResolvers = map[models.ConflictStrategy]ConflictResolver{
+	models.ConflictStrategyRename:    &renameResolver{},
+	models.ConflictStrategyOverwrite: &overwriteResolver{},
+	models.ConflictStrategySkip:      &skipResolver{},
+	models.ConflictStrategyHashCheck: &hashCheckResolver{},
+	models.ConflictStrategyNewest:    &newestResolver{},
+	models.ConflictStrategyOldest:    &oldestResolver{},
+	models.ConflictStrategyLarger:    &largerResolver{},
+	models.ConflictStrategySmaller:   &smallerResolver{},
 }
 
 type renameResolver struct{}

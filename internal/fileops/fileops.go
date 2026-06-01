@@ -100,7 +100,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 
 		strategy := category.Destination.ConflictStrategy
 		if strategy == "" {
-			strategy = "rename"
+			strategy = models.ConflictStrategyRename
 		}
 		resolved, skip := applyConflictStrategy(mctx, strategy, ConflictArgs{
 			Src:      sourcePath,
@@ -116,7 +116,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 
 		action := category.Destination.Action
 		if action == "" {
-			action = "move"
+			action = models.ActionMove
 		}
 		if err := dispatchAction(ctx, action, sourcePath, destPath); err != nil {
 			if errors.Is(err, ErrTimestampPreserve) {
@@ -133,7 +133,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 				Destination: destPath,
 				Timestamp:   time.Now(),
 				BatchID:     req.BatchID,
-				Action:      action,
+				Action:      string(action),
 				Category:    category.Name,
 			}); err != nil {
 				mctx.Logger.Warn("failed to record history; undo will not work for this file",
@@ -174,15 +174,15 @@ func (a *symlinkAction) Execute(_ context.Context, src, dst string) error {
 	return os.Symlink(absSrc, dst)
 }
 
-var fileActions = map[string]FileAction{
-	"move":    &moveAction{},
-	"copy":    &copyAction{},
-	"symlink": &symlinkAction{},
+var fileActions = map[models.Action]FileAction{
+	models.ActionMove:    &moveAction{},
+	models.ActionCopy:    &copyAction{},
+	models.ActionSymlink: &symlinkAction{},
 }
 
 // dispatchAction performs the file operation indicated by action.
-// Supported values: "move" (default), "copy", "symlink".
-func dispatchAction(ctx context.Context, action, src, dst string) error {
+// Supported values: ActionMove (default), ActionCopy, ActionSymlink.
+func dispatchAction(ctx context.Context, action models.Action, src, dst string) error {
 	fa, ok := fileActions[action]
 	if !ok {
 		fa = fileActions["move"]
@@ -192,7 +192,7 @@ func dispatchAction(ctx context.Context, action, src, dst string) error {
 
 // applyConflictStrategy checks whether destPath already exists and resolves the
 // conflict according to strategy.
-func applyConflictStrategy(ctx MoveContext, strategy string, args ConflictArgs) (resolved string, skip bool) {
+func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, args ConflictArgs) (resolved string, skip bool) {
 	if _, err := os.Stat(args.Dst); err != nil {
 		return args.Dst, false
 	}

@@ -42,7 +42,10 @@ var testRunHookTestCases = []testRunHook{
 			} else {
 				run = []string{"exit 1", "echo second"}
 			}
-			return &models.CategoryHook{OnFailure: "warn", Run: run}
+			return &models.CategoryHook{
+				OnFailure: "warn",
+				Run:       run,
+			}
 		},
 	},
 	{
@@ -55,7 +58,10 @@ var testRunHookTestCases = []testRunHook{
 			} else {
 				run = []string{"exit 1", fmt.Sprintf("touch %s", marker)}
 			}
-			return &models.CategoryHook{OnFailure: "abort", Run: run}
+			return &models.CategoryHook{
+				OnFailure: "abort",
+				Run:       run,
+			}
 		},
 		wantErr: true,
 		check: func(t *testing.T, dir string) {

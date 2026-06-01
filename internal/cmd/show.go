@@ -41,8 +41,8 @@ func showCmd(m *models.Movelooper) *cobra.Command {
 				}
 				printFilterSummary(cat.Source.Filter)
 				pterm.Printf("      %-32s %s\n", "destination.path:", cat.Destination.Path)
-				pterm.Printf("      %-32s %s\n", "destination.action:", orDefault(cat.Destination.Action, "move (default)"))
-				pterm.Printf("      %-32s %s\n", "destination.conflict-strategy:", orDefault(cat.Destination.ConflictStrategy, "rename (default)"))
+				pterm.Printf("      %-32s %s\n", "destination.action:", orDefault(string(cat.Destination.Action), "move (default)"))
+				pterm.Printf("      %-32s %s\n", "destination.conflict-strategy:", orDefault(string(cat.Destination.ConflictStrategy), "rename (default)"))
 				pterm.Printf("      %-32s %s\n", "destination.organize-by:", orDefault(cat.Destination.OrganizeBy, "(none)"))
 				if cat.Destination.Rename != "" {
 					pterm.Printf("      %-32s %s\n", "destination.rename:", cat.Destination.Rename)

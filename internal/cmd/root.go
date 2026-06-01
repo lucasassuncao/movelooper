@@ -150,7 +150,7 @@ type hookAfterVars struct {
 func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[string]string {
 	action := category.Destination.Action
 	if action == "" {
-		action = "move"
+		action = models.ActionMove
 	}
 	dry := "false"
 	if dryRun {
@@ -161,7 +161,7 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 		"ML_SOURCE_PATH": category.Source.Path,
 		"ML_DEST_PATH":   category.Destination.Path,
 		"ML_DRY_RUN":     dry,
-		"ML_ACTION":      action,
+		"ML_ACTION":      string(action),
 	}
 	if after != nil {
 		env["ML_FILES_MOVED"] = fmt.Sprintf("%d", after.moved)

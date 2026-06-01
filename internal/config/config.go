@@ -52,11 +52,11 @@ func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error) {
 }
 
 // validActions is the set of accepted values for destination.action.
-var validActions = map[string]bool{
-	"":        true, // empty = default (move)
-	"move":    true,
-	"copy":    true,
-	"symlink": true,
+var validActions = map[models.Action]bool{
+	"":                   true, // empty = default (move)
+	models.ActionMove:    true,
+	models.ActionCopy:    true,
+	models.ActionSymlink: true,
 }
 
 // validateCategory validates a single category and pre-compiles its filter.

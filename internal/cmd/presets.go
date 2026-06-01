@@ -122,7 +122,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/images",
-					ConflictStrategy: "rename",
+					ConflictStrategy: models.ConflictStrategyRename,
 					OrganizeBy:       "{ext}",
 				},
 			},
@@ -141,7 +141,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/reports",
-					ConflictStrategy: "rename",
+					ConflictStrategy: models.ConflictStrategyRename,
 					OrganizeBy:       "{year}/{month}",
 				},
 			},
@@ -159,7 +159,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/invoices",
-					ConflictStrategy: "hash_check",
+					ConflictStrategy: models.ConflictStrategyHashCheck,
 					OrganizeBy:       "{year}",
 				},
 			},
@@ -179,7 +179,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/screenshots",
-					ConflictStrategy: "rename",
+					ConflictStrategy: models.ConflictStrategyRename,
 					OrganizeBy:       "{year}/{month}",
 				},
 			},
@@ -196,7 +196,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/documents",
-					ConflictStrategy: "rename",
+					ConflictStrategy: models.ConflictStrategyRename,
 					OrganizeBy:       "{ext}",
 				},
 			},
@@ -211,7 +211,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/photos",
-					ConflictStrategy: "rename",
+					ConflictStrategy: models.ConflictStrategyRename,
 					OrganizeBy:       "{year}/{month}",
 				},
 			},
@@ -224,7 +224,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/config",
-					ConflictStrategy: "overwrite",
+					ConflictStrategy: models.ConflictStrategyOverwrite,
 					OrganizeBy:       "{ext}",
 				},
 			},
@@ -237,7 +237,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/music",
-					ConflictStrategy: "skip",
+					ConflictStrategy: models.ConflictStrategySkip,
 					OrganizeBy:       "{ext}",
 				},
 			},
@@ -250,7 +250,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/archives",
-					ConflictStrategy: "hash_check",
+					ConflictStrategy: models.ConflictStrategyHashCheck,
 					OrganizeBy:       "{ext}",
 				},
 			},
@@ -269,7 +269,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/videos/large",
-					ConflictStrategy: "hash_check",
+					ConflictStrategy: models.ConflictStrategyHashCheck,
 					OrganizeBy:       "{ext}",
 				},
 			},
@@ -286,7 +286,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/old",
-					ConflictStrategy: "skip",
+					ConflictStrategy: models.ConflictStrategySkip,
 					OrganizeBy:       "{year}",
 				},
 			},
@@ -306,7 +306,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/reports",
-					ConflictStrategy: "rename",
+					ConflictStrategy: models.ConflictStrategyRename,
 					OrganizeBy:       "{ext}",
 				},
 			},
@@ -326,7 +326,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/recent-docs",
-					ConflictStrategy: "rename",
+					ConflictStrategy: models.ConflictStrategyRename,
 					OrganizeBy:       "{year}/{month}",
 				},
 			},
@@ -344,7 +344,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/videos",
-					ConflictStrategy: "hash_check",
+					ConflictStrategy: models.ConflictStrategyHashCheck,
 					OrganizeBy:       "{year}/{month}",
 				},
 				Hooks: &models.CategoryHooks{
@@ -399,7 +399,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/documents",
 					OrganizeBy:       "{year}/{month}",
-					ConflictStrategy: "hash_check",
+					ConflictStrategy: models.ConflictStrategyHashCheck,
 					Action:           "move",
 					Rename:           "{year}-{month}-{day}_{name}",
 				},

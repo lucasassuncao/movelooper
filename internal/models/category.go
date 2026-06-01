@@ -5,6 +5,29 @@ import (
 	"time"
 )
 
+// ConflictStrategy defines what happens when a destination file already exists.
+type ConflictStrategy string
+
+const (
+	ConflictStrategyRename    ConflictStrategy = "rename"
+	ConflictStrategyHashCheck ConflictStrategy = "hash_check"
+	ConflictStrategyOverwrite ConflictStrategy = "overwrite"
+	ConflictStrategySkip      ConflictStrategy = "skip"
+	ConflictStrategyNewest    ConflictStrategy = "newest"
+	ConflictStrategyOldest    ConflictStrategy = "oldest"
+	ConflictStrategyLarger    ConflictStrategy = "larger"
+	ConflictStrategySmaller   ConflictStrategy = "smaller"
+)
+
+// Action defines the file operation to perform when moving a category.
+type Action string
+
+const (
+	ActionMove    Action = "move"
+	ActionCopy    Action = "copy"
+	ActionSymlink Action = "symlink"
+)
+
 // Category represents a file category with its properties
 type Category struct {
 	Name        string              `yaml:"name" mapstructure:"name"`
@@ -32,11 +55,11 @@ type CategorySource struct {
 
 // CategoryDestination holds the destination path and placement rules for a category
 type CategoryDestination struct {
-	Path             string `yaml:"path" mapstructure:"path"`
-	OrganizeBy       string `yaml:"organize-by" mapstructure:"organize-by"`
-	ConflictStrategy string `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
-	Action           string `yaml:"action" mapstructure:"action"`
-	Rename           string `yaml:"rename" mapstructure:"rename"`
+	Path             string           `yaml:"path" mapstructure:"path"`
+	OrganizeBy       string           `yaml:"organize-by" mapstructure:"organize-by"`
+	ConflictStrategy ConflictStrategy `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+	Action           Action           `yaml:"action" mapstructure:"action"`
+	Rename           string           `yaml:"rename" mapstructure:"rename"`
 }
 
 // CategoryFilter holds the optional filtering rules for a category

@@ -444,9 +444,14 @@ func TestValidateCategoryAction(t *testing.T) {
 	for _, tt := range testValidateCategoryActionTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			cat := &models.Category{
-				Name:        "test",
-				Source:      models.CategorySource{Extensions: []string{"pdf"}},
-				Destination: models.CategoryDestination{Path: "/tmp/dst", Action: tt.action},
+				Name: "test",
+				Source: models.CategorySource{
+					Extensions: []string{"pdf"},
+				},
+				Destination: models.CategoryDestination{
+					Path:   "/tmp/dst",
+					Action: models.Action(tt.action),
+				},
 			}
 			err := validateCategory(cat)
 			if tt.wantErr {
@@ -480,9 +485,14 @@ func TestValidateCategoryRename(t *testing.T) {
 	for _, tt := range testValidateCategoryRenameTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			cat := &models.Category{
-				Name:        "test",
-				Source:      models.CategorySource{Extensions: []string{"pdf"}},
-				Destination: models.CategoryDestination{Path: "/tmp/dst", Rename: tt.rename},
+				Name: "test",
+				Source: models.CategorySource{
+					Extensions: []string{"pdf"},
+				},
+				Destination: models.CategoryDestination{
+					Path:   "/tmp/dst",
+					Rename: tt.rename,
+				},
 			}
 			err := validateCategory(cat)
 			if tt.wantErr {
@@ -519,9 +529,14 @@ func TestValidateCategoryOrganizeBy(t *testing.T) {
 	for _, tt := range testValidateCategoryOrganizeByTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			cat := &models.Category{
-				Name:        "test",
-				Source:      models.CategorySource{Extensions: []string{"pdf"}},
-				Destination: models.CategoryDestination{Path: "/tmp/dst", OrganizeBy: tt.organizeBy},
+				Name: "test",
+				Source: models.CategorySource{
+					Extensions: []string{"pdf"},
+				},
+				Destination: models.CategoryDestination{
+					Path:       "/tmp/dst",
+					OrganizeBy: tt.organizeBy,
+				},
 			}
 			err := validateCategory(cat)
 			if tt.wantErr {

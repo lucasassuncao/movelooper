@@ -49,7 +49,7 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ReadDirectory reads the contents of a given directory and returns the files.
 
 <a name="ConflictArgs"></a>
-## type [ConflictArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L12-L17>)
+## type [ConflictArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L14-L19>)
 
 ConflictArgs carries the paths needed by a ConflictResolver.
 
@@ -63,7 +63,7 @@ type ConflictArgs struct {
 ```
 
 <a name="ConflictResolver"></a>
-## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L23-L26>)
+## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L25-L28>)
 
 ConflictResolver resolves a naming conflict when a destination file already exists. Resolve returns the final destination path, whether the move should proceed, and any error encountered. When shouldMove is false the caller must skip the file. SkipMessage returns the log message to emit when shouldMove is false; "" means no log.
 

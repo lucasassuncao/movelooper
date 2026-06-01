@@ -11,6 +11,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 ## Index
 
 - [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
+- [type Action](<#Action>)
 - [type Category](<#Category>)
   - [func FilterCategories\(all \[\]\*Category, names \[\]string, includeDisabled bool, log logger.Logger\) \(\[\]\*Category, error\)](<#FilterCategories>)
   - [func \(c \*Category\) IsEnabled\(\) bool](<#Category.IsEnabled>)
@@ -21,6 +22,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 - [type CategorySource](<#CategorySource>)
 - [type Config](<#Config>)
 - [type Configuration](<#Configuration>)
+- [type ConflictStrategy](<#ConflictStrategy>)
 - [type Movelooper](<#Movelooper>)
 
 
@@ -33,8 +35,27 @@ func ParseCategoryNames(raw string) []string
 
 ParseCategoryNames splits a comma\-separated category string into a slice of trimmed names. Returns nil when raw is empty or contains only separators.
 
+<a name="Action"></a>
+## type [Action](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L23>)
+
+Action defines the file operation to perform when moving a category.
+
+```go
+type Action string
+```
+
+<a name="ActionMove"></a>
+
+```go
+const (
+    ActionMove    Action = "move"
+    ActionCopy    Action = "copy"
+    ActionSymlink Action = "symlink"
+)
+```
+
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L9-L15>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L32-L38>)
 
 Category represents a file category with its properties
 
@@ -62,7 +83,7 @@ When names is empty, all categories are returned. Without includeDisabled, categ
 When names is non\-empty, each name is validated against the config. An unknown name returns an error. A disabled category without includeDisabled is skipped with a warning that suggests the flag.
 
 <a name="Category.IsEnabled"></a>
-### func \(\*Category\) [IsEnabled](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L19>)
+### func \(\*Category\) [IsEnabled](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L42>)
 
 ```go
 func (c *Category) IsEnabled() bool
@@ -71,22 +92,22 @@ func (c *Category) IsEnabled() bool
 IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
 
 <a name="CategoryDestination"></a>
-## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L34-L40>)
+## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L57-L63>)
 
 CategoryDestination holds the destination path and placement rules for a category
 
 ```go
 type CategoryDestination struct {
-    Path             string `yaml:"path" mapstructure:"path"`
-    OrganizeBy       string `yaml:"organize-by" mapstructure:"organize-by"`
-    ConflictStrategy string `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
-    Action           string `yaml:"action" mapstructure:"action"`
-    Rename           string `yaml:"rename" mapstructure:"rename"`
+    Path             string           `yaml:"path" mapstructure:"path"`
+    OrganizeBy       string           `yaml:"organize-by" mapstructure:"organize-by"`
+    ConflictStrategy ConflictStrategy `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
+    Action           Action           `yaml:"action" mapstructure:"action"`
+    Rename           string           `yaml:"rename" mapstructure:"rename"`
 }
 ```
 
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L43-L58>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L66-L81>)
 
 CategoryFilter holds the optional filtering rules for a category
 
@@ -110,7 +131,7 @@ type CategoryFilter struct {
 ```
 
 <a name="CategoryHook"></a>
-## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L67-L71>)
+## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L90-L94>)
 
 CategoryHook defines a list of shell commands to run at a lifecycle point.
 
@@ -123,7 +144,7 @@ type CategoryHook struct {
 ```
 
 <a name="CategoryHooks"></a>
-## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L61-L64>)
+## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L84-L87>)
 
 CategoryHooks holds optional before/after hooks for a category.
 
@@ -135,7 +156,7 @@ type CategoryHooks struct {
 ```
 
 <a name="CategorySource"></a>
-## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L24-L31>)
+## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L47-L54>)
 
 CategorySource holds the source path, extensions, and filters for a category
 
@@ -176,6 +197,30 @@ type Configuration struct {
     WatchDelay   time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
     HistoryLimit int           `yaml:"history-limit" mapstructure:"history-limit"`
 }
+```
+
+<a name="ConflictStrategy"></a>
+## type [ConflictStrategy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L9>)
+
+ConflictStrategy defines what happens when a destination file already exists.
+
+```go
+type ConflictStrategy string
+```
+
+<a name="ConflictStrategyRename"></a>
+
+```go
+const (
+    ConflictStrategyRename    ConflictStrategy = "rename"
+    ConflictStrategyHashCheck ConflictStrategy = "hash_check"
+    ConflictStrategyOverwrite ConflictStrategy = "overwrite"
+    ConflictStrategySkip      ConflictStrategy = "skip"
+    ConflictStrategyNewest    ConflictStrategy = "newest"
+    ConflictStrategyOldest    ConflictStrategy = "oldest"
+    ConflictStrategyLarger    ConflictStrategy = "larger"
+    ConflictStrategySmaller   ConflictStrategy = "smaller"
+)
 ```
 
 <a name="Movelooper"></a>
