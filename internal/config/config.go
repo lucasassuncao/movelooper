@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 )
 
 // ErrConfigNotFound is returned by InitConfig when the config file cannot be located.
-var ErrConfigNotFound = fmt.Errorf("config file not found")
+var ErrConfigNotFound = errors.New("config file not found")
 
 // InitConfig reads the YAML file at path, resolves any import: entries,
 // and loads the merged document into k. Returns ErrConfigNotFound when
