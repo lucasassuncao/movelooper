@@ -124,7 +124,11 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	}
 
 	for _, category := range categories {
-		processCategoryMove(ctx, m, category, batch)
+		if err := processCategoryMove(ctx, m, category, batch); err != nil {
+			m.Logger.Error("failed to process category",
+				m.Logger.Args("category", category.Name, "error", err.Error()))
+			batch.stats.skipped++
+		}
 	}
 
 	if opts.DryRun {
@@ -173,22 +177,18 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 }
 
 // processCategoryMove handles all extensions for a single category.
-func processCategoryMove(ctx context.Context, m *models.Movelooper, category *models.Category, batch moveBatch) {
+func processCategoryMove(ctx context.Context, m *models.Movelooper, category *models.Category, batch moveBatch) error {
 	if category.Hooks != nil && category.Hooks.Before != nil {
 		env := hookEnv(category, batch.dryRun, nil)
 		if err := hooks.RunHook(ctx, category.Hooks.Before, m.Logger, env); err != nil {
-			m.Logger.Warn("before hook failed, skipping category",
-				m.Logger.Args("category", category.Name, "error", err.Error()))
-			batch.stats.skipped++
-			return
+			return fmt.Errorf("before hook: %w", err)
 		}
 	}
 
 	autoExclude := []string{category.Destination.Path}
 	allEntries, err := scanner.WalkSource(category.Source, autoExclude)
 	if err != nil {
-		m.Logger.Error("failed to scan directory", m.Logger.Args("path", category.Source.Path, "error", err.Error()))
-		return
+		return fmt.Errorf("scan %q: %w", category.Source.Path, err)
 	}
 
 	var totalMoved, totalSkipped, totalFailed int
@@ -243,6 +243,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 				m.Logger.Args("category", category.Name, "error", err.Error()))
 		}
 	}
+	return nil
 }
 
 // groupByDir groups FileEntries by their containing directory.
