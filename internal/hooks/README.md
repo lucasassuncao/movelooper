@@ -10,14 +10,14 @@ import "github.com/lucasassuncao/movelooper/internal/hooks"
 
 ## Index
 
-- [func RunHook\(ctx context.Context, hook \*models.CategoryHook, logger \*pterm.Logger, env map\[string\]string\) error](<#RunHook>)
+- [func RunHook\(ctx context.Context, hook \*models.CategoryHook, log logger.Logger, env map\[string\]string\) error](<#RunHook>)
 
 
 <a name="RunHook"></a>
 ## func [RunHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/hooks/hooks.go#L21>)
 
 ```go
-func RunHook(ctx context.Context, hook *models.CategoryHook, logger *pterm.Logger, env map[string]string) error
+func RunHook(ctx context.Context, hook *models.CategoryHook, log logger.Logger, env map[string]string) error
 ```
 
 RunHook executes all commands in hook.Run sequentially, injecting env into each process environment. Returns nil when hook is nil. On command failure:

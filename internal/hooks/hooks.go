@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 )
 
 func setSysProcAttr(cmd *exec.Cmd) {}
@@ -18,7 +18,7 @@ func setSysProcAttr(cmd *exec.Cmd) {}
 // On command failure:
 //   - "abort": stops execution and returns the error.
 //   - "warn":  logs the error and continues to the next command.
-func RunHook(ctx context.Context, hook *models.CategoryHook, logger *pterm.Logger, env map[string]string) error {
+func RunHook(ctx context.Context, hook *models.CategoryHook, log logger.Logger, env map[string]string) error {
 	if hook == nil {
 		return nil
 	}
@@ -39,7 +39,7 @@ func RunHook(ctx context.Context, hook *models.CategoryHook, logger *pterm.Logge
 			if hook.OnFailure == "abort" {
 				return fmt.Errorf("%s: %w", msg, err)
 			}
-			logger.Warn(msg, logger.Args("error", err.Error()))
+			log.Warn(msg, log.Args("error", err.Error()))
 		}
 	}
 	return nil

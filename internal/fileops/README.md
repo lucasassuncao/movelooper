@@ -92,7 +92,7 @@ MoveContext carries the dependencies needed by file\-move operations.
 
 ```go
 type MoveContext struct {
-    Logger  *pterm.Logger
+    Logger  logger.Logger
     History *history.History
 }
 ```

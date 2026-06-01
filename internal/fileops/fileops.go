@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/history"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
-	"github.com/pterm/pterm"
 )
 
 // ErrTimestampPreserve is returned when a cross-device copy succeeded but the
@@ -24,7 +24,7 @@ var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
 
 // MoveContext carries the dependencies needed by file-move operations.
 type MoveContext struct {
-	Logger  *pterm.Logger
+	Logger  logger.Logger
 	History *history.History
 }
 

@@ -12,7 +12,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 - [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
 - [type Category](<#Category>)
-  - [func FilterCategories\(all \[\]\*Category, names \[\]string, includeDisabled bool, logger \*pterm.Logger\) \(\[\]\*Category, error\)](<#FilterCategories>)
+  - [func FilterCategories\(all \[\]\*Category, names \[\]string, includeDisabled bool, log logger.Logger\) \(\[\]\*Category, error\)](<#FilterCategories>)
   - [func \(c \*Category\) IsEnabled\(\) bool](<#Category.IsEnabled>)
 - [type CategoryDestination](<#CategoryDestination>)
 - [type CategoryFilter](<#CategoryFilter>)
@@ -52,7 +52,7 @@ type Category struct {
 ### func [FilterCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/categories.go#L36>)
 
 ```go
-func FilterCategories(all []*Category, names []string, includeDisabled bool, logger *pterm.Logger) ([]*Category, error)
+func FilterCategories(all []*Category, names []string, includeDisabled bool, log logger.Logger) ([]*Category, error)
 ```
 
 FilterCategories returns the subset of all that should be processed.
@@ -185,7 +185,7 @@ Movelooper holds the app dependencies and runtime state. Viper is intentionally 
 
 ```go
 type Movelooper struct {
-    Logger     *pterm.Logger
+    Logger     logger.Logger
     Config     Configuration
     Categories []*Category
     History    *history.History

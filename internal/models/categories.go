@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pterm/pterm"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 )
 
 // ParseCategoryNames splits a comma-separated category string into a slice of trimmed names.
@@ -33,7 +33,7 @@ func ParseCategoryNames(raw string) []string {
 // When names is non-empty, each name is validated against the config. An unknown
 // name returns an error. A disabled category without includeDisabled is skipped
 // with a warning that suggests the flag.
-func FilterCategories(all []*Category, names []string, includeDisabled bool, logger *pterm.Logger) ([]*Category, error) {
+func FilterCategories(all []*Category, names []string, includeDisabled bool, log logger.Logger) ([]*Category, error) {
 	if len(names) == 0 {
 		if includeDisabled {
 			return all, nil
@@ -59,7 +59,7 @@ func FilterCategories(all []*Category, names []string, includeDisabled bool, log
 			return nil, fmt.Errorf("unknown category %q", name)
 		}
 		if !cat.IsEnabled() && !includeDisabled {
-			logger.Warn(fmt.Sprintf("category %q is disabled - use --include-disabled to run it anyway", name))
+			log.Warn(fmt.Sprintf("category %q is disabled - use --include-disabled to run it anyway", name))
 			continue
 		}
 		result = append(result, cat)
