@@ -3,6 +3,7 @@ package hooks
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -13,12 +14,19 @@ import (
 
 func setSysProcAttr(cmd *exec.Cmd) {}
 
+// HookContext carries the dependencies needed to execute hooks.
+type HookContext struct {
+	Log    logger.Logger
+	Stdout io.Writer
+	Stderr io.Writer
+}
+
 // RunHook executes all commands in hook.Run sequentially, injecting env into
 // each process environment. Returns nil when hook is nil.
 // On command failure:
 //   - "abort": stops execution and returns the error.
 //   - "warn":  logs the error and continues to the next command.
-func RunHook(ctx context.Context, hook *models.CategoryHook, log logger.Logger, env map[string]string) error {
+func RunHook(ctx context.Context, hook *models.CategoryHook, hctx HookContext, env map[string]string) error {
 	if hook == nil {
 		return nil
 	}
@@ -32,14 +40,14 @@ func RunHook(ctx context.Context, hook *models.CategoryHook, log logger.Logger, 
 		cmd.Env = combined
 		setSysProcAttr(cmd)
 
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdout = hctx.Stdout
+		cmd.Stderr = hctx.Stderr
 		if err := cmd.Run(); err != nil {
 			msg := fmt.Sprintf("hook command failed: %s", command)
 			if hook.OnFailure == "abort" {
 				return fmt.Errorf("%s: %w", msg, err)
 			}
-			log.Warn(msg, log.Args("error", err.Error()))
+			hctx.Log.Warn(msg, hctx.Log.Args("error", err.Error()))
 		}
 	}
 	return nil

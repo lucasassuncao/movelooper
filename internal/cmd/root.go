@@ -180,7 +180,7 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 func processCategoryMove(ctx context.Context, m *models.Movelooper, category *models.Category, batch moveBatch) error {
 	if category.Hooks != nil && category.Hooks.Before != nil {
 		env := hookEnv(category, batch.dryRun, nil)
-		if err := hooks.RunHook(ctx, category.Hooks.Before, m.Logger, env); err != nil {
+		if err := hooks.RunHook(ctx, category.Hooks.Before, hooks.HookContext{Log: m.Logger, Stdout: os.Stdout, Stderr: os.Stderr}, env); err != nil {
 			return fmt.Errorf("before hook: %w", err)
 		}
 	}
@@ -238,7 +238,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 			failed:  totalFailed,
 			batchID: batch.batchID,
 		})
-		if err := hooks.RunHook(ctx, category.Hooks.After, m.Logger, env); err != nil {
+		if err := hooks.RunHook(ctx, category.Hooks.After, hooks.HookContext{Log: m.Logger, Stdout: os.Stdout, Stderr: os.Stderr}, env); err != nil {
 			m.Logger.Warn("after hook failed",
 				m.Logger.Args("category", category.Name, "error", err.Error()))
 		}

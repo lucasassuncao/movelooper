@@ -3,6 +3,7 @@ package hooks
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -101,7 +102,7 @@ func TestRunHook(t *testing.T) {
 				env = map[string]string{}
 			}
 
-			err := RunHook(context.Background(), hook, silentLogger(), env)
+			err := RunHook(context.Background(), hook, HookContext{Log: silentLogger(), Stdout: io.Discard, Stderr: io.Discard}, env)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
