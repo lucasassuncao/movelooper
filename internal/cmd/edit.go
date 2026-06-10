@@ -20,7 +20,6 @@ func EditCmd() *cobra.Command {
 	var output string
 	var themeName string
 	var listThemes bool
-	var readOnly bool
 	var noSaveConfirm bool
 	var noDeleteConfirm bool
 	var noValidateOnSave bool
@@ -47,10 +46,7 @@ produce a new config from an existing template).`,
   movelooper edit --list-themes
 
   # Load from --config but save to a new file
-  movelooper edit --output /path/to/new.yaml
-
-  # Inspect a config without risk of editing
-  movelooper edit --read-only`,
+  movelooper edit --output /path/to/new.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if listThemes {
 				names := make([]string, 0, len(theme.All()))
@@ -88,7 +84,6 @@ produce a new config from an existing template).`,
 				Hints:                MovelooperHints,
 				Theme:                theme,
 				PassthroughKeys:      []string{"import"},
-				ReadOnly:             readOnly,
 				NoSaveConfirm:        noSaveConfirm,
 				NoDeleteConfirm:      noDeleteConfirm,
 				NoValidateOnSave:     noValidateOnSave,
@@ -112,7 +107,6 @@ produce a new config from an existing template).`,
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Save to this file instead of the loaded config (load path is unchanged)")
 	cmd.Flags().StringVar(&themeName, "theme", "dark", "Theme name (run --list-themes to see options)")
 	cmd.Flags().BoolVar(&listThemes, "list-themes", false, "List available theme names and exit")
-	cmd.Flags().BoolVar(&readOnly, "read-only", false, "Open in read-only mode — browsing and validation only, no edits or saves")
 	cmd.Flags().BoolVar(&noSaveConfirm, "no-save-confirm", false, "Skip the 'Save changes?' confirmation dialog")
 	cmd.Flags().BoolVar(&noDeleteConfirm, "no-delete-confirm", false, "Skip the 'Remove block?' confirmation dialog")
 	cmd.Flags().BoolVar(&noValidateOnSave, "no-validate-on-save", false, "Allow saving even when validators report errors (a warning is shown)")
