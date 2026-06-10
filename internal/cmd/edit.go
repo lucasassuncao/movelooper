@@ -93,6 +93,7 @@ produce a new config from an existing template).`,
 				NoDeleteConfirm:      noDeleteConfirm,
 				NoValidateOnSave:     noValidateOnSave,
 				SchemaRecursionDepth: defaultSchemaRecursionDepth,
+				Validators:           MovelooperValidators,
 			})
 		},
 	}

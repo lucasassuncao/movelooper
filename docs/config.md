@@ -17,7 +17,7 @@ Each entry in the `categories` list has the following top-level fields:
 
 | Field         | Type   | Required | Default | Description                                            |
 |---------------|--------|----------|---------|--------------------------------------------------------|
-| `name`        | string | yes      | —       | Label for the category (used in logs and undo history) |
+| `name`        | string | yes      | —       | Label for the category (used in logs and undo history). Must be unique across the list. |
 | `enabled`     | bool   | no       | `true`  | When `false`, the category is skipped in all modes     |
 | `source`      | object | yes      | —       | Where to scan for files (see below)                    |
 | `destination` | object | yes      | —       | Where to move files and how (see below)                |

@@ -44,14 +44,31 @@ var DefaultRepo = ""
 var MovelooperHints editor.HintSource
 ```
 
-<a name="MovelooperPresets"></a>MovelooperPresets is the presets.Source for the movelooper schema.
+<a name="MovelooperPresets"></a>MovelooperPresets is the editor.PresetSource for the movelooper schema.
 
 ```go
-var MovelooperPresets presets.Source = configPresetSource{}
+var MovelooperPresets editor.PresetSource = configPresetSource{}
+```
+
+<a name="MovelooperValidators"></a>
+
+```go
+var MovelooperValidators = []editor.Validator{
+
+    editor.NoDuplicates("categories", "name"),
+
+    editor.MutuallyExclusiveNested("categories.source.filter", "any", "all"),
+    editor.MutuallyExclusiveNested("categories.source.filter.any", "any", "all"),
+    editor.MutuallyExclusiveNested("categories.source.filter.all", "any", "all"),
+
+    editor.MutuallyExclusiveNested("categories.source.filter", "regex", "glob"),
+    editor.MutuallyExclusiveNested("categories.source.filter.any", "regex", "glob"),
+    editor.MutuallyExclusiveNested("categories.source.filter.all", "regex", "glob"),
+}
 ```
 
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L427>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L427>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -69,7 +86,7 @@ func ConfigCmd(m *models.Movelooper) *cobra.Command
 ConfigCmd returns the "config" command group
 
 <a name="ConfigurationPreset"></a>
-## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L103>)
+## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L103>)
 
 ```go
 func ConfigurationPreset(name string) *models.Configuration
@@ -87,7 +104,7 @@ func EditCmd() *cobra.Command
 EditCmd returns the "edit" command, which opens an interactive TUI editor for the movelooper configuration file.
 
 <a name="InitCmd"></a>
-## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L36>)
+## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L17>)
 
 ```go
 func InitCmd() *cobra.Command
@@ -96,7 +113,7 @@ func InitCmd() *cobra.Command
 InitCmd generates a configuration file
 
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L431>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L431>)
 
 ```go
 func ListOfCategoriesPresets() []string
@@ -105,7 +122,7 @@ func ListOfCategoriesPresets() []string
 
 
 <a name="ListOfConfigurationPresets"></a>
-## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L107>)
+## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L107>)
 
 ```go
 func ListOfConfigurationPresets() []string
@@ -114,7 +131,7 @@ func ListOfConfigurationPresets() []string
 
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L23>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L15>)
 
 ```go
 func RootCmd(m *models.Movelooper, version string) *cobra.Command
@@ -123,7 +140,7 @@ func RootCmd(m *models.Movelooper, version string) *cobra.Command
 RootCmd represents the base command when called without any subcommands
 
 <a name="SelfUpdateCmd"></a>
-## func [SelfUpdateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/selfupdate.go#L17>)
+## func [SelfUpdateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/selfupdate.go#L12>)
 
 ```go
 func SelfUpdateCmd(currentVersion string) *cobra.Command
@@ -132,7 +149,7 @@ func SelfUpdateCmd(currentVersion string) *cobra.Command
 SelfUpdateCmd returns the self\-update command.
 
 <a name="UndoCmd"></a>
-## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L18>)
+## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L11>)
 
 ```go
 func UndoCmd(m *models.Movelooper) *cobra.Command
@@ -141,7 +158,7 @@ func UndoCmd(m *models.Movelooper) *cobra.Command
 UndoCmd reverts a batch of file moves
 
 <a name="WatchCmd"></a>
-## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L66>)
+## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L16>)
 
 ```go
 func WatchCmd(m *models.Movelooper) *cobra.Command
@@ -150,7 +167,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command
 WatchCmd defines the "watch" command to monitor directories and move files in real\-time
 
 <a name="MoveOptions"></a>
-## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L93-L98>)
+## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root_helper.go#L32-L37>)
 
 MoveOptions carries the CLI flags for the move command.
 
@@ -164,7 +181,7 @@ type MoveOptions struct {
 ```
 
 <a name="WatchOptions"></a>
-## type [WatchOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L52-L56>)
+## type [WatchOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L9-L13>)
 
 WatchOptions carries the CLI flags for the watch command.
 

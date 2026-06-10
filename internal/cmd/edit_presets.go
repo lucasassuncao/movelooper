@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/lucasassuncao/yedit/presets"
+	"github.com/lucasassuncao/yedit/editor"
 	"gopkg.in/yaml.v3"
 )
 
-// MovelooperPresets is the presets.Source for the movelooper schema.
-var MovelooperPresets presets.Source = configPresetSource{}
+// MovelooperPresets is the editor.PresetSource for the movelooper schema.
+var MovelooperPresets editor.PresetSource = configPresetSource{}
 
 func configurationPresetsMap() map[string]*models.Configuration {
 	logFile := "~/movelooper.log"
@@ -437,7 +437,7 @@ func ListOfCategoriesPresets() []string {
 	return keys
 }
 
-// configPresetSource implements presets.Source backed by the Go-struct presets.
+// configPresetSource implements editor.PresetSource backed by the Go-struct presets.
 type configPresetSource struct{}
 
 func (configPresetSource) ListFields() []string {
