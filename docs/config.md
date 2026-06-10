@@ -42,10 +42,41 @@ Each entry in the `categories` list has the following top-level fields:
 | `ignore`   | []string  | Glob patterns for filenames to skip (case-insensitive)                  |
 | `min-age`  | duration  | Only move files older than this value (e.g. `24h`, `168h`)             |
 | `max-age`  | duration  | Only move files newer than this value (e.g. `720h`, `8760h`)           |
-| `min-size` | string    | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`)      |
-| `max-size` | string    | Only move files at most this large (e.g. `10MB`, `1GB`)                |
+| `min-size` | string    | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`). `KB`/`MB`/`GB`/`TB` are decimal (powers of 1000); `KiB`/`MiB`/`GiB`/`TiB` are binary (powers of 1024) |
+| `max-size` | string    | Only move files at most this large (e.g. `10MB`, `1GB`). Same units as `min-size` |
 | `any`      | []filter  | OR between groups — file passes if at least one group matches           |
 | `all`      | []filter  | AND between groups — file passes only if every group matches            |
+
+### Size units
+
+`min-size` and `max-size` accept two unit families, each with its standard
+meaning. Suffixes are case-insensitive, decimals are allowed (`1.5MB`), and a
+bare number (`"500"`) means bytes.
+
+| Suffixes | Meaning | Example |
+|----------|---------|---------|
+| `KB`, `MB`, `GB`, `TB` | Decimal — powers of 1000 | `10MB` = 10 000 000 bytes |
+| `KiB`, `MiB`, `GiB`, `TiB` | Binary — powers of 1024 | `10MiB` = 10 485 760 bytes |
+
+The two can be mixed freely (everything is compared in bytes), but they are
+**not** interchangeable — `10MiB` is ~4.9% larger than `10MB`. For a file of
+10 200 000 bytes:
+
+```yaml
+filter:
+  min-size: 10MB    # file IS moved   (10 200 000 ≥ 10 000 000)
+# vs
+filter:
+  min-size: 10MiB   # file is NOT moved (10 200 000 < 10 485 760)
+```
+
+Rule of thumb: `MB` matches what disk vendors and network tools report;
+`MiB` matches what Windows Explorer displays as "MB". Log output
+(`size` in the run summary) always uses the decimal family.
+
+> **Migration note:** earlier versions of movelooper treated `KB`/`MB`/`GB`/`TB`
+> as binary (powers of 1024). If your config predates this change, switch those
+> values to `KiB`/`MiB`/`GiB`/`TiB` to keep the exact same thresholds.
 
 ### Filter logic with `any` and `all`
 

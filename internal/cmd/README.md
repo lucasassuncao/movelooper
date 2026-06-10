@@ -57,6 +57,8 @@ var MovelooperValidators = []editor.Validator{
 
     editor.NoDuplicates("categories", "name"),
 
+    editor.Required("categories.name"),
+
     editor.MutuallyExclusiveNested("categories.source.filter", "any", "all"),
     editor.MutuallyExclusiveNested("categories.source.filter.any", "any", "all"),
     editor.MutuallyExclusiveNested("categories.source.filter.all", "any", "all"),
@@ -64,6 +66,21 @@ var MovelooperValidators = []editor.Validator{
     editor.MutuallyExclusiveNested("categories.source.filter", "regex", "glob"),
     editor.MutuallyExclusiveNested("categories.source.filter.any", "regex", "glob"),
     editor.MutuallyExclusiveNested("categories.source.filter.all", "regex", "glob"),
+
+    editor.ValueOneOf("configuration.output", "console", "file", "both"),
+    editor.ValueOneOf("configuration.log-level", "trace", "debug", "info", "warn", "error", "fatal"),
+    editor.ValueOneOf("categories.destination.action", "move", "copy", "symlink"),
+    editor.ValueOneOf("categories.destination.conflict-strategy",
+        "rename", "hash_check", "overwrite", "skip", "newest", "oldest", "larger", "smaller"),
+    editor.ValueOneOf("categories.hooks.before.on-failure", "abort", "warn"),
+    editor.ValueOneOf("categories.hooks.after.on-failure", "abort", "warn"),
+
+    editor.CrossFieldOrdered("categories.source.filter.min-age", "categories.source.filter.max-age"),
+    editor.CrossFieldOrdered("categories.source.filter.min-size", "categories.source.filter.max-size"),
+    editor.CrossFieldOrdered("categories.source.filter.any.min-age", "categories.source.filter.any.max-age"),
+    editor.CrossFieldOrdered("categories.source.filter.any.min-size", "categories.source.filter.any.max-size"),
+    editor.CrossFieldOrdered("categories.source.filter.all.min-age", "categories.source.filter.all.max-age"),
+    editor.CrossFieldOrdered("categories.source.filter.all.min-size", "categories.source.filter.all.max-size"),
 }
 ```
 

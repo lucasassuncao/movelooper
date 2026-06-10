@@ -75,21 +75,29 @@ func ValidateGlob(pattern string) error {
 	return nil
 }
 
-// ParseSize parses a human-readable size string (e.g. "10MB", "1.5GB") into bytes.
+// ParseSize parses a human-readable size string (e.g. "10MB", "1.5GB",
+// "256MiB") into bytes. Suffixes follow their standard meaning, matching the
+// convention used by yedit's editor validators: KB/MB/GB/TB are decimal
+// (powers of 1000) and KiB/MiB/GiB/TiB are binary (powers of 1024).
 func ParseSize(s string) (int64, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, fmt.Errorf("empty size string")
 	}
 
+	// Ordered longest-suffix-first so "B" never matches before "MB" or "GiB".
 	suffixes := []struct {
 		suffix     string
 		multiplier int64
 	}{
-		{"TB", 1 << 40},
-		{"GB", 1 << 30},
-		{"MB", 1 << 20},
-		{"KB", 1 << 10},
+		{"TIB", 1 << 40},
+		{"GIB", 1 << 30},
+		{"MIB", 1 << 20},
+		{"KIB", 1 << 10},
+		{"TB", 1_000_000_000_000},
+		{"GB", 1_000_000_000},
+		{"MB", 1_000_000},
+		{"KB", 1_000},
 		{"B", 1},
 	}
 

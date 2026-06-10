@@ -281,14 +281,20 @@ type testParseSize struct {
 }
 
 // testParseSizeTestCases defines a set of test cases for the ParseSize function,
-// covering bytes, kilobytes, megabytes, gigabytes, terabytes, decimals, bare numbers, and invalid input.
+// covering bytes, decimal (KB/MB/GB/TB) and binary (KiB/MiB/GiB/TiB) units,
+// decimals, bare numbers, and invalid input.
 var testParseSizeTestCases = []testParseSize{
 	{"100B", 100, false},
-	{"1KB", 1024, false},
-	{"1MB", 1 << 20, false},
-	{"1GB", 1 << 30, false},
-	{"1TB", 1 << 40, false},
-	{"1.5MB", int64(1.5 * float64(1<<20)), false},
+	{"1KB", 1_000, false},
+	{"1MB", 1_000_000, false},
+	{"1GB", 1_000_000_000, false},
+	{"1TB", 1_000_000_000_000, false},
+	{"1KiB", 1 << 10, false},
+	{"1MiB", 1 << 20, false},
+	{"1GiB", 1 << 30, false},
+	{"1TiB", 1 << 40, false},
+	{"1.5MB", 1_500_000, false},
+	{"1.5MiB", int64(1.5 * float64(1<<20)), false},
 	{"500", 500, false},
 	{"", 0, true},
 	{"abcXB", 0, true},

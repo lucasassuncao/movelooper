@@ -58,11 +58,11 @@ func init() {
 			Example:     "max-age: 720h",
 		}},
 		"min-size": {FieldMeta: editor.FieldMeta{
-			Description: "Only match files at least this large. Accepts human-readable sizes (e.g. 1MB, 500KB).",
+			Description: "Only match files at least this large. Accepts human-readable sizes — KB/MB/GB/TB are decimal (powers of 1000), KiB/MiB/GiB/TiB are binary (powers of 1024).",
 			Example:     "min-size: 1MB",
 		}},
 		"max-size": {FieldMeta: editor.FieldMeta{
-			Description: "Only match files no larger than this size.",
+			Description: "Only match files no larger than this size. Same units as min-size.",
 			Example:     "max-size: 50GB",
 		}},
 		"any": anyNode,
@@ -216,7 +216,7 @@ func initHints() {
 					Children: map[string]*hints.HintNode{
 						"before": {
 							FieldMeta: editor.FieldMeta{
-								Description: "Hook executed before the file operation. If it fails, the move is aborted (unless on-failure is 'continue').",
+								Description: "Hook executed before the file operation. If it fails, the move is aborted (unless on-failure is 'warn').",
 							},
 							Children: hookChildren("before"),
 						},
@@ -241,8 +241,8 @@ func hookChildren(phase string) map[string]*hints.HintNode {
 			Example:     "shell: /bin/bash",
 		}},
 		"on-failure": {FieldMeta: editor.FieldMeta{
-			Description: "What to do if a " + phase + "-hook command exits non-zero.",
-			OneOf:       []string{"abort", "continue"},
+			Description: "What to do if a " + phase + "-hook command exits non-zero: abort the file's operation, or warn and continue.",
+			OneOf:       []string{"abort", "warn"},
 			Default:     "abort",
 			Example:     "on-failure: abort",
 		}},

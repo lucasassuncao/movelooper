@@ -205,21 +205,23 @@ func moveExtensionWithResult(ctx context.Context, m *models.Movelooper, req file
 }
 
 // formatBytes converts a byte count to a human-readable string (e.g. "1.23 MB").
+// Output is always in decimal units (1 KB = 1000 B), matching how ParseSize
+// reads the suffixes without "i". Binary units (KiB/MiB/GiB) exist only on the
+// input side: a size written as "1MiB" in the config is parsed to 1048576
+// bytes and would be printed here as "1.05 MB" — same quantity, decimal label.
 func formatBytes(b int64) string {
-	const unit = 1024
-	if b < unit {
+	if b < 1000 {
 		return fmt.Sprintf("%d B", b)
 	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
+	units := []string{"KB", "MB", "GB", "TB", "PB", "EB"}
+	val := float64(b) / 1000
+	for _, u := range units {
+		if val < 1000 || u == units[len(units)-1] {
+			return fmt.Sprintf("%.2f %s", val, u)
+		}
+		val /= 1000
 	}
-	const prefixes = "KMGTPE"
-	if exp >= len(prefixes) {
-		exp = len(prefixes) - 1
-	}
-	return fmt.Sprintf("%.2f %cB", float64(b)/float64(div), prefixes[exp])
+	return "" // unreachable: the loop always returns at the last unit
 }
 
 // matchesCategory returns the file's FileInfo when it passes all category filters,

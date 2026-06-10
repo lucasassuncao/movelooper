@@ -229,8 +229,8 @@ categories:
       path: /tmp/dst
 `,
 		check: func(t *testing.T, cats []*models.Category) {
-			assert.Equal(t, int64(1024), cats[0].Source.Filter.MinSizeBytes)
-			assert.Equal(t, int64(10*1024*1024), cats[0].Source.Filter.MaxSizeBytes)
+			assert.Equal(t, int64(1000), cats[0].Source.Filter.MinSizeBytes)
+			assert.Equal(t, int64(10_000_000), cats[0].Source.Filter.MaxSizeBytes)
 		},
 	},
 	{

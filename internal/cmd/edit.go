@@ -33,7 +33,7 @@ func EditCmd() *cobra.Command {
 
 The left panel lists top-level configuration keys; pressing Enter opens the
 block editor where sub-fields can be toggled and edited. Ctrl+S writes the
-file; Ctrl+U undoes the last change; Esc quits.
+file; Ctrl+U undoes the last change; Ctrl+Y redoes it; Esc quits.
 
 Use --output to write to a different file than the one loaded (e.g. to
 produce a new config from an existing template).`,
@@ -79,7 +79,7 @@ produce a new config from an existing template).`,
 				loadPath = filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml")
 			}
 
-			return editor.Run(editor.Config{
+			res, err := editor.Run(editor.Config{
 				Path:                 loadPath,
 				SavePath:             output,
 				Schema:               &models.Config{},
@@ -95,6 +95,17 @@ produce a new config from an existing template).`,
 				SchemaRecursionDepth: defaultSchemaRecursionDepth,
 				Validators:           MovelooperValidators,
 			})
+			if err != nil {
+				return err
+			}
+			if res.Saved {
+				savedTo := loadPath
+				if output != "" {
+					savedTo = output
+				}
+				fmt.Println("configuration saved to", savedTo)
+			}
+			return nil
 		},
 	}
 

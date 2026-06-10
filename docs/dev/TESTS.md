@@ -22,7 +22,7 @@ Overview of all test cases across the movelooper project.
 | `TestUnmarshalConfig_MinAgeGreaterThanMaxAge` | Error when `min-age > max-age` | error containing `"min-age"` |
 | `TestUnmarshalConfig_CaseInsensitiveRegexCompiled` | Regex compiled with `(?i)` when `case-sensitive: false` | no error, `CompiledRegex` matches `"REPORT"` |
 | `TestUnmarshalConfig_CaseSensitiveRegexCompiled` | Regex compiled without `(?i)` when `case-sensitive: true` | no error, `CompiledRegex` does not match `"REPORT"` |
-| `TestUnmarshalConfig_SizeBytesPopulated` | `MinSizeBytes`/`MaxSizeBytes` are correctly populated | no error, `MinSizeBytes == 1024`, `MaxSizeBytes == 10485760` |
+| `TestUnmarshalConfig_SizeBytesPopulated` | `MinSizeBytes`/`MaxSizeBytes` are correctly populated | no error, `MinSizeBytes == 1000`, `MaxSizeBytes == 10000000` |
 | `TestUnmarshalConfig_InvalidGlob` | Error for invalid glob pattern | error |
 | `TestLoadConfig_Defaults` | `WatchDelay` and `HistoryLimit` use default values when absent | `WatchDelay == 5m`, `HistoryLimit == 50` |
 | `TestLoadConfig_CustomValues` | Custom `output`, `log-level`, `watch-delay`, `history-limit` are read correctly | no error, fields match YAML values |
