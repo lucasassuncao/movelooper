@@ -38,8 +38,20 @@ Package cmd contains the command line interface commands for the Movelooper appl
 var DefaultRepo = ""
 ```
 
+<a name="MovelooperHints"></a>MovelooperHints is the editor.HintSource for the movelooper schema. Built once at startup via BuildFrom, which reflects over models.Config to derive the Type field for each node automatically. Initialized in init\(\) so filterChildren is fully set before use.
+
+```go
+var MovelooperHints editor.HintSource
+```
+
+<a name="MovelooperPresets"></a>MovelooperPresets is the presets.Source for the movelooper schema.
+
+```go
+var MovelooperPresets presets.Source = configPresetSource{}
+```
+
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L423>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L427>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -57,7 +69,7 @@ func ConfigCmd(m *models.Movelooper) *cobra.Command
 ConfigCmd returns the "config" command group
 
 <a name="ConfigurationPreset"></a>
-## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L99>)
+## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L103>)
 
 ```go
 func ConfigurationPreset(name string) *models.Configuration
@@ -66,7 +78,7 @@ func ConfigurationPreset(name string) *models.Configuration
 
 
 <a name="EditCmd"></a>
-## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L15>)
+## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L19>)
 
 ```go
 func EditCmd() *cobra.Command
@@ -84,7 +96,7 @@ func InitCmd() *cobra.Command
 InitCmd generates a configuration file
 
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L427>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L431>)
 
 ```go
 func ListOfCategoriesPresets() []string
@@ -93,7 +105,7 @@ func ListOfCategoriesPresets() []string
 
 
 <a name="ListOfConfigurationPresets"></a>
-## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L103>)
+## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/presets.go#L107>)
 
 ```go
 func ListOfConfigurationPresets() []string

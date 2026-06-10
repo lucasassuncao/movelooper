@@ -6,8 +6,12 @@ import (
 	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/yedit/presets"
 	"gopkg.in/yaml.v3"
 )
+
+// MovelooperPresets is the presets.Source for the movelooper schema.
+var MovelooperPresets presets.Source = configPresetSource{}
 
 func configurationPresetsMap() map[string]*models.Configuration {
 	logFile := "~/movelooper.log"

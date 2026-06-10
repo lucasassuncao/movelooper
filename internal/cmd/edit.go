@@ -4,16 +4,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/editor"
+	"github.com/lucasassuncao/yedit/theme"
 	"github.com/spf13/cobra"
 )
+
+var defaultSchemaRecursionDepth = 10
 
 // EditCmd returns the "edit" command, which opens an interactive TUI editor
 // for the movelooper configuration file.
 func EditCmd() *cobra.Command {
 	var output string
+	var themeName string
+	var listThemes bool
+	var readOnly bool
+	var noSaveConfirm bool
+	var noDeleteConfirm bool
+	var noValidateOnSave bool
 
 	cmd := &cobra.Command{
 		Use:               "edit",
@@ -21,44 +31,79 @@ func EditCmd() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 		Long: `Open the movelooper configuration file in an interactive two-panel TUI editor.
 
-The left panel lists top-level configuration keys; pressing Space opens an
-overlay where sub-fields can be toggled, edited, and saved. Ctrl+S writes the
-file; Ctrl+Z undoes the last change; q quits.
+The left panel lists top-level configuration keys; pressing Enter opens the
+block editor where sub-fields can be toggled and edited. Ctrl+S writes the
+file; Ctrl+U undoes the last change; Esc quits.
 
-If --output is not provided, the editor opens the file that the --config flag
-points to (or the default path when --config is absent).`,
+Use --output to write to a different file than the one loaded (e.g. to
+produce a new config from an existing template).`,
 		Example: `  # Edit the default configuration file
   movelooper edit
 
-  # Edit a specific configuration file
-  movelooper edit -o /path/to/movelooper.yaml
+  # Edit with the Dracula theme
+  movelooper edit --theme dracula
 
-  # Edit the file passed via the global --config flag
-  movelooper --config /path/to/movelooper.yaml edit`,
+  # List all available themes
+  movelooper edit --list-themes
+
+  # Load from --config but save to a new file
+  movelooper edit --output /path/to/new.yaml
+
+  # Inspect a config without risk of editing
+  movelooper edit --read-only`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			configPath := output
-			if configPath == "" {
-				// Fall back to the global --config flag.
-				configPath, _ = cmd.Root().PersistentFlags().GetString("config")
+			if listThemes {
+				names := make([]string, 0, len(theme.All()))
+				for name := range theme.All() {
+					names = append(names, name)
+				}
+				sort.Strings(names)
+				for _, name := range names {
+					fmt.Println(name)
+				}
+				return nil
 			}
-			if configPath == "" {
+
+			all := theme.All()
+			theme, ok := all[themeName]
+			if !ok {
+				return fmt.Errorf("unknown theme %q — run 'movelooper edit --list-themes' to see available themes", themeName)
+			}
+
+			loadPath, _ := cmd.Root().PersistentFlags().GetString("config")
+			if loadPath == "" {
 				ex, err := os.Executable()
 				if err != nil {
 					return fmt.Errorf("could not determine executable path: %w", err)
 				}
-				configPath = filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml")
+				loadPath = filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml")
 			}
 
 			return editor.Run(editor.Config{
-				Path:    configPath,
-				Schema:  &models.Config{},
-				Title:   "movelooper",
-				Presets: configPresetSource{},
+				Path:                 loadPath,
+				SavePath:             output,
+				Schema:               &models.Config{},
+				Title:                "movelooper",
+				Presets:              MovelooperPresets,
+				Hints:                MovelooperHints,
+				Theme:                theme,
+				PassthroughKeys:      []string{"import"},
+				ReadOnly:             readOnly,
+				NoSaveConfirm:        noSaveConfirm,
+				NoDeleteConfirm:      noDeleteConfirm,
+				NoValidateOnSave:     noValidateOnSave,
+				SchemaRecursionDepth: defaultSchemaRecursionDepth,
 			})
 		},
 	}
 
-	cmd.Flags().StringVarP(&output, "output", "o", "", "Path to the configuration file to edit (default: same as --config or <executable_dir>/conf/movelooper.yaml)")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Save to this file instead of the loaded config (load path is unchanged)")
+	cmd.Flags().StringVar(&themeName, "theme", "dark", "Theme name (run --list-themes to see options)")
+	cmd.Flags().BoolVar(&listThemes, "list-themes", false, "List available theme names and exit")
+	cmd.Flags().BoolVar(&readOnly, "read-only", false, "Open in read-only mode — browsing and validation only, no edits or saves")
+	cmd.Flags().BoolVar(&noSaveConfirm, "no-save-confirm", false, "Skip the 'Save changes?' confirmation dialog")
+	cmd.Flags().BoolVar(&noDeleteConfirm, "no-delete-confirm", false, "Skip the 'Remove block?' confirmation dialog")
+	cmd.Flags().BoolVar(&noValidateOnSave, "no-validate-on-save", false, "Allow saving even when validators report errors (a warning is shown)")
 
 	return cmd
 }
