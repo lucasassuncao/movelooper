@@ -7,6 +7,7 @@ GORELEASER_VERSION    := v2.15.2
 GOTESTSUM_VERSION     := v1.13.0
 GOSEC_VERSION         := v2.25.0
 GOCOBERTURA_VERSION   := latest
+GOVULNCHECK_VERSION   := latest
 
 # Tools invoked via go run -- no global install required
 GORELEASER  := go run github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
@@ -15,6 +16,7 @@ GOMARKDOC   := go run github.com/princjef/gomarkdoc/cmd/gomarkdoc@$(GOMARKDOC_VE
 GOTESTSUM   := go run gotest.tools/gotestsum@$(GOTESTSUM_VERSION)
 GOSEC       := go run github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)
 GOCOBERTURA := go run github.com/t-yuki/gocover-cobertura@$(GOCOBERTURA_VERSION)
+GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 
 # Coverage
 COVERAGE_OUT  := coverage.out
@@ -59,20 +61,21 @@ lint: ## Run linter checks
 	@$(GOLANGCI) -v run ./...
 
 test: ## Run tests with gotestsum (testdox format)
-	@$(GOTESTSUM) --format testdox ./...
+	@$(GOTESTSUM) --format testdox -- -race -shuffle=on ./...
 
 test-watch: ## Run tests in watch mode (reruns on file changes)
 	@$(GOTESTSUM) --format testdox --watch ./...
 
 test-coverage: ## Run tests with coverage (HTML + Cobertura XML)
-	@$(GOTESTSUM) --format testdox -- -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
+	@$(GOTESTSUM) --format testdox -- -race -shuffle=on -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
 	@go tool cover -func=$(COVERAGE_OUT) | tail -1
 	@go tool cover -html=$(COVERAGE_OUT) -o $(COVERAGE_HTML)
 	@$(GOCOBERTURA) < $(COVERAGE_OUT) > $(COVERAGE_XML)
 	@echo "Reports: $(COVERAGE_HTML) | $(COVERAGE_XML)"
 
-security: ## Run security analysis with gosec
+security: ## Run security analysis (gosec + govulncheck)
 	@$(GOSEC) -stdout -severity medium ./...
+	@$(GOVULNCHECK) ./...
 
 deps: ## Download and tidy dependencies
 	@go mod download

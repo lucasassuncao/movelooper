@@ -1,0 +1,174 @@
+name: Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"] # fallback route: tags pushed locally via 'make tag'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (auto derives it from conventional commits)"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+
+permissions:
+  contents: read
+
+env:
+  # Some actions still run on Node 20; force Node 24 until Dependabot updates them.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ci-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check dependencies
+        run: |
+          go mod tidy
+          if ! git diff --exit-code; then
+            echo ""
+            echo "❌ go.mod or go.sum is out of date. Run 'go mod tidy' locally and commit the result."
+            exit 1
+          fi
+          echo "✅ Dependencies are up to date."
+
+      - name: Check docs
+        run: |
+          make docs
+          if ! git diff --exit-code; then
+            echo ""
+            echo "❌ Documentation is out of date. Run 'make docs' locally and commit the result."
+            exit 1
+          fi
+          echo "✅ Documentation is up to date."
+
+      - name: Check formatting
+        run: |
+          make fmt
+          if ! git diff --exit-code; then
+            echo ""
+            echo "❌ Code is not formatted. Run 'make fmt' locally and commit the result."
+            exit 1
+          fi
+          echo "✅ Code is properly formatted."
+
+      - name: Lint
+        run: make lint
+
+      - name: Security
+        run: make security
+
+      - name: Test
+        run: make test-coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage.out
+            coverage.html
+            coverage.xml
+
+  pages:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/pages/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  release:
+    needs: ci
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+    concurrency:
+      group: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Manual release: compute the next version from conventional commits
+      # (or the chosen bump) and tag HEAD. Idempotent so a failed GoReleaser
+      # step can be re-run without the existing tag breaking the job.
+      # The tag is pushed with the run's GITHUB_TOKEN, which never triggers
+      # other workflows — GoReleaser runs right below, in the same job.
+      - name: Create tag (manual release)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ inputs.bump }}" = "auto" ]; then
+            VERSION=$(go run github.com/caarlos0/svu/v3@latest next)
+          else
+            VERSION=$(go run github.com/caarlos0/svu/v3@latest ${{ inputs.bump }})
+          fi
+          echo "Releasing $VERSION"
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "Tag $VERSION already exists — reusing it."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$VERSION" -m "Release $VERSION"
+            git push origin "$VERSION"
+          fi
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
