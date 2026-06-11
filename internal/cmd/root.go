@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/lucasassuncao/movelooper/internal/cmd/docs"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
@@ -63,6 +64,8 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	cmd.AddCommand(UndoCmd(m))
 	cmd.AddCommand(ConfigCmd(m))
 	cmd.AddCommand(SelfUpdateCmd(version))
+	cmd.AddCommand(docs.ShowCmd)
+	cmd.AddCommand(docs.GenerateCmd)
 
 	return cmd
 }

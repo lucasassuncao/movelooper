@@ -142,7 +142,7 @@ func ListOfConfigurationPresets() []string
 
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L15>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L16>)
 
 ```go
 func RootCmd(m *models.Movelooper, version string) *cobra.Command
