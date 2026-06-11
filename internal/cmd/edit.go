@@ -75,13 +75,19 @@ produce a new config from an existing template).`,
 				loadPath = filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml")
 			}
 
+			movelooperHints, err := buildMovelooperHints()
+			if err != nil {
+				return fmt.Errorf("building hint source: %w", err)
+			}
+
 			res, err := editor.Run(editor.Config{
 				Path:                 loadPath,
 				SavePath:             output,
 				Schema:               &models.Config{},
 				Title:                "movelooper",
 				Presets:              MovelooperPresets,
-				Hints:                MovelooperHints,
+				EnableHints:          true,
+				Metadata:             movelooperHints,
 				Theme:                theme,
 				PassthroughKeys:      []string{"import"},
 				NoSaveConfirm:        noSaveConfirm,

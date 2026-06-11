@@ -38,26 +38,28 @@ Package cmd contains the command line interface commands for the Movelooper appl
 var DefaultRepo = ""
 ```
 
-<a name="MovelooperHints"></a>MovelooperHints is the editor.HintSource for the movelooper schema. Built once at startup via BuildFrom, which reflects over models.Config to derive the Type field for each node automatically. Initialized in init\(\) so filterChildren is fully set before use.
-
-```go
-var MovelooperHints editor.HintSource
-```
-
 <a name="MovelooperPresets"></a>MovelooperPresets is the editor.PresetSource for the movelooper schema.
 
 ```go
 var MovelooperPresets editor.PresetSource = configPresetSource{}
 ```
 
-<a name="MovelooperValidators"></a>
+<a name="MovelooperValidators"></a>MovelooperValidators is the rule set enforced by the edit command at validate/save time.
+
+Per\-field constraints \(required, allowed values, ranges, counts, uniqueness\) are declared once in the hint tree \(edit\_hints.go\) and enforced by the FromMetadata family — hints are the single source of field metadata. Only cross\-field rules, which cannot live in per\-field metadata, are declared here explicitly.
 
 ```go
 var MovelooperValidators = []editor.Validator{
 
-    editor.NoDuplicates("categories", "name"),
+    editor.RequiredFromMetadata(),
+    editor.OneOfFromMetadata(),
+    editor.RangeFromMetadata(),
+    editor.PatternFromMetadata(),
+    editor.CountFromMetadata(),
+    editor.UniqueFromMetadata(),
+    editor.DeprecatedFromMetadata(),
 
-    editor.Required("categories.name"),
+    editor.NoDuplicates("categories", "name"),
 
     editor.MutuallyExclusiveNested("categories.source.filter", "any", "all"),
     editor.MutuallyExclusiveNested("categories.source.filter.any", "any", "all"),
@@ -66,14 +68,6 @@ var MovelooperValidators = []editor.Validator{
     editor.MutuallyExclusiveNested("categories.source.filter", "regex", "glob"),
     editor.MutuallyExclusiveNested("categories.source.filter.any", "regex", "glob"),
     editor.MutuallyExclusiveNested("categories.source.filter.all", "regex", "glob"),
-
-    editor.ValueOneOf("configuration.output", "console", "file", "both"),
-    editor.ValueOneOf("configuration.log-level", "trace", "debug", "info", "warn", "error", "fatal"),
-    editor.ValueOneOf("categories.destination.action", "move", "copy", "symlink"),
-    editor.ValueOneOf("categories.destination.conflict-strategy",
-        "rename", "hash_check", "overwrite", "skip", "newest", "oldest", "larger", "smaller"),
-    editor.ValueOneOf("categories.hooks.before.on-failure", "abort", "warn"),
-    editor.ValueOneOf("categories.hooks.after.on-failure", "abort", "warn"),
 
     editor.CrossFieldOrdered("categories.source.filter.min-age", "categories.source.filter.max-age"),
     editor.CrossFieldOrdered("categories.source.filter.min-size", "categories.source.filter.max-size"),

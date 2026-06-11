@@ -1,0 +1,59 @@
+package cmd
+
+import (
+	"testing"
+
+	"github.com/lucasassuncao/yedit/document"
+	"github.com/lucasassuncao/yedit/editor"
+)
+
+// TestMovelooperValidatorsAgainstSampleConfig guards the repository's sample
+// config against the cross-field rules. The FromMetadata validators are inert
+// outside editor.Run (they are wired by the editor session); their engine is
+// covered by yedit's own tests and the hint markers by edit_hints_test.go.
+func TestMovelooperValidatorsAgainstSampleConfig(t *testing.T) {
+	doc, err := document.Load("../../movelooper.yaml", nil)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if errs := editor.RunAll(MovelooperValidators, doc.Raw(), doc.Blocks()); len(errs) != 0 {
+		for _, e := range errs {
+			t.Errorf("violation: %s", e.String())
+		}
+	}
+}
+
+// TestMovelooperValidatorsCatchBrokenConfig exercises the explicit cross-field
+// rules with a config that violates them.
+func TestMovelooperValidatorsCatchBrokenConfig(t *testing.T) {
+	raw := []byte(`
+categories:
+  - name: dup
+    source:
+      path: a
+      extensions: [pdf]
+      filter:
+        any:
+          - regex: "x"
+            glob: "y"
+        all:
+          - min-age: 48h
+            max-age: 24h
+    destination:
+      path: b
+  - name: dup
+    source:
+      path: c
+      extensions: [pdf]
+    destination:
+      path: d
+`)
+	errs := editor.RunAll(MovelooperValidators, raw, nil)
+	for _, e := range errs {
+		t.Logf("violation: %s", e.String())
+	}
+	wantAtLeast := 3 // duplicate name, regex+glob exclusive, min-age >= max-age
+	if len(errs) < wantAtLeast {
+		t.Errorf("expected at least %d violations, got %d", wantAtLeast, len(errs))
+	}
+}

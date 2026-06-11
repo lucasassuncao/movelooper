@@ -1,33 +1,35 @@
 package cmd
 
 import (
-	"github.com/lucasassuncao/movelooper/internal/hints"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/editor"
+	"github.com/lucasassuncao/yedit/metadata"
 )
 
-// filterChildren is defined once and shared via pointers in any/all nodes,
-// so CategoryFilter's self-referential structure resolves at any depth:
+// filterHintChildren builds the shared hint map for CategoryFilter fields.
+// The map is shared via pointers in the any/all nodes, so the self-referential
+// filter structure resolves at any depth:
 //
-//	filter.any.regex           → filterChildren["regex"]
-//	filter.any.all.regex       → filterChildren["all"].Children["regex"] (same map)
+//	filter.any.regex           → children["regex"]
+//	filter.any.all.regex       → children["all"].Children["regex"] (same map)
 //	filter.any.any.any.ignore  → same
-var filterChildren map[string]*hints.HintNode
-
-func init() {
-	anyNode := &hints.HintNode{
+//
+// Constraints declared here (min/max age and size ranges) are therefore
+// enforced at every nesting level by the FromMetadata validators.
+func filterHintChildren() map[string]*metadata.Node {
+	anyNode := &metadata.Node{
 		FieldMeta: editor.FieldMeta{
 			Description: "OR logic: file must match at least one sub-filter.",
 			Example:     "any:\n  - regex: \"^invoice_.*\"\n  - glob: \"receipt_*\"",
 		},
 	}
-	allNode := &hints.HintNode{
+	allNode := &metadata.Node{
 		FieldMeta: editor.FieldMeta{
 			Description: "AND logic: file must match all sub-filters simultaneously.",
 			Example:     "all:\n  - min-size: 100KB\n  - max-age: 168h",
 		},
 	}
-	filterChildren = map[string]*hints.HintNode{
+	children := map[string]*metadata.Node{
 		"regex": {FieldMeta: editor.FieldMeta{
 			Description: "RE2 regular expression matched against the filename (without path). Mutually exclusive with glob.",
 			Example:     "regex: \"^\\d{4}-\\d{2}-\\d{2}_.*\\.pdf$\"",
@@ -51,42 +53,49 @@ func init() {
 		}},
 		"min-age": {FieldMeta: editor.FieldMeta{
 			Description: "Only match files older than this duration. Accepts Go duration strings (e.g. 24h, 168h).",
+			Min:         "0s",
+			Max:         "87600h",
 			Example:     "min-age: 24h",
 		}},
 		"max-age": {FieldMeta: editor.FieldMeta{
 			Description: "Only match files newer than this duration.",
+			Min:         "0s",
+			Max:         "87600h",
 			Example:     "max-age: 720h",
 		}},
 		"min-size": {FieldMeta: editor.FieldMeta{
 			Description: "Only match files at least this large. Accepts human-readable sizes — KB/MB/GB/TB are decimal (powers of 1000), KiB/MiB/GiB/TiB are binary (powers of 1024).",
+			Min:         "0B",
+			Max:         "100TB",
 			Example:     "min-size: 1MB",
 		}},
 		"max-size": {FieldMeta: editor.FieldMeta{
 			Description: "Only match files no larger than this size. Same units as min-size.",
+			Min:         "0B",
+			Max:         "100TB",
 			Example:     "max-size: 50GB",
 		}},
 		"any": anyNode,
 		"all": allNode,
 	}
-	anyNode.Children = filterChildren
-	allNode.Children = filterChildren
-	initHints()
+	anyNode.Children = children
+	allNode.Children = children
+	return children
 }
 
-// MovelooperHints is the editor.HintSource for the movelooper schema.
-// Built once at startup via BuildFrom, which reflects over models.Config
-// to derive the Type field for each node automatically.
-// Initialized in init() so filterChildren is fully set before use.
-var MovelooperHints editor.HintSource
-
-func initHints() {
-	MovelooperHints = hints.BuildFrom(&models.Config{}, map[string]*hints.HintNode{
+// buildMovelooperHints builds the editor.MetadataSource for the movelooper
+// schema. The hint tree is the single source of field metadata: the hint
+// panel displays it and the FromMetadata validators (edit_validators.go) enforce
+// it. metadata.Build validates every key against models.Config, so a typo here
+// fails at startup instead of becoming a silently dead hint.
+func buildMovelooperHints() (editor.MetadataSource, error) {
+	return metadata.Build(&models.Config{}, map[string]*metadata.Node{
 		"configuration": {
 			FieldMeta: editor.FieldMeta{
 				Description: "General settings for movelooper: logging output, watch interval, and history size.",
 				Required:    true,
 			},
-			Children: map[string]*hints.HintNode{
+			Children: map[string]*metadata.Node{
 				"output": {FieldMeta: editor.FieldMeta{
 					Description: "Where log output is written. Use 'both' to write to the console and a file simultaneously.",
 					Required:    true,
@@ -114,11 +123,15 @@ func initHints() {
 				"watch-delay": {FieldMeta: editor.FieldMeta{
 					Description: "Interval between directory scans in watch mode. Accepts Go duration strings (e.g. 30s, 5m, 1h).",
 					Default:     "5m",
+					Min:         "1s",
+					Max:         "168h",
 					Example:     "watch-delay: 5m",
 				}},
 				"history-limit": {FieldMeta: editor.FieldMeta{
 					Description: "Maximum number of move events kept in the undo history. Older entries are evicted when the limit is reached.",
 					Default:     "100",
+					Min:         "1",
+					Max:         "100000",
 					Example:     "history-limit: 100",
 				}},
 			},
@@ -128,7 +141,7 @@ func initHints() {
 				Description: "List of file movement rules. Each entry defines a source directory, file filters, a destination, and optional hooks.",
 				Required:    true,
 			},
-			Children: map[string]*hints.HintNode{
+			Children: map[string]*metadata.Node{
 				"name": {FieldMeta: editor.FieldMeta{
 					Description: "Human-readable identifier for this category. Used in logs, history, and the --category filter flag.",
 					Required:    true,
@@ -144,15 +157,18 @@ func initHints() {
 						Description: "Source directory configuration: which path to watch, which extensions to include, and how deep to scan.",
 						Required:    true,
 					},
-					Children: map[string]*hints.HintNode{
+					Children: map[string]*metadata.Node{
 						"path": {FieldMeta: editor.FieldMeta{
 							Description: "Directory to watch for incoming files.",
 							Required:    true,
 							Example:     "path: ~/Downloads",
 						}},
 						"extensions": {FieldMeta: editor.FieldMeta{
-							Description: "File extensions to match (without the leading dot). Leave empty to match all extensions.",
-							Example:     "extensions:\n  - jpg\n  - jpeg\n  - png\n  - gif",
+							Description: "File extensions to match (without the leading dot). Use the special value \"all\" to match every file.",
+							Required:    true,
+							MinCount:    1,
+							Unique:      true,
+							Example:     "extensions:\n  - jpg\n  - jpeg\n  - png\n\n# or, to match every file:\nextensions: [all]",
 						}},
 						"recursive": {FieldMeta: editor.FieldMeta{
 							Description: "Whether to scan sub-directories of the source path. Combine with max-depth to limit depth.",
@@ -162,6 +178,8 @@ func initHints() {
 						"max-depth": {FieldMeta: editor.FieldMeta{
 							Description: "Maximum sub-directory depth when recursive is true. 0 means unlimited.",
 							Default:     "0",
+							Min:         "0",
+							Max:         "256",
 							Example:     "max-depth: 3",
 						}},
 						"exclude-paths": {FieldMeta: editor.FieldMeta{
@@ -172,7 +190,7 @@ func initHints() {
 							FieldMeta: editor.FieldMeta{
 								Description: "Optional filtering rules applied to each matched file. All populated sub-fields must match (AND logic) unless any/all are used.",
 							},
-							Children: filterChildren,
+							Children: filterHintChildren(),
 						},
 					},
 				},
@@ -181,7 +199,7 @@ func initHints() {
 						Description: "Destination configuration: where to place matched files, how to name them, and what to do on conflicts.",
 						Required:    true,
 					},
-					Children: map[string]*hints.HintNode{
+					Children: map[string]*metadata.Node{
 						"path": {FieldMeta: editor.FieldMeta{
 							Description: "Directory where matched files are placed.",
 							Required:    true,
@@ -213,18 +231,18 @@ func initHints() {
 					FieldMeta: editor.FieldMeta{
 						Description: "Optional shell commands to run before and after each file is moved.",
 					},
-					Children: map[string]*hints.HintNode{
+					Children: map[string]*metadata.Node{
 						"before": {
 							FieldMeta: editor.FieldMeta{
 								Description: "Hook executed before the file operation. If it fails, the move is aborted (unless on-failure is 'warn').",
 							},
-							Children: hookChildren("before"),
+							Children: hookHintChildren("before"),
 						},
 						"after": {
 							FieldMeta: editor.FieldMeta{
 								Description: "Hook executed after the file operation completes successfully.",
 							},
-							Children: hookChildren("after"),
+							Children: hookHintChildren("after"),
 						},
 					},
 				},
@@ -233,8 +251,8 @@ func initHints() {
 	})
 }
 
-func hookChildren(phase string) map[string]*hints.HintNode {
-	return map[string]*hints.HintNode{
+func hookHintChildren(phase string) map[string]*metadata.Node {
+	return map[string]*metadata.Node{
 		"shell": {FieldMeta: editor.FieldMeta{
 			Description: "Shell interpreter for the " + phase + "-hook commands.",
 			Default:     "/bin/sh",
@@ -242,12 +260,15 @@ func hookChildren(phase string) map[string]*hints.HintNode {
 		}},
 		"on-failure": {FieldMeta: editor.FieldMeta{
 			Description: "What to do if a " + phase + "-hook command exits non-zero: abort the file's operation, or warn and continue.",
+			Required:    true,
 			OneOf:       []string{"abort", "warn"},
 			Default:     "abort",
 			Example:     "on-failure: abort",
 		}},
 		"run": {FieldMeta: editor.FieldMeta{
 			Description: "Shell commands executed in order.",
+			Required:    true,
+			MinCount:    1,
 			Example:     "run:\n  - echo \"" + phase + ": {{.Source}}\"",
 		}},
 	}

@@ -2,11 +2,27 @@ package cmd
 
 import "github.com/lucasassuncao/yedit/editor"
 
+// MovelooperValidators is the rule set enforced by the edit command at
+// validate/save time.
+//
+// Per-field constraints (required, allowed values, ranges, counts,
+// uniqueness) are declared once in the hint tree (edit_hints.go) and enforced
+// by the FromMetadata family — hints are the single source of field metadata.
+// Only cross-field rules, which cannot live in per-field metadata, are
+// declared here explicitly.
 var MovelooperValidators = []editor.Validator{
-	// Category names must be unique across the list.
+	// Enforce everything the metadata declares.
+	editor.RequiredFromMetadata(),
+	editor.OneOfFromMetadata(),
+	editor.RangeFromMetadata(),
+	editor.PatternFromMetadata(),
+	editor.CountFromMetadata(),
+	editor.UniqueFromMetadata(),
+	editor.DeprecatedFromMetadata(),
+
+	// Category names must be unique across the list (presence comes from the
+	// hints; NoDuplicates skips unnamed entries).
 	editor.NoDuplicates("categories", "name"),
-	// Every category needs a name (NoDuplicates skips unnamed entries).
-	editor.Required("categories.name"),
 	// any/all are mutually exclusive at every nesting level of filter.
 	editor.MutuallyExclusiveNested("categories.source.filter", "any", "all"),
 	editor.MutuallyExclusiveNested("categories.source.filter.any", "any", "all"),
@@ -15,15 +31,6 @@ var MovelooperValidators = []editor.Validator{
 	editor.MutuallyExclusiveNested("categories.source.filter", "regex", "glob"),
 	editor.MutuallyExclusiveNested("categories.source.filter.any", "regex", "glob"),
 	editor.MutuallyExclusiveNested("categories.source.filter.all", "regex", "glob"),
-
-	// Enum values enforced at edit time instead of failing at config load.
-	editor.ValueOneOf("configuration.output", "console", "file", "both"),
-	editor.ValueOneOf("configuration.log-level", "trace", "debug", "info", "warn", "error", "fatal"),
-	editor.ValueOneOf("categories.destination.action", "move", "copy", "symlink"),
-	editor.ValueOneOf("categories.destination.conflict-strategy",
-		"rename", "hash_check", "overwrite", "skip", "newest", "oldest", "larger", "smaller"),
-	editor.ValueOneOf("categories.hooks.before.on-failure", "abort", "warn"),
-	editor.ValueOneOf("categories.hooks.after.on-failure", "abort", "warn"),
 
 	// min/max pairs must be ordered; mirrors the per-level enumeration used by
 	// the MutuallyExclusiveNested rules above.
