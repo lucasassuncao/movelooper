@@ -38,6 +38,18 @@ Package cmd contains the command line interface commands for the Movelooper appl
 var DefaultRepo = ""
 ```
 
+<a name="GenerateCmd"></a>
+
+```go
+var GenerateCmd = &cobra.Command{
+    Use:               "generate-docs",
+    Short:             "Generate documentation for movelooper",
+    PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
+    Run:               runGenerate,
+    Hidden:            true,
+}
+```
+
 <a name="MovelooperPresets"></a>MovelooperPresets is the editor.PresetSource for the movelooper schema.
 
 ```go
@@ -75,6 +87,17 @@ var MovelooperValidators = []editor.Validator{
     editor.CrossFieldOrdered("categories.source.filter.any.min-size", "categories.source.filter.any.max-size"),
     editor.CrossFieldOrdered("categories.source.filter.all.min-age", "categories.source.filter.all.max-age"),
     editor.CrossFieldOrdered("categories.source.filter.all.min-size", "categories.source.filter.all.max-size"),
+}
+```
+
+<a name="ShowCmd"></a>
+
+```go
+var ShowCmd = &cobra.Command{
+    Use:               "show-docs",
+    Short:             "Show documentation in terminal",
+    PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
+    Run:               runShow,
 }
 ```
 
@@ -142,7 +165,7 @@ func ListOfConfigurationPresets() []string
 
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L16>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L15>)
 
 ```go
 func RootCmd(m *models.Movelooper, version string) *cobra.Command

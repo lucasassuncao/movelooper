@@ -1,10 +1,9 @@
-package docs
+package cmd
 
 import (
 	"fmt"
 	"log"
 
-	"github.com/lucasassuncao/movelooper/internal/hints"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/docgenerator"
 
@@ -25,13 +24,15 @@ func runShow(cmd *cobra.Command, args []string) {
 }
 
 func showDocs() error {
-	src, err := hints.Build()
-	if err != nil {
-		return fmt.Errorf("failed to build hints: %w", err)
+	entries := []docgenerator.Entry{
+		{Config: models.Configuration{}},
+		{Config: models.Category{}, SplitStructs: true},
 	}
 
-	gen := docgenerator.NewSchemaGenerator(docgenerator.WithMetadata(src))
-	docs := gen.GenerateDocsInMemory(models.Config{})
+	docs, err := docgenerator.GenerateInMemory(entries)
+	if err != nil {
+		return fmt.Errorf("failed to generate docs: %w", err)
+	}
 
 	if err := docgenerator.RenderMarkdownDocsInTerminal(docs, "movelooper"); err != nil {
 		return fmt.Errorf("failed to render docs: %w", err)
