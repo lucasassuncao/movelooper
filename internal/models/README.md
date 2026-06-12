@@ -10,6 +10,7 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 
 ## Index
 
+- [Variables](<#variables>)
 - [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
 - [type Action](<#Action>)
 - [type Category](<#Category>)
@@ -32,6 +33,38 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 - [type ConflictStrategy](<#ConflictStrategy>)
 - [type Movelooper](<#Movelooper>)
 
+
+## Variables
+
+<a name="FormatGlob"></a>
+
+```go
+var (
+    // FormatGlob validates that the value is a syntactically valid glob pattern.
+    FormatGlob = editor.FormatCustom("glob", func(v string) bool {
+        _, err := filepath.Match(v, "")
+        return err == nil
+    })
+
+    // FormatRegex validates that the value is a valid RE2 regular expression.
+    FormatRegex = editor.FormatCustom("regex", func(v string) bool {
+        _, err := regexp.Compile(v)
+        return err == nil
+    })
+
+    // FormatOrganizeByPattern validates organize-by token strings.
+    // Valid tokens: {ext}, {year}, {month}, {day}.
+    FormatOrganizeByPattern = editor.FormatCustom("organize-by pattern", func(v string) bool {
+        return validTokens(v, organizeByTokens)
+    })
+
+    // FormatRenamePattern validates rename token strings.
+    // Valid tokens: {name}, {ext}, {year}, {month}, {day}, {hour}, {min}, {sec}, {seq}, {hash}.
+    FormatRenamePattern = editor.FormatCustom("rename pattern", func(v string) bool {
+        return validTokens(v, renameTokens)
+    })
+)
+```
 
 <a name="ParseCategoryNames"></a>
 ## func [ParseCategoryNames](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/categories.go#L12>)
@@ -123,7 +156,7 @@ type CategoryDestination struct {
 ```
 
 <a name="CategoryDestination.Metadata"></a>
-### func \(CategoryDestination\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L164>)
+### func \(CategoryDestination\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L165>)
 
 ```go
 func (CategoryDestination) Metadata() map[string]*metadata.Node
@@ -169,7 +202,7 @@ type CategoryHook struct {
 ```
 
 <a name="CategoryHook.Metadata"></a>
-### func \(CategoryHook\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L275>)
+### func \(CategoryHook\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L283>)
 
 ```go
 func (CategoryHook) Metadata() map[string]*metadata.Node
@@ -190,7 +223,7 @@ type CategoryHooks struct {
 ```
 
 <a name="CategoryHooks.Metadata"></a>
-### func \(CategoryHooks\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L264>)
+### func \(CategoryHooks\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L272>)
 
 ```go
 func (CategoryHooks) Metadata() map[string]*metadata.Node

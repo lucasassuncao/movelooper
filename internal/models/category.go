@@ -127,6 +127,7 @@ func (CategorySource) Metadata() map[string]*metadata.Node {
 		"path": {FieldMeta: editor.FieldMeta{
 			Description: "Directory to watch for incoming files.",
 			Required:    true,
+			Formats:     []editor.Format{editor.FormatDirectoryPath},
 			Example:     "path: ~/Downloads",
 		}},
 		"extensions": {FieldMeta: editor.FieldMeta{
@@ -166,10 +167,12 @@ func (CategoryDestination) Metadata() map[string]*metadata.Node {
 		"path": {FieldMeta: editor.FieldMeta{
 			Description: "Directory where matched files are placed.",
 			Required:    true,
+			Formats:     []editor.Format{editor.FormatDirectoryPath},
 			Example:     "path: ~/Pictures/Sorted",
 		}},
 		"organize-by": {FieldMeta: editor.FieldMeta{
 			Description: "Token pattern used to build sub-directories inside the destination path. Leave empty to place all files directly.",
+			Formats:     []editor.Format{FormatOrganizeByPattern},
 			Example:     "organize-by: \"{ext}/{year}\"\n\n# Available tokens:\n# {ext}   file extension\n# {year}  4-digit year\n# {month} 2-digit month\n# {day}   2-digit day",
 		}},
 		"conflict-strategy": {FieldMeta: editor.FieldMeta{
@@ -186,6 +189,7 @@ func (CategoryDestination) Metadata() map[string]*metadata.Node {
 		}},
 		"rename": {FieldMeta: editor.FieldMeta{
 			Description: "Token pattern for the destination filename (without extension). Leave empty to keep the original name.",
+			Formats:     []editor.Format{FormatRenamePattern},
 			Example:     "rename: \"{year}-{month}-{day}_{name}\"\n\n# Available tokens:\n# {name}  original filename without extension\n# {ext}   original extension\n# {year}, {month}, {day}, {hour}, {min}, {sec}\n# {seq}   auto-incrementing counter\n# {hash}  SHA-256 prefix of the file content",
 		}},
 	}
@@ -210,10 +214,12 @@ func categoryFilterChildren() map[string]*metadata.Node {
 	children := map[string]*metadata.Node{
 		"regex": {FieldMeta: editor.FieldMeta{
 			Description: "RE2 regular expression matched against the filename (without path). Mutually exclusive with glob.",
+			Formats:     []editor.Format{FormatRegex},
 			Example:     "regex: \"^\\d{4}-\\d{2}-\\d{2}_.*\\.pdf$\"",
 		}},
 		"glob": {FieldMeta: editor.FieldMeta{
 			Description: "Glob pattern matched against the filename (without path). Mutually exclusive with regex.",
+			Formats:     []editor.Format{FormatGlob},
 			Example:     "glob: \"screenshot_*\"",
 		}},
 		"include": {FieldMeta: editor.FieldMeta{
@@ -233,12 +239,14 @@ func categoryFilterChildren() map[string]*metadata.Node {
 			Description: "Only match files older than this duration. Accepts Go duration strings (e.g. 24h, 168h).",
 			Min:         "0s",
 			Max:         "87600h",
+			Formats:     []editor.Format{editor.FormatDuration},
 			Example:     "min-age: 24h",
 		}},
 		"max-age": {FieldMeta: editor.FieldMeta{
 			Description: "Only match files newer than this duration.",
 			Min:         "0s",
 			Max:         "87600h",
+			Formats:     []editor.Format{editor.FormatDuration},
 			Example:     "max-age: 720h",
 		}},
 		"min-size": {FieldMeta: editor.FieldMeta{

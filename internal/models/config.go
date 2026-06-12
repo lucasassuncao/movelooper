@@ -48,6 +48,7 @@ func (Configuration) Metadata() map[string]*metadata.Node {
 		"log-file": {FieldMeta: editor.FieldMeta{
 			Description: "Path to the log file. Only used when output is 'file' or 'both'. Supports ~ for the home directory.",
 			Default:     "~/movelooper.log",
+			Formats:     []editor.Format{editor.FormatDirectoryPath},
 			Example:     "log-file: ~/movelooper.log",
 		}},
 		"log-level": {FieldMeta: editor.FieldMeta{
@@ -67,6 +68,7 @@ func (Configuration) Metadata() map[string]*metadata.Node {
 			Default:     "5m",
 			Min:         "1s",
 			Max:         "168h",
+			Formats:     []editor.Format{editor.FormatDuration},
 			Example:     "watch-delay: 5m",
 		}},
 		"history-limit": {FieldMeta: editor.FieldMeta{

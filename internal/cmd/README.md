@@ -70,6 +70,9 @@ var MovelooperValidators = []editor.Validator{
     editor.CountFromMetadata(),
     editor.UniqueFromMetadata(),
     editor.DeprecatedFromMetadata(),
+    editor.FormatFromMetadata(),
+    editor.LengthFromMetadata(),
+    editor.NotOneOfFromMetadata(),
 
     editor.NoDuplicates("categories", "name"),
 
@@ -87,6 +90,29 @@ var MovelooperValidators = []editor.Validator{
     editor.CrossFieldOrdered("categories.source.filter.any.min-size", "categories.source.filter.any.max-size"),
     editor.CrossFieldOrdered("categories.source.filter.all.min-age", "categories.source.filter.all.max-age"),
     editor.CrossFieldOrdered("categories.source.filter.all.min-size", "categories.source.filter.all.max-size"),
+
+    editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+        var doc struct {
+            Configuration struct {
+                Output  string `yaml:"output"`
+                LogFile string `yaml:"log-file"`
+            } `yaml:"configuration"`
+        }
+        if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
+            return nil
+        }
+        cfg := doc.Configuration
+        if cfg.Output != "file" && cfg.Output != "both" {
+            return nil
+        }
+        if cfg.LogFile != "" {
+            return nil
+        }
+        return []editor.Violation{{
+            Path:    "configuration.log-file",
+            Message: fmt.Sprintf("required when output is %q", cfg.Output),
+        }}
+    }),
 }
 ```
 
