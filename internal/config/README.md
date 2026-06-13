@@ -10,6 +10,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 ## Index
 
+- [Constants](<#constants>)
 - [Variables](<#variables>)
 - [func ConfigureLogger\(k \*koanf.Koanf\) \(\*pterm.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
@@ -27,6 +28,14 @@ import "github.com/lucasassuncao/movelooper/internal/config"
   - [func \(b \*AppBuilder\) ResolveConfig\(\) \*AppBuilder](<#AppBuilder.ResolveConfig>)
   - [func \(b \*AppBuilder\) ValidateDirectories\(\) \*AppBuilder](<#AppBuilder.ValidateDirectories>)
 
+
+## Constants
+
+<a name="MaxFilterNestingDepth"></a>MaxFilterNestingDepth is the maximum absolute nesting depth for CategoryFilter \(any/all/not recursion\). Used as the depth guard in validateFilter. The edit command's SchemaRecursionDepth uses MaxFilterNestingDepth\-1 because yedit counts extra visits beyond the first: 1 \+ \(N\-1\) = N total levels, matching this validation limit exactly.
+
+```go
+const MaxFilterNestingDepth = 10
+```
 
 ## Variables
 
@@ -46,7 +55,7 @@ func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error)
 ConfigureLogger configures the logger based on the configuration. Returns the logger, a Closer that must be called on exit \(non\-nil only when writing to a file\), and any error.
 
 <a name="InitConfig"></a>
-## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L24>)
+## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L31>)
 
 ```go
 func InitConfig(k *koanf.Koanf, path string) error
@@ -64,7 +73,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L279>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L295>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)
@@ -82,7 +91,7 @@ func ResolveImports(path string) ([]byte, error)
 ResolveImports reads the YAML file at path, recursively resolves any top\-level \`import:\` entries, merges all \`categories:\` items into the main document, and returns the final merged YAML bytes ready to be fed into Viper. The \`import:\` key is stripped from the output. Import paths are relative to the file that declares them. Circular imports are detected and reported as errors.
 
 <a name="UnmarshalConfig"></a>
-## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L39>)
+## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L46>)
 
 ```go
 func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error)

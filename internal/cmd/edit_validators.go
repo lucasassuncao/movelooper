@@ -36,12 +36,13 @@ var MovelooperValidators = []editor.Validator{
 	// One validator suffices: MutuallyExclusiveNested walks the full subtree.
 	editor.MutuallyExclusiveNested("categories.source.filter.match", "literal", "regex", "glob"),
 
-	// any, all, and leaf fields (match/age/size/not) are three mutually exclusive
-	// groups at each filter level. Four validators cover all nesting depths.
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+	// any and all are mutually exclusive with each other and with leaf fields
+	// (match/age/size). not is a modifier and may coexist with any/all.
+	// Four validators cover all nesting depths.
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
 
 	// age and size min/max pairs must be ordered at any nesting depth.
 	editor.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),

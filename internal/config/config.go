@@ -15,6 +15,13 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/tokens"
 )
 
+// MaxFilterNestingDepth is the maximum absolute nesting depth for CategoryFilter
+// (any/all/not recursion). Used as the depth guard in validateFilter.
+// The edit command's SchemaRecursionDepth uses MaxFilterNestingDepth-1 because
+// yedit counts extra visits beyond the first: 1 + (N-1) = N total levels,
+// matching this validation limit exactly.
+const MaxFilterNestingDepth = 10
+
 // ErrConfigNotFound is returned by InitConfig when the config file cannot be located.
 var ErrConfigNotFound = errors.New("config file not found")
 
@@ -125,14 +132,22 @@ func validateHook(catName, position string, hook *models.CategoryHook) error {
 	return nil
 }
 
-// hasDirectFilterFields reports whether f has any direct filter fields set.
+// hasDirectFilterFields reports whether f has any direct leaf fields set.
+// not is excluded: it is a modifier that can coexist with any/all.
 func hasDirectFilterFields(f *models.CategoryFilter) bool {
-	return f.Match != nil || f.Age != nil || f.Size != nil || len(f.Not) > 0
+	return f.Match != nil || f.Age != nil || f.Size != nil
 }
 
 // validateFilter validates a filter node recursively.
-// Nodes with any/all are validated as composite nodes; all others as leaves.
 func validateFilter(catName string, f *models.CategoryFilter) error {
+	return validateFilterDepth(catName, f, 0)
+}
+
+func validateFilterDepth(catName string, f *models.CategoryFilter, depth int) error {
+	if depth >= MaxFilterNestingDepth {
+		return fmt.Errorf("category %q: filter nesting exceeds maximum depth of %d", catName, MaxFilterNestingDepth)
+	}
+
 	hasAny := len(f.Any) > 0
 	hasAll := len(f.All) > 0
 
@@ -149,9 +164,15 @@ func validateFilter(catName string, f *models.CategoryFilter) error {
 		return fmt.Errorf("category %q: filter cannot mix 'any'/'all' with direct fields", catName)
 	}
 
+	for i := range f.Not {
+		if err := validateFilterDepth(catName, &f.Not[i], depth+1); err != nil {
+			return err
+		}
+	}
+
 	if hasAny {
 		for i := range f.Any {
-			if err := validateFilter(catName, &f.Any[i]); err != nil {
+			if err := validateFilterDepth(catName, &f.Any[i], depth+1); err != nil {
 				return err
 			}
 		}
@@ -159,7 +180,7 @@ func validateFilter(catName string, f *models.CategoryFilter) error {
 	}
 	if hasAll {
 		for i := range f.All {
-			if err := validateFilter(catName, &f.All[i]); err != nil {
+			if err := validateFilterDepth(catName, &f.All[i], depth+1); err != nil {
 				return err
 			}
 		}
@@ -191,11 +212,6 @@ func validateLeafFilter(catName string, f *models.CategoryFilter) error {
 	}
 	if f.Size != nil {
 		if err := validateSizeFilter(catName, f.Size); err != nil {
-			return err
-		}
-	}
-	for i := range f.Not {
-		if err := validateFilter(catName, &f.Not[i]); err != nil {
 			return err
 		}
 	}

@@ -81,10 +81,10 @@ var MovelooperValidators = []editor.Validator{
 
     editor.MutuallyExclusiveNested("categories.source.filter.match", "literal", "regex", "glob"),
 
-    editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
-    editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
-    editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
-    editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+    editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
+    editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
+    editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
+    editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
 
     editor.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),
     editor.CrossFieldOrderedNested("categories.source.filter.size", "min", "max"),
@@ -153,7 +153,7 @@ func ConfigurationPreset(name string) *models.Configuration
 
 
 <a name="EditCmd"></a>
-## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L19>)
+## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L18>)
 
 ```go
 func EditCmd() *cobra.Command

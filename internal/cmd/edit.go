@@ -6,13 +6,12 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/editor"
 	"github.com/lucasassuncao/yedit/theme"
 	"github.com/spf13/cobra"
 )
-
-var defaultSchemaRecursionDepth = 10
 
 // EditCmd returns the "edit" command, which opens an interactive TUI editor
 // for the movelooper configuration file.
@@ -93,7 +92,7 @@ produce a new config from an existing template).`,
 				NoSaveConfirm:        noSaveConfirm,
 				NoDeleteConfirm:      noDeleteConfirm,
 				NoValidateOnSave:     noValidateOnSave,
-				SchemaRecursionDepth: defaultSchemaRecursionDepth,
+				SchemaRecursionDepth: config.MaxFilterNestingDepth - 1,
 				Validators:           MovelooperValidators,
 			})
 			if err != nil {
