@@ -12,9 +12,10 @@ import (
 
 // TestGetBirthTime tests that getBirthTime returns a recent, non-zero time for a newly created file.
 func TestGetBirthTime(t *testing.T) {
+	t.Parallel()
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "file.txt")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(path, []byte("x"), 0o644))
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
@@ -27,9 +28,10 @@ func TestGetBirthTime(t *testing.T) {
 
 // TestGetBirthTime_ModifiedMtime tests that getBirthTime returns a non-zero time even when the file's mtime has been modified.
 func TestGetBirthTime_ModifiedMtime(t *testing.T) {
+	t.Parallel()
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "file.txt")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(path, []byte("x"), 0o644))
 
 	modTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 	require.NoError(t, os.Chtimes(path, modTime, modTime))

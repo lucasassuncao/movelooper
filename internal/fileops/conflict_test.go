@@ -34,8 +34,10 @@ var testConflictResolverSkipMessageTestCases = []testConflictResolverSkipMessage
 // TestConflictResolvers_SkipMessages tests the SkipMessage method for all conflict resolvers
 // to ensure each returns the correct message.
 func TestConflictResolvers_SkipMessages(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testConflictResolverSkipMessageTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.wantMsg, tt.resolver.SkipMessage())
 		})
 	}
@@ -61,8 +63,10 @@ var testGetUniqueDestinationPathTestCases = []testGetUniqueDestinationPath{
 // TestGetUniqueDestinationPath tests the getUniqueDestinationPath function to ensure it correctly
 // generates unique filenames when conflicts exist.
 func TestGetUniqueDestinationPath(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testGetUniqueDestinationPathTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			for _, f := range tt.existing {
 				writeFile(t, filepath.Join(dir, f), []byte("x"))
@@ -221,8 +225,10 @@ var testResolverTestCases = []testResolver{
 // TestResolvers tests all conflict resolver implementations to ensure they correctly
 // handle move, skip, rename, and removal scenarios.
 func TestResolvers(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testResolverTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			src := filepath.Join(dir, "src.txt")
 			dst := filepath.Join(dir, "dst.txt")
@@ -253,5 +259,5 @@ func TestResolvers(t *testing.T) {
 
 func writeFile(t *testing.T, path string, content []byte) {
 	t.Helper()
-	require.NoError(t, os.WriteFile(path, content, 0644))
+	require.NoError(t, os.WriteFile(path, content, 0o644))
 }

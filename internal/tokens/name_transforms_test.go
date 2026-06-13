@@ -53,8 +53,10 @@ var testNameTransformTestCases = []testNameTransform{
 
 // TestNameTransforms tests all name transform functions with various inputs to ensure correct output.
 func TestNameTransforms(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testNameTransformTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.fn(tt.in))
 		})
 	}
@@ -84,8 +86,10 @@ var testPreProcessNameTruncTestCases = []testPreProcessNameTrunc{
 
 // TestPreProcessNameTrunc tests the preProcessNameTrunc function to ensure it correctly truncates names by rune count.
 func TestPreProcessNameTrunc(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testPreProcessNameTruncTestCases {
 		t.Run(tt.template+"/"+tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, preProcessNameTrunc(tt.template, tt.name))
 		})
 	}

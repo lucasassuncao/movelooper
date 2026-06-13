@@ -62,7 +62,7 @@ func NewHistory(limit int) (*History, error) {
 	}
 
 	historyDir := filepath.Join(filepath.Dir(ex), "history")
-	if err := os.MkdirAll(historyDir, 0750); err != nil {
+	if err := os.MkdirAll(historyDir, 0o750); err != nil {
 		return nil, err
 	}
 
@@ -100,8 +100,8 @@ func (h *History) Add(entry Entry) error {
 
 // prune removes the oldest batches, keeping at most maxBatches
 func (h *History) prune() {
-	seen := make(map[string]bool)
-	var batchOrder []string
+	seen := make(map[string]bool, len(h.entries))
+	batchOrder := make([]string, 0, len(h.entries))
 	for _, e := range h.entries {
 		if !seen[e.BatchID] {
 			seen[e.BatchID] = true
@@ -113,12 +113,13 @@ func (h *History) prune() {
 		return
 	}
 
-	toRemove := make(map[string]bool)
-	for _, id := range batchOrder[:len(batchOrder)-h.maxBatches] {
+	excess := len(batchOrder) - h.maxBatches
+	toRemove := make(map[string]bool, excess)
+	for _, id := range batchOrder[:excess] {
 		toRemove[id] = true
 	}
 
-	var newEntries []Entry
+	newEntries := make([]Entry, 0, len(h.entries))
 	for _, e := range h.entries {
 		if !toRemove[e.BatchID] {
 			newEntries = append(newEntries, e)
@@ -173,7 +174,7 @@ func (h *History) GetBatch(batchID string) []Entry {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	var batch []Entry
+	batch := make([]Entry, 0)
 	for _, entry := range h.entries {
 		if entry.BatchID == batchID {
 			batch = append(batch, entry)
@@ -281,5 +282,5 @@ func (h *History) save() error {
 		return err
 	}
 
-	return os.WriteFile(h.path, data, 0600)
+	return os.WriteFile(h.path, data, 0o600)
 }

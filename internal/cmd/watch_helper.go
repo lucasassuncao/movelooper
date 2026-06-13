@@ -90,7 +90,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	defer cancel()
 
 	go runEventLoop(ctx, m, watcher, cfg.tracker)
-	go runSignalHandler(m, cancel)
+	go runSignalHandler(ctx, m, cancel)
 	go runTickerLoop(ctx, m, cfg)
 
 	<-ctx.Done()
@@ -99,7 +99,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 
 // registerSources adds each unique source directory to the watcher.
 func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
-	seen := make(map[string]bool)
+	seen := make(map[string]bool, len(m.Categories))
 	for _, cat := range m.Categories {
 		if !cat.IsEnabled() {
 			continue
@@ -146,14 +146,17 @@ func runEventLoop(ctx context.Context, m *models.Movelooper, watcher *fsnotify.W
 	}
 }
 
-// runSignalHandler calls cancel when SIGINT or SIGTERM is received.
-func runSignalHandler(m *models.Movelooper, cancel context.CancelFunc) {
+// runSignalHandler calls cancel when SIGINT or SIGTERM is received, or returns
+// silently when ctx is cancelled by another caller (preventing a goroutine leak).
+func runSignalHandler(ctx context.Context, m *models.Movelooper, cancel context.CancelFunc) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	for range sigChan {
+	defer signal.Stop(sigChan)
+	select {
+	case <-sigChan:
 		m.Logger.Info("shutting down watch mode")
 		cancel()
-		return
+	case <-ctx.Done():
 	}
 }
 

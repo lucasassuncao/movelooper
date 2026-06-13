@@ -90,8 +90,10 @@ var testRunHookTestCases = []testRunHook{
 // TestRunHook tests the RunHook function with various hook configurations
 // to ensure it correctly executes commands and handles failures.
 func TestRunHook(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testRunHookTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.skip != nil && tt.skip() {
 				t.Skip()
 			}
@@ -160,8 +162,10 @@ var testDefaultShellTestCases = []testDefaultShell{
 // TestDefaultShell tests the defaultShell function with various override values
 // to ensure it returns the correct shell and arguments for each platform.
 func TestDefaultShell(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testDefaultShellTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.skip != nil && tt.skip() {
 				t.Skip()
 			}
@@ -197,8 +201,10 @@ var testBuildEnvTestCases = []testBuildEnv{
 // TestBuildEnv tests the buildEnv function to ensure it correctly merges
 // the process environment with the provided extra vars.
 func TestBuildEnv(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testBuildEnvTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			env := buildEnv(tt.env)
 			for _, want := range tt.wantIn {
 				assert.Contains(t, env, want)

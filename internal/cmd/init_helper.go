@@ -84,7 +84,7 @@ func runInit(opts initOptions) error {
 		}
 	}
 
-	if err := os.WriteFile(configFile, data, 0600); err != nil {
+	if err := os.WriteFile(configFile, data, 0o600); err != nil {
 		return fmt.Errorf("error writing config file: %v", err)
 	}
 

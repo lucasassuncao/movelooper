@@ -60,8 +60,10 @@ var testAddTestCases = []testAdd{
 
 // TestAdd tests the Add function to ensure it correctly persists entries and handles errors.
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testAddTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, 10)
 			if tt.badPath {
 				h.path = t.TempDir()
@@ -106,8 +108,10 @@ var testGetBatchTestCases = []testGetBatch{
 
 // TestGetBatch tests the GetBatch function to ensure it correctly retrieves entries by batch ID.
 func TestGetBatch(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testGetBatchTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, 10)
 			for _, id := range tt.add {
 				require.NoError(t, h.Add(makeEntry(id)))
@@ -135,8 +139,10 @@ var testGetLastBatchIDTestCases = []testGetLastBatchID{
 
 // TestGetLastBatchID tests the GetLastBatchID function to ensure it correctly identifies the last batch.
 func TestGetLastBatchID(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testGetLastBatchIDTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, 10)
 			for _, id := range tt.add {
 				require.NoError(t, h.Add(makeEntry(id)))
@@ -182,8 +188,10 @@ var testGetAllBatchesTestCases = []testGetAllBatches{
 
 // TestGetAllBatches tests the GetAllBatches function to ensure it returns batches in the correct order with counts.
 func TestGetAllBatches(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testGetAllBatchesTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, 10)
 			for _, id := range tt.add {
 				require.NoError(t, h.Add(makeEntry(id)))
@@ -234,8 +242,10 @@ var testRemoveBatchTestCases = []testRemoveBatch{
 
 // TestRemoveBatch tests the RemoveBatch function to ensure it correctly removes entries and persists changes.
 func TestRemoveBatch(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testRemoveBatchTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, 10)
 			for _, id := range tt.add {
 				require.NoError(t, h.Add(makeEntry(id)))
@@ -276,8 +286,10 @@ var testPruneTestCases = []testPrune{
 
 // TestPrune tests the prune function to ensure it correctly evicts oldest batches when the limit is exceeded.
 func TestPrune(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testPruneTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, tt.maxBatches)
 			for _, id := range tt.add {
 				require.NoError(t, h.Add(makeEntry(id)))
@@ -316,8 +328,10 @@ var testBatchIDTestCases = []testBatchID{
 
 // TestBatchIDs tests the NewBatchID and NewWatchBatchID functions to ensure they produce correct prefixes and unique IDs.
 func TestBatchIDs(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testBatchIDTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.checkUniq {
 				ids := make(map[string]bool)
 				for range 50 {
@@ -351,14 +365,14 @@ var testLoadTestCases = []testLoad{
 			entries := []Entry{{Source: "/src/a.txt", Destination: "/dst/a.txt", Timestamp: time.Now(), BatchID: "batch_1"}}
 			data, err := json.MarshalIndent(entries, "", "  ")
 			require.NoError(t, err)
-			require.NoError(t, os.WriteFile(h.path, data, 0644))
+			require.NoError(t, os.WriteFile(h.path, data, 0o644))
 		},
 		wantLen: 1,
 	},
 	{
 		name: "corrupt json",
 		setup: func(t *testing.T, h *History) {
-			require.NoError(t, os.WriteFile(h.path, []byte("not valid json {{{"), 0644))
+			require.NoError(t, os.WriteFile(h.path, []byte("not valid json {{{"), 0o644))
 		},
 		wantErr: true,
 	},
@@ -371,8 +385,10 @@ var testLoadTestCases = []testLoad{
 
 // TestLoad tests the load function to ensure it correctly reads and parses history files.
 func TestLoad(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testLoadTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, 10)
 			if tt.notExist {
 				h.path = filepath.Join(t.TempDir(), "nonexistent.json")
@@ -423,8 +439,10 @@ var testSaveTestCases = []testSave{
 
 // TestSave tests the save function to ensure it correctly serializes and writes history entries.
 func TestSave(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testSaveTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, 10)
 			h.entries = tt.entries
 			require.NoError(t, h.save())
@@ -438,6 +456,7 @@ func TestSave(t *testing.T) {
 
 // TestAdd_ConcurrentSafe tests that concurrent Add calls are safe and all entries are persisted.
 func TestAdd_ConcurrentSafe(t *testing.T) {
+	t.Parallel()
 	h := newTestHistory(t, 100)
 	done := make(chan struct{})
 	for range 10 {
@@ -455,6 +474,7 @@ func TestAdd_ConcurrentSafe(t *testing.T) {
 // TestHistory_LoadAndAddRoundTrip tests that entries added to one History instance
 // are correctly loaded by a second instance reading the same file.
 func TestHistory_LoadAndAddRoundTrip(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "movelooper.json")
 	h := &History{path: path, maxBatches: 10}
 
@@ -526,8 +546,10 @@ var testRemoveCategoryFromBatchTestCases = []testRemoveCategoryFromBatch{
 // TestRemoveCategoryFromBatch tests the RemoveCategoryFromBatch function to ensure it correctly
 // removes entries by category while leaving other entries intact.
 func TestRemoveCategoryFromBatch(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testRemoveCategoryFromBatchTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h := newTestHistory(t, 10)
 			tt.setup(h)
 			_, err := h.RemoveCategoryFromBatch(tt.batchID, tt.categories)

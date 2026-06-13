@@ -33,15 +33,17 @@ var testResolveSeqTestCases = []testResolveSeq{
 // TestResolveSeq tests the ResolveSeq function with various scenarios of existing files and directory states
 // to ensure it correctly identifies the next sequence number.
 func TestResolveSeq(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testResolveSeqTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var dir string
 			if tt.nonExist {
 				dir = filepath.Join(t.TempDir(), "nonexistent")
 			} else {
 				dir = t.TempDir()
 				for _, name := range tt.existing {
-					require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0644))
+					require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
 				}
 			}
 			assert.Equal(t, tt.want, ResolveSeq(dir))
@@ -61,8 +63,10 @@ var testAlphaConversionTestCases = []testAlphaConversion{
 }
 
 func TestAlphaConversion(t *testing.T) {
+	t.Parallel()
 	for _, c := range testAlphaConversionTestCases {
 		t.Run(fmt.Sprintf("%d=%s", c.n, c.want), func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, c.want, intToAlpha(c.n))
 			assert.Equal(t, c.n, alphaToInt(c.want))
 		})
@@ -87,15 +91,17 @@ var testResolveSeqAlphaTestCases = []testResolveSeqAlpha{
 }
 
 func TestResolveSeqAlpha(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testResolveSeqAlphaTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var dir string
 			if tt.nonExist {
 				dir = filepath.Join(t.TempDir(), "nonexistent")
 			} else {
 				dir = t.TempDir()
 				for _, f := range tt.existing {
-					require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0644))
+					require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644))
 				}
 			}
 			assert.Equal(t, tt.want, ResolveSeqAlpha(dir))
@@ -116,8 +122,10 @@ var testRomanConversionTestCases = []testRomanConversion{
 }
 
 func TestRomanConversion(t *testing.T) {
+	t.Parallel()
 	for _, c := range testRomanConversionTestCases {
 		t.Run(fmt.Sprintf("%d=%s", c.n, c.want), func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, c.want, intToRoman(c.n))
 			assert.Equal(t, c.n, romanToInt(c.want))
 		})
@@ -141,15 +149,17 @@ var testResolveSeqRomanTestCases = []testResolveSeqRoman{
 }
 
 func TestResolveSeqRoman(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testResolveSeqRomanTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var dir string
 			if tt.nonExist {
 				dir = filepath.Join(t.TempDir(), "nonexistent")
 			} else {
 				dir = t.TempDir()
 				for _, f := range tt.existing {
-					require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0644))
+					require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644))
 				}
 			}
 			assert.Equal(t, tt.want, ResolveSeqRoman(dir))

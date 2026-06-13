@@ -15,7 +15,7 @@ import (
 func createTempFile(t *testing.T, dir, name string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	require.NoError(t, os.WriteFile(path, []byte("test"), 0644))
+	require.NoError(t, os.WriteFile(path, []byte("test"), 0o644))
 	return path
 }
 
@@ -24,7 +24,7 @@ func makeInfo(t *testing.T, name string, size int, modTime time.Time) os.FileInf
 	dir := t.TempDir()
 	path := filepath.Join(dir, name)
 	content := make([]byte, size)
-	require.NoError(t, os.WriteFile(path, content, 0644))
+	require.NoError(t, os.WriteFile(path, content, 0o644))
 	require.NoError(t, os.Chtimes(path, modTime, modTime))
 	info, err := os.Stat(path)
 	require.NoError(t, err)
@@ -58,8 +58,10 @@ var testMatchesIgnorePatternsTestCases = []testMatchesIgnorePatterns{
 // TestMatchesIgnorePatterns tests the MatchesIgnorePatterns function with various patterns
 // to ensure it correctly identifies files matching ignore patterns.
 func TestMatchesIgnorePatterns(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMatchesIgnorePatternsTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, MatchesIgnorePatterns(tt.fileName, tt.patterns, tt.caseSensitive))
 		})
 	}
@@ -85,8 +87,10 @@ var testExpandGlobPatternTestCases = []testExpandGlobPattern{
 
 // TestExpandGlobPattern tests the expandGlobPattern function to ensure it correctly expands brace patterns.
 func TestExpandGlobPattern(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testExpandGlobPatternTestCases {
 		t.Run(tt.pattern, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, expandGlobPattern(tt.pattern))
 		})
 	}
@@ -116,8 +120,10 @@ var testMatchesGlobTestCases = []testMatchesGlob{
 
 // TestMatchesGlob tests the MatchesGlob function to ensure it correctly matches file names against glob patterns.
 func TestMatchesGlob(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMatchesGlobTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, MatchesGlob(tt.fileName, tt.pattern, tt.caseSensitive))
 		})
 	}
@@ -140,8 +146,10 @@ var testValidateGlobTestCases = []testValidateGlob{
 
 // TestValidateGlob tests the ValidateGlob function to ensure it correctly validates glob patterns.
 func TestValidateGlob(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testValidateGlobTestCases {
 		t.Run(tt.pattern, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateGlob(tt.pattern)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -173,6 +181,7 @@ var testHasExtensionTestCases = []testHasExtension{
 
 // TestHasExtension tests the HasExtension function to ensure it correctly identifies file extensions.
 func TestHasExtension(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	createTempFile(t, dir, "doc.pdf")
 	createTempFile(t, dir, "image.PNG")
@@ -187,6 +196,7 @@ func TestHasExtension(t *testing.T) {
 
 	for _, tt := range testHasExtensionTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, HasExtension(byName[tt.fileName], tt.ext))
 		})
 	}
@@ -213,8 +223,10 @@ var testMatchesAnyExtensionTestCases = []testMatchesAnyExtension{
 // TestMatchesAnyExtension tests the MatchesAnyExtension function to ensure it correctly
 // matches file names against a list of extensions.
 func TestMatchesAnyExtension(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMatchesAnyExtensionTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, MatchesAnyExtension(tt.file, tt.exts))
 		})
 	}
@@ -263,8 +275,10 @@ var testMatchesNameFiltersTestCases = []testMatchesNameFilters{
 // TestMatchesNameFilters tests the MatchesNameFilters function to ensure it correctly
 // applies name-based filters to file names.
 func TestMatchesNameFilters(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMatchesNameFiltersTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, MatchesNameFilters(tt.fileName, tt.filter))
 		})
 	}
@@ -300,8 +314,10 @@ var testParseSizeTestCases = []testParseSize{
 
 // TestParseSize tests the ParseSize function to ensure it correctly parses human-readable size strings.
 func TestParseSize(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testParseSizeTestCases {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got, err := ParseSize(tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -336,8 +352,10 @@ var testMeetsAgeTestCases = []testMeetsAge{
 
 // TestMeetsAge tests the MeetsMinAge and MeetsMaxAge functions to ensure they correctly evaluate file age.
 func TestMeetsAge(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMeetsAgeTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			path := createTempFile(t, t.TempDir(), "file.txt")
 			ts := time.Now().Add(-tt.fileAge)
 			require.NoError(t, os.Chtimes(path, ts, ts))
@@ -371,10 +389,12 @@ var testMeetsSizeTestCases = []testMeetsSize{
 
 // TestMeetsSize tests the MeetsMinSize and MeetsMaxSize functions to ensure they correctly evaluate file size.
 func TestMeetsSize(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMeetsSizeTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			path := createTempFile(t, t.TempDir(), "file.bin")
-			require.NoError(t, os.WriteFile(path, make([]byte, tt.fileSize), 0644))
+			require.NoError(t, os.WriteFile(path, make([]byte, tt.fileSize), 0o644))
 			info, err := os.Stat(path)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, tt.fn(info, tt.threshold))
@@ -408,9 +428,11 @@ var testMatchesFilterLeafTestCases = []testMatchesFilterLeaf{
 // TestMatchesFilter_Leaf tests the MatchesFilter function with leaf filters
 // to ensure it correctly evaluates individual filter conditions.
 func TestMatchesFilter_Leaf(t *testing.T) {
+	t.Parallel()
 	info := makeInfo(t, "report_2024.pdf", 1024, time.Now().Add(-2*time.Hour))
 	for _, tt := range testMatchesFilterLeafTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, MatchesFilter(tt.filter, info.Name(), info))
 		})
 	}
@@ -591,8 +613,10 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 // TestMatchesFilter_Composite tests the MatchesFilter function with composite Any/All filters
 // to ensure it correctly evaluates nested filter conditions.
 func TestMatchesFilter_Composite(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMatchesFilterCompositeTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			info := tt.info(t)
 			assert.Equal(t, tt.want, MatchesFilter(tt.filter, info.Name(), info))
 		})
@@ -644,10 +668,12 @@ var testMeetsAgeSizeFiltersTestCases = []testMeetsAgeSizeFilters{
 // TestMeetsAgeSizeFilters tests the MeetsAgeSizeFilters function to ensure it correctly
 // evaluates combined age and size constraints.
 func TestMeetsAgeSizeFilters(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMeetsAgeSizeFiltersTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			path := createTempFile(t, t.TempDir(), "file.txt")
-			require.NoError(t, os.WriteFile(path, make([]byte, tt.fileSize), 0644))
+			require.NoError(t, os.WriteFile(path, make([]byte, tt.fileSize), 0o644))
 			if tt.fileAge > 0 {
 				ts := time.Now().Add(-tt.fileAge)
 				require.NoError(t, os.Chtimes(path, ts, ts))
@@ -679,11 +705,13 @@ var testGenerateLogArgsTestCases = []testGenerateLogArgs{
 // TestGenerateLogArgs tests the GenerateLogArgs function to ensure it correctly
 // generates log argument pairs for matching files.
 func TestGenerateLogArgs(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testGenerateLogArgsTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			for _, f := range tt.files {
-				require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644))
 			}
 			entries, err := os.ReadDir(dir)
 			require.NoError(t, err)

@@ -48,6 +48,7 @@ func withTestServer(t *testing.T, srv *httptest.Server, fn func()) {
 }
 
 func TestNormalizeVersion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -60,12 +61,14 @@ func TestNormalizeVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, normalizeVersion(tt.input))
 		})
 	}
 }
 
 func TestSelectAsset(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		assets   []ghAsset
@@ -123,6 +126,7 @@ func TestSelectAsset(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := selectAsset(tt.assets)
 			if tt.wantName == "" {
 				assert.Nil(t, got)
@@ -332,7 +336,7 @@ func TestCleanOldBinary(t *testing.T) {
 			require.NoError(t, err)
 			old := exe + ".old"
 
-			os.Remove(old)
+			_ = os.Remove(old)
 			if tt.createOld {
 				f, err := os.Create(old)
 				require.NoError(t, err)

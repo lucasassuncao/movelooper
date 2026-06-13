@@ -29,8 +29,10 @@ var testFileSizeRangeTestCases = []testFileSizeRange{
 
 // TestFileSizeRange tests the fileSizeRange function with various file sizes to ensure it categorizes them correctly.
 func TestFileSizeRange(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testFileSizeRangeTestCases {
 		t.Run(fmt.Sprintf("%d", tt.size), func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, fileSizeRange(tt.size))
 		})
 	}

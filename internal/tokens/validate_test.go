@@ -74,8 +74,10 @@ var testValidateTemplateTestCases = []testValidateTemplate{
 // TestValidateTemplate tests the ValidateTemplate function with various template strings
 // to ensure it correctly identifies valid and invalid templates.
 func TestValidateTemplate(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testValidateTemplateTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateTemplate(tt.template)
 			if tt.wantErr {
 				assert.Error(t, err)

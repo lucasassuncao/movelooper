@@ -141,8 +141,8 @@ categories:
 		setup: func(t *testing.T, dir string) string {
 			aPath := filepath.Join(dir, "a.yaml")
 			bPath := filepath.Join(dir, "b.yaml")
-			require.NoError(t, os.WriteFile(aPath, []byte("import:\n  - b.yaml\ncategories:\n  - name: a\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0644))
-			require.NoError(t, os.WriteFile(bPath, []byte("import:\n  - a.yaml\ncategories:\n  - name: b\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0644))
+			require.NoError(t, os.WriteFile(aPath, []byte("import:\n  - b.yaml\ncategories:\n  - name: a\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0o644))
+			require.NoError(t, os.WriteFile(bPath, []byte("import:\n  - a.yaml\ncategories:\n  - name: b\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0o644))
 			return aPath
 		},
 	},
@@ -152,8 +152,8 @@ categories:
 		setup: func(t *testing.T, dir string) string {
 			bPath := filepath.Join(dir, "b.yaml")
 			cPath := filepath.Join(dir, "c.yaml")
-			require.NoError(t, os.WriteFile(bPath, []byte("import:\n  - c.yaml\ncategories:\n  - name: b\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0644))
-			require.NoError(t, os.WriteFile(cPath, []byte("import:\n  - b.yaml\ncategories:\n  - name: c\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0644))
+			require.NoError(t, os.WriteFile(bPath, []byte("import:\n  - c.yaml\ncategories:\n  - name: b\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0o644))
+			require.NoError(t, os.WriteFile(cPath, []byte("import:\n  - b.yaml\ncategories:\n  - name: c\n    source: {path: /tmp, extensions: [txt]}\n    destination: {path: /tmp}\n"), 0o644))
 			return writeYAML(t, dir, "main.yaml", "import:\n  - b.yaml\n")
 		},
 	},
@@ -176,8 +176,10 @@ categories:
 // TestResolveImports tests the ResolveImports function to ensure it correctly merges
 // imported YAML files, detects circular imports, and handles missing or malformed files.
 func TestResolveImports(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testResolveImportsTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			path := tt.setup(t, t.TempDir())
 			data, err := ResolveImports(path)
 

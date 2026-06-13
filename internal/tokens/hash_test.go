@@ -35,12 +35,14 @@ var testPreProcessHashTestCases = []testPreProcessHash{
 
 // TestPreProcessHash tests the preProcessHash function with various hash tokens and file scenarios.
 func TestPreProcessHash(t *testing.T) {
+	t.Parallel()
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "file.txt")
-	require.NoError(t, os.WriteFile(path, []byte("hello"), 0644))
+	require.NoError(t, os.WriteFile(path, []byte("hello"), 0o644))
 
 	for _, tt := range testPreProcessHashTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			src := path
 			if tt.badPath {
 				src = "/nonexistent/file.txt"

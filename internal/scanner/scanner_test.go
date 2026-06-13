@@ -71,7 +71,7 @@ var testScanTestCases = []testScan{
 		name: "skips subdirectories",
 		setup: func(t *testing.T, dir string) {
 			subdir := filepath.Join(dir, "subdir")
-			require.NoError(t, os.Mkdir(subdir, 0755))
+			require.NoError(t, os.Mkdir(subdir, 0o755))
 			touch(t, filepath.Join(subdir, "nested.jpg"))
 		},
 		check: func(t *testing.T, result scanner.Result) {
@@ -121,8 +121,10 @@ var testScanTestCases = []testScan{
 // TestScan tests the Scan function with various directory configurations
 // to ensure it correctly detects file categories.
 func TestScan(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testScanTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			tt.setup(t, dir)
 

@@ -132,7 +132,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 
 	var totalMoved, totalSkipped, totalFailed int
 	for _, extension := range category.Source.Extensions {
-		var matched []scanner.FileEntry
+		matched := make([]scanner.FileEntry, 0, len(allEntries))
 		for _, fe := range allEntries {
 			info, err := matchesCategory(category, fe.Entry, batch.moved, extension)
 			if err != nil {

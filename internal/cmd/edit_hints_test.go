@@ -6,6 +6,7 @@ import "testing"
 // FromMetadata validators depend on: every constraint declared in the hint tree
 // must resolve through FieldHint, and the strict Build must accept the tree.
 func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
+	t.Parallel()
 	src, err := buildMovelooperHints()
 	if err != nil {
 		t.Fatalf("buildMovelooperHints: %v", err)

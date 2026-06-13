@@ -12,6 +12,7 @@ import (
 // outside editor.Run (they are wired by the editor session); their engine is
 // covered by yedit's own tests and the hint markers by edit_hints_test.go.
 func TestMovelooperValidatorsAgainstSampleConfig(t *testing.T) {
+	t.Parallel()
 	doc, err := document.Load("../../movelooper.yaml", nil)
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -26,6 +27,7 @@ func TestMovelooperValidatorsAgainstSampleConfig(t *testing.T) {
 // TestMovelooperValidatorsCatchBrokenConfig exercises the explicit cross-field
 // rules with a config that violates them.
 func TestMovelooperValidatorsCatchBrokenConfig(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`
 categories:
   - name: dup

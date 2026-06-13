@@ -94,7 +94,7 @@ func SelfUpdate(repo, token, currentVersion, version string, includePrerelease b
 
 	fmt.Printf("Replacing binary...\n")
 	if err := os.Rename(exePath, oldPath); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("renaming current binary: %w", err)
 	}
 	if err := os.Rename(tmpPath, exePath); err != nil {
@@ -104,7 +104,7 @@ func SelfUpdate(repo, token, currentVersion, version string, includePrerelease b
 				"CRITICAL: install failed and rollback failed too — original binary is at %s, downloaded binary at %s. Restore manually. Rollback error: %v\n",
 				oldPath, tmpPath, rbErr)
 		} else {
-			os.Remove(tmpPath)
+			_ = os.Remove(tmpPath)
 		}
 		return fmt.Errorf("installing new binary: %w", err)
 	}
@@ -399,19 +399,19 @@ func download(rawURL, destPath, token string, expectedSize int64) error {
 
 	written, err := io.Copy(f, limited)
 	if err != nil {
-		os.Remove(destPath)
+		_ = os.Remove(destPath)
 		return fmt.Errorf("writing binary: %w", err)
 	}
 	if written > limit {
-		os.Remove(destPath)
+		_ = os.Remove(destPath)
 		return fmt.Errorf("download exceeded expected size (%d bytes, cap %d)", written, limit)
 	}
 	if expectedSize > 0 && written < expectedSize {
-		os.Remove(destPath)
+		_ = os.Remove(destPath)
 		return fmt.Errorf("download truncated: got %d bytes, expected %d", written, expectedSize)
 	}
 	if err := f.Sync(); err != nil {
-		os.Remove(destPath)
+		_ = os.Remove(destPath)
 		return fmt.Errorf("syncing binary: %w", err)
 	}
 	return nil

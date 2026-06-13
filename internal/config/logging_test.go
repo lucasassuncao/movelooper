@@ -36,8 +36,10 @@ var testParseLogLevelTestCases = []testParseLogLevel{
 // TestParseLogLevel tests the parseLogLevel function to ensure it correctly maps
 // log level strings to pterm.LogLevel values.
 func TestParseLogLevel(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testParseLogLevelTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, parseLogLevel(tt.input))
 		})
 	}
@@ -65,8 +67,10 @@ var testLogWriterFactoryTestCases = []testLogWriterFactory{
 // TestLogWriterFactory tests the logWriterFactory function to ensure it returns
 // the correct strategy for each output type.
 func TestLogWriterFactory(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testLogWriterFactoryTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			s := logWriterFactory(tt.output)
 			assert.NotNil(t, s)
 			if tt.wantConsole {
@@ -92,8 +96,10 @@ var testConsoleStrategyWriterTestCases = []testConsoleStrategyWriter{
 // TestConsoleStrategyWriter tests the consoleStrategy.Writer method to ensure it returns
 // a non-nil writer without an error or closer.
 func TestConsoleStrategyWriter(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testConsoleStrategyWriterTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			k := koanf.New(".")
 			w, closer, err := consoleStrategy{}.Writer(k)
 			require.NoError(t, err)
@@ -133,8 +139,10 @@ var testFileStrategyTestCases = []testFileStrategy{
 // TestFileStrategy tests the fileStrategy.Writer method to ensure it correctly
 // creates a log file or returns an error when log-file is not configured.
 func TestFileStrategy(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testFileStrategyTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var k *koanf.Koanf
 			if tt.yaml == nil {
 				k = koanf.New(".")
@@ -182,8 +190,10 @@ var testMultiStrategyTestCases = []testMultiStrategy{
 // TestMultiStrategy tests the multiStrategy.Writer method to ensure it correctly
 // creates a multi-writer or returns an error when log-file is not configured.
 func TestMultiStrategy(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMultiStrategyTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var k *koanf.Koanf
 			if tt.yaml == nil {
 				k = koanf.New(".")
@@ -248,8 +258,10 @@ var testConfigureLoggerTestCases = []testConfigureLogger{
 // TestConfigureLogger tests the ConfigureLogger function to ensure it correctly
 // configures the logger with the specified output type, log level, and caller settings.
 func TestConfigureLogger(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testConfigureLoggerTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			k := loadKoanfFromYAML(t, tt.yaml(t))
 			logger, closer, err := ConfigureLogger(k)
 			require.NoError(t, err)

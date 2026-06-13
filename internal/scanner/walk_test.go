@@ -164,8 +164,10 @@ var testWalkSourceTestCases = []testWalkSource{
 // TestWalkSource tests the WalkSource function with various source configurations
 // to ensure it correctly walks directories and applies filters.
 func TestWalkSource(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testWalkSourceTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			root := t.TempDir()
 			tt.setup(t, root)
 
@@ -231,7 +233,7 @@ func entryNames(entries []scanner.FileEntry) []string {
 func mkdirAll(t *testing.T, base, rel string) string {
 	t.Helper()
 	p := filepath.Join(base, rel)
-	require.NoError(t, os.MkdirAll(p, 0755))
+	require.NoError(t, os.MkdirAll(p, 0o755))
 	return p
 }
 

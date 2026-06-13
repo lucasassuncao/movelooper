@@ -29,8 +29,10 @@ var testParseCategoryNamesTestCases = []testParseCategoryNames{
 // TestParseCategoryNames tests the ParseCategoryNames function with various input strings
 // to ensure it correctly parses comma-separated category names.
 func TestParseCategoryNames(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testParseCategoryNamesTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, ParseCategoryNames(tt.input))
 		})
 	}
@@ -97,6 +99,7 @@ var testFilterCategoriesTestCases = []testFilterCategories{
 // TestFilterCategories tests the FilterCategories function with various combinations of
 // category names and flags to ensure it correctly filters and validates categories.
 func TestFilterCategories(t *testing.T) {
+	t.Parallel()
 	all := []*Category{
 		enabledCategory("images"),
 		enabledCategory("docs"),
@@ -106,6 +109,7 @@ func TestFilterCategories(t *testing.T) {
 
 	for _, tt := range testFilterCategoriesTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := FilterCategories(all, tt.names, tt.includeDisabled, logger)
 			if tt.wantErr != "" {
 				require.Error(t, err)

@@ -44,8 +44,10 @@ var testInitConfigTestCases = []testInitConfig{
 
 // TestInitConfig tests the InitConfig function to ensure it correctly loads and validates config files.
 func TestInitConfig(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testInitConfigTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			var path string
 			if tt.nonExistent {
@@ -346,8 +348,10 @@ categories:
 // TestUnmarshalConfig tests the UnmarshalConfig function to ensure it correctly
 // parses and validates category configurations from koanf.
 func TestUnmarshalConfig(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testUnmarshalConfigTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			path := writeYAML(t, dir, "cfg.yaml", tt.yaml)
 			k := koanf.New(".")
@@ -418,8 +422,10 @@ configuration:
 // TestLoadConfig tests the LoadConfig function to ensure it correctly applies
 // defaults and parses custom configuration values.
 func TestLoadConfig(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testLoadConfigTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			path := writeYAML(t, dir, "cfg.yaml", tt.yaml)
 			k := koanf.New(".")
@@ -452,8 +458,10 @@ var testValidateCategoryActionTestCases = []testValidateCategoryAction{
 
 // TestValidateCategoryAction tests validateCategory to ensure it correctly validates the action field.
 func TestValidateCategoryAction(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testValidateCategoryActionTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cat := &models.Category{
 				Name: "test",
 				Source: models.CategorySource{
@@ -493,8 +501,10 @@ var testValidateCategoryRenameTestCases = []testValidateCategoryRename{
 
 // TestValidateCategoryRename tests validateCategory to ensure it correctly validates the rename field.
 func TestValidateCategoryRename(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testValidateCategoryRenameTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cat := &models.Category{
 				Name: "test",
 				Source: models.CategorySource{
@@ -537,8 +547,10 @@ var testValidateCategoryOrganizeByTestCases = []testValidateCategoryOrganizeBy{
 
 // TestValidateCategoryOrganizeBy tests validateCategory to ensure it correctly validates the organize-by field.
 func TestValidateCategoryOrganizeBy(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testValidateCategoryOrganizeByTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cat := &models.Category{
 				Name: "test",
 				Source: models.CategorySource{
@@ -668,8 +680,10 @@ var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
 // TestValidateFilterAnyAll tests the validateFilter function with Any/All composite filters
 // to ensure it correctly validates nested filter compositions.
 func TestValidateFilterAnyAll(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testValidateFilterAnyAllTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := validateFilter("test", &tt.filter)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -685,6 +699,6 @@ func TestValidateFilterAnyAll(t *testing.T) {
 func writeYAML(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 	return path
 }

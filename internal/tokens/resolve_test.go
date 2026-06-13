@@ -44,11 +44,12 @@ var testResolveRenameTestCases = []testResolveRename{
 
 // TestResolveRename iterates through the test cases defined in testResolveRenameTestCases, sets up the necessary context for each case, and asserts that the output of ResolveRename matches the expected result.
 func TestResolveRename(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2025, 4, 16, 0, 0, 0, 0, time.UTC)
 
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "photo.JPG")
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(path, []byte("x"), 0o644))
 	modTime := time.Date(2024, 3, 5, 12, 0, 0, 0, time.UTC)
 	require.NoError(t, os.Chtimes(path, modTime, modTime))
 	info, err := os.Stat(path)
@@ -58,6 +59,7 @@ func TestResolveRename(t *testing.T) {
 
 	for _, tt := range testResolveRenameTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := TokenContext{
 				Info:         info,
 				CategoryName: "images",
@@ -145,13 +147,14 @@ func testResolveGroupByTestCases(plain, tiny, mid os.FileInfo, createdTime, now,
 
 // TestResolveGroupBy iterates through the test cases defined in makeResolveGroupByTestCases, sets up the necessary context for each case, and asserts that the output of ResolveGroupBy matches the expected result.
 func TestResolveGroupBy(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
 	modTime := time.Date(2023, 7, 4, 12, 0, 0, 0, time.Local)
 
 	dir := t.TempDir()
 	newFile := func(name string, size int, mt time.Time) os.FileInfo {
 		p := filepath.Join(dir, name)
-		require.NoError(t, os.WriteFile(p, make([]byte, size), 0644))
+		require.NoError(t, os.WriteFile(p, make([]byte, size), 0o644))
 		if !mt.IsZero() {
 			require.NoError(t, os.Chtimes(p, mt, mt))
 		}
@@ -168,6 +171,7 @@ func TestResolveGroupBy(t *testing.T) {
 
 	for _, tt := range testResolveGroupByTestCases(plain, tiny, mid, createdTime, now, modTime) {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := ResolveGroupBy(tt.template, TokenContext{
 				Info:         tt.info,
 				CategoryName: tt.category,

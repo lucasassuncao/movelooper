@@ -121,8 +121,10 @@ categories:
 // TestAppBuilder tests the AppBuilder chain with various configurations
 // to ensure it correctly builds a Movelooper or propagates errors.
 func TestAppBuilder(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testAppBuilderTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			m := &models.Movelooper{}
 			var path string
 			if tt.badPath {
@@ -130,7 +132,7 @@ func TestAppBuilder(t *testing.T) {
 			} else {
 				dir := t.TempDir()
 				path = filepath.Join(dir, "cfg.yaml")
-				require.NoError(t, os.WriteFile(path, []byte(tt.yaml), 0644))
+				require.NoError(t, os.WriteFile(path, []byte(tt.yaml), 0o644))
 			}
 
 			err := tt.run(m, path)

@@ -30,8 +30,10 @@ var testCreateDirectoryTestCases = []testCreateDirectory{
 
 // TestCreateDirectory tests the CreateDirectory function to ensure it correctly creates directories.
 func TestCreateDirectory(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testCreateDirectoryTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := tt.path(t.TempDir())
 			err := CreateDirectory(dir)
 			if tt.wantErr {
@@ -62,8 +64,8 @@ var testReadDirectoryTestCases = []testReadDirectory{
 	{
 		name: "returns entries",
 		setup: func(t *testing.T, dir string) {
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644))
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0o644))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0o644))
 		},
 		wantLen: 2,
 	},
@@ -76,8 +78,10 @@ var testReadDirectoryTestCases = []testReadDirectory{
 
 // TestReadDirectory tests the ReadDirectory function to ensure it correctly reads directory entries.
 func TestReadDirectory(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testReadDirectoryTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			if tt.nonExistent {
 				dir = filepath.Join(dir, "nonexistent")
@@ -130,12 +134,14 @@ var testCopyFileTestCases = []testCopyFile{
 
 // TestCopyFile tests the copyFile function to ensure it correctly copies file content and preserves metadata.
 func TestCopyFile(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testCopyFileTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			src := filepath.Join(dir, "src.txt")
 			dst := filepath.Join(dir, "dst.txt")
-			require.NoError(t, os.WriteFile(src, tt.content, 0644))
+			require.NoError(t, os.WriteFile(src, tt.content, 0o644))
 			require.NoError(t, copyFile(context.Background(), src, dst))
 			tt.check(t, src, dst)
 		})
@@ -160,8 +166,8 @@ var testMoveFilesTestCases = []testMoveFiles{
 	{
 		name: "moves matching extension",
 		setup: func(t *testing.T, src, dst string) {
-			require.NoError(t, os.WriteFile(filepath.Join(src, "doc.pdf"), []byte("pdf"), 0644))
-			require.NoError(t, os.WriteFile(filepath.Join(src, "img.jpg"), []byte("jpg"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(src, "doc.pdf"), []byte("pdf"), 0o644))
+			require.NoError(t, os.WriteFile(filepath.Join(src, "img.jpg"), []byte("jpg"), 0o644))
 		},
 		category: func(src, dst string) *models.Category {
 			enabled := true
@@ -189,8 +195,8 @@ var testMoveFilesTestCases = []testMoveFiles{
 	{
 		name: "skip strategy leaves src",
 		setup: func(t *testing.T, src, dst string) {
-			require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0644))
-			require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("existing"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0o644))
+			require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("existing"), 0o644))
 		},
 		category: func(src, dst string) *models.Category {
 			enabled := true
@@ -216,7 +222,7 @@ var testMoveFilesTestCases = []testMoveFiles{
 	{
 		name: "organize-by places in subdir",
 		setup: func(t *testing.T, src, dst string) {
-			require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("img"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("img"), 0o644))
 		},
 		category: func(src, dst string) *models.Category {
 			enabled := true
@@ -243,8 +249,8 @@ var testMoveFilesTestCases = []testMoveFiles{
 	{
 		name: "ext all moves every file",
 		setup: func(t *testing.T, src, dst string) {
-			require.NoError(t, os.WriteFile(filepath.Join(src, "a.txt"), []byte("a"), 0644))
-			require.NoError(t, os.WriteFile(filepath.Join(src, "b.pdf"), []byte("b"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(src, "a.txt"), []byte("a"), 0o644))
+			require.NoError(t, os.WriteFile(filepath.Join(src, "b.pdf"), []byte("b"), 0o644))
 		},
 		category: func(src, dst string) *models.Category {
 			enabled := true
@@ -267,8 +273,8 @@ var testMoveFilesTestCases = []testMoveFiles{
 	{
 		name: "empty strategy defaults to rename",
 		setup: func(t *testing.T, src, dst string) {
-			require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0644))
-			require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("existing"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(src, "file.txt"), []byte("new"), 0o644))
+			require.NoError(t, os.WriteFile(filepath.Join(dst, "file.txt"), []byte("existing"), 0o644))
 		},
 		category: func(src, dst string) *models.Category {
 			enabled := true
@@ -292,7 +298,7 @@ var testMoveFilesTestCases = []testMoveFiles{
 	{
 		name: "rename template generates correct filename",
 		setup: func(t *testing.T, src, dst string) {
-			require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("x"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(src, "photo.jpg"), []byte("x"), 0o644))
 		},
 		category: func(src, dst string) *models.Category {
 			return &models.Category{
@@ -319,8 +325,10 @@ var testMoveFilesTestCases = []testMoveFiles{
 // TestMoveFiles tests the MoveFiles function with various category configurations
 // to ensure it correctly moves files and applies conflict strategies.
 func TestMoveFiles(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testMoveFilesTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			src := t.TempDir()
 			dst := t.TempDir()
 			tt.setup(t, src, dst)
@@ -458,8 +466,10 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 // TestApplyConflictStrategy tests the applyConflictStrategy function with all strategy types
 // to ensure it correctly resolves conflicts and returns the appropriate destination path.
 func TestApplyConflictStrategy(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testApplyConflictStrategyTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			src := t.TempDir()
 			dst := t.TempDir()
 			srcFile := filepath.Join(src, "file.txt")
@@ -501,8 +511,10 @@ var testIsCrossDeviceErrorTestCases = []testIsCrossDeviceError{
 // TestIsCrossDeviceError tests the isCrossDeviceError function to ensure it correctly
 // identifies cross-device link errors.
 func TestIsCrossDeviceError(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testIsCrossDeviceErrorTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, isCrossDeviceError(tt.err))
 		})
 	}
@@ -577,11 +589,13 @@ var testDispatchActionTestCases = []testDispatchAction{
 // TestDispatchAction tests the dispatchAction function with all action types
 // to ensure it correctly dispatches move, copy, symlink, and fallback operations.
 func TestDispatchAction(t *testing.T) {
+	t.Parallel()
 	for _, tt := range testDispatchActionTestCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			src := filepath.Join(t.TempDir(), "file.txt")
 			dst := filepath.Join(t.TempDir(), "file.txt")
-			require.NoError(t, os.WriteFile(src, []byte("hello"), 0644))
+			require.NoError(t, os.WriteFile(src, []byte("hello"), 0o644))
 
 			if tt.skip != nil && tt.skip(t, src, dst) {
 				t.Skip("action not available on this platform")
