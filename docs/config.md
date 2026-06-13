@@ -35,21 +35,41 @@ Each entry in the `categories` list has the following top-level fields:
 
 ### `source.filter` block
 
-| Field      | Type      | Description                                                             |
-|------------|-----------|-------------------------------------------------------------------------|
-| `regex`    | string    | Regex filter applied to the filename. Mutually exclusive with `glob`    |
-| `glob`     | string    | Glob filter applied to the filename. Mutually exclusive with `regex`    |
-| `ignore`   | []string  | Glob patterns for filenames to skip (case-insensitive)                  |
-| `min-age`  | duration  | Only move files older than this value (e.g. `24h`, `168h`)             |
-| `max-age`  | duration  | Only move files newer than this value (e.g. `720h`, `8760h`)           |
-| `min-size` | string    | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`). `KB`/`MB`/`GB`/`TB` are decimal (powers of 1000); `KiB`/`MiB`/`GiB`/`TiB` are binary (powers of 1024) |
-| `max-size` | string    | Only move files at most this large (e.g. `10MB`, `1GB`). Same units as `min-size` |
-| `any`      | []filter  | OR between groups — file passes if at least one group matches           |
-| `all`      | []filter  | AND between groups — file passes only if every group matches            |
+| Field   | Type     | Description                                                                                          |
+|---------|----------|------------------------------------------------------------------------------------------------------|
+| `match` | object   | Filename matching rules (see below). Sub-fields `literal`, `regex`, and `glob` are mutually exclusive |
+| `age`   | object   | Age window: `min` and `max` as Go durations (e.g. `24h`, `168h`)                                    |
+| `size`  | object   | Size window: `min` and `max` as human-readable strings (e.g. `500KB`, `10MB`)                       |
+| `any`   | []filter | OR between groups — file passes if at least one group matches                                        |
+| `all`   | []filter | AND between groups — file passes only if every group matches                                         |
+| `not`   | []filter | Exclusion — file is rejected if any entry matches                                                    |
+
+#### `filter.match` block
+
+| Field            | Type   | Description                                                                          |
+|------------------|--------|--------------------------------------------------------------------------------------|
+| `literal`        | string | Exact filename match. Mutually exclusive with `regex` and `glob`                     |
+| `regex`          | string | RE2 regular expression matched against the filename                                  |
+| `glob`           | string | Shell-style glob pattern (`*`, `?`). Supports brace expansion (`report_{2024,2025}_*`) |
+| `case-sensitive` | bool   | When `true`, matching is case-sensitive (default: `false`)                           |
+
+#### `filter.age` block
+
+| Field | Type     | Description                                                   |
+|-------|----------|---------------------------------------------------------------|
+| `min` | duration | Only move files older than this value (e.g. `24h`, `168h`)   |
+| `max` | duration | Only move files newer than this value (e.g. `720h`, `8760h`) |
+
+#### `filter.size` block
+
+| Field | Type   | Description                                                                                                     |
+|-------|--------|-----------------------------------------------------------------------------------------------------------------|
+| `min` | string | Only move files at least this large (e.g. `500KB`, `10MB`, `1GB`). `KB`/`MB`/`GB`/`TB` are decimal (powers of 1000); `KiB`/`MiB`/`GiB`/`TiB` are binary (powers of 1024) |
+| `max` | string | Only move files at most this large (e.g. `10MB`, `1GB`). Same units as `min`                                   |
 
 ### Size units
 
-`min-size` and `max-size` accept two unit families, each with its standard
+`size.min` and `size.max` accept two unit families, each with its standard
 meaning. Suffixes are case-insensitive, decimals are allowed (`1.5MB`), and a
 bare number (`"500"`) means bytes.
 
@@ -64,10 +84,12 @@ The two can be mixed freely (everything is compared in bytes), but they are
 
 ```yaml
 filter:
-  min-size: 10MB    # file IS moved   (10 200 000 ≥ 10 000 000)
+  size:
+    min: 10MB    # file IS moved   (10 200 000 ≥ 10 000 000)
 # vs
 filter:
-  min-size: 10MiB   # file is NOT moved (10 200 000 < 10 485 760)
+  size:
+    min: 10MiB   # file is NOT moved (10 200 000 < 10 485 760)
 ```
 
 Rule of thumb: `MB` matches what disk vendors and network tools report;
@@ -84,18 +106,21 @@ By default, all fields in `filter` are combined with AND — a file must satisfy
 
 **Rules:**
 - `any` and `all` are mutually exclusive at the same level
-- `any`/`all` and direct fields (`glob`, `regex`, `min-size`, etc.) cannot be mixed at the same level
+- `any`/`all` and direct fields (`match`, `age`, `size`, `not`) cannot be mixed at the same level
 - `any`/`all` must contain at least one entry
-- Within each group, existing rules apply: `regex` and `glob` are mutually exclusive
+- Within each `match` block, `literal`, `regex`, and `glob` are mutually exclusive
 
 #### Simple filter — AND (unchanged)
 
 ```yaml
 filter:
-  glob: "report_*"
-  min-size: 500KB
-  min-age: 1h
-# Matches: glob AND min-size AND min-age
+  match:
+    glob: "report_*"
+  size:
+    min: 500KB
+  age:
+    min: 1h
+# Matches: match AND size.min AND age.min
 ```
 
 #### `any` — OR between groups
@@ -103,10 +128,14 @@ filter:
 ```yaml
 filter:
   any:
-    - glob: "report_*"
-      min-size: 500KB
-    - glob: "invoice_*"
-      min-age: 1h
+    - match:
+        glob: "report_*"
+      size:
+        min: 500KB
+    - match:
+        glob: "invoice_*"
+      age:
+        min: 1h
 # Matches: (report_* AND >500KB) OR (invoice_* AND >1h old)
 ```
 
@@ -115,8 +144,10 @@ filter:
 ```yaml
 filter:
   all:
-    - glob: "report_*"
-    - min-size: 500KB
+    - match:
+        glob: "report_*"
+    - size:
+        min: 500KB
 # Equivalent to simple filter — both conditions must pass
 ```
 
@@ -125,10 +156,13 @@ filter:
 ```yaml
 filter:
   all:
-    - min-size: 1MB
+    - size:
+        min: 1MB
     - any:
-        - glob: "report_*"
-        - glob: "invoice_*"
+        - match:
+            glob: "report_*"
+        - match:
+            glob: "invoice_*"
 # Matches: (report_* OR invoice_*) AND >1MB
 ```
 
@@ -138,12 +172,40 @@ filter:
 filter:
   any:
     - all:
-        - glob: "report_*"
-        - min-size: 500KB
+        - match:
+            glob: "report_*"
+        - size:
+            min: 500KB
     - all:
-        - regex: '^\d{4}-.*'
-        - min-age: 24h
+        - match:
+            regex: '^\d{4}-.*'
+        - age:
+            min: 24h
 # Matches: (report_* AND >500KB) OR (date-prefixed name AND >24h old)
+```
+
+#### `not` — exclude matching files
+
+```yaml
+filter:
+  not:
+    - match:
+        glob: "screenshot_*"
+    - match:
+        glob: "*_temp.*"
+# Moves all files except those matching screenshot_* or *_temp.*
+```
+
+#### `not` combined with `any`
+
+```yaml
+filter:
+  not:
+    - match:
+        glob: "wallhaven*"
+  age:
+    min: 10m
+# Moves files older than 10 minutes, excluding wallhaven* filenames
 ```
 
 ### `destination` block
@@ -199,14 +261,23 @@ destination:
 
 The counter is derived by scanning the destination directory for existing leading numbers — no external state file. Each subdirectory (when `organize-by` is set) maintains its own independent sequence.
 
-### Filename filters (`filter.regex` and `filter.glob`)
+### Filename matching (`filter.match`)
 
-Both fields narrow which files within a category are matched, in addition to `extensions`.
-**They are mutually exclusive** — defining both in the same category is a configuration error.
+The `match` sub-block controls which filenames are accepted. `literal`, `regex`, and `glob` are mutually exclusive — specify exactly one.
 
-- `filter.regex` accepts any valid Go regular expression and is matched against the full filename.
-- `filter.glob` accepts a shell-style pattern (`*`, `?`) and supports brace expansion (`report_{2024,2025}_*`). Matching is case-insensitive.
-- `filter.ignore` uses the same glob syntax as `filter.glob` and is always evaluated independently of both.
+- `match.literal` performs an exact filename match.
+- `match.regex` accepts any valid Go (RE2) regular expression and is matched against the full filename.
+- `match.glob` accepts a shell-style pattern (`*`, `?`) and supports brace expansion (`report_{2024,2025}_*`). Matching is case-insensitive by default.
+- Set `match.case-sensitive: true` to enable case-sensitive matching for any of the three modes.
+
+Use `not:` (a list of sub-filters) to exclude files that would otherwise match:
+
+```yaml
+filter:
+  not:
+    - match:
+        glob: "screenshot_*"
+```
 
 ### `organize-by` tokens
 
@@ -371,10 +442,13 @@ categories:
       path: ~/Downloads
       extensions: [jpg, jpeg, png, gif, bmp, webp]
       filter:
-        ignore:
-          - screenshot_*
-          - "*_temp.*"
-        min-age: 24h
+        not:
+          - match:
+              glob: "screenshot_*"
+          - match:
+              glob: "*_temp.*"
+        age:
+          min: 24h
     destination:
       path: ~/images
       conflict-strategy: rename
@@ -385,7 +459,8 @@ categories:
       path: ~/Downloads
       extensions: [mp4, avi, mkv, mov, wmv]
       filter:
-        min-size: 100MB
+        size:
+          min: 100MB
     destination:
       path: ~/videos
       conflict-strategy: overwrite
@@ -396,7 +471,8 @@ categories:
       path: ~/Downloads
       extensions: [pdf, txt, log]
       filter:
-        regex: '^\d{4}-\d{2}-\d{2}_.*'
+        match:
+          regex: '^\d{4}-\d{2}-\d{2}_.*'
     destination:
       path: ~/dated
       # organize-by not set — all files go directly into dated/
@@ -406,7 +482,8 @@ categories:
       path: ~/Downloads
       extensions: [pdf, docx]
       filter:
-        glob: "report_*"
+        match:
+          glob: "report_*"
     destination:
       path: ~/reports
 
@@ -434,7 +511,8 @@ categories:
       path: ~/Downloads
       extensions: [mp4, mkv, mov]
       filter:
-        min-size: 500MB
+        size:
+          min: 500MB
     destination:
       path: ~/MediaServer/movies
       action: symlink                       # link without moving the file
@@ -469,7 +547,8 @@ categories:
       path: ~/Downloads
       extensions: [jpg, png]
       filter:
-        regex: "^wallhaven"
+        match:
+          regex: "^wallhaven"
     destination:
       path: ~/Walls/Wallhaven
       conflict-strategy: hash_check

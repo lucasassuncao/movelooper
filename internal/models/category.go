@@ -65,22 +65,39 @@ type CategoryDestination struct {
 	Rename           string           `yaml:"rename" mapstructure:"rename"`
 }
 
-// CategoryFilter holds the optional filtering rules for a category
+// CategoryFilter holds the optional filtering rules applied to files before they are moved.
+// At the top level it behaves as an implicit AND: all populated sub-fields must pass.
+// Use any/all/not for explicit boolean composition.
 type CategoryFilter struct {
-	Regex         string           `yaml:"regex" mapstructure:"regex"`
-	Glob          string           `yaml:"glob" mapstructure:"glob"`
-	Include       []string         `yaml:"include" mapstructure:"include"`
-	Ignore        []string         `yaml:"ignore" mapstructure:"ignore"`
-	CaseSensitive bool             `yaml:"case-sensitive" mapstructure:"case-sensitive"`
-	MinAge        time.Duration    `yaml:"min-age" mapstructure:"min-age"`
-	MaxAge        time.Duration    `yaml:"max-age" mapstructure:"max-age"`
-	MinSize       string           `yaml:"min-size" mapstructure:"min-size"`
-	MaxSize       string           `yaml:"max-size" mapstructure:"max-size"`
-	CompiledRegex *regexp.Regexp   `yaml:"-" mapstructure:"-"` // compiled from Regex
-	MinSizeBytes  int64            `yaml:"-" mapstructure:"-"` // parsed from MinSize
-	MaxSizeBytes  int64            `yaml:"-" mapstructure:"-"` // parsed from MaxSize
-	Any           []CategoryFilter `yaml:"any" mapstructure:"any"`
-	All           []CategoryFilter `yaml:"all" mapstructure:"all"`
+	Match *MatchFilter     `yaml:"match" mapstructure:"match"`
+	Age   *AgeFilter       `yaml:"age"   mapstructure:"age"`
+	Size  *SizeFilter      `yaml:"size"  mapstructure:"size"`
+	Any   []CategoryFilter `yaml:"any"   mapstructure:"any"`
+	All   []CategoryFilter `yaml:"all"   mapstructure:"all"`
+	Not   []CategoryFilter `yaml:"not"   mapstructure:"not"`
+}
+
+// MatchFilter constrains by filename: one of literal, regex, or glob (mutually exclusive).
+type MatchFilter struct {
+	Literal       string         `yaml:"literal"        mapstructure:"literal"`
+	Regex         string         `yaml:"regex"          mapstructure:"regex"`
+	Glob          string         `yaml:"glob"           mapstructure:"glob"`
+	CaseSensitive bool           `yaml:"case-sensitive" mapstructure:"case-sensitive"`
+	CompiledRegex *regexp.Regexp `yaml:"-"              mapstructure:"-"`
+}
+
+// AgeFilter constrains by modification time.
+type AgeFilter struct {
+	Min time.Duration `yaml:"min" mapstructure:"min"`
+	Max time.Duration `yaml:"max" mapstructure:"max"`
+}
+
+// SizeFilter constrains by file size.
+type SizeFilter struct {
+	Min      string `yaml:"min" mapstructure:"min"`
+	Max      string `yaml:"max" mapstructure:"max"`
+	MinBytes int64  `yaml:"-"   mapstructure:"-"`
+	MaxBytes int64  `yaml:"-"   mapstructure:"-"`
 }
 
 // CategoryHooks holds optional before/after hooks for a category.
@@ -157,7 +174,6 @@ func (CategorySource) Metadata() map[string]*metadata.Node {
 			FieldMeta: editor.FieldMeta{
 				Description: "Optional filtering rules applied to each matched file. All populated sub-fields must match (AND logic) unless any/all are used.",
 			},
-			Children: categoryFilterChildren(),
 		},
 	}
 }
@@ -195,78 +211,99 @@ func (CategoryDestination) Metadata() map[string]*metadata.Node {
 	}
 }
 
-// categoryFilterChildren builds the shared-pointer child map for CategoryFilter.
-// CategoryFilter.Any and CategoryFilter.All are both []CategoryFilter (recursive),
-// so their nodes point back to the same map — mirrors how the old hints.filterHintChildren worked.
-func categoryFilterChildren() map[string]*metadata.Node {
-	anyNode := &metadata.Node{
-		FieldMeta: editor.FieldMeta{
-			Description: "OR logic: file must match at least one sub-filter.",
-			Example:     "any:\n  - regex: \"^invoice_.*\"\n  - glob: \"receipt_*\"",
-		},
-	}
-	allNode := &metadata.Node{
-		FieldMeta: editor.FieldMeta{
-			Description: "AND logic: file must match all sub-filters simultaneously.",
-			Example:     "all:\n  - min-size: 100KB\n  - max-age: 168h",
-		},
-	}
+func (CategoryFilter) Metadata() map[string]*metadata.Node {
+	anyNode := &metadata.Node{FieldMeta: editor.FieldMeta{
+		Description: "OR logic: file must match at least one sub-filter.",
+		MinCount:    1,
+		Example:     "any:\n  - match:\n      glob: \"invoice_*\"\n  - match:\n      glob: \"receipt_*\"",
+	}}
+	allNode := &metadata.Node{FieldMeta: editor.FieldMeta{
+		Description: "AND logic: file must match all sub-filters simultaneously.",
+		MinCount:    1,
+		Example:     "all:\n  - size:\n      min: 100KB\n  - age:\n      max: 168h",
+	}}
+	notNode := &metadata.Node{FieldMeta: editor.FieldMeta{
+		Description: "NOT logic: exclude files matching any of these sub-filters.",
+		Example:     "not:\n  - match:\n      glob: \"*_draft*\"",
+	}}
 	children := map[string]*metadata.Node{
+		"match": {FieldMeta: editor.FieldMeta{
+			Description: "Name-based filter: glob, regex, or literal match (pick one).",
+		}},
+		"age": {FieldMeta: editor.FieldMeta{
+			Description: "Modification-time constraints.",
+		}},
+		"size": {FieldMeta: editor.FieldMeta{
+			Description: "File-size constraints.",
+		}},
+		"any": anyNode,
+		"all": allNode,
+		"not": notNode,
+	}
+	anyNode.Children = children
+	allNode.Children = children
+	notNode.Children = children
+	return children
+}
+
+func (MatchFilter) Metadata() map[string]*metadata.Node {
+	return map[string]*metadata.Node{
+		"literal": {FieldMeta: editor.FieldMeta{
+			Description: "Exact filename match (whole name must equal this string). Mutually exclusive with regex and glob.",
+			Example:     "literal: \"Anna's Archive.pdf\"",
+		}},
 		"regex": {FieldMeta: editor.FieldMeta{
-			Description: "RE2 regular expression matched against the filename (without path). Mutually exclusive with glob.",
+			Description: "RE2 regular expression matched against the filename. Mutually exclusive with glob and literal.",
 			Formats:     []editor.Format{FormatRegex},
 			Example:     "regex: \"^\\d{4}-\\d{2}-\\d{2}_.*\\.pdf$\"",
 		}},
 		"glob": {FieldMeta: editor.FieldMeta{
-			Description: "Glob pattern matched against the filename (without path). Mutually exclusive with regex.",
+			Description: "Glob pattern matched against the filename. Mutually exclusive with regex and literal.",
 			Formats:     []editor.Format{FormatGlob},
 			Example:     "glob: \"screenshot_*\"",
 		}},
-		"include": {FieldMeta: editor.FieldMeta{
-			Description: "Filenames must match at least one of these glob patterns.",
-			Example:     "include:\n  - \"report_*\"\n  - \"invoice_*\"",
-		}},
-		"ignore": {FieldMeta: editor.FieldMeta{
-			Description: "Filenames matching these patterns are excluded. Takes precedence over include.",
-			Example:     "ignore:\n  - \"*_draft*\"\n  - \"*_temp*\"",
-		}},
 		"case-sensitive": {FieldMeta: editor.FieldMeta{
-			Description: "Whether extension and glob/include/ignore matching is case-sensitive.",
+			Description: "Whether matching is case-sensitive. Applies to regex, glob, and literal.",
 			Default:     "false",
 			Example:     "case-sensitive: false",
 		}},
-		"min-age": {FieldMeta: editor.FieldMeta{
-			Description: "Only match files older than this duration. Accepts Go duration strings (e.g. 24h, 168h).",
+	}
+}
+
+func (AgeFilter) Metadata() map[string]*metadata.Node {
+	return map[string]*metadata.Node{
+		"min": {FieldMeta: editor.FieldMeta{
+			Description: "Only match files older than this duration.",
 			Min:         "0s",
 			Max:         "87600h",
 			Formats:     []editor.Format{editor.FormatDuration},
-			Example:     "min-age: 24h",
+			Example:     "min: 24h",
 		}},
-		"max-age": {FieldMeta: editor.FieldMeta{
+		"max": {FieldMeta: editor.FieldMeta{
 			Description: "Only match files newer than this duration.",
 			Min:         "0s",
 			Max:         "87600h",
 			Formats:     []editor.Format{editor.FormatDuration},
-			Example:     "max-age: 720h",
+			Example:     "max: 720h",
 		}},
-		"min-size": {FieldMeta: editor.FieldMeta{
-			Description: "Only match files at least this large. Accepts human-readable sizes — KB/MB/GB/TB are decimal (powers of 1000), KiB/MiB/GiB/TiB are binary (powers of 1024).",
-			Min:         "0B",
-			Max:         "100TB",
-			Example:     "min-size: 1MB",
-		}},
-		"max-size": {FieldMeta: editor.FieldMeta{
-			Description: "Only match files no larger than this size. Same units as min-size.",
-			Min:         "0B",
-			Max:         "100TB",
-			Example:     "max-size: 50GB",
-		}},
-		"any": anyNode,
-		"all": allNode,
 	}
-	anyNode.Children = children
-	allNode.Children = children
-	return children
+}
+
+func (SizeFilter) Metadata() map[string]*metadata.Node {
+	return map[string]*metadata.Node{
+		"min": {FieldMeta: editor.FieldMeta{
+			Description: "Only match files at least this large. KB/MB/GB/TB are decimal; KiB/MiB/GiB/TiB are binary.",
+			Min:         "0B",
+			Max:         "100TB",
+			Example:     "min: 1MB",
+		}},
+		"max": {FieldMeta: editor.FieldMeta{
+			Description: "Only match files no larger than this size.",
+			Min:         "0B",
+			Max:         "100TB",
+			Example:     "max: 50GB",
+		}},
+	}
 }
 
 func (CategoryHooks) Metadata() map[string]*metadata.Node {

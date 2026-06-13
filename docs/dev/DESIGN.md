@@ -41,7 +41,7 @@ Koanf is used only during startup. Once `AppBuilder.Build()` returns, the koanf 
 | `internal/config` | Reads, validates, and builds configuration. Houses `AppBuilder`. |
 | `internal/models` | Pure data types shared across packages. No logic, no imports from other internal packages. |
 | `internal/fileops` | File operations: move, copy, symlink, conflict resolution, `MoveContext`. |
-| `internal/filters` | Extension matching, regex/glob/ignore/age/size filters, `MatchesFilter`. |
+| `internal/filters` | Extension matching, match (literal/regex/glob)/age/size/not filters, `MatchesFilter`. |
 | `internal/hooks` | Shell hook execution (`RunHook`). |
 | `internal/tokens` | Template token resolution (`ResolveGroupBy`, `ResolveRename`) and validation. |
 | `internal/history` | Reads and writes the JSON operation log. Thread-safe. |

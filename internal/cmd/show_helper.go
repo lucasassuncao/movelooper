@@ -10,26 +10,43 @@ import (
 
 // printFilterSummary prints the non-empty filter fields of a category filter.
 func printFilterSummary(f models.CategoryFilter) {
-	if f.Regex != "" {
-		pterm.Printf("      %-32s %s\n", "source.filter.regex:", f.Regex)
+	if f.Match != nil {
+		if f.Match.Glob != "" {
+			pterm.Printf("      %-32s %s\n", "source.filter.match.glob:", f.Match.Glob)
+		}
+		if f.Match.Regex != "" {
+			pterm.Printf("      %-32s %s\n", "source.filter.match.regex:", f.Match.Regex)
+		}
+		if f.Match.Literal != "" {
+			pterm.Printf("      %-32s %s\n", "source.filter.match.literal:", f.Match.Literal)
+		}
 	}
-	if f.Glob != "" {
-		pterm.Printf("      %-32s %s\n", "source.filter.glob:", f.Glob)
+	if f.Age != nil {
+		if f.Age.Min > 0 {
+			pterm.Printf("      %-32s %s\n", "source.filter.age.min:", f.Age.Min)
+		}
+		if f.Age.Max > 0 {
+			pterm.Printf("      %-32s %s\n", "source.filter.age.max:", f.Age.Max)
+		}
 	}
-	if len(f.Ignore) > 0 {
-		pterm.Printf("      %-32s %s\n", "source.filter.ignore:", strings.Join(f.Ignore, ", "))
+	if f.Size != nil {
+		if f.Size.Min != "" {
+			pterm.Printf("      %-32s %s\n", "source.filter.size.min:", f.Size.Min)
+		}
+		if f.Size.Max != "" {
+			pterm.Printf("      %-32s %s\n", "source.filter.size.max:", f.Size.Max)
+		}
 	}
-	if f.MinAge > 0 {
-		pterm.Printf("      %-32s %s\n", "source.filter.min-age:", f.MinAge)
-	}
-	if f.MaxAge > 0 {
-		pterm.Printf("      %-32s %s\n", "source.filter.max-age:", f.MaxAge)
-	}
-	if f.MinSize != "" {
-		pterm.Printf("      %-32s %s\n", "source.filter.min-size:", f.MinSize)
-	}
-	if f.MaxSize != "" {
-		pterm.Printf("      %-32s %s\n", "source.filter.max-size:", f.MaxSize)
+	if len(f.Not) > 0 {
+		nots := make([]string, 0, len(f.Not))
+		for _, n := range f.Not {
+			if n.Match != nil && n.Match.Glob != "" {
+				nots = append(nots, n.Match.Glob)
+			}
+		}
+		if len(nots) > 0 {
+			pterm.Printf("      %-32s %s\n", "source.filter.not:", strings.Join(nots, ", "))
+		}
 	}
 }
 

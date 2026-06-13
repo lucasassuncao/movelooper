@@ -66,11 +66,11 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 		{"configuration", "watch-delay"},
 		{"configuration", "history-limit"},
 		{"categories", "source.max-depth"},
-		{"categories", "source.filter.min-age"},
-		{"categories", "source.filter.max-size"},
+		{"categories", "source.filter.age.min"},
+		{"categories", "source.filter.size.max"},
 		// the shared filter children must resolve at nested levels too
-		{"categories", "source.filter.any.min-age"},
-		{"categories", "source.filter.all.any.max-size"},
+		{"categories", "source.filter.any.age.min"},
+		{"categories", "source.filter.all.any.size.max"},
 	}
 	for _, f := range ranged {
 		meta := src.FieldMeta(f.block, f.path)

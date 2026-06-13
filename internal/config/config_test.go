@@ -122,13 +122,14 @@ categories:
       path: /tmp/src
       extensions: [txt]
       filter:
-        regex: "[invalid"
+        match:
+          regex: "[invalid"
     destination:
       path: /tmp/dst
 `,
 	},
 	{
-		name:    "regex and glob mutually exclusive",
+		name:    "glob and literal mutually exclusive",
 		wantErr: "mutually exclusive",
 		yaml: `
 categories:
@@ -137,15 +138,16 @@ categories:
       path: /tmp/src
       extensions: [txt]
       filter:
-        regex: ".*"
-        glob: "*.txt"
+        match:
+          glob: "*.txt"
+          literal: "report.txt"
     destination:
       path: /tmp/dst
 `,
 	},
 	{
 		name:    "min-size greater than max-size",
-		wantErr: "min-size",
+		wantErr: "size.min",
 		yaml: `
 categories:
   - name: bad-size
@@ -153,15 +155,16 @@ categories:
       path: /tmp/src
       extensions: [txt]
       filter:
-        min-size: "10 MB"
-        max-size: "1 MB"
+        size:
+          min: "10 MB"
+          max: "1 MB"
     destination:
       path: /tmp/dst
 `,
 	},
 	{
 		name:    "min-age greater than max-age",
-		wantErr: "min-age",
+		wantErr: "age.min",
 		yaml: `
 categories:
   - name: bad-age
@@ -169,8 +172,9 @@ categories:
       path: /tmp/src
       extensions: [txt]
       filter:
-        min-age: "48h"
-        max-age: "24h"
+        age:
+          min: "48h"
+          max: "24h"
     destination:
       path: /tmp/dst
 `,
@@ -184,14 +188,16 @@ categories:
       path: /tmp/src
       extensions: [txt]
       filter:
-        regex: "report"
-        case-sensitive: false
+        match:
+          regex: "report"
+          case-sensitive: false
     destination:
       path: /tmp/dst
 `,
 		check: func(t *testing.T, cats []*models.Category) {
-			require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
-			assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
+			require.NotNil(t, cats[0].Source.Filter.Match)
+			require.NotNil(t, cats[0].Source.Filter.Match.CompiledRegex)
+			assert.True(t, cats[0].Source.Filter.Match.CompiledRegex.MatchString("REPORT"))
 		},
 	},
 	{
@@ -203,15 +209,17 @@ categories:
       path: /tmp/src
       extensions: [txt]
       filter:
-        regex: "report"
-        case-sensitive: true
+        match:
+          regex: "report"
+          case-sensitive: true
     destination:
       path: /tmp/dst
 `,
 		check: func(t *testing.T, cats []*models.Category) {
-			require.NotNil(t, cats[0].Source.Filter.CompiledRegex)
-			assert.False(t, cats[0].Source.Filter.CompiledRegex.MatchString("REPORT"))
-			assert.True(t, cats[0].Source.Filter.CompiledRegex.MatchString("report"))
+			require.NotNil(t, cats[0].Source.Filter.Match)
+			require.NotNil(t, cats[0].Source.Filter.Match.CompiledRegex)
+			assert.False(t, cats[0].Source.Filter.Match.CompiledRegex.MatchString("REPORT"))
+			assert.True(t, cats[0].Source.Filter.Match.CompiledRegex.MatchString("report"))
 		},
 	},
 	{
@@ -223,14 +231,16 @@ categories:
       path: /tmp/src
       extensions: [txt]
       filter:
-        min-size: "1 KB"
-        max-size: "10 MB"
+        size:
+          min: "1 KB"
+          max: "10 MB"
     destination:
       path: /tmp/dst
 `,
 		check: func(t *testing.T, cats []*models.Category) {
-			assert.Equal(t, int64(1000), cats[0].Source.Filter.MinSizeBytes)
-			assert.Equal(t, int64(10_000_000), cats[0].Source.Filter.MaxSizeBytes)
+			require.NotNil(t, cats[0].Source.Filter.Size)
+			assert.Equal(t, int64(1000), cats[0].Source.Filter.Size.MinBytes)
+			assert.Equal(t, int64(10_000_000), cats[0].Source.Filter.Size.MaxBytes)
 		},
 	},
 	{
@@ -243,7 +253,8 @@ categories:
       path: /tmp/src
       extensions: [txt]
       filter:
-        glob: "[invalid"
+        match:
+          glob: "[invalid"
     destination:
       path: /tmp/dst
 `,
@@ -560,15 +571,15 @@ type testValidateFilterAnyAll struct {
 	errMsg  string
 }
 
-// testValidateFilterAnyAllTestCases defines a set of test cases for validateFilter Any/All validation,
+// testValidateFilterAnyAllTestCases defines a set of test cases for validateFilter Any/All/Not validation,
 // covering valid compositions, invalid combinations, and invalid child filters.
 var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
 	{
 		name: "valid any with glob groups",
 		filter: models.CategoryFilter{
 			Any: []models.CategoryFilter{
-				{Glob: "report_*"},
-				{Glob: "invoice_*"},
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Match: &models.MatchFilter{Glob: "invoice_*"}},
 			},
 		},
 		wantErr: false,
@@ -577,8 +588,8 @@ var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
 		name: "valid all with size and glob",
 		filter: models.CategoryFilter{
 			All: []models.CategoryFilter{
-				{Glob: "report_*"},
-				{MinSize: "1MB"},
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Size: &models.SizeFilter{Min: "1MB"}},
 			},
 		},
 		wantErr: false,
@@ -587,10 +598,10 @@ var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
 		name: "valid any inside all",
 		filter: models.CategoryFilter{
 			All: []models.CategoryFilter{
-				{MinSize: "1MB"},
+				{Size: &models.SizeFilter{Min: "1MB"}},
 				{Any: []models.CategoryFilter{
-					{Glob: "report_*"},
-					{Glob: "invoice_*"},
+					{Match: &models.MatchFilter{Glob: "report_*"}},
+					{Match: &models.MatchFilter{Glob: "invoice_*"}},
 				}},
 			},
 		},
@@ -599,8 +610,8 @@ var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
 	{
 		name: "any and all at same level - error",
 		filter: models.CategoryFilter{
-			Any: []models.CategoryFilter{{Glob: "report_*"}},
-			All: []models.CategoryFilter{{Glob: "invoice_*"}},
+			Any: []models.CategoryFilter{{Match: &models.MatchFilter{Glob: "report_*"}}},
+			All: []models.CategoryFilter{{Match: &models.MatchFilter{Glob: "invoice_*"}}},
 		},
 		wantErr: true,
 		errMsg:  "cannot have both 'any' and 'all'",
@@ -608,8 +619,8 @@ var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
 	{
 		name: "any mixed with direct fields - error",
 		filter: models.CategoryFilter{
-			Glob: "report_*",
-			Any:  []models.CategoryFilter{{Glob: "invoice_*"}},
+			Match: &models.MatchFilter{Glob: "report_*"},
+			Any:   []models.CategoryFilter{{Match: &models.MatchFilter{Glob: "invoice_*"}}},
 		},
 		wantErr: true,
 		errMsg:  "cannot mix 'any'/'all' with direct fields",
@@ -617,17 +628,17 @@ var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
 	{
 		name: "all mixed with direct fields - error",
 		filter: models.CategoryFilter{
-			MinSize: "1MB",
-			All:     []models.CategoryFilter{{Glob: "report_*"}},
+			Size: &models.SizeFilter{Min: "1MB"},
+			All:  []models.CategoryFilter{{Match: &models.MatchFilter{Glob: "report_*"}}},
 		},
 		wantErr: true,
 		errMsg:  "cannot mix 'any'/'all' with direct fields",
 	},
 	{
-		name: "any with invalid child - error",
+		name: "any with invalid child - error (regex and glob both set)",
 		filter: models.CategoryFilter{
 			Any: []models.CategoryFilter{
-				{Regex: "invalid[", Glob: "report_*"},
+				{Match: &models.MatchFilter{Regex: "report", Glob: "report_*"}},
 			},
 		},
 		wantErr: true,
@@ -637,8 +648,17 @@ var testValidateFilterAnyAllTestCases = []testValidateFilterAnyAll{
 		name: "valid any with regex in one group and glob in another",
 		filter: models.CategoryFilter{
 			Any: []models.CategoryFilter{
-				{Regex: `^\d{4}-.*`},
-				{Glob: "report_*"},
+				{Match: &models.MatchFilter{Regex: `^\d{4}-.*`}},
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+			},
+		},
+		wantErr: false,
+	},
+	{
+		name: "not with valid sub-filter",
+		filter: models.CategoryFilter{
+			Not: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "*_draft*"}},
 			},
 		},
 		wantErr: false,

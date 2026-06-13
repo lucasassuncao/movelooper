@@ -127,10 +127,7 @@ func validateHook(catName, position string, hook *models.CategoryHook) error {
 
 // hasDirectFilterFields reports whether f has any direct filter fields set.
 func hasDirectFilterFields(f *models.CategoryFilter) bool {
-	return f.Regex != "" || f.Glob != "" ||
-		len(f.Include) > 0 || len(f.Ignore) > 0 ||
-		f.MinAge != 0 || f.MaxAge != 0 ||
-		f.MinSize != "" || f.MaxSize != ""
+	return f.Match != nil || f.Age != nil || f.Size != nil || len(f.Not) > 0
 }
 
 // validateFilter validates a filter node recursively.
@@ -182,72 +179,96 @@ func containsSeqToken(template string) bool {
 
 // validateLeafFilter validates a plain (non-composite) filter node.
 func validateLeafFilter(catName string, f *models.CategoryFilter) error {
-	if f.Regex != "" && f.Glob != "" {
-		return fmt.Errorf("category %q: source.filter regex and glob are mutually exclusive; use only one", catName)
+	if f.Match != nil {
+		if err := validateMatchFilter(catName, f.Match); err != nil {
+			return err
+		}
 	}
-
-	if err := compileRegex(catName, f); err != nil {
-		return err
+	if f.Age != nil {
+		if err := validateAgeFilter(catName, f.Age); err != nil {
+			return err
+		}
 	}
+	if f.Size != nil {
+		if err := validateSizeFilter(catName, f.Size); err != nil {
+			return err
+		}
+	}
+	for i := range f.Not {
+		if err := validateFilter(catName, &f.Not[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	if f.Glob != "" {
-		if err := filters.ValidateGlob(f.Glob); err != nil {
+// validateMatchFilter validates a MatchFilter: mutually exclusive fields, valid glob, compiled regex.
+func validateMatchFilter(catName string, m *models.MatchFilter) error {
+	matchTypes := 0
+	if m.Regex != "" {
+		matchTypes++
+	}
+	if m.Glob != "" {
+		matchTypes++
+	}
+	if m.Literal != "" {
+		matchTypes++
+	}
+	if matchTypes > 1 {
+		return fmt.Errorf("category %q: match.regex, match.glob, and match.literal are mutually exclusive", catName)
+	}
+	if m.Glob != "" {
+		if err := filters.ValidateGlob(m.Glob); err != nil {
 			return fmt.Errorf("category %q: %w", catName, err)
 		}
 	}
-
-	for _, p := range f.Include {
-		if err := filters.ValidateGlob(p); err != nil {
-			return fmt.Errorf("category %q: invalid include pattern: %w", catName, err)
-		}
-	}
-
-	return validateSizeAndAge(catName, f)
+	return compileMatchRegex(catName, m)
 }
 
-// compileRegex compiles f.Regex into f.CompiledRegex, adding (?i) when not case-sensitive.
-func compileRegex(catName string, f *models.CategoryFilter) error {
-	if f.Regex == "" {
+// compileMatchRegex compiles m.Regex into m.CompiledRegex, adding (?i) when not case-sensitive.
+func compileMatchRegex(catName string, m *models.MatchFilter) error {
+	if m.Regex == "" {
 		return nil
 	}
-	pattern := f.Regex
-	if !f.CaseSensitive {
+	pattern := m.Regex
+	if !m.CaseSensitive {
 		pattern = "(?i)" + pattern
 	}
 	compiled, err := regexp.Compile(pattern)
 	if err != nil {
 		return fmt.Errorf("invalid regex in category %q: %w", catName, err)
 	}
-	f.CompiledRegex = compiled
+	m.CompiledRegex = compiled
 	return nil
 }
 
-// validateSizeAndAge parses size strings and checks that min <= max for both size and age.
-func validateSizeAndAge(catName string, f *models.CategoryFilter) error {
-	if f.MinSize != "" {
-		b, err := filters.ParseSize(f.MinSize)
+// validateAgeFilter checks that age.min <= age.max.
+func validateAgeFilter(catName string, a *models.AgeFilter) error {
+	if a.Min != 0 && a.Max != 0 && a.Min > a.Max {
+		return fmt.Errorf("category %q: age.min (%s) must be less than age.max (%s)", catName, a.Min, a.Max)
+	}
+	return nil
+}
+
+// validateSizeFilter parses size strings and checks that size.min <= size.max.
+func validateSizeFilter(catName string, s *models.SizeFilter) error {
+	if s.Min != "" {
+		b, err := filters.ParseSize(s.Min)
 		if err != nil {
-			return fmt.Errorf("category %q: invalid min-size %q: %w", catName, f.MinSize, err)
+			return fmt.Errorf("category %q: invalid size.min %q: %w", catName, s.Min, err)
 		}
-		f.MinSizeBytes = b
+		s.MinBytes = b
 	}
-
-	if f.MaxSize != "" {
-		b, err := filters.ParseSize(f.MaxSize)
+	if s.Max != "" {
+		b, err := filters.ParseSize(s.Max)
 		if err != nil {
-			return fmt.Errorf("category %q: invalid max-size %q: %w", catName, f.MaxSize, err)
+			return fmt.Errorf("category %q: invalid size.max %q: %w", catName, s.Max, err)
 		}
-		f.MaxSizeBytes = b
+		s.MaxBytes = b
 	}
-
-	if f.MinSize != "" && f.MaxSize != "" && f.MinSizeBytes > f.MaxSizeBytes {
-		return fmt.Errorf("category %q: min-size (%s) must be less than max-size (%s)", catName, f.MinSize, f.MaxSize)
+	if s.Min != "" && s.Max != "" && s.MinBytes > s.MaxBytes {
+		return fmt.Errorf("category %q: size.min (%s) must be less than size.max (%s)", catName, s.Min, s.Max)
 	}
-
-	if f.MinAge != 0 && f.MaxAge != 0 && f.MinAge > f.MaxAge {
-		return fmt.Errorf("category %q: min-age (%s) must be less than max-age (%s)", catName, f.MinAge, f.MaxAge)
-	}
-
 	return nil
 }
 

@@ -383,7 +383,6 @@ func promptOneCategory() models.Category {
 	extensions := collectExtensions(name)
 	regex, glob := promptNameFilter()
 	caseSensitive := promptCaseSensitive()
-	includePatterns := promptIncludePatterns()
 	ignorePatterns := promptIgnorePatterns()
 	minAge, maxAge := promptAgeFilter()
 	minSize, maxSize := promptSizeFilter()
@@ -397,23 +396,33 @@ Leave blank to move files directly into destination.`).
 		Value(&organizeBy).
 		Run())
 
+	f := models.CategoryFilter{}
+	if regex != "" || glob != "" {
+		f.Match = &models.MatchFilter{
+			Regex:         regex,
+			Glob:          glob,
+			CaseSensitive: caseSensitive,
+		}
+	}
+	for _, p := range ignorePatterns {
+		f.Not = append(f.Not, models.CategoryFilter{
+			Match: &models.MatchFilter{Glob: p},
+		})
+	}
+	if minAge != 0 || maxAge != 0 {
+		f.Age = &models.AgeFilter{Min: minAge, Max: maxAge}
+	}
+	if minSize != "" || maxSize != "" {
+		f.Size = &models.SizeFilter{Min: minSize, Max: maxSize}
+	}
+
 	return models.Category{
 		Name:    name,
 		Enabled: &enabled,
 		Source: models.CategorySource{
 			Path:       source,
 			Extensions: extensions,
-			Filter: models.CategoryFilter{
-				Regex:         regex,
-				Glob:          glob,
-				Include:       includePatterns,
-				Ignore:        ignorePatterns,
-				CaseSensitive: caseSensitive,
-				MinAge:        minAge,
-				MaxAge:        maxAge,
-				MinSize:       minSize,
-				MaxSize:       maxSize,
-			},
+			Filter:     f,
 		},
 		Destination: models.CategoryDestination{
 			Path:             destination,
@@ -481,53 +490,6 @@ func promptCaseSensitive() bool {
 		Description("Applies to regex, glob, and include/ignore patterns").
 		Value(&cs).Run())
 	return cs
-}
-
-// promptIncludePatterns asks the user whether to add include patterns and collects them.
-func promptIncludePatterns() []string {
-	var addInclude bool
-	exitIfAborted(huh.NewConfirm().
-		Title("Do you want to add include patterns?").
-		Description("Glob patterns - only files matching these patterns will be moved (e.g., report_*, invoice_*)").
-		Value(&addInclude).Run())
-	if addInclude {
-		return collectIncludePatterns()
-	}
-	return nil
-}
-
-// collectIncludePatterns collects glob include patterns from user input.
-func collectIncludePatterns() []string {
-	var patterns []string
-
-	pterm.Info.Println("Enter glob patterns for files to include (e.g., report_*, invoice_*, *.draft)")
-
-	for {
-		var pattern string
-		err := huh.NewInput().
-			Title("Include pattern").
-			Value(&pattern).
-			Run()
-		exitIfAborted(err)
-
-		if pattern != "" {
-			patterns = append(patterns, pattern)
-		}
-
-		if len(patterns) > 0 {
-			var addMore bool
-			err := huh.NewConfirm().
-				Title("Add another include pattern?").
-				Value(&addMore).
-				Run()
-			exitIfAborted(err)
-
-			if !addMore {
-				break
-			}
-		}
-	}
-	return patterns
 }
 
 // promptIgnorePatterns asks the user whether to add ignore patterns and collects them.
@@ -756,31 +718,45 @@ func printCategorySummary(category models.Category) {
 	}
 	pterm.Printf("  Organize by:       %s\n", pterm.Yellow(organizeByDisplay))
 	f := category.Source.Filter
-	if f.Regex != "" {
-		pterm.Printf("  Regex:             %s\n", pterm.Green(f.Regex))
+	if f.Match != nil {
+		if f.Match.Regex != "" {
+			pterm.Printf("  Regex:             %s\n", pterm.Green(f.Match.Regex))
+		}
+		if f.Match.Glob != "" {
+			pterm.Printf("  Glob:              %s\n", pterm.Green(f.Match.Glob))
+		}
+		if f.Match.Literal != "" {
+			pterm.Printf("  Literal:           %s\n", pterm.Green(f.Match.Literal))
+		}
+		if f.Match.CaseSensitive {
+			pterm.Printf("  Case-sensitive:    %s\n", pterm.Yellow("true"))
+		}
 	}
-	if f.Glob != "" {
-		pterm.Printf("  Glob:              %s\n", pterm.Green(f.Glob))
+	if len(f.Not) > 0 {
+		nots := make([]string, 0, len(f.Not))
+		for _, n := range f.Not {
+			if n.Match != nil && n.Match.Glob != "" {
+				nots = append(nots, n.Match.Glob)
+			}
+		}
+		if len(nots) > 0 {
+			pterm.Printf("  Not (exclude):     %s\n", pterm.Red(strings.Join(nots, ", ")))
+		}
 	}
-	if f.CaseSensitive {
-		pterm.Printf("  Case-sensitive:    %s\n", pterm.Yellow("true"))
+	if f.Age != nil {
+		if f.Age.Min > 0 {
+			pterm.Printf("  Min Age:           %s\n", pterm.Yellow(f.Age.Min.String()))
+		}
+		if f.Age.Max > 0 {
+			pterm.Printf("  Max Age:           %s\n", pterm.Yellow(f.Age.Max.String()))
+		}
 	}
-	if len(f.Include) > 0 {
-		pterm.Printf("  Include:           %s\n", pterm.Green(strings.Join(f.Include, ", ")))
-	}
-	if len(f.Ignore) > 0 {
-		pterm.Printf("  Ignore:            %s\n", pterm.Red(strings.Join(f.Ignore, ", ")))
-	}
-	if f.MinAge > 0 {
-		pterm.Printf("  Min Age:           %s\n", pterm.Yellow(f.MinAge.String()))
-	}
-	if f.MaxAge > 0 {
-		pterm.Printf("  Max Age:           %s\n", pterm.Yellow(f.MaxAge.String()))
-	}
-	if f.MinSize != "" {
-		pterm.Printf("  Min Size:          %s\n", pterm.Yellow(f.MinSize))
-	}
-	if f.MaxSize != "" {
-		pterm.Printf("  Max Size:          %s\n", pterm.Yellow(f.MaxSize))
+	if f.Size != nil {
+		if f.Size.Min != "" {
+			pterm.Printf("  Min Size:          %s\n", pterm.Yellow(f.Size.Min))
+		}
+		if f.Size.Max != "" {
+			pterm.Printf("  Max Size:          %s\n", pterm.Yellow(f.Size.Max))
+		}
 	}
 }

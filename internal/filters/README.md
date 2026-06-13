@@ -36,7 +36,7 @@ const ExtAll = "all"
 ```
 
 <a name="GenerateLogArgs"></a>
-## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L208>)
+## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L223>)
 
 ```go
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
@@ -63,7 +63,7 @@ func MatchesAnyExtension(fileName string, extensions []string) bool
 MatchesAnyExtension reports whether fileName's extension matches any entry in the list.
 
 <a name="MatchesFilter"></a>
-## func [MatchesFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L181>)
+## func [MatchesFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L179>)
 
 ```go
 func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) bool
@@ -90,13 +90,13 @@ func MatchesIgnorePatterns(fileName string, patterns []string, caseSensitive boo
 MatchesIgnorePatterns reports whether fileName matches any of the provided glob patterns.
 
 <a name="MatchesNameFilters"></a>
-## func [MatchesNameFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L167>)
+## func [MatchesNameFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L171>)
 
 ```go
 func MatchesNameFilters(fileName string, f models.CategoryFilter) bool
 ```
 
-MatchesNameFilters reports whether fileName passes the category's name filters.
+MatchesNameFilters reports whether fileName passes the category's name filter.
 
 <a name="MeetsAgeSizeFilters"></a>
 ## func [MeetsAgeSizeFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L156>)

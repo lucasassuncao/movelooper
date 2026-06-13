@@ -31,25 +31,23 @@ var MovelooperValidators = []editor.Validator{
 	// Category names must be unique across the list (presence comes from the
 	// hints; NoDuplicates skips unnamed entries).
 	editor.NoDuplicates("categories", "name"),
-	// any/all are mutually exclusive at every nesting level of filter.
-	editor.MutuallyExclusiveNested("categories.source.filter", "any", "all"),
-	editor.MutuallyExclusiveNested("categories.source.filter.any", "any", "all"),
-	editor.MutuallyExclusiveNested("categories.source.filter.all", "any", "all"),
-	// regex/glob are mutually exclusive at every nesting level of filter.
-	editor.MutuallyExclusiveNested("categories.source.filter", "regex", "glob"),
-	editor.MutuallyExclusiveNested("categories.source.filter.any", "regex", "glob"),
-	editor.MutuallyExclusiveNested("categories.source.filter.all", "regex", "glob"),
 
-	// min/max pairs must be ordered; mirrors the per-level enumeration used by
-	// the MutuallyExclusiveNested rules above.
-	editor.CrossFieldOrdered("categories.source.filter.min-age", "categories.source.filter.max-age"),
-	editor.CrossFieldOrdered("categories.source.filter.min-size", "categories.source.filter.max-size"),
-	editor.CrossFieldOrdered("categories.source.filter.any.min-age", "categories.source.filter.any.max-age"),
-	editor.CrossFieldOrdered("categories.source.filter.any.min-size", "categories.source.filter.any.max-size"),
-	editor.CrossFieldOrdered("categories.source.filter.all.min-age", "categories.source.filter.all.max-age"),
-	editor.CrossFieldOrdered("categories.source.filter.all.min-size", "categories.source.filter.all.max-size"),
+	// within match blocks, literal/regex/glob are mutually exclusive at any depth.
+	// One validator suffices: MutuallyExclusiveNested walks the full subtree.
+	editor.MutuallyExclusiveNested("categories.source.filter.match", "literal", "regex", "glob"),
 
-	// log-file is required when output is "file" or "both".
+	// any, all, and leaf fields (match/age/size/not) are three mutually exclusive
+	// groups at each filter level. Four validators cover all nesting depths.
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+
+	// age and size min/max pairs must be ordered at any nesting depth.
+	editor.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),
+	editor.CrossFieldOrderedNested("categories.source.filter.size", "min", "max"),
+
+	// Custom validation to check that log-file is required when output is "file" or "both".
 	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
 		var doc struct {
 			Configuration struct {

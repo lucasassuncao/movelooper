@@ -154,27 +154,25 @@ func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool {
 
 // MeetsAgeSizeFilters reports whether info satisfies all age and size constraints.
 func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool {
-	if f.MinAge == 0 && f.MaxAge == 0 && f.MinSizeBytes == 0 && f.MaxSizeBytes == 0 {
-		return true
+	if f.Age != nil {
+		if !MeetsMinAge(info, f.Age.Min) || !MeetsMaxAge(info, f.Age.Max) {
+			return false
+		}
 	}
-	return MeetsMinAge(info, f.MinAge) &&
-		MeetsMaxAge(info, f.MaxAge) &&
-		MeetsMinSize(info, f.MinSizeBytes) &&
-		MeetsMaxSize(info, f.MaxSizeBytes)
-}
-
-// MatchesNameFilters reports whether fileName passes the category's name filters.
-func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
-	if f.CompiledRegex != nil && !f.CompiledRegex.MatchString(fileName) {
-		return false
-	}
-	if f.Glob != "" && !MatchesGlob(fileName, f.Glob, f.CaseSensitive) {
-		return false
-	}
-	if len(f.Include) > 0 && !MatchesIgnorePatterns(fileName, f.Include, f.CaseSensitive) {
-		return false
+	if f.Size != nil {
+		if !MeetsMinSize(info, f.Size.MinBytes) || !MeetsMaxSize(info, f.Size.MaxBytes) {
+			return false
+		}
 	}
 	return true
+}
+
+// MatchesNameFilters reports whether fileName passes the category's name filter.
+func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
+	if f.Match == nil {
+		return true
+	}
+	return matchesName(f.Match, fileName)
 }
 
 // MatchesFilter reports whether the file identified by fileName and info passes the filter f.
@@ -195,13 +193,30 @@ func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) b
 		}
 		return true
 	}
-	if MatchesIgnorePatterns(fileName, f.Ignore, f.CaseSensitive) {
-		return false
+	for _, n := range f.Not {
+		if MatchesFilter(n, fileName, info) {
+			return false
+		}
 	}
 	if !MatchesNameFilters(fileName, f) {
 		return false
 	}
 	return MeetsAgeSizeFilters(info, f)
+}
+
+func matchesName(m *models.MatchFilter, fileName string) bool {
+	if m.CompiledRegex != nil && !m.CompiledRegex.MatchString(fileName) {
+		return false
+	}
+	if m.Glob != "" && !MatchesGlob(fileName, m.Glob, m.CaseSensitive) {
+		return false
+	}
+	if m.Literal != "" {
+		if normalizeCase(fileName, m.CaseSensitive) != normalizeCase(m.Literal, m.CaseSensitive) {
+			return false
+		}
+	}
+	return true
 }
 
 // GenerateLogArgs generates log arguments for a given extension.

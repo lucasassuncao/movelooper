@@ -14,16 +14,16 @@ Overview of all test cases across the movelooper project.
 | `TestInitConfig_MalformedYAML` | Returns error for invalid YAML | error |
 | `TestInitConfig_ValidMinimalConfig` | Loads a minimal config without errors | no error |
 | `TestInitConfig_EmptyFile` | Empty file is valid YAML, no error | no error |
-| `TestUnmarshalConfig_ValidCategory` | Deserializes categories correctly | no error, 1 category returned |
-| `TestUnmarshalConfig_MissingExtensions` | Error when `extensions` is absent | error containing `"source.extensions are required"` |
-| `TestUnmarshalConfig_InvalidRegex` | Error for invalid regex pattern | error containing `"invalid regex"` |
-| `TestUnmarshalConfig_RegexAndGlobMutuallyExclusive` | Error when both `regex` and `glob` are set | error containing `"mutually exclusive"` |
-| `TestUnmarshalConfig_MinSizeGreaterThanMaxSize` | Error when `min-size > max-size` | error containing `"min-size"` |
-| `TestUnmarshalConfig_MinAgeGreaterThanMaxAge` | Error when `min-age > max-age` | error containing `"min-age"` |
-| `TestUnmarshalConfig_CaseInsensitiveRegexCompiled` | Regex compiled with `(?i)` when `case-sensitive: false` | no error, `CompiledRegex` matches `"REPORT"` |
-| `TestUnmarshalConfig_CaseSensitiveRegexCompiled` | Regex compiled without `(?i)` when `case-sensitive: true` | no error, `CompiledRegex` does not match `"REPORT"` |
-| `TestUnmarshalConfig_SizeBytesPopulated` | `MinSizeBytes`/`MaxSizeBytes` are correctly populated | no error, `MinSizeBytes == 1000`, `MaxSizeBytes == 10000000` |
-| `TestUnmarshalConfig_InvalidGlob` | Error for invalid glob pattern | error |
+| `TestUnmarshalConfig/valid_category` | Deserializes categories correctly | no error, 1 category returned |
+| `TestUnmarshalConfig/missing_extensions` | Error when `extensions` is absent | error containing `"source.extensions are required"` |
+| `TestUnmarshalConfig/invalid_regex` | Error for invalid regex pattern | error containing `"invalid regex"` |
+| `TestUnmarshalConfig/glob_and_literal_mutually_exclusive` | Error when both `glob` and `literal` are set in `match` | error containing `"mutually exclusive"` |
+| `TestUnmarshalConfig/min-size_greater_than_max-size` | Error when `size.min > size.max` | error containing `"size.min"` |
+| `TestUnmarshalConfig/min-age_greater_than_max-age` | Error when `age.min > age.max` | error containing `"age.min"` |
+| `TestUnmarshalConfig/case-insensitive_regex_compiled` | Regex compiled with `(?i)` when `case-sensitive: false` | no error, `CompiledRegex` matches `"REPORT"` |
+| `TestUnmarshalConfig/case-sensitive_regex_compiled` | Regex compiled without `(?i)` when `case-sensitive: true` | no error, `CompiledRegex` does not match `"REPORT"` |
+| `TestUnmarshalConfig/size_bytes_populated` | `Size.MinBytes`/`Size.MaxBytes` are correctly populated | no error, `MinBytes == 1000`, `MaxBytes == 10000000` |
+| `TestUnmarshalConfig/invalid_glob_returns_error` | Error for invalid glob pattern | error |
 | `TestLoadConfig_Defaults` | `WatchDelay` and `HistoryLimit` use default values when absent | `WatchDelay == 5m`, `HistoryLimit == 50` |
 | `TestLoadConfig_CustomValues` | Custom `output`, `log-level`, `watch-delay`, `history-limit` are read correctly | no error, fields match YAML values |
 | `TestLoadConfig_WatchDelayFallback` | Missing `watch-delay` falls back to default | `WatchDelay == 5m` |
@@ -103,9 +103,9 @@ Overview of all test cases across the movelooper project.
 |---|---|---|---|
 | `TestRunMove_Filters` | regex filter moves only matching files | Regex filter moves only files matching the pattern | no error, matching file in dst, non-matching stays in src |
 | | glob filter moves only matching files | Glob filter moves only files matching the pattern | no error, matching file in dst, non-matching stays in src |
-| | ignore pattern skips ignored files | Files matching ignore pattern stay in source | no error, non-ignored in dst, ignored stays in src |
-| | min size filter skips small files | Files smaller than `min-size` are not moved | no error, large file in dst, small stays in src |
-| | min age filter skips recent files | Files newer than `min-age` are not moved | no error, old file in dst, recent stays in src |
+| | not filter skips excluded files | Files matching a `not` sub-filter stay in source | no error, non-excluded file in dst, excluded stays in src |
+| | min size filter skips small files | Files smaller than `size.min` are not moved | no error, large file in dst, small stays in src |
+| | min age filter skips recent files | Files newer than `age.min` are not moved | no error, old file in dst, recent stays in src |
 | | multiple extensions in one category | A category with multiple extensions moves all of them | no error, jpg and png in dst, pdf stays in src |
 | | all extension moves everything | Extension `all` moves any file type | no error, all 3 files in dst |
 | | show-files dry-run does not move | `show-files + dry-run` does not move and does not error | no error, file stays in src |
@@ -135,7 +135,7 @@ Overview of all test cases across the movelooper project.
 | | ignores file from wrong source dir | File in a different directory than watched is ignored | no error, file stays in src |
 | `TestPerformInitialScan` | adds matching files | Initial scan adds only files matching the category | tracker has 1 entry for the pdf, txt excluded |
 | | skips disabled category | Disabled category is skipped in initial scan | tracker is empty |
-| | ignores ignored files | Files matching ignore pattern are excluded from tracker | tracker has 1 entry (non-ignored file only) |
+| | excludes not-filtered files | Files matching a `not` sub-filter are excluded from tracker | tracker has 1 entry (non-excluded file only) |
 | `TestProcessPendingFiles` | moves stable file | File with old ModTime is moved | no error, file in dst, absent from src |
 | | skips fresh file | Recently modified file is not moved | file stays in src |
 | | removes deleted file from tracker | Externally deleted file is removed from tracker | tracker no longer contains the ghost path |
@@ -239,17 +239,17 @@ Overview of all test cases across the movelooper project.
 | `TestValidateGlob` | Validates glob pattern syntax | no error for valid, error for invalid |
 | `TestHasExtension` | Checks file extension (case insensitive) | `true`/`false` per case |
 | `TestMatchesAnyExtension` | Checks against a list of extensions | `true` if any matches, `false` otherwise |
-| `TestMatchesNameFilters` | Applies regex, glob, and include together | `true`/`false` per scenario |
+| `TestMatchesNameFilters` | Applies literal, regex, and glob from `match` block | `true`/`false` per scenario |
 | `TestParseSize` | Converts strings like `"1 MB"` to bytes | correct int64 value or error for invalid input |
 | `TestMeetsMinAge` | Checks if file is older than the minimum | `true`/`false` per case |
 | `TestMeetsMaxAge` | Checks if file is newer than the maximum | `true`/`false` per case |
 | `TestMeetsMinSize` | Checks if file is larger than the minimum | `true`/`false` per case |
 | `TestMeetsMaxSize` | Checks if file is smaller than the maximum | `true`/`false` per case |
 | `TestMeetsAgeSizeFilters_NoConstraints` | Without constraints, any file passes | `true` |
-| `TestMatchesFilter_Leaf` | empty / glob match / glob no match / ignore / size / age | Leaf filter behaves correctly per field | `true`/`false` per scenario |
+| `TestMatchesFilter_Leaf` | empty / match.glob match / match.glob no match / not / size / age | Leaf filter behaves correctly per sub-block | `true`/`false` per scenario |
 | `TestMatchesFilter_Any` | first passes / second passes / none passes | `any` returns true when at least one group matches | `true`/`false` per scenario |
 | `TestMatchesFilter_All` | all pass / one fails | `all` returns true only when every group matches | `true`/`false` per scenario |
-| `TestMatchesFilter_AnyInsideAll` | large report passes / small report fails | `(report_* OR invoice_*) AND min-size:1MB` | `true`/`false` per scenario |
+| `TestMatchesFilter_AnyInsideAll` | large report passes / small report fails | `(report_* OR invoice_*) AND size.min:1MB` | `true`/`false` per scenario |
 | `TestMatchesFilter_AllInsideAny` | large report / old invoice / small report | `(report_* AND >1MB) OR (invoice_* AND >2h)` | `true`/`false` per scenario |
 
 ---

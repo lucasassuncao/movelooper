@@ -1,17 +1,16 @@
 package cmd
 
 import (
-	"fmt"
-	"sort"
 	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/lucasassuncao/yedit/editor"
-	"gopkg.in/yaml.v3"
+	"github.com/lucasassuncao/yedit/presets"
 )
 
-// MovelooperPresets is the editor.PresetSource for the movelooper schema.
-var MovelooperPresets editor.PresetSource = configPresetSource{}
+var MovelooperPresets = presets.Combine(
+	presets.ForField("configuration", configurationPresetsMap()),
+	presets.ForField("categories", categoriesPresetsMap()),
+)
 
 func configurationPresetsMap() map[string]*models.Configuration {
 	logFile := "~/movelooper.log"
@@ -105,12 +104,8 @@ func ConfigurationPreset(name string) *models.Configuration {
 }
 
 func ListOfConfigurationPresets() []string {
-	presets := configurationPresetsMap()
-	keys := make([]string, 0, len(presets))
-	for key := range presets {
-		keys = append(keys, key)
-	}
-	return keys
+	field := "configuration"
+	return presets.ForField(field, configurationPresetsMap()).ListPresets(field)
 }
 
 func categoriesPresetsMap() map[string][]models.Category {
@@ -139,8 +134,9 @@ func categoriesPresetsMap() map[string][]models.Category {
 					Path:       downloads,
 					Extensions: []string{"pdf", "csv", "xlsx"},
 					Filter: models.CategoryFilter{
-						Regex:         `^\d{4}-\d{2}-\d{2}_.*`,
-						CaseSensitive: false,
+						Match: &models.MatchFilter{
+							Regex: `^\d{4}-\d{2}-\d{2}_.*`,
+						},
 					},
 				},
 				Destination: models.CategoryDestination{
@@ -156,9 +152,12 @@ func categoriesPresetsMap() map[string][]models.Category {
 					Path:       downloads,
 					Extensions: []string{"pdf", "xml"},
 					Filter: models.CategoryFilter{
-						Regex:         `(?i)^invoice[-_]`,
-						CaseSensitive: false,
-						Ignore:        []string{"*_draft.*"},
+						Match: &models.MatchFilter{
+							Regex: `(?i)^invoice[-_]`,
+						},
+						Not: []models.CategoryFilter{
+							{Match: &models.MatchFilter{Glob: "*_draft.*"}},
+						},
 					},
 				},
 				Destination: models.CategoryDestination{
@@ -169,16 +168,18 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		"glob": {
-			// include only files matching a specific naming convention
+			// match files following a specific naming convention, excluding edited/cropped versions
 			{
 				Name: "screenshots",
 				Source: models.CategorySource{
 					Path:       downloads,
 					Extensions: []string{"png", "jpg"},
 					Filter: models.CategoryFilter{
-						Glob:    "screenshot_*",
-						Ignore:  []string{"*_edited.*", "*_crop.*"},
-						Include: []string{"screenshot_????-??-??_*"},
+						Match: &models.MatchFilter{Glob: "screenshot_????-??-??_*"},
+						Not: []models.CategoryFilter{
+							{Match: &models.MatchFilter{Glob: "*_edited.*"}},
+							{Match: &models.MatchFilter{Glob: "*_crop.*"}},
+						},
 					},
 				},
 				Destination: models.CategoryDestination{
@@ -187,15 +188,18 @@ func categoriesPresetsMap() map[string][]models.Category {
 					OrganizeBy:       "{year}/{month}",
 				},
 			},
-			// exclude temp and backup files, only keep final versions
+			// exclude temp and backup files
 			{
 				Name: "documents",
 				Source: models.CategorySource{
 					Path:       downloads,
 					Extensions: []string{"doc", "docx", "odt"},
 					Filter: models.CategoryFilter{
-						Include: []string{"*_final.*", "*_v[0-9]*"},
-						Ignore:  []string{"*_temp.*", "*_backup.*", "~*"},
+						Not: []models.CategoryFilter{
+							{Match: &models.MatchFilter{Glob: "*_temp.*"}},
+							{Match: &models.MatchFilter{Glob: "*_backup.*"}},
+							{Match: &models.MatchFilter{Glob: "~*"}},
+						},
 					},
 				},
 				Destination: models.CategoryDestination{
@@ -267,8 +271,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 					Path:       downloads,
 					Extensions: []string{"mp4", "mkv", "avi"},
 					Filter: models.CategoryFilter{
-						MinSize: "500MB",
-						MaxSize: "50GB",
+						Size: &models.SizeFilter{Min: "500MB", Max: "50GB"},
 					},
 				},
 				Destination: models.CategoryDestination{
@@ -284,8 +287,10 @@ func categoriesPresetsMap() map[string][]models.Category {
 					Path:       downloads,
 					Extensions: []string{"pdf", "zip", "exe", "dmg"},
 					Filter: models.CategoryFilter{
-						MinAge: 30 * 24 * time.Hour,
-						MaxAge: 365 * 24 * time.Hour,
+						Age: &models.AgeFilter{
+							Min: 30 * 24 * time.Hour,
+							Max: 365 * 24 * time.Hour,
+						},
 					},
 				},
 				Destination: models.CategoryDestination{
@@ -302,9 +307,9 @@ func categoriesPresetsMap() map[string][]models.Category {
 					Extensions: []string{"pdf", "xlsx", "csv"},
 					Filter: models.CategoryFilter{
 						Any: []models.CategoryFilter{
-							{Regex: `^report_`},
-							{Glob: "summary_*"},
-							{MinSize: "1MB"},
+							{Match: &models.MatchFilter{Regex: `^report_`}},
+							{Match: &models.MatchFilter{Glob: "summary_*"}},
+							{Size: &models.SizeFilter{Min: "1MB"}},
 						},
 					},
 				},
@@ -322,9 +327,11 @@ func categoriesPresetsMap() map[string][]models.Category {
 					Extensions: []string{"pdf", "docx"},
 					Filter: models.CategoryFilter{
 						All: []models.CategoryFilter{
-							{MinSize: "100KB"},
-							{MaxAge: 7 * 24 * time.Hour},
-							{Ignore: []string{"*_draft.*"}},
+							{Size: &models.SizeFilter{Min: "100KB"}},
+							{Age: &models.AgeFilter{Max: 7 * 24 * time.Hour}},
+							{Not: []models.CategoryFilter{
+								{Match: &models.MatchFilter{Glob: "*_draft.*"}},
+							}},
 						},
 					},
 				},
@@ -343,7 +350,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 					Path:       downloads,
 					Extensions: []string{"mp4", "mkv"},
 					Filter: models.CategoryFilter{
-						MinSize: "100MB",
+						Size: &models.SizeFilter{Min: "100MB"},
 					},
 				},
 				Destination: models.CategoryDestination{
@@ -354,7 +361,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 				Hooks: &models.CategoryHooks{
 					Before: &models.CategoryHook{
 						Shell:     "bash",
-						OnFailure: "abort", // abort this file's move if the hook fails
+						OnFailure: "abort",
 						Run: []string{
 							"mkdir -p ~/Downloads/videos",
 							"echo 'moving {file}'",
@@ -362,7 +369,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 					},
 					After: &models.CategoryHook{
 						Shell:     "bash",
-						OnFailure: "warn", // log the error but continue
+						OnFailure: "warn",
 						Run: []string{
 							"echo '{file} moved to {dest}'",
 						},
@@ -381,22 +388,19 @@ func categoriesPresetsMap() map[string][]models.Category {
 					MaxDepth:     3,
 					ExcludePaths: []string{downloads + "/archives", downloads + "/temp"},
 					Filter: models.CategoryFilter{
-						Regex:         `^\d{4}-\d{2}-\d{2}_.*`,
-						Glob:          "report_*",
-						Include:       []string{"*_final.*"},
-						Ignore:        []string{"*_draft.*", "*_temp.*"},
-						CaseSensitive: true,
-						MinAge:        7 * 24 * time.Hour,
-						MaxAge:        365 * 24 * time.Hour,
-						MinSize:       "10KB",
-						MaxSize:       "500MB",
-						Any: []models.CategoryFilter{
-							{Regex: `^invoice_.*`},
-							{Glob: "contract_*"},
+						Match: &models.MatchFilter{
+							Regex:         `^\d{4}-\d{2}-\d{2}_.*`,
+							CaseSensitive: true,
 						},
-						All: []models.CategoryFilter{
-							{MinSize: "1KB"},
-							{MaxAge: 180 * 24 * time.Hour},
+						Age:  &models.AgeFilter{Min: 7 * 24 * time.Hour, Max: 365 * 24 * time.Hour},
+						Size: &models.SizeFilter{Min: "10KB", Max: "500MB"},
+						Not: []models.CategoryFilter{
+							{Match: &models.MatchFilter{Glob: "*_draft.*"}},
+							{Match: &models.MatchFilter{Glob: "*_temp.*"}},
+						},
+						Any: []models.CategoryFilter{
+							{Match: &models.MatchFilter{Regex: `^invoice_.*`}},
+							{Match: &models.MatchFilter{Glob: "contract_*"}},
 						},
 					},
 				},
@@ -429,52 +433,6 @@ func CategoriesPreset(name string) []models.Category {
 }
 
 func ListOfCategoriesPresets() []string {
-	presets := categoriesPresetsMap()
-	keys := make([]string, 0, len(presets))
-	for key := range presets {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
-// configPresetSource implements editor.PresetSource backed by the Go-struct presets.
-type configPresetSource struct{}
-
-func (configPresetSource) ListFields() []string {
-	return []string{"categories", "configuration"}
-}
-
-func (configPresetSource) ListPresets(field string) []string {
-	var keys []string
-	if field == "configuration" {
-		keys = ListOfConfigurationPresets()
-	} else {
-		keys = ListOfCategoriesPresets()
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func (configPresetSource) PresetYAML(field, name string) (string, error) {
-	var val any
-	switch field {
-	case "configuration":
-		cfg, ok := configurationPresetsMap()[name]
-		if !ok {
-			return "", fmt.Errorf("configuration preset %q not found", name)
-		}
-		val = cfg
-	default:
-		cats, ok := categoriesPresetsMap()[name]
-		if !ok {
-			return "", fmt.Errorf("categories preset %q not found", name)
-		}
-		val = cats
-	}
-
-	out, err := yaml.Marshal(map[string]any{field: val})
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
+	field := "categories"
+	return presets.ForField(field, categoriesPresetsMap()).ListPresets(field)
 }

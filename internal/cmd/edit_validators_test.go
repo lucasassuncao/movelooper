@@ -34,11 +34,15 @@ categories:
       extensions: [pdf]
       filter:
         any:
-          - regex: "x"
-            glob: "y"
+          - match:
+              regex: "x"
+              glob: "y"
         all:
-          - min-age: 48h
-            max-age: 24h
+          - age:
+              min: 48h
+              max: 24h
+        match:
+          glob: "*.pdf"
     destination:
       path: b
   - name: dup
@@ -52,7 +56,9 @@ categories:
 	for _, e := range errs {
 		t.Logf("violation: %s", e.String())
 	}
-	wantAtLeast := 3 // duplicate name, regex+glob exclusive, min-age >= max-age
+	// duplicate name, regex+glob in match, age.min >= age.max,
+	// any+all+match at same filter level → 3 pair violations (any/all, any/match, all/match)
+	wantAtLeast := 6
 	if len(errs) < wantAtLeast {
 		t.Errorf("expected at least %d violations, got %d", wantAtLeast, len(errs))
 	}

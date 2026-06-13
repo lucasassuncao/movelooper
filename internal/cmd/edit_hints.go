@@ -7,5 +7,5 @@ import (
 )
 
 func buildMovelooperHints() (editor.MetadataSource, error) {
-	return metadata.BuildFromProvider(models.Config{})
+	return metadata.New(models.Config{})
 }

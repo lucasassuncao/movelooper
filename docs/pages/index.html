@@ -58,7 +58,7 @@
       <div class="feature-card">
         <div class="icon">🔎</div>
         <h3>Powerful filters</h3>
-        <p>Regex, glob, ignore patterns, age filters, and size filters per category.</p>
+        <p>Regex, glob, and literal name filters; age and size windows; <code>not</code> exclusion; composable <code>any</code>/<code>all</code> logic per category.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🌐</div>
@@ -165,8 +165,11 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
       <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">jpeg</span>, <span class="str">png</span>, <span class="str">gif</span>, <span class="str">webp</span>]
       <span class="key">filter</span>:
-        <span class="key">ignore</span>: [<span class="str">"screenshot_*"</span>]
-        <span class="key">min-age</span>: <span class="val">10m</span>
+        <span class="key">not</span>:
+          - <span class="key">match</span>:
+              <span class="key">glob</span>: <span class="str">"screenshot_*"</span>
+        <span class="key">age</span>:
+          <span class="key">min</span>: <span class="val">10m</span>
     <span class="key">destination</span>:
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Images"</span>
       <span class="key">conflict-strategy</span>: <span class="val">rename</span>
@@ -224,7 +227,8 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
       <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">png</span>]
       <span class="key">filter</span>:
-        <span class="key">regex</span>: <span class="str">"^wallhaven"</span>
+        <span class="key">match</span>:
+          <span class="key">regex</span>: <span class="str">"^wallhaven"</span>
     <span class="key">destination</span>:
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Walls\\Wallhaven"</span>
       <span class="key">conflict-strategy</span>: <span class="val">hash_check</span></pre>

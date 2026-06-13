@@ -50,10 +50,13 @@ var GenerateCmd = &cobra.Command{
 }
 ```
 
-<a name="MovelooperPresets"></a>MovelooperPresets is the editor.PresetSource for the movelooper schema.
+<a name="MovelooperPresets"></a>
 
 ```go
-var MovelooperPresets editor.PresetSource = configPresetSource{}
+var MovelooperPresets = presets.Combine(
+    presets.ForField("configuration", configurationPresetsMap()),
+    presets.ForField("categories", categoriesPresetsMap()),
+)
 ```
 
 <a name="MovelooperValidators"></a>MovelooperValidators is the rule set enforced by the edit command at validate/save time.
@@ -76,20 +79,15 @@ var MovelooperValidators = []editor.Validator{
 
     editor.NoDuplicates("categories", "name"),
 
-    editor.MutuallyExclusiveNested("categories.source.filter", "any", "all"),
-    editor.MutuallyExclusiveNested("categories.source.filter.any", "any", "all"),
-    editor.MutuallyExclusiveNested("categories.source.filter.all", "any", "all"),
+    editor.MutuallyExclusiveNested("categories.source.filter.match", "literal", "regex", "glob"),
 
-    editor.MutuallyExclusiveNested("categories.source.filter", "regex", "glob"),
-    editor.MutuallyExclusiveNested("categories.source.filter.any", "regex", "glob"),
-    editor.MutuallyExclusiveNested("categories.source.filter.all", "regex", "glob"),
+    editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+    editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+    editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
+    editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "not"}),
 
-    editor.CrossFieldOrdered("categories.source.filter.min-age", "categories.source.filter.max-age"),
-    editor.CrossFieldOrdered("categories.source.filter.min-size", "categories.source.filter.max-size"),
-    editor.CrossFieldOrdered("categories.source.filter.any.min-age", "categories.source.filter.any.max-age"),
-    editor.CrossFieldOrdered("categories.source.filter.any.min-size", "categories.source.filter.any.max-size"),
-    editor.CrossFieldOrdered("categories.source.filter.all.min-age", "categories.source.filter.all.max-age"),
-    editor.CrossFieldOrdered("categories.source.filter.all.min-size", "categories.source.filter.all.max-size"),
+    editor.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),
+    editor.CrossFieldOrderedNested("categories.source.filter.size", "min", "max"),
 
     editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
         var doc struct {
@@ -128,7 +126,7 @@ var ShowCmd = &cobra.Command{
 ```
 
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L427>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L431>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -146,7 +144,7 @@ func ConfigCmd(m *models.Movelooper) *cobra.Command
 ConfigCmd returns the "config" command group
 
 <a name="ConfigurationPreset"></a>
-## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L103>)
+## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L102>)
 
 ```go
 func ConfigurationPreset(name string) *models.Configuration
@@ -173,7 +171,7 @@ func InitCmd() *cobra.Command
 InitCmd generates a configuration file
 
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L431>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L435>)
 
 ```go
 func ListOfCategoriesPresets() []string
@@ -182,7 +180,7 @@ func ListOfCategoriesPresets() []string
 
 
 <a name="ListOfConfigurationPresets"></a>
-## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L107>)
+## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L106>)
 
 ```go
 func ListOfConfigurationPresets() []string

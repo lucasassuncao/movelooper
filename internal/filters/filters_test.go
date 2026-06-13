@@ -230,36 +230,34 @@ type testMatchesNameFilters struct {
 }
 
 // testMatchesNameFiltersTestCases defines a set of test cases for the MatchesNameFilters function,
-// covering no filters, glob, include, regex, and combined filter scenarios.
+// covering no filters, glob, literal, and regex scenarios.
 var testMatchesNameFiltersTestCases = []testMatchesNameFilters{
 	{"no filters passes all", "anything.txt", models.CategoryFilter{}, true},
-	{"glob matches", "report_2024.pdf", models.CategoryFilter{Glob: "report_*"}, true},
-	{"glob no match", "invoice.pdf", models.CategoryFilter{Glob: "report_*"}, false},
-	{"include matches first", "file.pdf", models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}, true},
-	{"include no match", "file.txt", models.CategoryFilter{Include: []string{"*.pdf", "*.docx"}}, false},
-	{"include multiple patterns first", "IMG_001.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, true},
-	{"include multiple patterns second", "DSC_100.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, true},
-	{"include no match multiple", "photo.jpg", models.CategoryFilter{Include: []string{"IMG_*", "DSC_*"}}, false},
+	{"glob matches", "report_2024.pdf", models.CategoryFilter{Match: &models.MatchFilter{Glob: "report_*"}}, true},
+	{"glob no match", "invoice.pdf", models.CategoryFilter{Match: &models.MatchFilter{Glob: "report_*"}}, false},
+	{"literal match", "report.pdf", models.CategoryFilter{Match: &models.MatchFilter{Literal: "report.pdf"}}, true},
+	{"literal no match", "REPORT.PDF", models.CategoryFilter{Match: &models.MatchFilter{Literal: "report.pdf", CaseSensitive: true}}, false},
+	{"literal case insensitive", "REPORT.PDF", models.CategoryFilter{Match: &models.MatchFilter{Literal: "report.pdf", CaseSensitive: false}}, true},
 	{
 		"regex match",
 		"report_2024.pdf",
-		models.CategoryFilter{
+		models.CategoryFilter{Match: &models.MatchFilter{
 			Regex:         "report",
 			CompiledRegex: regexp.MustCompile("(?i)report"),
-		},
+		}},
 		true,
 	},
 	{
 		"regex no match",
 		"invoice.pdf",
-		models.CategoryFilter{
+		models.CategoryFilter{Match: &models.MatchFilter{
 			Regex:         "^report",
 			CompiledRegex: regexp.MustCompile("^report"),
-		},
+		}},
 		false,
 	},
-	{"glob filter match", "report_2024.pdf", models.CategoryFilter{Glob: "report_*.pdf"}, true},
-	{"glob filter no match", "invoice.pdf", models.CategoryFilter{Glob: "report_*.pdf"}, false},
+	{"glob filter match", "report_2024.pdf", models.CategoryFilter{Match: &models.MatchFilter{Glob: "report_*.pdf"}}, true},
+	{"glob filter no match", "invoice.pdf", models.CategoryFilter{Match: &models.MatchFilter{Glob: "report_*.pdf"}}, false},
 }
 
 // TestMatchesNameFilters tests the MatchesNameFilters function to ensure it correctly
@@ -393,16 +391,18 @@ type testMatchesFilterLeaf struct {
 }
 
 // testMatchesFilterLeafTestCases defines a set of test cases for the MatchesFilter function
-// with leaf filters, covering empty filter, glob, ignore, min-size, and min-age scenarios.
+// with leaf filters, covering empty filter, glob, not, min-size, and min-age scenarios.
 var testMatchesFilterLeafTestCases = []testMatchesFilterLeaf{
 	{"empty filter - no restrictions", models.CategoryFilter{}, true},
-	{"glob matches", models.CategoryFilter{Glob: "report_*"}, true},
-	{"glob no match", models.CategoryFilter{Glob: "invoice_*"}, false},
-	{"ignore excludes file", models.CategoryFilter{Ignore: []string{"report_*"}}, false},
-	{"min-size passes", models.CategoryFilter{MinSizeBytes: 512}, true},
-	{"min-size fails", models.CategoryFilter{MinSizeBytes: 1024 * 1024}, false},
-	{"min-age passes", models.CategoryFilter{MinAge: 1 * time.Hour}, true},
-	{"min-age fails", models.CategoryFilter{MinAge: 3 * time.Hour}, false},
+	{"glob matches", models.CategoryFilter{Match: &models.MatchFilter{Glob: "report_*"}}, true},
+	{"glob no match", models.CategoryFilter{Match: &models.MatchFilter{Glob: "invoice_*"}}, false},
+	{"not excludes file", models.CategoryFilter{Not: []models.CategoryFilter{
+		{Match: &models.MatchFilter{Glob: "report_*"}},
+	}}, false},
+	{"min-size passes", models.CategoryFilter{Size: &models.SizeFilter{MinBytes: 512}}, true},
+	{"min-size fails", models.CategoryFilter{Size: &models.SizeFilter{MinBytes: 1024 * 1024}}, false},
+	{"min-age passes", models.CategoryFilter{Age: &models.AgeFilter{Min: 1 * time.Hour}}, true},
+	{"min-age fails", models.CategoryFilter{Age: &models.AgeFilter{Min: 3 * time.Hour}}, false},
 }
 
 // TestMatchesFilter_Leaf tests the MatchesFilter function with leaf filters
@@ -426,13 +426,13 @@ type testMatchesFilterComposite struct {
 }
 
 // testMatchesFilterCompositeTestCases defines a set of test cases for the MatchesFilter function
-// with Any and All composite filters, including nested combinations.
+// with Any, All, and Not composite filters, including nested combinations.
 var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 	{
 		name: "any - first group passes",
 		filter: models.CategoryFilter{Any: []models.CategoryFilter{
-			{Glob: "report_*"},
-			{Glob: "invoice_*"},
+			{Match: &models.MatchFilter{Glob: "report_*"}},
+			{Match: &models.MatchFilter{Glob: "invoice_*"}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
 			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
@@ -442,8 +442,8 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 	{
 		name: "any - second group passes",
 		filter: models.CategoryFilter{Any: []models.CategoryFilter{
-			{Glob: "invoice_*"},
-			{Glob: "report_*"},
+			{Match: &models.MatchFilter{Glob: "invoice_*"}},
+			{Match: &models.MatchFilter{Glob: "report_*"}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
 			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
@@ -453,8 +453,8 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 	{
 		name: "any - no group passes",
 		filter: models.CategoryFilter{Any: []models.CategoryFilter{
-			{Glob: "invoice_*"},
-			{Glob: "draft_*"},
+			{Match: &models.MatchFilter{Glob: "invoice_*"}},
+			{Match: &models.MatchFilter{Glob: "draft_*"}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
 			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
@@ -464,8 +464,8 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 	{
 		name: "all - all groups pass",
 		filter: models.CategoryFilter{All: []models.CategoryFilter{
-			{Glob: "report_*"},
-			{MinSizeBytes: 1024 * 1024},
+			{Match: &models.MatchFilter{Glob: "report_*"}},
+			{Size: &models.SizeFilter{MinBytes: 1024 * 1024}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
 			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
@@ -475,8 +475,8 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 	{
 		name: "all - one group fails",
 		filter: models.CategoryFilter{All: []models.CategoryFilter{
-			{Glob: "report_*"},
-			{MinSizeBytes: 10 * 1024 * 1024},
+			{Match: &models.MatchFilter{Glob: "report_*"}},
+			{Size: &models.SizeFilter{MinBytes: 10 * 1024 * 1024}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
 			return makeInfo(t, "report_2024.pdf", 2*1024*1024, time.Now().Add(-2*time.Hour))
@@ -486,10 +486,10 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 	{
 		name: "any inside all - passes",
 		filter: models.CategoryFilter{All: []models.CategoryFilter{
-			{MinSizeBytes: 1024 * 1024},
+			{Size: &models.SizeFilter{MinBytes: 1024 * 1024}},
 			{Any: []models.CategoryFilter{
-				{Glob: "report_*"},
-				{Glob: "invoice_*"},
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Match: &models.MatchFilter{Glob: "invoice_*"}},
 			}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
@@ -500,10 +500,10 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 	{
 		name: "any inside all - size fails",
 		filter: models.CategoryFilter{All: []models.CategoryFilter{
-			{MinSizeBytes: 1024 * 1024},
+			{Size: &models.SizeFilter{MinBytes: 1024 * 1024}},
 			{Any: []models.CategoryFilter{
-				{Glob: "report_*"},
-				{Glob: "invoice_*"},
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Match: &models.MatchFilter{Glob: "invoice_*"}},
 			}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
@@ -515,12 +515,12 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 		name: "all inside any - first branch passes",
 		filter: models.CategoryFilter{Any: []models.CategoryFilter{
 			{All: []models.CategoryFilter{
-				{Glob: "report_*"},
-				{MinSizeBytes: 1024 * 1024},
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Size: &models.SizeFilter{MinBytes: 1024 * 1024}},
 			}},
 			{All: []models.CategoryFilter{
-				{Glob: "invoice_*"},
-				{MinAge: 2 * time.Hour},
+				{Match: &models.MatchFilter{Glob: "invoice_*"}},
+				{Age: &models.AgeFilter{Min: 2 * time.Hour}},
 			}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
@@ -532,12 +532,12 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 		name: "all inside any - second branch passes",
 		filter: models.CategoryFilter{Any: []models.CategoryFilter{
 			{All: []models.CategoryFilter{
-				{Glob: "report_*"},
-				{MinSizeBytes: 1024 * 1024},
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Size: &models.SizeFilter{MinBytes: 1024 * 1024}},
 			}},
 			{All: []models.CategoryFilter{
-				{Glob: "invoice_*"},
-				{MinAge: 2 * time.Hour},
+				{Match: &models.MatchFilter{Glob: "invoice_*"}},
+				{Age: &models.AgeFilter{Min: 2 * time.Hour}},
 			}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
@@ -549,18 +549,42 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 		name: "all inside any - no branch passes",
 		filter: models.CategoryFilter{Any: []models.CategoryFilter{
 			{All: []models.CategoryFilter{
-				{Glob: "report_*"},
-				{MinSizeBytes: 1024 * 1024},
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Size: &models.SizeFilter{MinBytes: 1024 * 1024}},
 			}},
 			{All: []models.CategoryFilter{
-				{Glob: "invoice_*"},
-				{MinAge: 2 * time.Hour},
+				{Match: &models.MatchFilter{Glob: "invoice_*"}},
+				{Age: &models.AgeFilter{Min: 2 * time.Hour}},
 			}},
 		}},
 		info: func(t *testing.T) os.FileInfo {
 			return makeInfo(t, "report_tiny.pdf", 100, time.Now())
 		},
 		want: false,
+	},
+	{
+		name: "not excludes matching file",
+		filter: models.CategoryFilter{
+			Not: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "draft_*"}},
+			},
+		},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "draft_2024.pdf", 100, time.Now())
+		},
+		want: false,
+	},
+	{
+		name: "not passes non-matching file",
+		filter: models.CategoryFilter{
+			Not: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "draft_*"}},
+			},
+		},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 100, time.Now())
+		},
+		want: true,
 	},
 }
 
@@ -589,22 +613,20 @@ type testMeetsAgeSizeFilters struct {
 // covering no constraints, individual age and size filters, and all constraints combined.
 var testMeetsAgeSizeFiltersTestCases = []testMeetsAgeSizeFilters{
 	{"no constraints passes", 0, 4, models.CategoryFilter{}, true},
-	{"min-age only: passes", 2 * time.Hour, 1, models.CategoryFilter{MinAge: 1 * time.Hour}, true},
-	{"min-age only: fails", 0, 1, models.CategoryFilter{MinAge: 1 * time.Hour}, false},
-	{"max-age only: passes", 0, 1, models.CategoryFilter{MaxAge: 1 * time.Hour}, true},
-	{"max-age only: fails", 2 * time.Hour, 1, models.CategoryFilter{MaxAge: 1 * time.Hour}, false},
-	{"min-size only: passes", 0, 2048, models.CategoryFilter{MinSizeBytes: 1024}, true},
-	{"min-size only: fails", 0, 4, models.CategoryFilter{MinSizeBytes: 1024}, false},
-	{"max-size only: passes", 0, 4, models.CategoryFilter{MaxSizeBytes: 1024}, true},
-	{"max-size only: fails", 0, 2048, models.CategoryFilter{MaxSizeBytes: 1024}, false},
+	{"min-age only: passes", 2 * time.Hour, 1, models.CategoryFilter{Age: &models.AgeFilter{Min: 1 * time.Hour}}, true},
+	{"min-age only: fails", 0, 1, models.CategoryFilter{Age: &models.AgeFilter{Min: 1 * time.Hour}}, false},
+	{"max-age only: passes", 0, 1, models.CategoryFilter{Age: &models.AgeFilter{Max: 1 * time.Hour}}, true},
+	{"max-age only: fails", 2 * time.Hour, 1, models.CategoryFilter{Age: &models.AgeFilter{Max: 1 * time.Hour}}, false},
+	{"min-size only: passes", 0, 2048, models.CategoryFilter{Size: &models.SizeFilter{MinBytes: 1024}}, true},
+	{"min-size only: fails", 0, 4, models.CategoryFilter{Size: &models.SizeFilter{MinBytes: 1024}}, false},
+	{"max-size only: passes", 0, 4, models.CategoryFilter{Size: &models.SizeFilter{MaxBytes: 1024}}, true},
+	{"max-size only: fails", 0, 2048, models.CategoryFilter{Size: &models.SizeFilter{MaxBytes: 1024}}, false},
 	{
 		"all constraints pass",
 		2 * time.Hour, 512,
 		models.CategoryFilter{
-			MinAge:       1 * time.Hour,
-			MaxAge:       24 * time.Hour,
-			MinSizeBytes: 100,
-			MaxSizeBytes: 1024,
+			Age:  &models.AgeFilter{Min: 1 * time.Hour, Max: 24 * time.Hour},
+			Size: &models.SizeFilter{MinBytes: 100, MaxBytes: 1024},
 		},
 		true,
 	},
@@ -612,10 +634,8 @@ var testMeetsAgeSizeFiltersTestCases = []testMeetsAgeSizeFilters{
 		"all constraints: size fails",
 		2 * time.Hour, 2048,
 		models.CategoryFilter{
-			MinAge:       1 * time.Hour,
-			MaxAge:       24 * time.Hour,
-			MinSizeBytes: 100,
-			MaxSizeBytes: 1024,
+			Age:  &models.AgeFilter{Min: 1 * time.Hour, Max: 24 * time.Hour},
+			Size: &models.SizeFilter{MinBytes: 100, MaxBytes: 1024},
 		},
 		false,
 	},
