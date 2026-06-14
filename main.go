@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
+	"github.com/charmbracelet/fang"
 	"github.com/lucasassuncao/movelooper/internal/cmd"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/updater"
@@ -22,9 +22,7 @@ func main() {
 
 	root := cmd.RootCmd(m, version)
 
-	err := root.ExecuteContext(context.Background())
-	if err != nil {
-		fmt.Printf("Failed to run the app. %v\n", err)
+	if err := fang.Execute(context.Background(), root); err != nil {
 		os.Exit(1)
 	}
 }
