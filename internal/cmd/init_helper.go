@@ -406,7 +406,7 @@ Leave blank to move files directly into destination.`).
 	}
 	for _, p := range ignorePatterns {
 		f.Not = append(f.Not, models.CategoryFilter{
-			Match: &models.MatchFilter{Glob: p},
+			Match: &models.MatchFilter{Glob: p, CaseSensitive: caseSensitive},
 		})
 	}
 	if minAge != 0 || maxAge != 0 {

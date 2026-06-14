@@ -79,8 +79,7 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	}
 
 	if opts.DryRun {
-		m.Logger.Info("dry-run complete, no files were moved",
-			m.Logger.Args("matched", stats.totalFiles))
+		m.Logger.Info("dry-run complete, no files were moved")
 	} else {
 		m.Logger.Info("run complete",
 			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "categories_skipped", stats.skipped))
@@ -134,7 +133,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	for _, extension := range category.Source.Extensions {
 		matched := make([]scanner.FileEntry, 0, len(allEntries))
 		for _, fe := range allEntries {
-			info, err := matchesCategory(category, fe.Entry, batch.moved, extension)
+			info, err := matchesCategory(category, fe, batch.moved, extension)
 			if err != nil {
 				m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
 				continue
@@ -226,18 +225,18 @@ func formatBytes(b int64) string {
 
 // matchesCategory returns the file's FileInfo when it passes all category filters,
 // nil when it does not match, or an error if metadata could not be read.
-func matchesCategory(category *models.Category, file os.DirEntry, moved movedSet, extension string) (os.FileInfo, error) {
-	if moved.has(category.Source.Path, file.Name()) {
+func matchesCategory(category *models.Category, fe scanner.FileEntry, moved movedSet, extension string) (os.FileInfo, error) {
+	if moved.has(fe.Dir, fe.Entry.Name()) {
 		return nil, nil
 	}
-	if !file.Type().IsRegular() || !filters.HasExtension(file, extension) {
+	if !fe.Entry.Type().IsRegular() || !filters.HasExtension(fe.Entry, extension) {
 		return nil, nil
 	}
-	info, err := file.Info()
+	info, err := fe.Entry.Info()
 	if err != nil {
-		return nil, fmt.Errorf("could not read metadata for %q: %w", file.Name(), err)
+		return nil, fmt.Errorf("could not read metadata for %q: %w", fe.Entry.Name(), err)
 	}
-	if !filters.MatchesFilter(category.Source.Filter, file.Name(), info) {
+	if !filters.MatchesFilter(category.Source.Filter, fe.Entry.Name(), info) {
 		return nil, nil
 	}
 	return info, nil

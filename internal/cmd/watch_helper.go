@@ -211,19 +211,18 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg watchConfig) {
 	now := time.Now()
 
-	paths := func() []string {
+	snapshot := func() map[string]time.Time {
 		cfg.tracker.mu.Lock()
 		defer cfg.tracker.mu.Unlock()
-		ps := make([]string, 0, len(cfg.tracker.files))
-		for p := range cfg.tracker.files {
-			ps = append(ps, p)
+		snap := make(map[string]time.Time, len(cfg.tracker.files))
+		for p, t := range cfg.tracker.files {
+			snap[p] = t
 		}
-		return ps
+		return snap
 	}()
 
-	for _, path := range paths {
-		info, err := os.Stat(path)
-		if err != nil {
+	for path, detected := range snapshot {
+		if _, err := os.Stat(path); err != nil {
 			cfg.tracker.mu.Lock()
 			delete(cfg.tracker.files, path)
 			cfg.tracker.mu.Unlock()
@@ -234,7 +233,7 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg watchCon
 			continue
 		}
 
-		if now.Sub(info.ModTime()) > cfg.threshold {
+		if now.Sub(detected) > cfg.threshold {
 			if err := attemptMoveFile(ctx, m, path, cfg.dryRun); err != nil {
 				if !os.IsNotExist(err) {
 					m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))

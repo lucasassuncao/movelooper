@@ -295,7 +295,7 @@ func copyFile(ctx context.Context, src, dst string) (retErr error) {
 	}
 	outClosed := false
 	defer func() {
-		if retErr != nil {
+		if retErr != nil && !errors.Is(retErr, ErrTimestampPreserve) {
 			if !outClosed {
 				out.Close()
 			}
