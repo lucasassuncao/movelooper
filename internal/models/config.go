@@ -39,9 +39,9 @@ func (Config) Metadata() map[string]*metadata.Node {
 func (Configuration) Metadata() map[string]*metadata.Node {
 	return map[string]*metadata.Node{
 		"output": {FieldMeta: editor.FieldMeta{
-			Description: "Where log output is written. Use 'both' to write to the console and a file simultaneously.",
+			Description: "Where log output is written. Use 'both' to write to the console and a file simultaneously. 'log' is an alias for 'file'.",
 			Required:    true,
-			OneOf:       []string{"console", "file", "both"},
+			OneOf:       []string{"console", "file", "log", "both"},
 			Default:     "console",
 			Example:     "output: console",
 		}},

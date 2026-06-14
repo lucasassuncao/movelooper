@@ -11,24 +11,20 @@ import (
 	"time"
 )
 
-const defaultMaxBatches = 50
+const defaultMaxBatches = 100
 
 // NewBatchID returns a collision-resistant batch ID for a one-shot move operation.
-func NewBatchID() string {
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
-		return fmt.Sprintf("batch_%d", time.Now().UnixNano())
-	}
-	return "batch_" + hex.EncodeToString(b)
-}
+func NewBatchID() string { return newBatchID("batch") }
 
 // NewWatchBatchID returns a collision-resistant batch ID for a watch-mode move operation.
-func NewWatchBatchID() string {
+func NewWatchBatchID() string { return newBatchID("watch") }
+
+func newBatchID(prefix string) string {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		return fmt.Sprintf("watch_%d", time.Now().UnixNano())
+		return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
 	}
-	return "watch_" + hex.EncodeToString(b)
+	return prefix + "_" + hex.EncodeToString(b)
 }
 
 // Entry represents a single file operation

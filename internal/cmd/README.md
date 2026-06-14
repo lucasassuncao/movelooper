@@ -126,7 +126,7 @@ var ShowCmd = &cobra.Command{
 ```
 
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L431>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L430>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -171,7 +171,7 @@ func InitCmd() *cobra.Command
 InitCmd generates a configuration file
 
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L435>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L434>)
 
 ```go
 func ListOfCategoriesPresets() []string

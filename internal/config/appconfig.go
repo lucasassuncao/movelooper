@@ -7,7 +7,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
-const defaultHistoryLimit = 50
+const defaultHistoryLimit = 100
 const defaultWatchDelay = 5 * time.Minute
 
 // LoadConfig reads the application-level settings from k and returns a

@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/lucasassuncao/yedit/editor"
 )
 
@@ -20,39 +21,15 @@ var (
 		return err == nil
 	})
 
-	// FormatOrganizeByPattern validates organize-by token strings.
-	// Valid tokens: {ext}, {year}, {month}, {day}.
+	// FormatOrganizeByPattern validates organize-by token strings using the
+	// same token set as the runtime resolver.
 	FormatOrganizeByPattern = editor.FormatCustom("organize-by pattern", func(v string) bool {
-		return validTokens(v, organizeByTokens)
+		return tokens.ValidateTemplate(v) == nil
 	})
 
-	// FormatRenamePattern validates rename token strings.
-	// Valid tokens: {name}, {ext}, {year}, {month}, {day}, {hour}, {min}, {sec}, {seq}, {hash}.
+	// FormatRenamePattern validates rename token strings using the same token
+	// set as the runtime resolver.
 	FormatRenamePattern = editor.FormatCustom("rename pattern", func(v string) bool {
-		return validTokens(v, renameTokens)
+		return tokens.ValidateTemplate(v) == nil
 	})
 )
-
-var (
-	organizeByTokens = map[string]bool{
-		"ext": true, "year": true, "month": true, "day": true,
-	}
-	renameTokens = map[string]bool{
-		"name": true, "ext": true, "year": true, "month": true, "day": true,
-		"hour": true, "min": true, "sec": true, "seq": true, "hash": true,
-	}
-	tokenRe       = regexp.MustCompile(`\{([^{}]+)\}`)
-	unclosedBrace = regexp.MustCompile(`\{[^}]*$`)
-)
-
-func validTokens(v string, allowed map[string]bool) bool {
-	if unclosedBrace.MatchString(v) {
-		return false
-	}
-	for _, m := range tokenRe.FindAllStringSubmatch(v, -1) {
-		if !allowed[m[1]] {
-			return false
-		}
-	}
-	return true
-}

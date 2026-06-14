@@ -66,6 +66,19 @@ var validActions = map[models.Action]bool{
 	models.ActionSymlink: true,
 }
 
+// validConflictStrategies is the set of accepted values for destination.conflict-strategy.
+var validConflictStrategies = map[models.ConflictStrategy]bool{
+	"":                               true, // empty = default (rename)
+	models.ConflictStrategyRename:    true,
+	models.ConflictStrategyHashCheck: true,
+	models.ConflictStrategyOverwrite: true,
+	models.ConflictStrategySkip:      true,
+	models.ConflictStrategyNewest:    true,
+	models.ConflictStrategyOldest:    true,
+	models.ConflictStrategyLarger:    true,
+	models.ConflictStrategySmaller:   true,
+}
+
 // validateCategory validates a single category and pre-compiles its filter.
 func validateCategory(cat *models.Category) error {
 	if len(cat.Source.Extensions) == 0 {
@@ -79,6 +92,10 @@ func validateCategory(cat *models.Category) error {
 
 	if !validActions[cat.Destination.Action] {
 		return fmt.Errorf("category %q: invalid action %q - must be move, copy, or symlink", cat.Name, cat.Destination.Action)
+	}
+
+	if !validConflictStrategies[cat.Destination.ConflictStrategy] {
+		return fmt.Errorf("category %q: invalid conflict-strategy %q - must be one of: rename, hash_check, overwrite, skip, newest, oldest, larger, smaller", cat.Name, cat.Destination.ConflictStrategy)
 	}
 
 	if cat.Destination.Rename != "" {

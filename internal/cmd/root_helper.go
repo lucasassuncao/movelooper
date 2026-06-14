@@ -177,8 +177,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 			batchID: batch.batchID,
 		})
 		if err := hooks.RunHook(ctx, category.Hooks.After, hooks.HookContext{Log: m.Logger, Stdout: os.Stdout, Stderr: os.Stderr}, env); err != nil {
-			m.Logger.Warn("after hook failed",
-				m.Logger.Args("category", category.Name, "error", err.Error()))
+			return fmt.Errorf("after hook: %w", err)
 		}
 	}
 	return nil

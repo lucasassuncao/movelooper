@@ -388,19 +388,18 @@ func categoriesPresetsMap() map[string][]models.Category {
 					MaxDepth:     3,
 					ExcludePaths: []string{downloads + "/archives", downloads + "/temp"},
 					Filter: models.CategoryFilter{
-						Match: &models.MatchFilter{
-							Regex:         `^\d{4}-\d{2}-\d{2}_.*`,
-							CaseSensitive: true,
-						},
-						Age:  &models.AgeFilter{Min: 7 * 24 * time.Hour, Max: 365 * 24 * time.Hour},
-						Size: &models.SizeFilter{Min: "10KB", Max: "500MB"},
 						Not: []models.CategoryFilter{
 							{Match: &models.MatchFilter{Glob: "*_draft.*"}},
 							{Match: &models.MatchFilter{Glob: "*_temp.*"}},
 						},
-						Any: []models.CategoryFilter{
-							{Match: &models.MatchFilter{Regex: `^invoice_.*`}},
-							{Match: &models.MatchFilter{Glob: "contract_*"}},
+						All: []models.CategoryFilter{
+							{Match: &models.MatchFilter{Regex: `^\d{4}-\d{2}-\d{2}_.*`, CaseSensitive: true}},
+							{Age: &models.AgeFilter{Min: 7 * 24 * time.Hour, Max: 365 * 24 * time.Hour}},
+							{Size: &models.SizeFilter{Min: "10KB", Max: "500MB"}},
+							{Any: []models.CategoryFilter{
+								{Match: &models.MatchFilter{Regex: `^invoice_.*`}},
+								{Match: &models.MatchFilter{Glob: "contract_*"}},
+							}},
 						},
 					},
 				},

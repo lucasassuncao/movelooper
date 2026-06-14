@@ -109,13 +109,14 @@ var testResolverTestCases = []testResolver{
 		want:    testResolverWant{move: true, pathSuffix: "(1)"},
 	},
 	{
-		name: "overwrite/removes dst",
+		name: "overwrite/resolves to dst",
 		setup: func(t *testing.T, src, dst string) {
 			writeFile(t, src, []byte("src"))
 			writeFile(t, dst, []byte("old"))
 		},
 		resolve: (&overwriteResolver{}).Resolve,
-		want:    testResolverWant{move: true, pathIsDst: true, dstRemoved: true},
+		// dst is NOT removed by Resolve; on POSIX os.Rename replaces atomically.
+		want: testResolverWant{move: true, pathIsDst: true, dstRemoved: false},
 	},
 	{
 		name: "skip/does not move",

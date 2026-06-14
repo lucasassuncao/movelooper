@@ -31,7 +31,7 @@ var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
 ```
 
 <a name="CreateDirectory"></a>
-## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L33>)
+## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L34>)
 
 ```go
 func CreateDirectory(dir string) error
@@ -40,7 +40,7 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="ReadDirectory"></a>
-## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L38>)
+## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L39>)
 
 ```go
 func ReadDirectory(path string) ([]os.DirEntry, error)
@@ -75,7 +75,7 @@ type ConflictResolver interface {
 ```
 
 <a name="FileAction"></a>
-## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L151-L153>)
+## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L152-L154>)
 
 FileAction executes a file operation from src to dst.
 
@@ -86,7 +86,7 @@ type FileAction interface {
 ```
 
 <a name="MoveContext"></a>
-## type [MoveContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L26-L29>)
+## type [MoveContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L27-L30>)
 
 MoveContext carries the dependencies needed by file\-move operations.
 
@@ -98,7 +98,7 @@ type MoveContext struct {
 ```
 
 <a name="MoveRequest"></a>
-## type [MoveRequest](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L47-L53>)
+## type [MoveRequest](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L48-L54>)
 
 MoveRequest holds the operation\-specific parameters for a MoveFiles call.
 
@@ -113,7 +113,7 @@ type MoveRequest struct {
 ```
 
 <a name="MoveResult"></a>
-## type [MoveResult](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L56-L59>)
+## type [MoveResult](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L57-L60>)
 
 MoveResult holds the outcome of a MoveFiles call.
 
@@ -125,7 +125,7 @@ type MoveResult struct {
 ```
 
 <a name="MoveFiles"></a>
-### func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L62>)
+### func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L63>)
 
 ```go
 func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResult

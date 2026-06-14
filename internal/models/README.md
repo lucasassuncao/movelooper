@@ -59,16 +59,16 @@ var (
         return err == nil
     })
 
-    // FormatOrganizeByPattern validates organize-by token strings.
-    // Valid tokens: {ext}, {year}, {month}, {day}.
+    // FormatOrganizeByPattern validates organize-by token strings using the
+    // same token set as the runtime resolver.
     FormatOrganizeByPattern = editor.FormatCustom("organize-by pattern", func(v string) bool {
-        return validTokens(v, organizeByTokens)
+        return tokens.ValidateTemplate(v) == nil
     })
 
-    // FormatRenamePattern validates rename token strings.
-    // Valid tokens: {name}, {ext}, {year}, {month}, {day}, {hour}, {min}, {sec}, {seq}, {hash}.
+    // FormatRenamePattern validates rename token strings using the same token
+    // set as the runtime resolver.
     FormatRenamePattern = editor.FormatCustom("rename pattern", func(v string) bool {
-        return validTokens(v, renameTokens)
+        return tokens.ValidateTemplate(v) == nil
     })
 )
 ```

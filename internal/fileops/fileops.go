@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -69,7 +70,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 			return result
 		default:
 		}
-		if !hasExtension(file, req.Extension) {
+		if !filters.HasExtension(file, req.Extension) {
 			continue
 		}
 
@@ -340,15 +341,4 @@ func getUniqueDestinationPath(destDir, fileName string) (string, error) {
 	}
 
 	return "", fmt.Errorf("could not find a unique destination for %q in %q after %d attempts", fileName, destDir, maxConflictAttempts)
-}
-
-// hasExtension checks if a file has a given extension (case-insensitive).
-// When extension is "all", every file matches.
-func hasExtension(file os.DirEntry, extension string) bool {
-	if strings.ToLower(extension) == "all" {
-		return true
-	}
-	ext := "." + extension
-	fileExt := strings.ToLower(filepath.Ext(file.Name()))
-	return fileExt == strings.ToLower(ext)
 }

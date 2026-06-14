@@ -50,7 +50,7 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 		block, path string
 		count       int
 	}{
-		{"configuration", "output", 3},
+		{"configuration", "output", 4},
 		{"configuration", "log-level", 6},
 		{"categories", "destination.action", 3},
 		{"categories", "destination.conflict-strategy", 8},

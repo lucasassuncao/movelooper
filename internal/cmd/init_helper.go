@@ -397,12 +397,10 @@ Leave blank to move files directly into destination.`).
 		Run())
 
 	f := models.CategoryFilter{}
-	if regex != "" || glob != "" {
-		f.Match = &models.MatchFilter{
-			Regex:         regex,
-			Glob:          glob,
-			CaseSensitive: caseSensitive,
-		}
+	if regex != "" {
+		f.Match = &models.MatchFilter{Regex: regex, CaseSensitive: caseSensitive}
+	} else if glob != "" {
+		f.Match = &models.MatchFilter{Glob: glob, CaseSensitive: caseSensitive}
 	}
 	for _, p := range ignorePatterns {
 		f.Not = append(f.Not, models.CategoryFilter{
