@@ -16,7 +16,6 @@ Package cmd contains the command line interface commands for the Movelooper appl
 
 - [Variables](<#variables>)
 - [func CategoriesPreset\(name string\) \[\]models.Category](<#CategoriesPreset>)
-- [func ConfigCmd\(m \*models.Movelooper\) \*cobra.Command](<#ConfigCmd>)
 - [func ConfigurationPreset\(name string\) \*models.Configuration](<#ConfigurationPreset>)
 - [func EditCmd\(\) \*cobra.Command](<#EditCmd>)
 - [func InitCmd\(\) \*cobra.Command](<#InitCmd>)
@@ -133,15 +132,6 @@ func CategoriesPreset(name string) []models.Category
 ```
 
 
-
-<a name="ConfigCmd"></a>
-## func [ConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/config.go#L9>)
-
-```go
-func ConfigCmd(m *models.Movelooper) *cobra.Command
-```
-
-ConfigCmd returns the "config" command group
 
 <a name="ConfigurationPreset"></a>
 ## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L102>)
