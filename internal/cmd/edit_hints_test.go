@@ -1,6 +1,11 @@
 package cmd
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 // TestBuildMovelooperHints_metadataReachesFieldHint guards the contract the
 // FromMetadata validators depend on: every constraint declared in the hint tree
@@ -8,9 +13,7 @@ import "testing"
 func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 	t.Parallel()
 	src, err := buildMovelooperHints()
-	if err != nil {
-		t.Fatalf("buildMovelooperHints: %v", err)
-	}
+	require.NoError(t, err)
 
 	required := []struct{ block, path string }{
 		{"configuration", ""},
@@ -29,9 +32,7 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 		{"categories", "hooks.after.on-failure"},
 	}
 	for _, f := range required {
-		if !src.FieldMeta(f.block, f.path).Required {
-			t.Errorf("FieldMeta(%q, %q).Required = false, want true", f.block, f.path)
-		}
+		assert.True(t, src.FieldMeta(f.block, f.path).Required, "FieldMeta(%q, %q).Required", f.block, f.path)
 	}
 
 	notRequired := []struct{ block, path string }{
@@ -41,9 +42,7 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 		{"categories", "hooks.before"},
 	}
 	for _, f := range notRequired {
-		if src.FieldMeta(f.block, f.path).Required {
-			t.Errorf("FieldMeta(%q, %q).Required = true, want false", f.block, f.path)
-		}
+		assert.False(t, src.FieldMeta(f.block, f.path).Required, "FieldMeta(%q, %q).Required", f.block, f.path)
 	}
 
 	oneOf := []struct {
@@ -58,9 +57,7 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 		{"categories", "hooks.after.on-failure", 2},
 	}
 	for _, f := range oneOf {
-		if got := len(src.FieldMeta(f.block, f.path).OneOf); got != f.count {
-			t.Errorf("FieldMeta(%q, %q).OneOf has %d values, want %d", f.block, f.path, got, f.count)
-		}
+		assert.Len(t, src.FieldMeta(f.block, f.path).OneOf, f.count, "FieldMeta(%q, %q).OneOf", f.block, f.path)
 	}
 
 	ranged := []struct{ block, path string }{
@@ -75,16 +72,12 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 	}
 	for _, f := range ranged {
 		meta := src.FieldMeta(f.block, f.path)
-		if meta.Min == "" || meta.Max == "" {
-			t.Errorf("FieldMeta(%q, %q) should declare Min and Max; got [%q, %q]", f.block, f.path, meta.Min, meta.Max)
-		}
+		assert.NotEmpty(t, meta.Min, "FieldMeta(%q, %q).Min", f.block, f.path)
+		assert.NotEmpty(t, meta.Max, "FieldMeta(%q, %q).Max", f.block, f.path)
 	}
 
 	ext := src.FieldMeta("categories", "source.extensions")
-	if ext.MinCount != 1 || !ext.Unique {
-		t.Errorf("extensions should declare MinCount 1 and Unique; got MinCount=%d Unique=%v", ext.MinCount, ext.Unique)
-	}
-	if run := src.FieldMeta("categories", "hooks.before.run"); run.MinCount != 1 {
-		t.Errorf("hooks.before.run should declare MinCount 1; got %d", run.MinCount)
-	}
+	assert.Equal(t, 1, ext.MinCount, "extensions.MinCount")
+	assert.True(t, ext.Unique, "extensions.Unique")
+	assert.Equal(t, 1, src.FieldMeta("categories", "hooks.before.run").MinCount, "hooks.before.run.MinCount")
 }

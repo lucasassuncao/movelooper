@@ -5,6 +5,8 @@ import (
 
 	"github.com/lucasassuncao/yedit/document"
 	"github.com/lucasassuncao/yedit/editor"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestMovelooperValidatorsAgainstSampleConfig guards the repository's sample
@@ -14,14 +16,8 @@ import (
 func TestMovelooperValidatorsAgainstSampleConfig(t *testing.T) {
 	t.Parallel()
 	doc, err := document.Load("../../movelooper.yaml", nil)
-	if err != nil {
-		t.Fatalf("load: %v", err)
-	}
-	if errs := editor.RunAll(MovelooperValidators, doc.Raw(), doc.Blocks()); len(errs) != 0 {
-		for _, e := range errs {
-			t.Errorf("violation: %s", e.String())
-		}
-	}
+	require.NoError(t, err)
+	assert.Empty(t, editor.RunAll(MovelooperValidators, doc.Raw(), doc.Blocks()))
 }
 
 // TestMovelooperValidatorsCatchBrokenConfig exercises the explicit cross-field
@@ -55,13 +51,7 @@ categories:
       path: d
 `)
 	errs := editor.RunAll(MovelooperValidators, raw, nil)
-	for _, e := range errs {
-		t.Logf("violation: %s", e.String())
-	}
 	// duplicate name, regex+glob in match, age.min >= age.max,
 	// any+all+match at same filter level → 3 pair violations (any/all, any/match, all/match)
-	wantAtLeast := 6
-	if len(errs) < wantAtLeast {
-		t.Errorf("expected at least %d violations, got %d", wantAtLeast, len(errs))
-	}
+	assert.GreaterOrEqual(t, len(errs), 6)
 }
