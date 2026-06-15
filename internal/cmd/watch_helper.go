@@ -91,7 +91,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 
 	go runEventLoop(ctx, m, watcher, cfg.tracker)
 	go runSignalHandler(ctx, m, cancel)
-	go runTickerLoop(ctx, m, cfg)
+	go runTickerLoop(ctx, m, &cfg)
 
 	<-ctx.Done()
 	return nil
@@ -161,7 +161,7 @@ func runSignalHandler(ctx context.Context, m *models.Movelooper, cancel context.
 }
 
 // runTickerLoop periodically checks for stable files and moves them.
-func runTickerLoop(ctx context.Context, m *models.Movelooper, cfg watchConfig) {
+func runTickerLoop(ctx context.Context, m *models.Movelooper, cfg *watchConfig) {
 	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
 	for {
@@ -208,7 +208,7 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 }
 
 // processPendingFiles checks which files have stabilized and attempts to move them.
-func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg watchConfig) {
+func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchConfig) {
 	now := time.Now()
 
 	snapshot := func() map[string]time.Time {

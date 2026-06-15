@@ -134,7 +134,7 @@ func runScan(scanPath string) ([]byte, error) {
 	trueVal := true
 	falseVal := false
 
-	var categories []scanCategory
+	categories := make([]scanCategory, 0, len(result.Categories)+1)
 	for _, detected := range result.Categories {
 		strategy := "rename"
 		if detected.Name == "installers" {

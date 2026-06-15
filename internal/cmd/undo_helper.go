@@ -70,7 +70,7 @@ func filterEntriesByCategory(m *models.Movelooper, batchID string, all []history
 	for _, c := range categoryNames {
 		catSet[c] = true
 	}
-	var filtered []history.Entry
+	filtered := make([]history.Entry, 0, len(all))
 	for _, e := range all {
 		if e.Category == "" {
 			m.Logger.Warn("skipping entry with unknown category (recorded before category tracking was added)",
@@ -116,17 +116,17 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 
 // confirmUndo shows a confirmation prompt and returns true if the user cancelled.
 func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) bool {
-	var fileList string
+	var sb strings.Builder
 	for i, entry := range entries {
 		if i < 5 {
-			fileList += fmt.Sprintf("  - %s\n", filepath.Base(entry.Source))
+			fmt.Fprintf(&sb, "  - %s\n", filepath.Base(entry.Source))
 		} else if i == 5 {
-			fileList += fmt.Sprintf("  ... and %d more files\n", len(entries)-5)
+			fmt.Fprintf(&sb, "  ... and %d more files\n", len(entries)-5)
 			break
 		}
 	}
 	msg := fmt.Sprintf("Undo batch: %s\n\nFiles to restore (%d total):\n%s\nProceed with restore?",
-		batchID, len(entries), fileList)
+		batchID, len(entries), sb.String())
 
 	var confirm bool
 	err := huh.NewConfirm().Title(msg).Value(&confirm).Run()
@@ -141,7 +141,7 @@ func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) 
 // Returns the entries that were successfully restored so callers can remove
 // only those from history, leaving failed restores available for retry.
 func restoreEntries(m *models.Movelooper, entries []history.Entry) []history.Entry {
-	var restored []history.Entry
+	restored := make([]history.Entry, 0, len(entries))
 	failCount := 0
 
 	m.Logger.Info("undoing batch", m.Logger.Args("files", len(entries)))

@@ -160,5 +160,5 @@ func categoryNames(result scanner.Result) []string {
 // touch creates an empty file at path.
 func touch(t *testing.T, path string) {
 	t.Helper()
-	require.NoError(t, os.WriteFile(path, []byte{}, 0644))
+	require.NoError(t, os.WriteFile(path, []byte{}, 0o644))
 }

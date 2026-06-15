@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -26,7 +27,7 @@ func runSelfUpdateList(repo string, includePrerelease bool, limit int, currentVe
 	current := normalizeUpdateTag(currentVersion)
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	for i, r := range releases {
-		var tags []string
+		tags := make([]string, 0, 3)
 		if i == 0 && !r.Prerelease {
 			tags = append(tags, "latest")
 		}
@@ -51,18 +52,11 @@ func runSelfUpdateList(repo string, includePrerelease bool, limit int, currentVe
 
 func normalizeUpdateTag(v string) string {
 	if len(v) > 0 && (v[0] == 'v' || v[0] == 'V') {
-		return v[1:]
+		return strings.Clone(v[1:])
 	}
 	return v
 }
 
 func joinUpdateTags(s []string) string {
-	out := ""
-	for i, v := range s {
-		if i > 0 {
-			out += ", "
-		}
-		out += v
-	}
-	return out
+	return strings.Join(s, ", ")
 }

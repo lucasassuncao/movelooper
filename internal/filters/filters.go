@@ -221,7 +221,7 @@ func matchesName(m *models.MatchFilter, fileName string) bool {
 
 // GenerateLogArgs generates log arguments for a given extension.
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{} {
-	var logArgs []interface{}
+	logArgs := make([]interface{}, 0, len(files)*2)
 	for _, file := range files {
 		if HasExtension(file, extension) {
 			logArgs = append(logArgs, "name", file.Name())

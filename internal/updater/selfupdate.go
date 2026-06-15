@@ -365,7 +365,7 @@ const maxDownloadOverhead = 1 << 20 // 1 MiB
 // download fetches url into destPath. expectedSize is the asset size reported by
 // the release metadata; the response body is capped at expectedSize +
 // maxDownloadOverhead to prevent a misconfigured or hostile server from filling the disk.
-func download(rawURL, destPath, token string, expectedSize int64) error {
+func download(rawURL, destPath, token string, expectedSize int64) (retErr error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return err
@@ -389,7 +389,11 @@ func download(rawURL, destPath, token string, expectedSize int64) error {
 	if err != nil {
 		return fmt.Errorf("creating temp binary: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); retErr == nil {
+			retErr = err
+		}
+	}()
 
 	limit := expectedSize + maxDownloadOverhead
 	if expectedSize <= 0 {

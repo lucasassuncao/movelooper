@@ -322,6 +322,7 @@ func TestDownload(t *testing.T) {
 }
 
 func TestCleanOldBinary(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		createOld bool
