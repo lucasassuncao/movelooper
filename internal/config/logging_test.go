@@ -122,7 +122,7 @@ type testFileStrategy struct {
 }
 
 // testFileStrategyTestCases defines a set of test cases for the fileStrategy.Writer method,
-// covering successful log file creation and missing log-file configuration.
+// covering successful log file creation and the default path fallback.
 var testFileStrategyTestCases = []testFileStrategy{
 	{
 		name: "creates log file",
@@ -131,8 +131,7 @@ var testFileStrategyTestCases = []testFileStrategy{
 		},
 	},
 	{
-		name:    "error when log-file not set",
-		wantErr: "log-file is required",
+		name: "uses default log path when log-file not set",
 	},
 }
 
@@ -173,7 +172,7 @@ type testMultiStrategy struct {
 }
 
 // testMultiStrategyTestCases defines a set of test cases for the multiStrategy.Writer method,
-// covering successful multi-writer creation and missing log-file configuration.
+// covering successful multi-writer creation and the default path fallback.
 var testMultiStrategyTestCases = []testMultiStrategy{
 	{
 		name: "creates file and multi-writer",
@@ -182,8 +181,7 @@ var testMultiStrategyTestCases = []testMultiStrategy{
 		},
 	},
 	{
-		name:    "error when log-file not set",
-		wantErr: true,
+		name: "uses default log path when log-file not set",
 	},
 }
 

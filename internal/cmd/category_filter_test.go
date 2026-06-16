@@ -1,8 +1,9 @@
-package models
+package cmd
 
 import (
 	"testing"
 
+	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,7 +101,7 @@ var testFilterCategoriesTestCases = []testFilterCategories{
 // category names and flags to ensure it correctly filters and validates categories.
 func TestFilterCategories(t *testing.T) {
 	t.Parallel()
-	all := []*Category{
+	all := []*models.Category{
 		enabledCategory("images"),
 		enabledCategory("docs"),
 		disabledCategory("archive"),
@@ -126,14 +127,14 @@ func TestFilterCategories(t *testing.T) {
 	}
 }
 
-func enabledCategory(name string) *Category {
+func enabledCategory(name string) *models.Category {
 	t := true
-	return &Category{Name: name, Enabled: &t}
+	return &models.Category{Name: name, Enabled: &t}
 }
 
-func disabledCategory(name string) *Category {
+func disabledCategory(name string) *models.Category {
 	f := false
-	return &Category{Name: name, Enabled: &f}
+	return &models.Category{Name: name, Enabled: &f}
 }
 
 func silentLogger() *pterm.Logger {

@@ -18,9 +18,11 @@ Package cmd contains the command line interface commands for the Movelooper appl
 - [func CategoriesPreset\(name string\) \[\]models.Category](<#CategoriesPreset>)
 - [func ConfigurationPreset\(name string\) \*models.Configuration](<#ConfigurationPreset>)
 - [func EditCmd\(\) \*cobra.Command](<#EditCmd>)
+- [func FilterCategories\(all \[\]\*models.Category, names \[\]string, includeDisabled bool, log logger.Logger\) \(\[\]\*models.Category, error\)](<#FilterCategories>)
 - [func InitCmd\(\) \*cobra.Command](<#InitCmd>)
 - [func ListOfCategoriesPresets\(\) \[\]string](<#ListOfCategoriesPresets>)
 - [func ListOfConfigurationPresets\(\) \[\]string](<#ListOfConfigurationPresets>)
+- [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
 - [func RootCmd\(m \*models.Movelooper, version string\) \*cobra.Command](<#RootCmd>)
 - [func SelfUpdateCmd\(currentVersion string\) \*cobra.Command](<#SelfUpdateCmd>)
 - [func UndoCmd\(m \*models.Movelooper\) \*cobra.Command](<#UndoCmd>)
@@ -151,6 +153,19 @@ func EditCmd() *cobra.Command
 
 EditCmd returns the "edit" command, which opens an interactive TUI editor for the movelooper configuration file.
 
+<a name="FilterCategories"></a>
+## func [FilterCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/category_filter.go#L37>)
+
+```go
+func FilterCategories(all []*models.Category, names []string, includeDisabled bool, log logger.Logger) ([]*models.Category, error)
+```
+
+FilterCategories returns the subset of all that should be processed.
+
+When names is empty, all categories are returned. Without includeDisabled, categories with enabled: false are silently excluded \(same behavior as today\). With includeDisabled, all categories are returned regardless of their enabled field.
+
+When names is non\-empty, each name is validated against the config. An unknown name returns an error. A disabled category without includeDisabled is skipped with a warning that suggests the flag.
+
 <a name="InitCmd"></a>
 ## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L17>)
 
@@ -177,6 +192,15 @@ func ListOfConfigurationPresets() []string
 ```
 
 
+
+<a name="ParseCategoryNames"></a>
+## func [ParseCategoryNames](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/category_filter.go#L13>)
+
+```go
+func ParseCategoryNames(raw string) []string
+```
+
+ParseCategoryNames splits a comma\-separated category string into a slice of trimmed names. Returns nil when raw is empty or contains only separators.
 
 <a name="RootCmd"></a>
 ## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L15>)

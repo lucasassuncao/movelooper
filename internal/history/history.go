@@ -45,24 +45,17 @@ type History struct {
 	maxBatches int
 }
 
-// NewHistory creates a new History manager. limit controls the maximum number
-// of batches retained; values less than 1 fall back to defaultMaxBatches.
-func NewHistory(limit int) (*History, error) {
+// NewHistory creates a new History manager. path is the file where history is
+// persisted; limit controls the maximum number of batches retained (values
+// less than 1 fall back to defaultMaxBatches).
+func NewHistory(path string, limit int) (*History, error) {
 	if limit < 1 {
 		limit = defaultMaxBatches
 	}
 
-	ex, err := os.Executable()
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, err
 	}
-
-	historyDir := filepath.Join(filepath.Dir(ex), "history")
-	if err := os.MkdirAll(historyDir, 0o750); err != nil {
-		return nil, err
-	}
-
-	path := filepath.Join(historyDir, "movelooper.json")
 
 	h := &History{
 		path:       path,

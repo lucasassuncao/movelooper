@@ -1,10 +1,11 @@
-package models
+package cmd
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/logger"
+	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
 // ParseCategoryNames splits a comma-separated category string into a slice of trimmed names.
@@ -33,12 +34,12 @@ func ParseCategoryNames(raw string) []string {
 // When names is non-empty, each name is validated against the config. An unknown
 // name returns an error. A disabled category without includeDisabled is skipped
 // with a warning that suggests the flag.
-func FilterCategories(all []*Category, names []string, includeDisabled bool, log logger.Logger) ([]*Category, error) {
+func FilterCategories(all []*models.Category, names []string, includeDisabled bool, log logger.Logger) ([]*models.Category, error) {
 	if len(names) == 0 {
 		if includeDisabled {
 			return all, nil
 		}
-		var result []*Category
+		var result []*models.Category
 		for _, cat := range all {
 			if cat.IsEnabled() {
 				result = append(result, cat)
@@ -47,12 +48,12 @@ func FilterCategories(all []*Category, names []string, includeDisabled bool, log
 		return result, nil
 	}
 
-	index := make(map[string]*Category, len(all))
+	index := make(map[string]*models.Category, len(all))
 	for _, cat := range all {
 		index[cat.Name] = cat
 	}
 
-	var result []*Category
+	var result []*models.Category
 	for _, name := range names {
 		cat, ok := index[name]
 		if !ok {

@@ -55,8 +55,8 @@ type hookAfterVars struct {
 
 // runMove executes the default move operation across all configured categories.
 func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error {
-	names := models.ParseCategoryNames(opts.CategoryFilter)
-	categories, err := models.FilterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
+	names := ParseCategoryNames(opts.CategoryFilter)
+	categories, err := FilterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
 	if err != nil {
 		return err
 	}

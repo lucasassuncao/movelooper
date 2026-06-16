@@ -21,6 +21,7 @@ type Configuration struct {
 	ShowCaller   bool          `yaml:"show-caller" mapstructure:"show-caller"`
 	WatchDelay   time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
 	HistoryLimit int           `yaml:"history-limit" mapstructure:"history-limit"`
+	HistoryFile  string        `yaml:"history-file" mapstructure:"history-file"`
 }
 
 func (Config) Metadata() map[string]*metadata.Node {
@@ -77,6 +78,12 @@ func (Configuration) Metadata() map[string]*metadata.Node {
 			Min:         "1",
 			Max:         "100000",
 			Example:     "history-limit: 100",
+		}},
+		"history-file": {FieldMeta: editor.FieldMeta{
+			Description: "Path to the history file used for undo. Defaults to ~/.movelooper/history/movelooper.json when not set.",
+			Default:     "~/.movelooper/history/movelooper.json",
+			Formats:     []editor.Format{editor.FormatDirectoryPath},
+			Example:     "history-file: ~/.movelooper/history/movelooper.json",
 		}},
 	}
 }

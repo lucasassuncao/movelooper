@@ -13,7 +13,7 @@ var MovelooperPresets = presets.Combine(
 )
 
 func configurationPresetsMap() map[string]*models.Configuration {
-	logFile := "~/movelooper.log"
+	logFile := "~/.movelooper/logs/movelooper.log"
 
 	return map[string]*models.Configuration{
 		"base": {

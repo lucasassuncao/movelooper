@@ -76,11 +76,19 @@ func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
 	return logger, closer, nil
 }
 
+func defaultLogFilePath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(os.TempDir(), "movelooper", "logs", "movelooper.log")
+	}
+	return filepath.Join(homeDir, ".movelooper", "logs", "movelooper.log")
+}
+
 // openLogFile opens the log file for writing
 func openLogFile(k *koanf.Koanf) (*os.File, error) {
 	file := k.String("configuration.log-file")
 	if file == "" {
-		return nil, fmt.Errorf("log-file is required when output is 'file' or 'both'")
+		file = defaultLogFilePath()
 	}
 
 	dir := filepath.Dir(file)

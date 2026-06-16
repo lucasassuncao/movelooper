@@ -11,12 +11,10 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 ## Index
 
 - [Variables](<#variables>)
-- [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
 - [type Action](<#Action>)
 - [type AgeFilter](<#AgeFilter>)
   - [func \(AgeFilter\) Metadata\(\) map\[string\]\*metadata.Node](<#AgeFilter.Metadata>)
 - [type Category](<#Category>)
-  - [func FilterCategories\(all \[\]\*Category, names \[\]string, includeDisabled bool, log logger.Logger\) \(\[\]\*Category, error\)](<#FilterCategories>)
   - [func \(c \*Category\) IsEnabled\(\) bool](<#Category.IsEnabled>)
   - [func \(Category\) Metadata\(\) map\[string\]\*metadata.Node](<#Category.Metadata>)
 - [type CategoryDestination](<#CategoryDestination>)
@@ -73,15 +71,6 @@ var (
 )
 ```
 
-<a name="ParseCategoryNames"></a>
-## func [ParseCategoryNames](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/categories.go#L12>)
-
-```go
-func ParseCategoryNames(raw string) []string
-```
-
-ParseCategoryNames splits a comma\-separated category string into a slice of trimmed names. Returns nil when raw is empty or contains only separators.
-
 <a name="Action"></a>
 ## type [Action](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L26>)
 
@@ -136,19 +125,6 @@ type Category struct {
     Hooks       *CategoryHooks      `yaml:"hooks" mapstructure:"hooks"`
 }
 ```
-
-<a name="FilterCategories"></a>
-### func [FilterCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/categories.go#L36>)
-
-```go
-func FilterCategories(all []*Category, names []string, includeDisabled bool, log logger.Logger) ([]*Category, error)
-```
-
-FilterCategories returns the subset of all that should be processed.
-
-When names is empty, all categories are returned. Without includeDisabled, categories with enabled: false are silently excluded \(same behavior as today\). With includeDisabled, all categories are returned regardless of their enabled field.
-
-When names is non\-empty, each name is validated against the config. An unknown name returns an error. A disabled category without includeDisabled is skipped with a warning that suggests the flag.
 
 <a name="Category.IsEnabled"></a>
 ### func \(\*Category\) [IsEnabled](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L45>)
@@ -298,7 +274,7 @@ type Config struct {
 ```
 
 <a name="Config.Metadata"></a>
-### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L26>)
+### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L27>)
 
 ```go
 func (Config) Metadata() map[string]*metadata.Node
@@ -307,7 +283,7 @@ func (Config) Metadata() map[string]*metadata.Node
 
 
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L17-L24>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L17-L25>)
 
 Configuration holds the general settings for Movelooper
 
@@ -319,11 +295,12 @@ type Configuration struct {
     ShowCaller   bool          `yaml:"show-caller" mapstructure:"show-caller"`
     WatchDelay   time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
     HistoryLimit int           `yaml:"history-limit" mapstructure:"history-limit"`
+    HistoryFile  string        `yaml:"history-file" mapstructure:"history-file"`
 }
 ```
 
 <a name="Configuration.Metadata"></a>
-### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L39>)
+### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L40>)
 
 ```go
 func (Configuration) Metadata() map[string]*metadata.Node

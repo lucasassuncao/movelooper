@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/knadh/koanf/v2"
 	"github.com/lucasassuncao/movelooper/internal/history"
@@ -78,19 +79,31 @@ func (b *AppBuilder) LoadCategories() *AppBuilder {
 	return b
 }
 
-// InitHistory initialises the move history store using m.Config.HistoryLimit.
+// InitHistory initialises the move history store using m.Config.HistoryLimit and m.Config.HistoryFile.
 // A failure here is non-fatal: it logs a warning and leaves m.History nil.
 func (b *AppBuilder) InitHistory() *AppBuilder {
 	if b.err != nil {
 		return b
 	}
-	hist, err := history.NewHistory(b.m.Config.HistoryLimit)
+	path := b.m.Config.HistoryFile
+	if path == "" {
+		path = defaultHistoryFilePath()
+	}
+	hist, err := history.NewHistory(path, b.m.Config.HistoryLimit)
 	if err != nil {
 		b.m.Logger.Warn("failed to initialize history tracking", b.m.Logger.Args("error", err.Error()))
 		return b
 	}
 	b.m.History = hist
 	return b
+}
+
+func defaultHistoryFilePath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(os.TempDir(), "movelooper", "history", "movelooper.json")
+	}
+	return filepath.Join(homeDir, ".movelooper", "history", "movelooper.json")
 }
 
 // ValidateDirectories warns about source or destination directories that do not exist.

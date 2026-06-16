@@ -321,6 +321,8 @@ func ResolveConfigPath(configPath string) (string, error) {
 		return abs, nil
 	}
 
+	homeDir, _ := os.UserHomeDir()
+
 	ex, err := os.Executable()
 	if err != nil {
 		return "", fmt.Errorf("error getting executable: %v", err)
@@ -328,14 +330,18 @@ func ResolveConfigPath(configPath string) (string, error) {
 	exDir := filepath.Dir(ex)
 
 	candidates := []string{
+		filepath.Join(homeDir, ".movelooper", "conf", "movelooper.yaml"),
 		filepath.Join(exDir, "movelooper.yaml"),
 		filepath.Join(exDir, "conf", "movelooper.yaml"),
 	}
 	for _, p := range candidates {
+		if p == "" {
+			continue
+		}
 		if _, err := os.Stat(p); err == nil {
 			return p, nil
 		}
 	}
 
-	return "", fmt.Errorf("%w: movelooper.yaml not found in %s or %s/conf", ErrConfigNotFound, exDir, exDir)
+	return "", fmt.Errorf("%w: movelooper.yaml not found in ~/.movelooper/conf, %s, or %s/conf", ErrConfigNotFound, exDir, exDir)
 }

@@ -21,6 +21,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration {
 		ShowCaller:   k.Bool("configuration.show-caller"),
 		WatchDelay:   k.Duration("configuration.watch-delay"),
 		HistoryLimit: k.Int("configuration.history-limit"),
+		HistoryFile:  k.String("configuration.history-file"),
 	}
 
 	if cfg.WatchDelay == 0 {

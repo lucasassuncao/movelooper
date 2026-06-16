@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/charmbracelet/fang"
 	"github.com/lucasassuncao/movelooper/internal/cmd"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/updater"
@@ -22,7 +21,7 @@ func main() {
 
 	root := cmd.RootCmd(m, version)
 
-	if err := fang.Execute(context.Background(), root); err != nil {
+	if err := root.ExecuteContext(context.Background()); err != nil {
 		os.Exit(1)
 	}
 }

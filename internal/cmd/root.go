@@ -56,14 +56,31 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	cmd.Flags().StringVar(&categoryFilter, "category", "", "Comma-separated list of category names to process (default: all)")
 	cmd.Flags().BoolVar(&includeDisabled, "include-disabled", false, "Include categories with enabled: false")
 
-	// Add subcommands
-	cmd.AddCommand(InitCmd())
-	cmd.AddCommand(EditCmd())
-	cmd.AddCommand(WatchCmd(m))
-	cmd.AddCommand(UndoCmd(m))
-	cmd.AddCommand(SelfUpdateCmd(version))
-	cmd.AddCommand(ShowCmd)
-	cmd.AddCommand(GenerateCmd)
+	cmd.AddGroup(
+		&cobra.Group{ID: "ops", Title: "File Operation Commands"},
+		&cobra.Group{ID: "config", Title: "Configuration Commands"},
+		&cobra.Group{ID: "utils", Title: "Utility Commands"},
+	)
+
+	watchCmd := WatchCmd(m)
+	watchCmd.GroupID = "ops"
+	undoCmd := UndoCmd(m)
+	undoCmd.GroupID = "ops"
+
+	initCmd := InitCmd()
+	initCmd.GroupID = "config"
+	editCmd := EditCmd()
+	editCmd.GroupID = "config"
+
+	selfUpdateCmd := SelfUpdateCmd(version)
+	selfUpdateCmd.GroupID = "utils"
+	ShowCmd.GroupID = "utils"
+
+	GenerateCmd.GroupID = "utils"
+	cmd.AddCommand(watchCmd, undoCmd, initCmd, editCmd, selfUpdateCmd, ShowCmd, GenerateCmd)
+
+	cmd.CompletionOptions.HiddenDefaultCmd = true
+	cmd.SetHelpCommand(&cobra.Command{Hidden: true, GroupID: "utils"})
 
 	return cmd
 }
