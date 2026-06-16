@@ -158,7 +158,7 @@ type copyAction struct{}
 type symlinkAction struct{}
 
 func (a *moveAction) Execute(ctx context.Context, src, dst string) error {
-	return moveFileCtx(ctx, src, dst)
+	return MoveFileCtx(ctx, src, dst)
 }
 
 func (a *copyAction) Execute(ctx context.Context, src, dst string) error {
@@ -215,9 +215,9 @@ func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, ar
 	return resolvedPath, false
 }
 
-// moveFileCtx attempts to move a file from source to destination.
+// MoveFileCtx attempts to move a file from source to destination.
 // Falls back to copy+delete when os.Rename fails across different devices/drives.
-func moveFileCtx(ctx context.Context, src, dst string) error {
+func MoveFileCtx(ctx context.Context, src, dst string) error {
 	err := os.Rename(src, dst)
 	if err == nil {
 		return nil

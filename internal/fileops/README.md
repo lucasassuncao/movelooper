@@ -12,6 +12,7 @@ import "github.com/lucasassuncao/movelooper/internal/fileops"
 
 - [Variables](<#variables>)
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
+- [func MoveFileCtx\(ctx context.Context, src, dst string\) error](<#MoveFileCtx>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
 - [type ConflictArgs](<#ConflictArgs>)
 - [type ConflictResolver](<#ConflictResolver>)
@@ -38,6 +39,15 @@ func CreateDirectory(dir string) error
 ```
 
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
+
+<a name="MoveFileCtx"></a>
+## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L220>)
+
+```go
+func MoveFileCtx(ctx context.Context, src, dst string) error
+```
+
+MoveFileCtx attempts to move a file from source to destination. Falls back to copy\+delete when os.Rename fails across different devices/drives.
 
 <a name="ReadDirectory"></a>
 ## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L39>)

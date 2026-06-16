@@ -55,7 +55,7 @@ Use --category to undo only files from specific categories within a batch.`,
 			}
 
 			names := ParseCategoryNames(categoryFilter)
-			return undoBatch(m, batchID, dryRun, names)
+			return undoBatch(cmd.Context(), m, batchID, dryRun, names)
 		},
 	}
 

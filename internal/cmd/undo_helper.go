@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
+	"github.com/lucasassuncao/movelooper/internal/fileops"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
@@ -29,7 +31,7 @@ func printBatchList(m *models.Movelooper) error {
 	return w.Flush()
 }
 
-func undoBatch(m *models.Movelooper, batchID string, dryRun bool, categoryNames []string) error {
+func undoBatch(ctx context.Context, m *models.Movelooper, batchID string, dryRun bool, categoryNames []string) error {
 	allEntries := m.History.GetBatch(batchID)
 	if len(allEntries) == 0 {
 		return fmt.Errorf("batch %q not found in history", batchID)
@@ -53,7 +55,7 @@ func undoBatch(m *models.Movelooper, batchID string, dryRun bool, categoryNames 
 		return nil
 	}
 
-	restored := restoreEntries(m, entries)
+	restored := restoreEntries(ctx, m, entries)
 
 	if len(restored) > 0 {
 		if err := m.History.RemoveEntries(restored); err != nil {
@@ -140,7 +142,7 @@ func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) 
 // restoreEntries moves files back to their source locations in reverse order.
 // Returns the entries that were successfully restored so callers can remove
 // only those from history, leaving failed restores available for retry.
-func restoreEntries(m *models.Movelooper, entries []history.Entry) []history.Entry {
+func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history.Entry) []history.Entry {
 	restored := make([]history.Entry, 0, len(entries))
 	failCount := 0
 
@@ -167,7 +169,7 @@ func restoreEntries(m *models.Movelooper, entries []history.Entry) []history.Ent
 			continue
 		}
 
-		if err := restoreEntry(m, entry); err != nil {
+		if err := restoreEntry(ctx, m, entry); err != nil {
 			failCount++
 			continue
 		}
@@ -180,7 +182,7 @@ func restoreEntries(m *models.Movelooper, entries []history.Entry) []history.Ent
 }
 
 // restoreEntry performs the actual file operation for a single history entry.
-func restoreEntry(m *models.Movelooper, entry history.Entry) error {
+func restoreEntry(ctx context.Context, m *models.Movelooper, entry history.Entry) error {
 	switch entry.Action {
 	case "copy", "symlink":
 		if err := undoCopyOrSymlink(entry.Destination); err != nil {
@@ -188,7 +190,7 @@ func restoreEntry(m *models.Movelooper, entry history.Entry) error {
 			return err
 		}
 	default: // "move" or legacy entries without Action
-		if err := os.Rename(entry.Destination, entry.Source); err != nil {
+		if err := fileops.MoveFileCtx(ctx, entry.Destination, entry.Source); err != nil {
 			m.Logger.Error("failed to move file back", m.Logger.Args("from", entry.Destination, "to", entry.Source, "error", err.Error()))
 			return err
 		}
