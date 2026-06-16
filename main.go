@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/lucasassuncao/movelooper/internal/cmd"
@@ -22,6 +23,7 @@ func main() {
 	root := cmd.RootCmd(m, version)
 
 	if err := root.ExecuteContext(context.Background()); err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
 }

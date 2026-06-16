@@ -21,9 +21,11 @@ func RootCmd(m *models.Movelooper, version string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "movelooper",
-		Short:   "movelooper is a CLI tool for organizing and moving files",
-		Version: version,
+		Use:           "movelooper",
+		Short:         "movelooper is a CLI tool for organizing and moving files",
+		Version:       version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		Long: `movelooper organizes and moves files from source directories to destination directories,
 based on configurable categories.
 

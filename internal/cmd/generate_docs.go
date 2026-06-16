@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -15,14 +14,12 @@ var GenerateCmd = &cobra.Command{
 	Use:               "generate-docs",
 	Short:             "Generate documentation for movelooper",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
-	Run:               runGenerate,
+	RunE:              runGenerate,
 	Hidden:            true,
 }
 
-func runGenerate(cmd *cobra.Command, args []string) {
-	if err := generateDocs(); err != nil {
-		log.Fatalf("%v", err)
-	}
+func runGenerate(cmd *cobra.Command, args []string) error {
+	return generateDocs()
 }
 
 func generateDocs() error {

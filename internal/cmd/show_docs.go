@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/docgenerator"
@@ -14,13 +13,11 @@ var ShowCmd = &cobra.Command{
 	Use:               "show-docs",
 	Short:             "Show documentation in terminal",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
-	Run:               runShow,
+	RunE:              runShow,
 }
 
-func runShow(cmd *cobra.Command, args []string) {
-	if err := showDocs(); err != nil {
-		log.Fatalf("%v", err)
-	}
+func runShow(cmd *cobra.Command, args []string) error {
+	return showDocs()
 }
 
 func showDocs() error {

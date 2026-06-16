@@ -46,7 +46,7 @@ var GenerateCmd = &cobra.Command{
     Use:               "generate-docs",
     Short:             "Generate documentation for movelooper",
     PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
-    Run:               runGenerate,
+    RunE:              runGenerate,
     Hidden:            true,
 }
 ```
@@ -145,7 +145,7 @@ var ShowCmd = &cobra.Command{
     Use:               "show-docs",
     Short:             "Show documentation in terminal",
     PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
-    Run:               runShow,
+    RunE:              runShow,
 }
 ```
 
