@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/lucasassuncao/movelooper/internal/config"
+	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/editor"
 	"gopkg.in/yaml.v3"
 )
@@ -47,6 +49,32 @@ var MovelooperValidators = []editor.Validator{
 	// age and size min/max pairs must be ordered at any nesting depth.
 	editor.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),
 	editor.CrossFieldOrderedNested("categories.source.filter.size", "min", "max"),
+
+	// filter nesting (any/all/not) cannot exceed config.MaxFilterNestingDepth.
+	// Reuses config.FilterDepthOK so the limit is enforced here in the TUI and
+	// not just on the next `movelooper` run.
+	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+		var doc struct {
+			Categories []struct {
+				Source struct {
+					Filter models.CategoryFilter `yaml:"filter"`
+				} `yaml:"source"`
+			} `yaml:"categories"`
+		}
+		if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
+			return nil
+		}
+		var errs []editor.Violation
+		for i, c := range doc.Categories {
+			if !config.FilterDepthOK(&c.Source.Filter, config.MaxFilterNestingDepth, 0) {
+				errs = append(errs, editor.Violation{
+					Path:    fmt.Sprintf("categories[%d].source.filter", i),
+					Message: fmt.Sprintf("nesting exceeds maximum depth of %d", config.MaxFilterNestingDepth),
+				})
+			}
+		}
+		return errs
+	}),
 
 	// Custom validation to check that log-file is required when output is "file" or "both".
 	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {

@@ -13,6 +13,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 - [Constants](<#constants>)
 - [Variables](<#variables>)
 - [func ConfigureLogger\(k \*koanf.Koanf\) \(\*pterm.Logger, io.Closer, error\)](<#ConfigureLogger>)
+- [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
 - [func LoadConfig\(k \*koanf.Koanf\) models.Configuration](<#LoadConfig>)
 - [func ResolveConfigPath\(configPath string\) \(string, error\)](<#ResolveConfigPath>)
@@ -54,6 +55,15 @@ func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error)
 
 ConfigureLogger configures the logger based on the configuration. Returns the logger, a Closer that must be called on exit \(non\-nil only when writing to a file\), and any error.
 
+<a name="FilterDepthOK"></a>
+## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L170>)
+
+```go
+func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
+```
+
+FilterDepthOK reports whether f's any/all/not nesting stays within max levels. depth is the level being checked \(0 = the filter itself\). Exported so the edit command's validators \(internal/cmd/edit\_validators.go\) can enforce the same rule inside the TUI, without duplicating the recursion.
+
 <a name="InitConfig"></a>
 ## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L31>)
 
@@ -73,7 +83,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L312>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L337>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)

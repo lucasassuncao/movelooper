@@ -92,6 +92,29 @@ var MovelooperValidators = []editor.Validator{
 
     editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
         var doc struct {
+            Categories []struct {
+                Source struct {
+                    Filter models.CategoryFilter `yaml:"filter"`
+                } `yaml:"source"`
+            } `yaml:"categories"`
+        }
+        if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
+            return nil
+        }
+        var errs []editor.Violation
+        for i, c := range doc.Categories {
+            if !config.FilterDepthOK(&c.Source.Filter, config.MaxFilterNestingDepth, 0) {
+                errs = append(errs, editor.Violation{
+                    Path:    fmt.Sprintf("categories[%d].source.filter", i),
+                    Message: fmt.Sprintf("nesting exceeds maximum depth of %d", config.MaxFilterNestingDepth),
+                })
+            }
+        }
+        return errs
+    }),
+
+    editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+        var doc struct {
             Configuration struct {
                 Output  string `yaml:"output"`
                 LogFile string `yaml:"log-file"`

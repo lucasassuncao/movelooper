@@ -157,14 +157,39 @@ func hasDirectFilterFields(f *models.CategoryFilter) bool {
 
 // validateFilter validates a filter node recursively.
 func validateFilter(catName string, f *models.CategoryFilter) error {
+	if !FilterDepthOK(f, MaxFilterNestingDepth, 0) {
+		return fmt.Errorf("category %q: filter nesting exceeds maximum depth of %d", catName, MaxFilterNestingDepth)
+	}
 	return validateFilterDepth(catName, f, 0)
 }
 
-func validateFilterDepth(catName string, f *models.CategoryFilter, depth int) error {
-	if depth >= MaxFilterNestingDepth {
-		return fmt.Errorf("category %q: filter nesting exceeds maximum depth of %d", catName, MaxFilterNestingDepth)
+// FilterDepthOK reports whether f's any/all/not nesting stays within max
+// levels. depth is the level being checked (0 = the filter itself). Exported
+// so the edit command's validators (internal/cmd/edit_validators.go) can
+// enforce the same rule inside the TUI, without duplicating the recursion.
+func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool {
+	if depth >= max {
+		return false
 	}
+	for i := range f.Not {
+		if !FilterDepthOK(&f.Not[i], max, depth+1) {
+			return false
+		}
+	}
+	for i := range f.Any {
+		if !FilterDepthOK(&f.Any[i], max, depth+1) {
+			return false
+		}
+	}
+	for i := range f.All {
+		if !FilterDepthOK(&f.All[i], max, depth+1) {
+			return false
+		}
+	}
+	return true
+}
 
+func validateFilterDepth(catName string, f *models.CategoryFilter, depth int) error {
 	hasAny := len(f.Any) > 0
 	hasAll := len(f.All) > 0
 
