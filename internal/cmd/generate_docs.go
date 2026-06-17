@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -19,11 +20,11 @@ var GenerateCmd = &cobra.Command{
 }
 
 func runGenerate(cmd *cobra.Command, args []string) error {
-	return generateDocs()
+	return generateDocs(cmd.OutOrStdout())
 }
 
-func generateDocs() error {
-	fmt.Println("Generating documentation...")
+func generateDocs(w io.Writer) error {
+	fmt.Fprintln(w, "Generating documentation...")
 
 	docsDir := "docs/movelooper"
 
@@ -36,6 +37,6 @@ func generateDocs() error {
 		return fmt.Errorf("failed to generate docs: %w", err)
 	}
 
-	fmt.Printf("Documentation generated in '%s' directory.", docsDir)
+	fmt.Fprintf(w, "Documentation generated in '%s' directory.", docsDir)
 	return nil
 }

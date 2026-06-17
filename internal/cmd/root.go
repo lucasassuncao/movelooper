@@ -53,8 +53,8 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	}
 
 	cmd.PersistentFlags().StringP("config", "c", "", "Path to configuration file (e.g., /path/to/movelooper.yaml)")
-	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Preview mode! It shows what would be moved without moving files")
-	cmd.PersistentFlags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview mode! It shows what would be moved without moving files")
+	cmd.Flags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
 	cmd.Flags().StringVar(&categoryFilter, "category", "", "Comma-separated list of category names to process (default: all)")
 	cmd.Flags().BoolVar(&includeDisabled, "include-disabled", false, "Include categories with enabled: false")
 

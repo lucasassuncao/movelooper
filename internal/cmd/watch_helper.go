@@ -86,14 +86,14 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	m.Logger.Info("performing initial scan for existing files")
 	performInitialScan(m, cfg.tracker)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	go runEventLoop(ctx, m, watcher, cfg.tracker)
-	go runSignalHandler(ctx, m, cancel)
 	go runTickerLoop(ctx, m, &cfg)
 
 	<-ctx.Done()
+	m.Logger.Info("shutting down watch mode")
 	return nil
 }
 
@@ -143,20 +143,6 @@ func runEventLoop(ctx context.Context, m *models.Movelooper, watcher *fsnotify.W
 		case <-ctx.Done():
 			return
 		}
-	}
-}
-
-// runSignalHandler calls cancel when SIGINT or SIGTERM is received, or returns
-// silently when ctx is cancelled by another caller (preventing a goroutine leak).
-func runSignalHandler(ctx context.Context, m *models.Movelooper, cancel context.CancelFunc) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigChan)
-	select {
-	case <-sigChan:
-		m.Logger.Info("shutting down watch mode")
-		cancel()
-	case <-ctx.Done():
 	}
 }
 
