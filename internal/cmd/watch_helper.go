@@ -84,7 +84,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	registerSources(m, watcher)
 
 	m.Logger.Info("performing initial scan for existing files")
-	performInitialScan(m, cfg.tracker)
+	performInitialScan(ctx, m, cfg.tracker)
 
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -161,7 +161,7 @@ func runTickerLoop(ctx context.Context, m *models.Movelooper, cfg *watchConfig) 
 }
 
 // performInitialScan verifies existing files in source directories and adds them to the tracker.
-func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
+func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *fileTracker) {
 	tracker.mu.Lock()
 	defer tracker.mu.Unlock()
 
@@ -170,7 +170,7 @@ func performInitialScan(m *models.Movelooper, tracker *fileTracker) {
 			continue
 		}
 		autoExclude := []string{cat.Destination.Path}
-		entries, err := scanner.WalkSource(cat.Source, autoExclude)
+		entries, err := scanner.WalkSource(ctx, cat.Source, autoExclude)
 		if err != nil {
 			m.Logger.Warn("failed to scan directory during initial scan", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
 			continue

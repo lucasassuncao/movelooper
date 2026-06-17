@@ -124,7 +124,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	}
 
 	autoExclude := []string{category.Destination.Path}
-	allEntries, err := scanner.WalkSource(category.Source, autoExclude)
+	allEntries, err := scanner.WalkSource(ctx, category.Source, autoExclude)
 	if err != nil {
 		return fmt.Errorf("scan %q: %w", category.Source.Path, err)
 	}

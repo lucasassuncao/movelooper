@@ -14,7 +14,7 @@ Package scanner analyzes a directory and groups files by a built\-in extension d
 
 - [type DetectedCategory](<#DetectedCategory>)
 - [type FileEntry](<#FileEntry>)
-  - [func WalkSource\(source models.CategorySource, autoExclude \[\]string\) \(\[\]FileEntry, error\)](<#WalkSource>)
+  - [func WalkSource\(ctx context.Context, source models.CategorySource, autoExclude \[\]string\) \(\[\]FileEntry, error\)](<#WalkSource>)
 - [type Result](<#Result>)
   - [func Scan\(path string\) \(Result, error\)](<#Scan>)
 
@@ -32,7 +32,7 @@ type DetectedCategory struct {
 ```
 
 <a name="FileEntry"></a>
-## type [FileEntry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L13-L16>)
+## type [FileEntry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L14-L17>)
 
 FileEntry pairs a regular file's containing directory with its DirEntry.
 
@@ -44,10 +44,10 @@ type FileEntry struct {
 ```
 
 <a name="WalkSource"></a>
-### func [WalkSource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L23>)
+### func [WalkSource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L24>)
 
 ```go
-func WalkSource(source models.CategorySource, autoExclude []string) ([]FileEntry, error)
+func WalkSource(ctx context.Context, source models.CategorySource, autoExclude []string) ([]FileEntry, error)
 ```
 
 WalkSource returns all regular files under source.Path that pass the exclusion and depth rules. autoExclude lists destination paths that are automatically excluded to prevent infinite loops when the destination is inside the source tree. When source.Recursive is false only the top\-level directory is read.

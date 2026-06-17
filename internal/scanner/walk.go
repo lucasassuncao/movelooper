@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,20 +21,26 @@ type FileEntry struct {
 // automatically excluded to prevent infinite loops when the destination is
 // inside the source tree. When source.Recursive is false only the top-level
 // directory is read.
-func WalkSource(source models.CategorySource, autoExclude []string) ([]FileEntry, error) {
+func WalkSource(ctx context.Context, source models.CategorySource, autoExclude []string) ([]FileEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if source.Recursive && source.MaxDepth < 0 {
 		return nil, fmt.Errorf("max-depth must be >= 0 (0 = unlimited), got %d", source.MaxDepth)
 	}
 	if !source.Recursive {
-		return walkFlat(source.Path)
+		return walkFlat(ctx, source.Path)
 	}
 	var results []FileEntry
-	err := walkRecursive(source.Path, 0, source, autoExclude, &results)
+	err := walkRecursive(ctx, source.Path, 0, source, autoExclude, &results)
 	return results, err
 }
 
 // walkFlat reads a single directory and returns FileEntry for every regular file.
-func walkFlat(dir string) ([]FileEntry, error) {
+func walkFlat(ctx context.Context, dir string) ([]FileEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -50,12 +57,16 @@ func walkFlat(dir string) ([]FileEntry, error) {
 // walkRecursive descends into dir, collecting regular files while honouring
 // exclusion rules and max-depth.
 func walkRecursive(
+	ctx context.Context,
 	dir string,
 	depth int,
 	source models.CategorySource,
 	autoExclude []string,
 	results *[]FileEntry,
 ) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if isExcluded(dir, autoExclude) || isExcluded(dir, source.ExcludePaths) {
 		return nil
 	}
@@ -81,7 +92,7 @@ func walkRecursive(
 		if isExcluded(childDir, autoExclude) || isExcluded(childDir, source.ExcludePaths) {
 			continue // skip before incurring the ReadDir syscall inside the recursive call
 		}
-		if err := walkRecursive(childDir, childDepth, source, autoExclude, results); err != nil {
+		if err := walkRecursive(ctx, childDir, childDepth, source, autoExclude, results); err != nil {
 			return err
 		}
 	}

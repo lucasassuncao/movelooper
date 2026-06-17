@@ -1,6 +1,7 @@
 package scanner_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -186,7 +187,7 @@ func TestWalkSource(t *testing.T) {
 				excludes = tt.excludes(root)
 			}
 
-			entries, err := scanner.WalkSource(src(path, opts...), excludes)
+			entries, err := scanner.WalkSource(context.Background(), src(path, opts...), excludes)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
