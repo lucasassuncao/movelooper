@@ -22,13 +22,23 @@ COVERAGE_OUT  := $(COVERAGE_DIR)/coverage.out
 COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
 COVERAGE_XML  := $(COVERAGE_DIR)/coverage.xml
 
+ifeq ($(OS),Windows_NT)
+    MKDIR_COVERAGE = if not exist $(COVERAGE_DIR) mkdir $(COVERAGE_DIR)
+else
+    MKDIR_COVERAGE = mkdir -p $(COVERAGE_DIR)
+endif
+
 # Project variables
 BINARY_NAME := movelooper
 BUILD_DIR   := bin
 MAIN_PATH   := main.go
 
 help: ## Show this help message
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "Select-String -Path $(MAKEFILE_LIST) -Pattern '^([a-zA-Z_-]+):.*## (.+)' | Sort-Object { $$_.Matches[0].Groups[1].Value } | ForEach-Object { Write-Host -NoNewline -ForegroundColor Cyan ('{0,-20}' -f $$_.Matches[0].Groups[1].Value); Write-Host (' ' + $$_.Matches[0].Groups[2].Value) }"
+else
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+endif
 
 build: ## Build binary with goreleaser (current platform only)
 	@echo "Building..."
@@ -66,11 +76,7 @@ test-watch: ## Run tests in watch mode (reruns on file changes)
 	@$(GOTESTSUM) --format testdox --watch -- -race ./...
 
 test-coverage: ## Run tests with coverage (HTML + Cobertura XML)
-ifeq ($(OS),Windows_NT)
-	@if not exist $(COVERAGE_DIR) mkdir $(COVERAGE_DIR)
-else
-	@mkdir -p $(COVERAGE_DIR)
-endif
+	@$(MKDIR_COVERAGE)
 	@$(GOTESTSUM) --format testdox -- -race -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
 	@go tool cover -func=$(COVERAGE_OUT) | tail -1
 	@go tool cover -html=$(COVERAGE_OUT) -o $(COVERAGE_HTML)
