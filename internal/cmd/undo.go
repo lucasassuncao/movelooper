@@ -47,11 +47,20 @@ Use --category to undo only files from specific categories within a batch.`,
 			if len(args) == 1 {
 				batchID = args[0]
 			} else {
-				var err error
-				batchID, err = m.History.GetLastBatchID()
-				if err != nil {
-					return fmt.Errorf("failed to get last operation: %v", err)
+				batches := m.History.GetAllBatches()
+				if len(batches) == 0 {
+					m.Logger.Info("no batches in history")
+					return nil
 				}
+				selected, err := pickBatch(batches, m.History)
+				if err != nil {
+					return fmt.Errorf("batch picker: %v", err)
+				}
+				if selected == "" {
+					m.Logger.Info("undo operation cancelled")
+					return nil
+				}
+				batchID = selected
 			}
 
 			names := ParseCategoryNames(categoryFilter)
