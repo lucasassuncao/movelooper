@@ -55,10 +55,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage
-          path: |
-            coverage.out
-            coverage.html
-            coverage.xml
+          path: .coverage/
 
       - name: Lint
         run: make lint

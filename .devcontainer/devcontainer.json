@@ -7,6 +7,12 @@
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopContainer",
   "postCreateCommand": "go mod download",
+  "forwardPorts": [
+    8080
+  ],
+  "capAdd": [
+    "SYS_PTRACE"
+  ],
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": "false",
@@ -21,31 +27,30 @@
     },
     "ghcr.io/devcontainers/features/go:1": {
       "golangciLintVersion": "latest",
-      "version": "1.26.1"
+      "version": "1.26.4"
     },
     "ghcr.io/eitsupi/devcontainer-features/jq-likes:2.1.0": {
       "jqVersion": "latest",
       "yqVersion": "latest"
+    },
+    "ghcr.io/devcontainers-extra/features/go-task:1": {
+      "version": "latest"
     }
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "golang.go",
-        "eamodio.gitlens",
-        "tamasfe.even-better-toml",
-        "zainchen.json",
-        "shd101wyy.markdown-preview-enhanced",
-        "github.vscode-github-actions",
-        "redhat.vscode-yaml",
-        "ms-vscode.makefile-tools",
-        "streetsidesoftware.code-spell-checker"
-      ],
       "settings": {
         "editor.formatOnSave": true,
-        "files.autoSave": "afterDelay",
-        "go.enableCodeLens": {
-          "runtest": true
+        "files.insertFinalNewline": true,
+        "go.delveConfig": {
+          "apiVersion": 2,
+          "dlvLoadConfig": {
+            "followPointers": true,
+            "maxArrayValues": 64,
+            "maxStringLen": 512,
+            "maxStructFields": -1,
+            "maxVariableRecurse": 1
+          }
         },
         "go.inlayHints.assignVariableTypes": true,
         "go.inlayHints.compositeLiteralFields": true,
@@ -54,19 +59,37 @@
         "go.inlayHints.functionTypeParameters": true,
         "go.inlayHints.parameterNames": true,
         "go.inlayHints.rangeVariableTypes": true,
+        "go.lintFlags": [
+          "--fast"
+        ],
         "go.lintOnSave": "file",
         "go.lintTool": "golangci-lint",
+        "go.testFlags": [
+          "-v",
+          "-race"
+        ],
+        "go.toolsManagement.checkForUpdates": "off",
         "go.useLanguageServer": true,
-        "goTestExplorer.profiler.showCodeLens": true,
         "gopls": {
-          "build.buildFlags": [],
           "ui.diagnostic.staticcheck": true
         },
         "terminal.integrated.defaultProfile.linux": "bash",
-        "terminal.integrated.defaultLocation": "panel",
-        "workbench.startupEditor": "none",
-        "terminal.integrated.showExitAlert": false
-      }
+        "dev.containers.mountWaylandSocket": false
+      },
+      "extensions": [
+        "Anthropic.claude-code",
+        "bruno-api-client.bruno",
+        "docker.docker",
+        "golang.go",
+        "griimick.vhs",
+        "ms-azuretools.vscode-containers",
+        "ms-azuretools.vscode-docker",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "ms-vscode-remote.remote-containers",
+        "ms-vscode-remote.remote-wsl",
+        "redhat.vscode-yaml",
+        "task.vscode-task"
+      ]
     }
   }
 }

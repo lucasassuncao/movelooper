@@ -17,9 +17,10 @@ GOSEC       := go run github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)
 GOCOBERTURA := go run github.com/t-yuki/gocover-cobertura@$(GOCOBERTURA_VERSION)
 
 # Coverage
-COVERAGE_OUT  := coverage.out
-COVERAGE_HTML := coverage.html
-COVERAGE_XML  := coverage.xml
+COVERAGE_DIR  := .coverage
+COVERAGE_OUT  := $(COVERAGE_DIR)/coverage.out
+COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
+COVERAGE_XML  := $(COVERAGE_DIR)/coverage.xml
 
 # Project variables
 BINARY_NAME := movelooper
@@ -65,6 +66,11 @@ test-watch: ## Run tests in watch mode (reruns on file changes)
 	@$(GOTESTSUM) --format testdox --watch -- -race ./...
 
 test-coverage: ## Run tests with coverage (HTML + Cobertura XML)
+ifeq ($(OS),Windows_NT)
+	@if not exist $(COVERAGE_DIR) mkdir $(COVERAGE_DIR)
+else
+	@mkdir -p $(COVERAGE_DIR)
+endif
 	@$(GOTESTSUM) --format testdox -- -race -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
 	@go tool cover -func=$(COVERAGE_OUT) | tail -1
 	@go tool cover -html=$(COVERAGE_OUT) -o $(COVERAGE_HTML)
@@ -85,11 +91,11 @@ docs: ## Generate documentation with gomarkdoc
 		--repository.path / \
 		-o '{{.Dir}}/README.md' ./internal/...
 
-all: fmt docs lint security test-coverage
+all: deps fmt docs lint security test-coverage
 
 run: ## Run the application
 	@go run $(MAIN_PATH)
 
 clean: ## Remove build artifacts and cache
-	@rm -rf $(BUILD_DIR) dist/ $(COVERAGE_OUT) $(COVERAGE_HTML) $(COVERAGE_XML)
+	@rm -rf $(BUILD_DIR) dist/ $(COVERAGE_DIR)
 	@go clean -cache -testcache

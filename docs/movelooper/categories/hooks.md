@@ -17,7 +17,7 @@ The following arguments are supported:
 |------|------|-------------|----------|---------|
 | shell | string | Shell interpreter for hook commands. | No | /bin/sh |
 | on-failure | string | What to do if a hook command exits non-zero: abort the file's operation, or warn and continue. | Yes | abort |
-| run | array | Shell commands executed in order. | Yes | - |
+| run | []string | Shell commands executed in order. | Yes | - |
 
 ### after
 
@@ -27,5 +27,5 @@ The following arguments are supported:
 |------|------|-------------|----------|---------|
 | shell | string | Shell interpreter for hook commands. | No | /bin/sh |
 | on-failure | string | What to do if a hook command exits non-zero: abort the file's operation, or warn and continue. | Yes | abort |
-| run | array | Shell commands executed in order. | Yes | - |
+| run | []string | Shell commands executed in order. | Yes | - |
 

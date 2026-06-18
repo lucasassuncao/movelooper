@@ -28,9 +28,10 @@ func generateDocs(w io.Writer) error {
 
 	docsDir := "docs/movelooper"
 
+	zero := 0
 	entries := []docgenerator.Entry{
 		{Config: models.Configuration{}, DocsDir: filepath.Join(docsDir, "configuration")},
-		{Config: models.Category{}, DocsDir: filepath.Join(docsDir, "categories"), SplitStructs: true},
+		{Config: models.Category{}, DocsDir: filepath.Join(docsDir, "categories"), SplitStructs: true, RecursionLimit: &zero},
 	}
 
 	if err := docgenerator.Generate(docsDir, entries); err != nil {

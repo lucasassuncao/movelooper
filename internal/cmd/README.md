@@ -25,6 +25,7 @@ Package cmd contains the command line interface commands for the Movelooper appl
 - [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
 - [func RootCmd\(m \*models.Movelooper, version string\) \*cobra.Command](<#RootCmd>)
 - [func SelfUpdateCmd\(currentVersion string\) \*cobra.Command](<#SelfUpdateCmd>)
+- [func ShowCmd\(\) \*cobra.Command](<#ShowCmd>)
 - [func UndoCmd\(m \*models.Movelooper\) \*cobra.Command](<#UndoCmd>)
 - [func WatchCmd\(m \*models.Movelooper\) \*cobra.Command](<#WatchCmd>)
 - [type MoveOptions](<#MoveOptions>)
@@ -138,17 +139,6 @@ var MovelooperValidators = []editor.Validator{
 }
 ```
 
-<a name="ShowCmd"></a>
-
-```go
-var ShowCmd = &cobra.Command{
-    Use:               "show-docs",
-    Short:             "Show documentation in terminal",
-    PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
-    RunE:              runShow,
-}
-```
-
 <a name="CategoriesPreset"></a>
 ## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L430>)
 
@@ -242,6 +232,15 @@ func SelfUpdateCmd(currentVersion string) *cobra.Command
 ```
 
 SelfUpdateCmd returns the self\-update command.
+
+<a name="ShowCmd"></a>
+## func [ShowCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/show_docs.go#L14>)
+
+```go
+func ShowCmd() *cobra.Command
+```
+
+
 
 <a name="UndoCmd"></a>
 ## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L11>)
