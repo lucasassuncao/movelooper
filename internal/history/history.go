@@ -1,6 +1,8 @@
 package history
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -72,23 +74,43 @@ func NewHistory(path string, limit int) (*History, error) {
 	return h, nil
 }
 
-// Add appends a new entry to the history.
+// Add appends a new entry to the history using a WAL (write-ahead log) strategy:
+// the entry is written to disk first, then updated in memory. Compaction via
+// prune is only triggered when the batch limit is exceeded, and uses an atomic
+// temp-file rename to avoid partial writes.
 func (h *History) Add(entry Entry) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	snapshot := make([]Entry, len(h.entries))
-	copy(snapshot, h.entries)
-	h.entries = append(h.entries, entry)
-	h.prune()
-	if err := h.save(); err != nil {
-		h.entries = snapshot
+
+	line, err := json.Marshal(entry)
+	if err != nil {
 		return err
+	}
+	line = append(line, '\n')
+
+	f, err := os.OpenFile(h.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //#nosec G304 -- path is set by the application at startup from config, not from user input
+	if err != nil {
+		return err
+	}
+	_, writeErr := f.Write(line)
+	closeErr := f.Close()
+	if writeErr != nil {
+		return writeErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+
+	h.entries = append(h.entries, entry)
+	if h.prune() {
+		return h.save()
 	}
 	return nil
 }
 
-// prune removes the oldest batches, keeping at most maxBatches
-func (h *History) prune() {
+// prune removes the oldest batches, keeping at most maxBatches.
+// Returns true when entries were removed and compaction is needed.
+func (h *History) prune() bool {
 	seen := make(map[string]bool, len(h.entries))
 	batchOrder := make([]string, 0, len(h.entries))
 	for _, e := range h.entries {
@@ -99,7 +121,7 @@ func (h *History) prune() {
 	}
 
 	if len(batchOrder) <= h.maxBatches {
-		return
+		return false
 	}
 
 	excess := len(batchOrder) - h.maxBatches
@@ -115,6 +137,7 @@ func (h *History) prune() {
 		}
 	}
 	h.entries = newEntries
+	return true
 }
 
 // BatchSummary holds a brief description of a batch for listing purposes
@@ -251,25 +274,69 @@ func (h *History) RemoveEntries(entries []Entry) error {
 	return nil
 }
 
+// save writes h.entries to disk atomically using a temp file + rename, in
+// NDJSON format (one JSON object per line). Callers must hold h.mu.
+func (h *History) save() error {
+	tmp := h.path + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //#nosec G304 -- path is set by the application at startup from config, not from user input
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(f)
+	for _, e := range h.entries {
+		if encErr := enc.Encode(e); encErr != nil {
+			f.Close()
+			os.Remove(tmp)
+			return encErr
+		}
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, h.path)
+}
+
+// load reads the history file into h.entries. It supports two formats:
+//   - NDJSON (current): one JSON object per line; malformed lines are skipped
+//     to tolerate partial writes from a previous crash.
+//   - JSON array (legacy): files written by older versions are detected by a
+//     leading '[' and parsed in full for backwards compatibility.
+//
+// Callers must hold h.mu or call before the History is shared.
 func (h *History) load() error {
 	data, err := os.ReadFile(h.path)
 	if err != nil {
 		return err
 	}
 
+	// legacy: JSON array written by older versions
+	if content := bytes.TrimSpace(data); len(content) > 0 && content[0] == '[' {
+		var entries []Entry
+		if err := json.Unmarshal(data, &entries); err != nil {
+			return err
+		}
+		h.entries = entries
+		return nil
+	}
+
+	// NDJSON: skip malformed lines (e.g. partial last line after a crash)
+	sc := bufio.NewScanner(bytes.NewReader(data))
 	var entries []Entry
-	if err := json.Unmarshal(data, &entries); err != nil {
+	for sc.Scan() {
+		line := bytes.TrimSpace(sc.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		var e Entry
+		if err := json.Unmarshal(line, &e); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+	if err := sc.Err(); err != nil {
 		return err
 	}
 	h.entries = entries
 	return nil
-}
-
-func (h *History) save() error {
-	data, err := json.MarshalIndent(h.entries, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(h.path, data, 0o600)
 }

@@ -1,6 +1,7 @@
 package history
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -80,11 +81,9 @@ func TestAdd(t *testing.T) {
 			}
 			require.NoError(t, lastErr)
 
-			data, err := os.ReadFile(h.path)
-			require.NoError(t, err)
-			var loaded []Entry
-			require.NoError(t, json.Unmarshal(data, &loaded))
-			assert.Len(t, loaded, tt.wantLen)
+			h2 := &History{path: h.path, maxBatches: h.maxBatches}
+			require.NoError(t, h2.load())
+			assert.Len(t, h2.entries, tt.wantLen)
 		})
 	}
 }
@@ -221,11 +220,9 @@ var testRemoveBatchTestCases = []testRemoveBatch{
 			assert.Empty(t, h.GetBatch("batch_1"))
 			assert.Len(t, h.GetBatch("batch_2"), 1)
 
-			data, err := os.ReadFile(h.path)
-			require.NoError(t, err)
-			var loaded []Entry
-			require.NoError(t, json.Unmarshal(data, &loaded))
-			for _, e := range loaded {
+			h2 := &History{path: h.path, maxBatches: h.maxBatches}
+			require.NoError(t, h2.load())
+			for _, e := range h2.entries {
 				assert.NotEqual(t, "batch_1", e.BatchID)
 			}
 		},
@@ -370,11 +367,11 @@ var testLoadTestCases = []testLoad{
 		wantLen: 1,
 	},
 	{
-		name: "corrupt json",
+		name: "corrupt ndjson lines are skipped gracefully",
 		setup: func(t *testing.T, h *History) {
 			require.NoError(t, os.WriteFile(h.path, []byte("not valid json {{{"), 0o644))
 		},
-		wantErr: true,
+		wantLen: 0,
 	},
 	{
 		name:     "file not exist",
@@ -419,20 +416,25 @@ type testSave struct {
 // covering entries with data and empty entry arrays.
 var testSaveTestCases = []testSave{
 	{
-		name:    "writes json with entries",
+		name:    "writes ndjson with entries",
 		entries: []Entry{{Source: "/src/b.txt", Destination: "/dst/b.txt", Timestamp: time.Now(), BatchID: "batch_save"}},
 		check: func(t *testing.T, data []byte) {
+			dec := json.NewDecoder(bytes.NewReader(data))
 			var loaded []Entry
-			require.NoError(t, json.Unmarshal(data, &loaded))
+			for dec.More() {
+				var e Entry
+				require.NoError(t, dec.Decode(&e))
+				loaded = append(loaded, e)
+			}
 			require.Len(t, loaded, 1)
 			assert.Equal(t, "batch_save", loaded[0].BatchID)
 		},
 	},
 	{
-		name:    "empty entries writes empty array",
+		name:    "empty entries writes empty file",
 		entries: []Entry{},
 		check: func(t *testing.T, data []byte) {
-			assert.Contains(t, string(data), "[]")
+			assert.Empty(t, bytes.TrimSpace(data))
 		},
 	},
 }
