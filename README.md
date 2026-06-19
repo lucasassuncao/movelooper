@@ -23,7 +23,7 @@
 ### Automate
 
 - Watch mode: monitors directories in real-time, moves files as they stabilize
-- Undo: revert the last batch or any specific batch from history
+- Undo: interactive batch picker to select and revert a batch · pass a batch ID to skip the picker
 - `--dry-run` on move, watch, and undo to preview before committing
 - Hooks: run shell commands before and after each category — notify, log, call webhooks, or trigger scripts
 
@@ -31,7 +31,7 @@
 
 - Split config across multiple YAML files with `import:`
 - Interactive setup wizard (`init -i`) or generate from a template (`init -t full`)
-- `config show` to inspect the merged config · `config validate` to catch errors early
+- `edit` — interactive TUI editor for the config file · `show-docs` to browse the field reference in the terminal
 - Self-update with `self-update`
 
 ## How It Works
@@ -133,8 +133,8 @@ categories:
 ### Configuration
 
 - Use `enabled: false` to temporarily pause a category without deleting it from the config.
-- Use `import:` to split a large config into per-category files - combine with `config show` to verify the merged result.
-- Run `movelooper config validate` to catch config errors before running the tool.
+- Use `import:` to split a large config into per-category files.
+- Run `movelooper edit` to open the config in the interactive TUI editor — it validates on save.
 
 ### Filters
 

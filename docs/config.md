@@ -554,7 +554,7 @@ categories:
       conflict-strategy: hash_check
 ```
 
-Imported files can also have their own `import:` for nested splitting. Use `movelooper config show` to inspect the final merged configuration.
+Imported files can also have their own `import:` for nested splitting.
 
 ---
 

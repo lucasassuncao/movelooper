@@ -44,7 +44,7 @@ movelooper watch --category images                 # watch only the "images" cat
 ## `movelooper undo` — revert a batch
 
 ```bash
-movelooper undo                                      # undo the most recent batch
+movelooper undo                                      # open interactive batch picker
 movelooper undo --list                               # list all recorded batches
 movelooper undo --dry-run                            # preview what would be restored
 movelooper undo batch_1718000000                     # undo a specific move batch
@@ -98,23 +98,43 @@ movelooper init --scan ~/Downloads -f        # overwrite existing config
 | `regex`      | One category with a date-prefix regex filter                     |
 | `full`       | All categories combined, including copy and symlink examples     |
 
-## `movelooper config validate` — validate config
+## `movelooper edit` — interactive config editor
 
-Loads and validates the configuration file without moving any files.
-
-```bash
-movelooper config validate
-movelooper config validate --config /path/to/movelooper.yaml
-```
-
-## `movelooper config show` — inspect active config
-
-Prints the active configuration as resolved in memory after startup, including all defaults filled in. Useful for verifying what movelooper is actually using.
+Opens the configuration file in an interactive two-panel TUI editor. The left panel lists top-level configuration keys; pressing Enter opens the block editor where sub-fields can be toggled and edited. The editor validates the file on save.
 
 ```bash
-movelooper config show
-movelooper config show --config /path/to/movelooper.yaml
+movelooper edit
+movelooper edit --theme dracula
+movelooper edit --list-themes
+movelooper edit --output /path/to/new.yaml
+movelooper edit --config /path/to/movelooper.yaml
 ```
+
+| Flag                    | Description                                                              |
+|-------------------------|--------------------------------------------------------------------------|
+| `--theme`               | Theme name (default: `dark`) — run `--list-themes` to see options        |
+| `--list-themes`         | List available theme names and exit                                      |
+| `--output`              | Save to this file instead of the loaded config (load path is unchanged)  |
+| `--no-save-confirm`     | Skip the save confirmation dialog                                        |
+| `--no-delete-confirm`   | Skip the block-delete confirmation dialog                                |
+| `--no-validate-on-save` | Allow saving even when validators report errors (a warning is shown)     |
+
+**Keybindings:** `Ctrl+S` save · `Ctrl+U` undo · `Ctrl+Y` redo · `Esc` quit
+
+## `movelooper show-docs` — browse field reference in terminal
+
+Renders the full field reference for `configuration` and `category` blocks directly in the terminal.
+
+```bash
+movelooper show-docs
+movelooper show-docs --theme dracula
+movelooper show-docs --list-themes
+```
+
+| Flag            | Description                                                        |
+|-----------------|--------------------------------------------------------------------|
+| `--theme`       | Theme name (default: `dark`) — run `--list-themes` to see options  |
+| `--list-themes` | List available theme names and exit                                |
 
 ## `movelooper self-update` — update the binary
 

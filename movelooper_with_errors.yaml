@@ -1,0 +1,213 @@
+configuration:
+  output: file                        # valid; no log-file below → custom validator fires
+  # log-file absent: required when output is "file" or "both"
+  log-level: verbose                  # OneOf: must be trace/debug/info/warn/error/fatal
+  show-caller: false
+  watch-delay: "five minutes"         # FormatDuration: not a valid Go duration string
+  history-limit: 0                    # Range: min is 1
+
+categories:
+  # ── 1. Required fields missing ────────────────────────────────────────────
+  # name missing (required), source.path missing (required),
+  # source.extensions missing (required), destination.path missing (required),
+  # hooks.before.on-failure missing (required), hooks.before.run missing (required),
+  # hooks.after.on-failure  missing (required), hooks.after.run  missing (required)
+  - name: lucas
+    hooks:
+      before:
+        shell: /bin/bash
+      after:
+        shell: /bin/bash
+  # ── 2. OneOf violations ───────────────────────────────────────────────────
+  - name: invalid-oneofs
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+    destination:
+      path: ~/Docs
+      conflict-strategy: do-nothing # OneOf: rename/hash_check/overwrite/skip/newest/oldest/larger/smaller
+      action: delete # OneOf: move/copy/symlink
+    hooks:
+      before:
+        on-failure: continue # OneOf: abort/warn
+        run: [echo before]
+      after:
+        on-failure: ignore # OneOf: abort/warn
+        run: [echo after]
+  # ── 3. Range violations ───────────────────────────────────────────────────
+  - name: range-violations
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      max-depth: 999 # Range: max is 256
+      filter:
+        age:
+          min: 99999h # Range: max is 87600h
+        size:
+          min: 200TB # Range: max is 100TB
+    destination:
+      path: ~/Docs
+  # ── 4. FormatOrganizeByPattern and FormatRenamePattern ───────────────────
+  - name: format-patterns
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+    destination:
+      path: ~/Docs
+      organize-by: "{invalid_token}" # FormatOrganizeByPattern: unknown token
+      rename: "{bad_token}" # FormatRenamePattern: unknown token
+  # ── 5. FormatRegex ────────────────────────────────────────────────────────
+  - name: format-regex
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      filter:
+        match:
+          regex: "(unclosed" # FormatRegex: invalid RE2 pattern
+    destination:
+      path: ~/Docs
+  # ── 6. FormatGlob ─────────────────────────────────────────────────────────
+  - name: format-glob
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      filter:
+        match:
+          glob: "[unclosed" # FormatGlob: invalid glob pattern
+    destination:
+      path: ~/Docs
+  # ── 7. UniqueFromMetadata: duplicate extensions ───────────────────────────
+  - name: unique-extensions
+    source:
+      path: ~/Downloads
+      extensions: [jpg, png, jpg] # UniqueFromMetadata: duplicate "jpg"
+    destination:
+      path: ~/Docs
+  # ── 8. CountFromMetadata: extensions and filter lists empty ───────────────
+  - name: empty-counts
+    source:
+      path: ~/Downloads
+    destination:
+      path: ~/Docs
+  # ── 9. CountFromMetadata: empty hook run lists ────────────────────────────
+  - name: empty-hook-runs
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+    destination:
+      path: ~/Docs
+    hooks:
+      before:
+        on-failure: abort
+      after:
+        on-failure: warn
+  # ── 10. NoDuplicates: same category name ─────────────────────────────────
+  - name: dup-name
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+    destination:
+      path: ~/Docs
+  - name: dup-name # NoDuplicates: duplicate of entry above
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+    destination:
+      path: ~/Docs
+  # ── 11. MutuallyExclusiveNested: match fields ────────────────────────────
+  - name: match-mutex
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      filter:
+        match:
+          literal: "report.pdf"
+          regex: ".*report.*" # MutuallyExclusiveNested(match): literal + regex
+    destination:
+      path: ~/Docs
+  # ── 12. MutuallyExclusiveGroupsNested: root filter level ─────────────────
+  - name: filter-mutex-root-any-match
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      filter:
+        any:
+          - match:
+              glob: "*.pdf"
+        match:
+          literal: "invoice.pdf" # Groups at filter root: any + match
+    destination:
+      path: ~/Docs
+  - name: filter-mutex-root-any-all
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      filter:
+        any:
+          - match:
+              glob: "*.pdf"
+        all:
+          - match:
+              glob: "*.docx" # Groups at filter root: any + all
+    destination:
+      path: ~/Docs
+  # ── 13. MutuallyExclusiveGroupsNested: at .any, .all, .not levels ────────
+  - name: filter-mutex-nested-levels
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      filter:
+        any:
+          - age: # at .any level: age (match/age/size group) + any (any group)
+              min: 1h
+            any:
+              - match:
+                  glob: "*.pdf"
+        all:
+          - size: # at .all level: size (match/age/size group) + all (all group)
+              min: 1MB
+            all:
+              - match:
+                  glob: "*.docx"
+        not:
+          - match: # at .not level: match (match/age/size group) + any (any group)
+              glob: "*.tmp"
+            any:
+              - match:
+                  glob: "*.log"
+    destination:
+      path: ~/Docs
+  # ── 14. CrossFieldOrderedNested: age and size min/max reversed ───────────
+  - name: cross-field-ordered
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      filter:
+        age:
+          min: 48h
+          max: 24h # CrossFieldOrderedNested: age.min (48h) > age.max (24h)
+        size:
+          min: 100MB
+          max: 50MB # CrossFieldOrderedNested: size.min (100MB) > size.max (50MB)
+    destination:
+      path: ~/Docs
+  # ── 15. Filter nesting exceeds MaxFilterNestingDepth (10) ────────────────
+  - name: deep-filter
+    source:
+      path: ~/Downloads
+      extensions: [pdf]
+      filter:
+        any:
+          - any:
+              - any:
+                  - any:
+                      - any:
+                          - any:
+                              - any:
+                                  - any:
+                                      - any:
+                                          - any: # depth 10 → exceeds MaxFilterNestingDepth
+                                              - match:
+                                                  glob: "*.pdf"
+    destination:
+      path: ~/Docs

@@ -42,8 +42,8 @@
       </div>
       <div class="feature-card">
         <div class="icon">↩</div>
-        <h3>Undo support</h3>
-        <p>Revert the last batch or any specific batch of moves from the history.</p>
+        <h3>Undo</h3>
+        <p>Interactive batch picker to select and revert any past operation. Pass a batch ID to skip the picker.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🔍</div>
@@ -53,52 +53,57 @@
       <div class="feature-card">
         <div class="icon">⚔️</div>
         <h3>Conflict strategies</h3>
-        <p>rename, overwrite, skip, or hash_check — per category, your choice.</p>
+        <p><code>rename</code>, <code>overwrite</code>, <code>skip</code>, or <code>hash_check</code> — per category.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🔎</div>
         <h3>Powerful filters</h3>
-        <p>Regex, glob, and literal name filters; age and size windows; <code>not</code> exclusion; composable <code>any</code>/<code>all</code> logic per category.</p>
+        <p>Regex, glob, age, and size filters; <code>not</code> exclusion; composable <code>any</code>/<code>all</code> logic.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🌐</div>
         <h3>Wildcard extension</h3>
-        <p>Use <code>extensions: [all]</code> to match any file type and organize by real extension.</p>
+        <p><code>extensions: [all]</code> matches any file type — combine with <code>organize-by: "{ext}"</code> for a catch-all sorter.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🗂</div>
         <h3>organize-by templates</h3>
-        <p>Flexible subdirectory structure with tokens like <code>{ext}</code>, <code>{mod-year}</code>, <code>{mod-month}</code>, <code>{size-range}</code>, and more.</p>
+        <p>Build subdirectory structures with tokens: <code>{ext}</code>, <code>{mod-year}</code>, <code>{mod-month}</code>, <code>{size-range}</code>, and more.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🏷️</div>
         <h3>Rich rename tokens</h3>
-        <p>Name transforms (<code>{name-slug}</code>, <code>{name-snake}</code>, <code>{name-trunc:N}</code>), system info (<code>{hostname}</code>, <code>{os}</code>), time (<code>{timestamp}</code>), hashes (<code>{md5}</code>, <code>{sha256:N}</code>), and sequences (<code>{seq-alpha}</code>, <code>{seq-roman}</code>).</p>
+        <p>Name transforms, system info, timestamps, hashes, and sequences — e.g. <code>{mod-date}_{name-slug}.{ext}</code>.</p>
       </div>
       <div class="feature-card">
         <div class="icon">📋</div>
         <h3>Action control</h3>
-        <p>Choose <code>action: move</code>, <code>copy</code>, or <code>symlink</code> per category — back up files or link to a media server without touching the originals.</p>
+        <p><code>move</code>, <code>copy</code>, or <code>symlink</code> per category — back up or link files without touching the originals.</p>
       </div>
       <div class="feature-card">
         <div class="icon">✏️</div>
         <h3>Rename at destination</h3>
-        <p>Rename files on arrival with the same token engine: <code>rename: "{mod-date}_{name}.{ext}"</code> turns <code>photo.jpg</code> into <code>2025-04-16_photo.jpg</code>.</p>
+        <p>Rename files on arrival using the token engine: <code>rename: "{mod-date}_{name}.{ext}"</code>.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🖊️</div>
+        <h3>TUI config editor</h3>
+        <p><code>movelooper edit</code> opens a two-panel TUI editor with undo, redo, and validation on save.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🧙</div>
+        <h3>Interactive setup</h3>
+        <p>Generate your config with <code>movelooper init -i</code> or from a template.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📎</div>
+        <h3>Config imports</h3>
+        <p>Split categories across multiple YAML files with <code>import:</code>. Use <code>movelooper edit</code> to open the merged config in the interactive TUI editor.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🔄</div>
         <h3>Self-update</h3>
         <p>Stay on the latest release with <code>movelooper self-update</code>.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">📋</div>
-        <h3>Interactive setup</h3>
-        <p>Generate your config file with <code>movelooper init -i</code> or from a template.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">📎</div>
-        <h3>Config imports</h3>
-        <p>Split categories across multiple YAML files with <code>import:</code>. Use <code>config show</code> to inspect the merged result.</p>
       </div>
     </div>
   </section>
@@ -107,29 +112,31 @@
   <section id="install">
     <h2>Installation</h2>
 
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab(event, 'tab-download')">Download</button>
-      <button class="tab" onclick="switchTab(event, 'tab-build')">Build from source</button>
-    </div>
+    <div class="tab-group">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab(event, 'tab-download')">Download</button>
+        <button class="tab" onclick="switchTab(event, 'tab-build')">Build from source</button>
+      </div>
 
-    <div id="tab-download" class="tab-content active">
-      <div class="code-block">
-        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        <pre><span class="cmt"># 1. Download the binary for your platform from the releases page</span>
+      <div id="tab-download" class="tab-content active">
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><span class="cmt"># 1. Download the binary for your platform from the releases page</span>
 <span class="cmt">#    https://github.com/lucasassuncao/movelooper/releases</span>
 
 <span class="cmt"># 2. Extract and add to your PATH, then run:</span>
 movelooper init -i</pre>
+        </div>
       </div>
-    </div>
 
-    <div id="tab-build" class="tab-content">
-      <div class="code-block">
-        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        <pre>git clone https://github.com/lucasassuncao/movelooper.git
+      <div id="tab-build" class="tab-content">
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>git clone https://github.com/lucasassuncao/movelooper.git
 cd movelooper
 go build -o movelooper .
 ./movelooper init -i</pre>
+        </div>
       </div>
     </div>
   </section>
@@ -148,16 +155,25 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
     </div>
   </section>
 
-  <!-- ── Config example ── -->
-  <section id="config">
-    <h2>Configuration example</h2>
-    <div class="code-block">
-      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-      <pre><span class="key">configuration</span>:
+  <!-- ── Examples ── -->
+  <section id="examples">
+    <h2>Examples</h2>
+
+    <div class="tab-group">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab(event, 'tab-ex-images')">Images</button>
+        <button class="tab" onclick="switchTab(event, 'tab-ex-copy')">Copy &amp; rename</button>
+        <button class="tab" onclick="switchTab(event, 'tab-ex-catchall')">Catch-all</button>
+        <button class="tab" onclick="switchTab(event, 'tab-ex-imports')">Imports</button>
+      </div>
+
+      <div id="tab-ex-images" class="tab-content active">
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><span class="key">configuration</span>:
   <span class="key">output</span>: <span class="val">both</span>
   <span class="key">log-level</span>: <span class="val">info</span>
   <span class="key">watch-delay</span>: <span class="val">5m</span>
-  <span class="key">history-limit</span>: <span class="val">50</span>
 
 <span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"images"</span>
@@ -173,42 +189,54 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
     <span class="key">destination</span>:
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Images"</span>
       <span class="key">conflict-strategy</span>: <span class="val">rename</span>
-      <span class="key">organize-by</span>: <span class="str">"{ext}"</span>
+      <span class="key">organize-by</span>: <span class="str">"{ext}"</span></pre>
+        </div>
+      </div>
 
-  - <span class="key">name</span>: <span class="str">"everything-else"</span>
-    <span class="key">source</span>:
-      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
-      <span class="key">extensions</span>: [<span class="str">all</span>]     <span class="cmt"># matches any file</span>
-    <span class="key">destination</span>:
-      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Sorted"</span>
-      <span class="key">conflict-strategy</span>: <span class="val">hash_check</span>
-      <span class="key">organize-by</span>: <span class="str">"{ext}"</span>
+      <div id="tab-ex-copy" class="tab-content">
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><span class="key">configuration</span>:
+  <span class="key">output</span>: <span class="val">both</span>
+  <span class="key">log-level</span>: <span class="val">info</span>
 
+<span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"photos-backup"</span>
     <span class="key">source</span>:
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
       <span class="key">extensions</span>: [<span class="str">jpg</span>, <span class="str">jpeg</span>, <span class="str">raw</span>]
     <span class="key">destination</span>:
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Backup\\photos"</span>
-      <span class="key">action</span>: <span class="val">copy</span>                   <span class="cmt"># keep original in Downloads</span>
-      <span class="key">rename</span>: <span class="str">"{mod-date}_{name}.{ext}"</span>  <span class="cmt"># photo.jpg → 2025-04-16_photo.jpg</span>
+      <span class="key">action</span>: <span class="val">copy</span>                          <span class="cmt"># keep original in Downloads</span>
+      <span class="key">rename</span>: <span class="str">"{mod-date}_{name}.{ext}"</span>       <span class="cmt"># photo.jpg → 2025-04-16_photo.jpg</span>
       <span class="key">conflict-strategy</span>: <span class="val">skip</span></pre>
-    </div>
-  </section>
+        </div>
+      </div>
 
-  <!-- ── Imports ── -->
-  <section id="imports">
-    <h2>Splitting your config with imports</h2>
-    <p style="color: var(--text-muted); margin-bottom: 20px;">
-      Use the top-level <code>import:</code> key to split categories across multiple YAML files.
-      Paths are relative to the file that declares them. Circular imports are detected automatically.
-      Use <code>movelooper config show</code> to inspect the final merged result.
-    </p>
+      <div id="tab-ex-catchall" class="tab-content">
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><span class="key">configuration</span>:
+  <span class="key">output</span>: <span class="val">both</span>
+  <span class="key">log-level</span>: <span class="val">info</span>
 
-    <p style="margin-bottom: 8px; font-weight: 600;">movelooper.yaml <span style="font-weight:400;color:var(--text-muted)">— main file</span></p>
-    <div class="code-block" style="margin-bottom: 16px;">
-      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-      <pre><span class="key">configuration</span>:
+<span class="key">categories</span>:
+  - <span class="key">name</span>: <span class="str">"everything-else"</span>
+    <span class="key">source</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
+      <span class="key">extensions</span>: [<span class="str">all</span>]     <span class="cmt"># matches any file type</span>
+    <span class="key">destination</span>:
+      <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Sorted"</span>
+      <span class="key">conflict-strategy</span>: <span class="val">hash_check</span>
+      <span class="key">organize-by</span>: <span class="str">"{ext}"</span></pre>
+        </div>
+      </div>
+
+      <div id="tab-ex-imports" class="tab-content">
+        <p style="margin-bottom: 8px; font-weight: 600;">movelooper.yaml <span style="font-weight:400;color:var(--text-muted)">— main file</span></p>
+        <div class="code-block" style="margin-bottom: 16px;">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><span class="key">configuration</span>:
   <span class="key">output</span>: <span class="val">console</span>
   <span class="key">log-level</span>: <span class="val">info</span>
 
@@ -216,12 +244,12 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
   - <span class="str">categories/media.yaml</span>
   - <span class="str">categories/documents.yaml</span>
   - <span class="str">categories/wallhaven.yaml</span></pre>
-    </div>
+        </div>
 
-    <p style="margin-bottom: 8px; font-weight: 600;">categories/wallhaven.yaml <span style="font-weight:400;color:var(--text-muted)">— imported file</span></p>
-    <div class="code-block">
-      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-      <pre><span class="key">categories</span>:
+        <p style="margin-bottom: 8px; font-weight: 600;">categories/wallhaven.yaml <span style="font-weight:400;color:var(--text-muted)">— imported file</span></p>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"wallhaven"</span>
     <span class="key">source</span>:
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Downloads"</span>
@@ -232,6 +260,8 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
     <span class="key">destination</span>:
       <span class="key">path</span>: <span class="str">"C:\\Users\\you\\Walls\\Wallhaven"</span>
       <span class="key">conflict-strategy</span>: <span class="val">hash_check</span></pre>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -248,13 +278,13 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
       <tbody>
         <tr><td>movelooper</td><td>Run the move operation once across all categories</td></tr>
         <tr><td>movelooper watch</td><td>Monitor source directories and move files in real-time</td></tr>
-        <tr><td>movelooper undo</td><td>Revert the last batch of moves</td></tr>
+        <tr><td>movelooper undo</td><td>Open interactive picker to select and revert a batch</td></tr>
         <tr><td>movelooper undo --list</td><td>List all recorded batches</td></tr>
         <tr><td>movelooper undo --dry-run</td><td>Preview what would be restored</td></tr>
         <tr><td>movelooper init -i</td><td>Launch the interactive setup wizard</td></tr>
         <tr><td>movelooper init -t full</td><td>Generate config from a template</td></tr>
-        <tr><td>movelooper config validate</td><td>Validate the config file without moving files</td></tr>
-        <tr><td>movelooper config show</td><td>Print the active config with all defaults resolved</td></tr>
+        <tr><td>movelooper edit</td><td>Open the config in an interactive TUI editor</td></tr>
+        <tr><td>movelooper show-docs</td><td>Browse the field reference in the terminal</td></tr>
         <tr><td>movelooper self-update</td><td>Download and install the latest release</td></tr>
       </tbody>
     </table>
@@ -277,8 +307,9 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
 
 <script>
   function switchTab(event, id) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    const group = event.target.closest('.tab-group');
+    group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    group.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     event.target.classList.add('active');
     document.getElementById(id).classList.add('active');
   }
