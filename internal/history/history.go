@@ -43,6 +43,8 @@ type Entry struct {
 type History struct {
 	mu         sync.Mutex
 	entries    []Entry
+	batchDeque []string       // batch IDs in insertion order, no duplicates
+	batchCount map[string]int // number of entries per batch ID
 	path       string
 	maxBatches int
 }
@@ -62,16 +64,29 @@ func NewHistory(path string, limit int) (*History, error) {
 	h := &History{
 		path:       path,
 		maxBatches: limit,
+		batchCount: make(map[string]int),
 	}
 
 	if err := h.load(); err != nil {
-		// If file doesn't exist, start with empty history
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
 	}
 
 	return h, nil
+}
+
+// rebuildIndex reconstructs batchDeque and batchCount from h.entries.
+// Must be called with h.mu held, or before the History is shared.
+func (h *History) rebuildIndex() {
+	h.batchDeque = nil
+	h.batchCount = make(map[string]int, len(h.entries))
+	for _, e := range h.entries {
+		if h.batchCount[e.BatchID] == 0 {
+			h.batchDeque = append(h.batchDeque, e.BatchID)
+		}
+		h.batchCount[e.BatchID]++
+	}
 }
 
 // Add appends a new entry to the history using a WAL (write-ahead log) strategy:
@@ -102,6 +117,14 @@ func (h *History) Add(entry Entry) error {
 	}
 
 	h.entries = append(h.entries, entry)
+	if h.batchCount == nil {
+		h.batchCount = make(map[string]int)
+	}
+	if h.batchCount[entry.BatchID] == 0 {
+		h.batchDeque = append(h.batchDeque, entry.BatchID)
+	}
+	h.batchCount[entry.BatchID]++
+
 	if h.prune() {
 		return h.save()
 	}
@@ -109,26 +132,20 @@ func (h *History) Add(entry Entry) error {
 }
 
 // prune removes the oldest batches, keeping at most maxBatches.
+// Uses batchDeque for an O(1) limit check; only scans entries when pruning.
 // Returns true when entries were removed and compaction is needed.
 func (h *History) prune() bool {
-	seen := make(map[string]bool, len(h.entries))
-	batchOrder := make([]string, 0, len(h.entries))
-	for _, e := range h.entries {
-		if !seen[e.BatchID] {
-			seen[e.BatchID] = true
-			batchOrder = append(batchOrder, e.BatchID)
-		}
-	}
-
-	if len(batchOrder) <= h.maxBatches {
+	if len(h.batchDeque) <= h.maxBatches {
 		return false
 	}
 
-	excess := len(batchOrder) - h.maxBatches
+	excess := len(h.batchDeque) - h.maxBatches
 	toRemove := make(map[string]bool, excess)
-	for _, id := range batchOrder[:excess] {
+	for _, id := range h.batchDeque[:excess] {
 		toRemove[id] = true
+		delete(h.batchCount, id)
 	}
+	h.batchDeque = h.batchDeque[excess:]
 
 	newEntries := make([]Entry, 0, len(h.entries))
 	for _, e := range h.entries {
@@ -152,19 +169,20 @@ func (h *History) GetAllBatches() []BatchSummary {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	seen := make(map[string]*BatchSummary)
-	var order []string
+	firstTimestamp := make(map[string]time.Time, len(h.batchDeque))
 	for _, e := range h.entries {
-		if _, ok := seen[e.BatchID]; !ok {
-			seen[e.BatchID] = &BatchSummary{BatchID: e.BatchID, Timestamp: e.Timestamp}
-			order = append(order, e.BatchID)
+		if _, ok := firstTimestamp[e.BatchID]; !ok {
+			firstTimestamp[e.BatchID] = e.Timestamp
 		}
-		seen[e.BatchID].Count++
 	}
 
-	summaries := make([]BatchSummary, 0, len(order))
-	for _, id := range order {
-		summaries = append(summaries, *seen[id])
+	summaries := make([]BatchSummary, 0, len(h.batchDeque))
+	for _, id := range h.batchDeque {
+		summaries = append(summaries, BatchSummary{
+			BatchID:   id,
+			Count:     h.batchCount[id],
+			Timestamp: firstTimestamp[id],
+		})
 	}
 	return summaries
 }
@@ -211,8 +229,10 @@ func (h *History) RemoveBatch(batchID string) error {
 	h.entries = newEntries
 	if err := h.save(); err != nil {
 		h.entries = original
+		h.rebuildIndex()
 		return err
 	}
+	h.rebuildIndex()
 	return nil
 }
 
@@ -242,8 +262,10 @@ func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (
 	h.entries = newEntries
 	if err := h.save(); err != nil {
 		h.entries = original
+		h.rebuildIndex()
 		return 0, err
 	}
+	h.rebuildIndex()
 	return removed, nil
 }
 
@@ -269,8 +291,10 @@ func (h *History) RemoveEntries(entries []Entry) error {
 	h.entries = newEntries
 	if err := h.save(); err != nil {
 		h.entries = original
+		h.rebuildIndex()
 		return err
 	}
+	h.rebuildIndex()
 	return nil
 }
 
@@ -317,6 +341,7 @@ func (h *History) load() error {
 			return err
 		}
 		h.entries = entries
+		h.rebuildIndex()
 		return nil
 	}
 
@@ -338,5 +363,6 @@ func (h *History) load() error {
 		return err
 	}
 	h.entries = entries
+	h.rebuildIndex()
 	return nil
 }

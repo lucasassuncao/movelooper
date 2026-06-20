@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/fileops"
 	"github.com/lucasassuncao/movelooper/internal/filters"
@@ -129,10 +130,17 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		return fmt.Errorf("scan %q: %w", category.Source.Path, err)
 	}
 
+	// Group entries by extension in one pass to avoid O(n × extensions) re-scans.
+	byExt := make(map[string][]scanner.FileEntry, len(category.Source.Extensions))
+	for _, fe := range allEntries {
+		ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(fe.Entry.Name()), "."))
+		byExt[ext] = append(byExt[ext], fe)
+	}
+
 	var totalMoved, totalSkipped, totalFailed int
 	for _, extension := range category.Source.Extensions {
-		matched := make([]scanner.FileEntry, 0, len(allEntries))
-		for _, fe := range allEntries {
+		matched := make([]scanner.FileEntry, 0, len(byExt[extension]))
+		for _, fe := range byExt[extension] {
 			info, err := matchesCategory(category, fe, batch.moved, extension)
 			if err != nil {
 				m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))

@@ -103,12 +103,16 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		if strategy == "" {
 			strategy = models.ConflictStrategyRename
 		}
-		resolved, skip := applyConflictStrategy(mctx, strategy, ConflictArgs{
+		resolved, skip, stratErr := applyConflictStrategy(mctx, strategy, ConflictArgs{
 			Src:      sourcePath,
 			Dst:      destPath,
 			DestDir:  destDir,
 			FileName: destName,
 		})
+		if stratErr != nil {
+			mctx.Logger.Error("cannot process file", mctx.Logger.Args("file", sourcePath, "error", stratErr.Error()))
+			continue
+		}
 		if skip {
 			result.Skipped++
 			continue
@@ -186,33 +190,34 @@ var fileActions = map[models.Action]FileAction{
 func dispatchAction(ctx context.Context, action models.Action, src, dst string) error {
 	fa, ok := fileActions[action]
 	if !ok {
-		fa = fileActions["move"]
+		return fmt.Errorf("unknown action %q", action)
 	}
 	return fa.Execute(ctx, src, dst)
 }
 
 // applyConflictStrategy checks whether destPath already exists and resolves the
-// conflict according to strategy.
-func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, args ConflictArgs) (resolved string, skip bool) {
+// conflict according to strategy. Returns a non-nil error only for unknown strategies;
+// resolver failures are logged internally and surfaced as skip=true, err=nil.
+func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, args ConflictArgs) (resolved string, skip bool, err error) {
 	if _, err := os.Stat(args.Dst); err != nil {
-		return args.Dst, false
+		return args.Dst, false, nil
 	}
 	resolver, ok := conflictResolvers[strategy]
 	if !ok {
-		resolver = conflictResolvers["rename"]
+		return "", true, fmt.Errorf("unknown conflict strategy %q", strategy)
 	}
-	resolvedPath, shouldMove, err := resolver.Resolve(args)
-	if err != nil {
-		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", args.FileName, "error", err.Error()))
-		return "", true
+	resolvedPath, shouldMove, resolveErr := resolver.Resolve(args)
+	if resolveErr != nil {
+		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", args.FileName, "error", resolveErr.Error()))
+		return "", true, nil
 	}
 	if !shouldMove {
 		if msg := resolver.SkipMessage(); msg != "" {
 			ctx.Logger.Info(msg, ctx.Logger.Args("file", args.FileName))
 		}
-		return "", true
+		return "", true, nil
 	}
-	return resolvedPath, false
+	return resolvedPath, false, nil
 }
 
 // MoveFileCtx attempts to move a file from source to destination.

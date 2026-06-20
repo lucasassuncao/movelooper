@@ -21,6 +21,7 @@ func newTestHistory(t *testing.T, maxBatches int) *History {
 	return &History{
 		path:       filepath.Join(t.TempDir(), "movelooper.json"),
 		maxBatches: maxBatches,
+		batchCount: make(map[string]int),
 	}
 }
 

@@ -363,6 +363,7 @@ type testApplyConflictStrategy struct {
 	strategy   models.ConflictStrategy
 	setup      func(t *testing.T, srcFile, dstFile string)
 	wantSkip   bool
+	wantErr    bool
 	wantEqDst  bool
 	wantSuffix string
 }
@@ -453,13 +454,14 @@ var testApplyConflictStrategyTestCases = []testApplyConflictStrategy{
 		wantEqDst: true,
 	},
 	{
-		name:     "unknown strategy falls to rename",
+		name:     "unknown strategy returns error",
 		strategy: "does_not_exist",
 		setup: func(t *testing.T, srcFile, dstFile string) {
 			writeFile(t, srcFile, []byte("x"))
 			writeFile(t, dstFile, []byte("y"))
 		},
-		wantSuffix: "(1)",
+		wantSkip: true,
+		wantErr:  true,
 	},
 }
 
@@ -476,9 +478,14 @@ func TestApplyConflictStrategy(t *testing.T) {
 			dstFile := filepath.Join(dst, "file.txt")
 			tt.setup(t, srcFile, dstFile)
 
-			resolved, skip := applyConflictStrategy(newTestMoveContext(), tt.strategy, ConflictArgs{
+			resolved, skip, err := applyConflictStrategy(newTestMoveContext(), tt.strategy, ConflictArgs{
 				Src: srcFile, Dst: dstFile, DestDir: dst, FileName: "file.txt",
 			})
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 			assert.Equal(t, tt.wantSkip, skip)
 			if !tt.wantSkip {
 				switch {
@@ -523,10 +530,11 @@ func TestIsCrossDeviceError(t *testing.T) {
 // testDispatchAction defines the structure for test cases of the dispatchAction function,
 // containing the action, and a check function for assertions on src and dst after dispatch.
 type testDispatchAction struct {
-	name   string
-	action models.Action
-	check  func(t *testing.T, src, dst string)
-	skip   func(t *testing.T, src, dst string) bool
+	name    string
+	action  models.Action
+	wantErr bool
+	check   func(t *testing.T, src, dst string)
+	skip    func(t *testing.T, src, dst string) bool
 }
 
 // testDispatchActionTestCases defines a set of test cases for the dispatchAction function,
@@ -569,20 +577,16 @@ var testDispatchActionTestCases = []testDispatchAction{
 		},
 	},
 	{
-		name:   "unknown action defaults to move",
-		action: "unknown_action",
-		check: func(t *testing.T, src, dst string) {
-			assert.FileExists(t, dst)
-			assert.NoFileExists(t, src)
-		},
+		name:    "unknown action returns error",
+		action:  "unknown_action",
+		wantErr: true,
+		check:   func(t *testing.T, src, dst string) {},
 	},
 	{
-		name:   "empty action defaults to move",
-		action: "",
-		check: func(t *testing.T, src, dst string) {
-			assert.FileExists(t, dst)
-			assert.NoFileExists(t, src)
-		},
+		name:    "empty action returns error",
+		action:  "",
+		wantErr: true,
+		check:   func(t *testing.T, src, dst string) {},
 	},
 }
 
@@ -601,7 +605,12 @@ func TestDispatchAction(t *testing.T) {
 				t.Skip("action not available on this platform")
 			}
 
-			require.NoError(t, dispatchAction(context.Background(), tt.action, src, dst))
+			err := dispatchAction(context.Background(), tt.action, src, dst)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 			tt.check(t, src, dst)
 		})
 	}
