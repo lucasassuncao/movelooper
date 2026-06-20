@@ -81,6 +81,9 @@ var validConflictStrategies = map[models.ConflictStrategy]bool{
 
 // validateCategory validates a single category and pre-compiles its filter.
 func validateCategory(cat *models.Category) error {
+	if cat.Name == "" {
+		return fmt.Errorf("category name must not be empty")
+	}
 	if len(cat.Source.Extensions) == 0 {
 		return fmt.Errorf("category %q: source.extensions are required", cat.Name)
 	}

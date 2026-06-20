@@ -10,8 +10,8 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 
 ## Index
 
-- [func ResolveGroupBy\(template string, ctx TokenContext\) string](<#ResolveGroupBy>)
-- [func ResolveRename\(template string, ctx TokenContext\) string](<#ResolveRename>)
+- [func ResolveGroupBy\(template string, ctx \*TokenContext\) string](<#ResolveGroupBy>)
+- [func ResolveRename\(template string, ctx \*TokenContext\) string](<#ResolveRename>)
 - [func ResolveSeq\(destDir string\) int](<#ResolveSeq>)
 - [func ResolveSeqAlpha\(destDir string\) string](<#ResolveSeqAlpha>)
 - [func ResolveSeqRoman\(destDir string\) string](<#ResolveSeqRoman>)
@@ -20,19 +20,19 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 
 
 <a name="ResolveGroupBy"></a>
-## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L85>)
+## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L93>)
 
 ```go
-func ResolveGroupBy(template string, ctx TokenContext) string
+func ResolveGroupBy(template string, ctx *TokenContext) string
 ```
 
 ResolveGroupBy resolves a group\-by template string into a relative subdirectory path that should be appended to the category destination.
 
 <a name="ResolveRename"></a>
-## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L100>)
+## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L107>)
 
 ```go
-func ResolveRename(template string, ctx TokenContext) string
+func ResolveRename(template string, ctx *TokenContext) string
 ```
 
 ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy, plus \{seq\}, \{seq:N\}, \{seq\-alpha\}, \{seq\-roman\}, \{md5\}, \{md5:N\}, and \{sha256:N\}. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
@@ -74,7 +74,7 @@ func ValidateTemplate(template string) error
 ValidateTemplate returns an error if the template contains any unrecognised or malformed \{token\}.
 
 <a name="TokenContext"></a>
-## type [TokenContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/model.go#L11-L17>)
+## type [TokenContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/model.go#L12-L19>)
 
 TokenContext carries all inputs needed to resolve any token in a template. ResolveGroupBy uses Info, CategoryName, and Now. ResolveRename additionally uses DestDir and SourcePath.
 
@@ -85,6 +85,7 @@ type TokenContext struct {
     Now          time.Time
     DestDir      string // required for seq, seq-alpha, seq-roman
     SourcePath   string // required for {md5}, {sha256:N}
+    // contains filtered or unexported fields
 }
 ```
 

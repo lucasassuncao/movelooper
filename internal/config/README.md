@@ -56,7 +56,7 @@ func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error)
 ConfigureLogger configures the logger based on the configuration. Returns the logger, a Closer that must be called on exit \(non\-nil only when writing to a file\), and any error.
 
 <a name="FilterDepthOK"></a>
-## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L170>)
+## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L173>)
 
 ```go
 func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
@@ -83,7 +83,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L337>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L340>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)

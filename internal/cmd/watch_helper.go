@@ -245,7 +245,7 @@ func resolveDryRunDest(cat *models.Category, path string) string {
 		return destDir
 	}
 	tctx := tokens.TokenContext{Info: info, CategoryName: cat.Name, Now: time.Now()}
-	if subdir := tokens.ResolveGroupBy(template, tctx); subdir != "" {
+	if subdir := tokens.ResolveGroupBy(template, &tctx); subdir != "" {
 		return filepath.Join(destDir, subdir)
 	}
 	return destDir

@@ -2,6 +2,7 @@ package tokens
 
 import (
 	"os"
+	"strings"
 	"time"
 )
 
@@ -14,4 +15,5 @@ type TokenContext struct {
 	Now          time.Time
 	DestDir      string // required for seq, seq-alpha, seq-roman
 	SourcePath   string // required for {md5}, {sha256:N}
+	replacer     *strings.Replacer
 }

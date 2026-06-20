@@ -9,7 +9,7 @@ import (
 )
 
 // buildStaticPairs returns key-value pairs for strings.NewReplacer covering all static tokens.
-func buildStaticPairs(ctx TokenContext) []string {
+func buildStaticPairs(ctx *TokenContext) []string {
 	initSystemContext()
 
 	modTime := ctx.Info.ModTime()
@@ -80,16 +80,23 @@ func preProcessNameTrunc(template, name string) string {
 	})
 }
 
+// staticReplacer lazily builds and caches the strings.Replacer for static tokens.
+func (ctx *TokenContext) staticReplacer() *strings.Replacer {
+	if ctx.replacer == nil {
+		ctx.replacer = strings.NewReplacer(buildStaticPairs(ctx)...)
+	}
+	return ctx.replacer
+}
+
 // ResolveGroupBy resolves a group-by template string into a relative subdirectory
 // path that should be appended to the category destination.
-func ResolveGroupBy(template string, ctx TokenContext) string {
+func ResolveGroupBy(template string, ctx *TokenContext) string {
 	if template == "" {
 		return ""
 	}
 	name := strings.TrimSuffix(ctx.Info.Name(), filepath.Ext(ctx.Info.Name()))
 	template = preProcessNameTrunc(template, name)
-	r := strings.NewReplacer(buildStaticPairs(ctx)...)
-	return filepath.FromSlash(r.Replace(template))
+	return filepath.FromSlash(ctx.staticReplacer().Replace(template))
 }
 
 // ResolveRename applies a rename template to produce a destination filename.
@@ -97,7 +104,7 @@ func ResolveGroupBy(template string, ctx TokenContext) string {
 // {seq-roman}, {md5}, {md5:N}, and {sha256:N}.
 // When template is empty, the original filename is returned unchanged.
 // Path separators are stripped from the result so the output is always a plain filename.
-func ResolveRename(template string, ctx TokenContext) string {
+func ResolveRename(template string, ctx *TokenContext) string {
 	if template == "" {
 		return ctx.Info.Name()
 	}

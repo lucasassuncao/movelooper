@@ -85,7 +85,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		destDir := category.Destination.Path
 		tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath}
 		if template := category.Destination.OrganizeBy; template != "" {
-			if subdir := tokens.ResolveGroupBy(template, tctx); subdir != "" {
+			if subdir := tokens.ResolveGroupBy(template, &tctx); subdir != "" {
 				destDir = filepath.Join(category.Destination.Path, subdir)
 			}
 		}
@@ -96,7 +96,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		}
 
 		tctx.DestDir = destDir
-		destName := tokens.ResolveRename(category.Destination.Rename, tctx)
+		destName := tokens.ResolveRename(category.Destination.Rename, &tctx)
 		destPath := filepath.Join(destDir, destName)
 
 		strategy := category.Destination.ConflictStrategy

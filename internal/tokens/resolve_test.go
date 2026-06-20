@@ -69,7 +69,7 @@ func TestResolveRename(t *testing.T) {
 			if !tt.emptyDestDir {
 				ctx.DestDir = destDir
 			}
-			got := ResolveRename(tt.template, ctx)
+			got := ResolveRename(tt.template, &ctx)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -172,7 +172,7 @@ func TestResolveGroupBy(t *testing.T) {
 	for _, tt := range testResolveGroupByTestCases(plain, tiny, mid, createdTime, now, modTime) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := ResolveGroupBy(tt.template, TokenContext{
+			got := ResolveGroupBy(tt.template, &TokenContext{
 				Info:         tt.info,
 				CategoryName: tt.category,
 				Now:          tt.now,

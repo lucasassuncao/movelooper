@@ -172,7 +172,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 				res := moveExtensionWithResult(ctx, m, req, batch.moved)
 				totalMoved += len(res.Moved)
 				totalSkipped += res.Skipped
-				totalFailed += len(dirFiles) - len(res.Moved) - res.Skipped
+				totalFailed += max(0, len(dirFiles)-len(res.Moved)-res.Skipped)
 			}
 		}
 	}
@@ -260,9 +260,9 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 	if showFiles {
 		logArgs := filters.GenerateLogArgs(files, extension)
 		if len(logArgs) > 0 {
-			m.Logger.Warn(message, m.Logger.Args(logArgs...))
+			m.Logger.Info(message, m.Logger.Args(logArgs...))
 			return
 		}
 	}
-	m.Logger.Warn(message)
+	m.Logger.Info(message)
 }
