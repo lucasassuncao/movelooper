@@ -66,7 +66,10 @@ produce a new config from an existing template).`,
 			}
 
 			loadPath, _ := cmd.Root().PersistentFlags().GetString("config")
-			if loadPath == "" {
+			if loadPath == "" && output != "" {
+				loadPath = output
+				output = ""
+			} else if loadPath == "" {
 				ex, err := os.Executable()
 				if err != nil {
 					return fmt.Errorf("could not determine executable path: %w", err)
