@@ -349,11 +349,8 @@ func ResolveConfigPath(configPath string) (string, error) {
 	}
 	exDir := filepath.Dir(ex)
 
-	cwd, _ := os.Getwd()
-
 	candidates := []string{
 		filepath.Join(homeDir, ".movelooper", "conf", "movelooper.yaml"),
-		filepath.Join(cwd, "movelooper.yaml"),
 		filepath.Join(exDir, "movelooper.yaml"),
 		filepath.Join(exDir, "conf", "movelooper.yaml"),
 	}
