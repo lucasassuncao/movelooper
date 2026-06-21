@@ -83,7 +83,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L340>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L332>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)

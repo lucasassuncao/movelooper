@@ -63,6 +63,12 @@ var knownTokens = map[string]bool{
 
 var tokenPattern = regexp.MustCompile(`\{[^}]+\}`)
 var paramPattern = regexp.MustCompile(`^\d+$`)
+var seqPattern = regexp.MustCompile(`\{seq(?::\d+)?\}`)
+
+// ContainsSeqToken reports whether template contains a {seq} or {seq:N} token.
+func ContainsSeqToken(template string) bool {
+	return seqPattern.MatchString(template)
+}
 
 // ValidateTemplate returns an error if the template contains any unrecognised
 // or malformed {token}.

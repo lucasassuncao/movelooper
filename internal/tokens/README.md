@@ -10,6 +10,7 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 
 ## Index
 
+- [func ContainsSeqToken\(template string\) bool](<#ContainsSeqToken>)
 - [func ResolveGroupBy\(template string, ctx \*TokenContext\) string](<#ResolveGroupBy>)
 - [func ResolveRename\(template string, ctx \*TokenContext\) string](<#ResolveRename>)
 - [func ResolveSeq\(destDir string\) int](<#ResolveSeq>)
@@ -18,6 +19,15 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 - [func ValidateTemplate\(template string\) error](<#ValidateTemplate>)
 - [type TokenContext](<#TokenContext>)
 
+
+<a name="ContainsSeqToken"></a>
+## func [ContainsSeqToken](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L69>)
+
+```go
+func ContainsSeqToken(template string) bool
+```
+
+ContainsSeqToken reports whether template contains a \{seq\} or \{seq:N\} token.
 
 <a name="ResolveGroupBy"></a>
 ## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L93>)
@@ -65,7 +75,7 @@ func ResolveSeqRoman(destDir string) string
 ResolveSeqRoman scans destDir for files with leading roman numeral prefixes and returns the next roman numeral in sequence.
 
 <a name="ValidateTemplate"></a>
-## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L69>)
+## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L75>)
 
 ```go
 func ValidateTemplate(template string) error

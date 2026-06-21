@@ -5,6 +5,7 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/lucasassuncao/yedit/editor"
 	"gopkg.in/yaml.v3"
 )
@@ -98,5 +99,42 @@ var MovelooperValidators = []editor.Validator{
 			Path:    "configuration.log-file",
 			Message: fmt.Sprintf("required when output is %q", cfg.Output),
 		}}
+	}),
+
+	// Validate rename and organize-by templates against the known token set.
+	// Also enforces that {seq}/{seq:N} is not used in organize-by (rename only).
+	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+		var doc struct {
+			Categories []struct {
+				Destination struct {
+					Rename     string `yaml:"rename"`
+					OrganizeBy string `yaml:"organize-by"`
+				} `yaml:"destination"`
+			} `yaml:"categories"`
+		}
+		if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
+			return nil
+		}
+		var errs []editor.Violation
+		for i, c := range doc.Categories {
+			if err := tokens.ValidateTemplate(c.Destination.Rename); err != nil {
+				errs = append(errs, editor.Violation{
+					Path:    fmt.Sprintf("categories[%d].destination.rename", i),
+					Message: err.Error(),
+				})
+			}
+			if err := tokens.ValidateTemplate(c.Destination.OrganizeBy); err != nil {
+				errs = append(errs, editor.Violation{
+					Path:    fmt.Sprintf("categories[%d].destination.organize-by", i),
+					Message: err.Error(),
+				})
+			} else if tokens.ContainsSeqToken(c.Destination.OrganizeBy) {
+				errs = append(errs, editor.Violation{
+					Path:    fmt.Sprintf("categories[%d].destination.organize-by", i),
+					Message: "{seq} is not valid in organize-by; use it in rename only",
+				})
+			}
+		}
+		return errs
 	}),
 }
