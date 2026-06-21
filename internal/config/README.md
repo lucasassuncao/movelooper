@@ -16,18 +16,16 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
 - [func LoadConfig\(k \*koanf.Koanf\) models.Configuration](<#LoadConfig>)
+- [func NewApp\(m \*models.Movelooper, configPath string, opts ...Option\) \(retErr error\)](<#NewApp>)
 - [func ResolveConfigPath\(configPath string\) \(string, error\)](<#ResolveConfigPath>)
 - [func ResolveImports\(path string\) \(\[\]byte, error\)](<#ResolveImports>)
 - [func UnmarshalConfig\(k \*koanf.Koanf\) \(\[\]\*models.Category, error\)](<#UnmarshalConfig>)
-- [type AppBuilder](<#AppBuilder>)
-  - [func NewAppBuilder\(m \*models.Movelooper, configPath string\) \*AppBuilder](<#NewAppBuilder>)
-  - [func \(b \*AppBuilder\) Build\(\) error](<#AppBuilder.Build>)
-  - [func \(b \*AppBuilder\) ConfigureLogger\(\) \*AppBuilder](<#AppBuilder.ConfigureLogger>)
-  - [func \(b \*AppBuilder\) InitHistory\(\) \*AppBuilder](<#AppBuilder.InitHistory>)
-  - [func \(b \*AppBuilder\) LoadCategories\(\) \*AppBuilder](<#AppBuilder.LoadCategories>)
-  - [func \(b \*AppBuilder\) LoadConfig\(\) \*AppBuilder](<#AppBuilder.LoadConfig>)
-  - [func \(b \*AppBuilder\) ResolveConfig\(\) \*AppBuilder](<#AppBuilder.ResolveConfig>)
-  - [func \(b \*AppBuilder\) ValidateDirectories\(\) \*AppBuilder](<#AppBuilder.ValidateDirectories>)
+- [type Option](<#Option>)
+  - [func WithCategories\(\) Option](<#WithCategories>)
+  - [func WithConfig\(\) Option](<#WithConfig>)
+  - [func WithHistory\(\) Option](<#WithHistory>)
+  - [func WithLogger\(\) Option](<#WithLogger>)
+  - [func WithValidateDirs\(\) Option](<#WithValidateDirs>)
 
 
 ## Constants
@@ -82,6 +80,15 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
+<a name="NewApp"></a>
+## func [NewApp](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L46>)
+
+```go
+func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr error)
+```
+
+NewApp resolves the config file and runs the requested initialization steps in order.
+
 <a name="ResolveConfigPath"></a>
 ## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L332>)
 
@@ -109,88 +116,59 @@ func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error)
 
 UnmarshalConfig reads categories from k, validates them, and pre\-compiles regex patterns. Returns an error if any category is misconfigured.
 
-<a name="AppBuilder"></a>
-## type [AppBuilder](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L15-L20>)
+<a name="Option"></a>
+## type [Option](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L15>)
 
-AppBuilder constructs a Movelooper instance step\-by\-step. Each method is a no\-op when a previous step has already set an error.
-
-```go
-type AppBuilder struct {
-    // contains filtered or unexported fields
-}
-```
-
-<a name="NewAppBuilder"></a>
-### func [NewAppBuilder](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L23>)
+Option configures which initialization steps NewApp will run.
 
 ```go
-func NewAppBuilder(m *models.Movelooper, configPath string) *AppBuilder
+type Option func(*options)
 ```
 
-NewAppBuilder creates a builder for m using the given config file path.
-
-<a name="AppBuilder.Build"></a>
-### func \(\*AppBuilder\) [Build](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L120>)
+<a name="WithCategories"></a>
+### func [WithCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L33>)
 
 ```go
-func (b *AppBuilder) Build() error
+func WithCategories() Option
 ```
 
-Build returns the first error encountered during the chain, or nil on success.
 
-<a name="AppBuilder.ConfigureLogger"></a>
-### func \(\*AppBuilder\) [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L45>)
+
+<a name="WithConfig"></a>
+### func [WithConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L29>)
 
 ```go
-func (b *AppBuilder) ConfigureLogger() *AppBuilder
+func WithConfig() Option
 ```
 
-ConfigureLogger reads logging settings from the loaded config and sets m.Logger and m.LogCloser.
 
-<a name="AppBuilder.InitHistory"></a>
-### func \(\*AppBuilder\) [InitHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L84>)
+
+<a name="WithHistory"></a>
+### func [WithHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L37>)
 
 ```go
-func (b *AppBuilder) InitHistory() *AppBuilder
+func WithHistory() Option
 ```
 
-InitHistory initialises the move history store using m.Config.HistoryLimit and m.Config.HistoryFile. A failure here is non\-fatal: it logs a warning and leaves m.History nil.
 
-<a name="AppBuilder.LoadCategories"></a>
-### func \(\*AppBuilder\) [LoadCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L69>)
+
+<a name="WithLogger"></a>
+### func [WithLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L25>)
 
 ```go
-func (b *AppBuilder) LoadCategories() *AppBuilder
+func WithLogger() Option
 ```
 
-LoadCategories unmarshals, validates, and pre\-compiles the categories from config.
 
-<a name="AppBuilder.LoadConfig"></a>
-### func \(\*AppBuilder\) [LoadConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L60>)
+
+<a name="WithValidateDirs"></a>
+### func [WithValidateDirs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L41>)
 
 ```go
-func (b *AppBuilder) LoadConfig() *AppBuilder
+func WithValidateDirs() Option
 ```
 
-LoadConfig populates m.Config from the loaded koanf instance.
 
-<a name="AppBuilder.ResolveConfig"></a>
-### func \(\*AppBuilder\) [ResolveConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L28>)
-
-```go
-func (b *AppBuilder) ResolveConfig() *AppBuilder
-```
-
-ResolveConfig resolves the config file path and loads the YAML into the builder's koanf instance.
-
-<a name="AppBuilder.ValidateDirectories"></a>
-### func \(\*AppBuilder\) [ValidateDirectories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L111>)
-
-```go
-func (b *AppBuilder) ValidateDirectories() *AppBuilder
-```
-
-ValidateDirectories warns about source or destination directories that do not exist. It does not abort startup — missing directories are reported and skipped at runtime.
 
 Generated by [gomarkdoc](<https://github.com/princjef/gomarkdoc>)
 

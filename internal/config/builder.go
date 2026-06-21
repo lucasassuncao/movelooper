@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,92 +11,109 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
-// AppBuilder constructs a Movelooper instance step-by-step.
-// Each method is a no-op when a previous step has already set an error.
-type AppBuilder struct {
-	m          *models.Movelooper
-	k          *koanf.Koanf
-	configPath string
-	err        error
+// Option configures which initialization steps NewApp will run.
+type Option func(*options)
+
+type options struct {
+	configureLogger bool
+	loadConfig      bool
+	loadCategories  bool
+	initHistory     bool
+	validateDirs    bool
 }
 
-// NewAppBuilder creates a builder for m using the given config file path.
-func NewAppBuilder(m *models.Movelooper, configPath string) *AppBuilder {
-	return &AppBuilder{m: m, k: koanf.New("."), configPath: configPath}
+func WithLogger() Option {
+	return func(o *options) { o.configureLogger = true }
 }
 
-// ResolveConfig resolves the config file path and loads the YAML into the builder's koanf instance.
-func (b *AppBuilder) ResolveConfig() *AppBuilder {
-	if b.err != nil {
-		return b
+func WithConfig() Option {
+	return func(o *options) { o.loadConfig = true }
+}
+
+func WithCategories() Option {
+	return func(o *options) { o.loadCategories = true }
+}
+
+func WithHistory() Option {
+	return func(o *options) { o.initHistory = true }
+}
+
+func WithValidateDirs() Option {
+	return func(o *options) { o.validateDirs = true }
+}
+
+// NewApp resolves the config file and runs the requested initialization steps in order.
+func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr error) {
+	o := options{}
+	for _, opt := range opts {
+		opt(&o)
 	}
-	resolved, err := ResolveConfigPath(b.configPath)
+
+	defer func() {
+		if retErr != nil && m.LogCloser != nil {
+			m.LogCloser.Close()
+			m.LogCloser = nil
+		}
+	}()
+
+	k := koanf.New(".")
+
+	resolved, err := ResolveConfigPath(configPath)
 	if err != nil {
-		b.err = err
-		return b
+		return wrapConfigNotFound(configPath, err)
 	}
-	if err := InitConfig(b.k, resolved); err != nil {
-		b.err = err
-		return b
+	if err := InitConfig(k, resolved); err != nil {
+		return wrapConfigNotFound(configPath, err)
 	}
-	return b
+
+	if o.configureLogger {
+		logger, closer, err := ConfigureLogger(k)
+		if err != nil {
+			return fmt.Errorf("failed to configure logger: %w", err)
+		}
+		m.Logger = logger
+		m.LogCloser = closer
+	}
+
+	if o.loadConfig {
+		m.Config = LoadConfig(k)
+	}
+
+	if o.loadCategories {
+		cats, err := UnmarshalConfig(k)
+		if err != nil {
+			return err
+		}
+		m.Categories = cats
+	}
+
+	if o.initHistory {
+		histPath := m.Config.HistoryFile
+		if histPath == "" {
+			histPath = defaultHistoryFilePath()
+		}
+		if hist, err := history.NewHistory(histPath, m.Config.HistoryLimit); err != nil {
+			m.Logger.Warn("failed to initialize history tracking", m.Logger.Args("error", err.Error()))
+		} else {
+			m.History = hist
+		}
+	}
+
+	if o.validateDirs {
+		validateSourceDirs(m)
+	}
+
+	return nil
 }
 
-// ConfigureLogger reads logging settings from the loaded config and sets m.Logger and m.LogCloser.
-func (b *AppBuilder) ConfigureLogger() *AppBuilder {
-	if b.err != nil {
-		return b
+func wrapConfigNotFound(configPath string, err error) error {
+	if !errors.Is(err, ErrConfigNotFound) {
+		return err
 	}
-	logger, closer, err := ConfigureLogger(b.k)
-	if err != nil {
-		b.err = fmt.Errorf("failed to configure logger: %w", err)
-		return b
+	if configPath != "" {
+		return fmt.Errorf("configuration file not found at %q: %w", configPath, err)
 	}
-	b.m.Logger = logger
-	b.m.LogCloser = closer
-	return b
-}
-
-// LoadConfig populates m.Config from the loaded koanf instance.
-func (b *AppBuilder) LoadConfig() *AppBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.m.Config = LoadConfig(b.k)
-	return b
-}
-
-// LoadCategories unmarshals, validates, and pre-compiles the categories from config.
-func (b *AppBuilder) LoadCategories() *AppBuilder {
-	if b.err != nil {
-		return b
-	}
-	cats, err := UnmarshalConfig(b.k)
-	if err != nil {
-		b.err = err
-		return b
-	}
-	b.m.Categories = cats
-	return b
-}
-
-// InitHistory initialises the move history store using m.Config.HistoryLimit and m.Config.HistoryFile.
-// A failure here is non-fatal: it logs a warning and leaves m.History nil.
-func (b *AppBuilder) InitHistory() *AppBuilder {
-	if b.err != nil {
-		return b
-	}
-	path := b.m.Config.HistoryFile
-	if path == "" {
-		path = defaultHistoryFilePath()
-	}
-	hist, err := history.NewHistory(path, b.m.Config.HistoryLimit)
-	if err != nil {
-		b.m.Logger.Warn("failed to initialize history tracking", b.m.Logger.Args("error", err.Error()))
-		return b
-	}
-	b.m.History = hist
-	return b
+	return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file: %w", err)
 }
 
 func defaultHistoryFilePath() string {
@@ -106,23 +124,7 @@ func defaultHistoryFilePath() string {
 	return filepath.Join(homeDir, ".movelooper", "history", "movelooper.json")
 }
 
-// ValidateDirectories warns about source or destination directories that do not exist.
-// It does not abort startup — missing directories are reported and skipped at runtime.
-func (b *AppBuilder) ValidateDirectories() *AppBuilder {
-	if b.err != nil {
-		return b
-	}
-	validateDirectoriesFromBuilder(b.m)
-	return b
-}
-
-// Build returns the first error encountered during the chain, or nil on success.
-func (b *AppBuilder) Build() error {
-	return b.err
-}
-
-// validateDirectoriesFromBuilder warns about source or destination directories that do not exist.
-func validateDirectoriesFromBuilder(m *models.Movelooper) {
+func validateSourceDirs(m *models.Movelooper) {
 	for _, cat := range m.Categories {
 		if !cat.IsEnabled() {
 			continue
@@ -130,10 +132,6 @@ func validateDirectoriesFromBuilder(m *models.Movelooper) {
 		if _, err := os.Stat(cat.Source.Path); os.IsNotExist(err) {
 			m.Logger.Warn("source directory does not exist",
 				m.Logger.Args("category", cat.Name, "path", cat.Source.Path))
-		}
-		if _, err := os.Stat(cat.Destination.Path); os.IsNotExist(err) {
-			m.Logger.Warn("destination directory does not exist",
-				m.Logger.Args("category", cat.Name, "path", cat.Destination.Path))
 		}
 		if cat.Source.Recursive {
 			if cat.Source.MaxDepth < 0 {

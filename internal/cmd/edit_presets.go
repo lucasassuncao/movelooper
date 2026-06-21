@@ -1,16 +1,75 @@
 package cmd
 
 import (
+	"fmt"
+	"sort"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/presets"
 )
 
-var MovelooperPresets = presets.Combine(
+var MovelooperBlockPresets = presets.Combine(
 	presets.ForField("configuration", configurationPresetsMap()),
 	presets.ForField("categories", categoriesPresetsMap()),
 )
+
+// MovelooperDocPresets is a whole-document preset source for the root template
+// picker (ctrl+p). Each entry combines the base configuration with one of the
+// available category presets.
+var MovelooperDocPresets presets.Source = buildDocPresets()
+
+// docPresetSource implements presets.Source for whole-document templates.
+// PresetYAML("", name) returns the full YAML for the named template.
+type docPresetSource struct {
+	names []string
+	yamls map[string]string
+}
+
+func (s *docPresetSource) ListFields() []string { return []string{""} }
+func (s *docPresetSource) ListPresets(field string) []string {
+	if field != "" {
+		return nil
+	}
+	return s.names
+}
+func (s *docPresetSource) PresetYAML(field, name string) (string, error) {
+	if field != "" {
+		return "", fmt.Errorf("docPresetSource: unknown field %q", field)
+	}
+	y, ok := s.yamls[name]
+	if !ok {
+		return "", fmt.Errorf("docPresetSource: unknown preset %q", name)
+	}
+	return y, nil
+}
+
+func buildDocPresets() *docPresetSource {
+	cats := categoriesPresetsMap()
+	baseCfg := ConfigurationPreset("base")
+
+	names := make([]string, 0, len(cats))
+	for name := range cats {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	yamls := make(map[string]string, len(cats))
+	for _, name := range names {
+		cfg := &models.Config{
+			Configuration: *baseCfg,
+			Categories:    cats[name],
+		}
+		raw, err := yaml.Marshal(cfg)
+		if err != nil {
+			continue
+		}
+		yamls[name] = string(raw)
+	}
+	return &docPresetSource{names: names, yamls: yamls}
+}
 
 func configurationPresetsMap() map[string]*models.Configuration {
 	logFile := "~/.movelooper/logs/movelooper.log"

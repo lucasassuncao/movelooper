@@ -10,8 +10,6 @@ import "github.com/lucasassuncao/movelooper/internal/cmd"
 
 Package cmd contains the command line interface commands for the Movelooper application
 
-Package cmd contains the command line interface commands for the Movelooper application
-
 ## Index
 
 - [Variables](<#variables>)
@@ -19,7 +17,6 @@ Package cmd contains the command line interface commands for the Movelooper appl
 - [func ConfigurationPreset\(name string\) \*models.Configuration](<#ConfigurationPreset>)
 - [func EditCmd\(\) \*cobra.Command](<#EditCmd>)
 - [func FilterCategories\(all \[\]\*models.Category, names \[\]string, includeDisabled bool, log logger.Logger\) \(\[\]\*models.Category, error\)](<#FilterCategories>)
-- [func InitCmd\(\) \*cobra.Command](<#InitCmd>)
 - [func ListOfCategoriesPresets\(\) \[\]string](<#ListOfCategoriesPresets>)
 - [func ListOfConfigurationPresets\(\) \[\]string](<#ListOfConfigurationPresets>)
 - [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
@@ -53,13 +50,19 @@ var GenerateCmd = &cobra.Command{
 }
 ```
 
-<a name="MovelooperPresets"></a>
+<a name="MovelooperBlockPresets"></a>
 
 ```go
-var MovelooperPresets = presets.Combine(
+var MovelooperBlockPresets = presets.Combine(
     presets.ForField("configuration", configurationPresetsMap()),
     presets.ForField("categories", categoriesPresetsMap()),
 )
+```
+
+<a name="MovelooperDocPresets"></a>MovelooperDocPresets is a whole\-document preset source for the root template picker \(ctrl\+p\). Each entry combines the base configuration with one of the available category presets.
+
+```go
+var MovelooperDocPresets presets.Source = buildDocPresets()
 ```
 
 <a name="MovelooperValidators"></a>MovelooperValidators is the rule set enforced by the edit command at validate/save time.
@@ -176,7 +179,7 @@ var MovelooperValidators = []editor.Validator{
 ```
 
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L430>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L489>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -185,7 +188,7 @@ func CategoriesPreset(name string) []models.Category
 
 
 <a name="ConfigurationPreset"></a>
-## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L102>)
+## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L161>)
 
 ```go
 func ConfigurationPreset(name string) *models.Configuration
@@ -215,17 +218,8 @@ When names is empty, all categories are returned. Without includeDisabled, categ
 
 When names is non\-empty, each name is validated against the config. An unknown name returns an error. A disabled category without includeDisabled is skipped with a warning that suggests the flag.
 
-<a name="InitCmd"></a>
-## func [InitCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/init.go#L17>)
-
-```go
-func InitCmd() *cobra.Command
-```
-
-InitCmd generates a configuration file
-
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L434>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L493>)
 
 ```go
 func ListOfCategoriesPresets() []string
@@ -234,7 +228,7 @@ func ListOfCategoriesPresets() []string
 
 
 <a name="ListOfConfigurationPresets"></a>
-## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L106>)
+## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L165>)
 
 ```go
 func ListOfConfigurationPresets() []string
@@ -252,7 +246,7 @@ func ParseCategoryNames(raw string) []string
 ParseCategoryNames splits a comma\-separated category string into a slice of trimmed names. Returns nil when raw is empty or contains only separators.
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L15>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L12>)
 
 ```go
 func RootCmd(m *models.Movelooper, version string) *cobra.Command
@@ -297,7 +291,7 @@ func ValidateCmd() *cobra.Command
 ValidateCmd defines the "validate" subcommand.
 
 <a name="WatchCmd"></a>
-## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L16>)
+## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L17>)
 
 ```go
 func WatchCmd(m *models.Movelooper) *cobra.Command
@@ -320,13 +314,14 @@ type MoveOptions struct {
 ```
 
 <a name="WatchOptions"></a>
-## type [WatchOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L9-L13>)
+## type [WatchOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L9-L14>)
 
 WatchOptions carries the CLI flags for the watch command.
 
 ```go
 type WatchOptions struct {
     DryRun          bool
+    ShowFiles       bool
     CategoryFilter  string
     IncludeDisabled bool
 }

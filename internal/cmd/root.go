@@ -2,9 +2,6 @@
 package cmd
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
@@ -69,8 +66,6 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	undoCmd := UndoCmd(m)
 	undoCmd.GroupID = "ops"
 
-	initCmd := InitCmd()
-	initCmd.GroupID = "config"
 	editCmd := EditCmd()
 	editCmd.GroupID = "config"
 	validateCmd := ValidateCmd()
@@ -82,7 +77,7 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	showCmd.GroupID = "utils"
 
 	GenerateCmd.GroupID = "utils"
-	cmd.AddCommand(watchCmd, undoCmd, initCmd, editCmd, validateCmd, selfUpdateCmd, showCmd, GenerateCmd)
+	cmd.AddCommand(watchCmd, undoCmd, editCmd, validateCmd, selfUpdateCmd, showCmd, GenerateCmd)
 
 	cmd.CompletionOptions.HiddenDefaultCmd = true
 	cmd.SetHelpCommand(&cobra.Command{Hidden: true, GroupID: "utils"})
@@ -91,28 +86,12 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 }
 
 // preRunHandler handles the necessary configuration before command execution.
-func preRunHandler(m *models.Movelooper, configPath string) (retErr error) {
-	defer func() {
-		if retErr != nil && m.LogCloser != nil {
-			m.LogCloser.Close()
-			m.LogCloser = nil
-		}
-	}()
-
-	err := config.NewAppBuilder(m, configPath).
-		ResolveConfig().
-		ConfigureLogger().
-		LoadConfig().
-		LoadCategories().
-		InitHistory().
-		ValidateDirectories().
-		Build()
-
-	if errors.Is(err, config.ErrConfigNotFound) {
-		if configPath != "" {
-			return fmt.Errorf("configuration file not found at %q: %w", configPath, err)
-		}
-		return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file: %w", err)
-	}
-	return err
+func preRunHandler(m *models.Movelooper, configPath string) error {
+	return config.NewApp(m, configPath,
+		config.WithLogger(),
+		config.WithConfig(),
+		config.WithCategories(),
+		config.WithHistory(),
+		config.WithValidateDirs(),
+	)
 }

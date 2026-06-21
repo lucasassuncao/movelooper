@@ -76,6 +76,7 @@ type watchConfig struct {
 	tracker   *fileTracker
 	threshold time.Duration
 	dryRun    bool
+	showFiles bool
 }
 
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
@@ -109,6 +110,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 		tracker:   &fileTracker{files: make(map[string]time.Time)},
 		threshold: m.Config.WatchDelay,
 		dryRun:    opts.DryRun,
+		showFiles: opts.ShowFiles,
 	}
 
 	registerSources(m, watcher)
@@ -250,7 +252,7 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchCo
 		}
 
 		if now.Sub(detected) > cfg.threshold {
-			if err := attemptMoveFile(ctx, m, path, cfg.dryRun); err != nil {
+			if err := attemptMoveFile(ctx, m, path, cfg.dryRun, cfg.showFiles); err != nil {
 				if !os.IsNotExist(err) {
 					m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
 				}
@@ -283,7 +285,7 @@ func resolveDryRunDest(cat *models.Category, path string) string {
 
 // attemptMoveFile tries to find a matching category and move the file.
 // In dry-run mode it logs what would be moved without performing any I/O.
-func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, dryRun bool) error {
+func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, dryRun, showFiles bool) error {
 	fileName := filepath.Base(path)
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 	if ext == "" {
@@ -301,6 +303,10 @@ func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, dry
 			m.Logger.Info("[dry-run] would move file",
 				m.Logger.Args("file", fileName, "to", resolveDryRunDest(cat, path), "category", cat.Name))
 			return nil
+		}
+		if showFiles {
+			m.Logger.Info("moving file",
+				m.Logger.Args("file", fileName, "to", resolveDryRunDest(cat, path), "category", cat.Name))
 		}
 		return moveFileToCategory(ctx, m, *cat, path, ext)
 	}
