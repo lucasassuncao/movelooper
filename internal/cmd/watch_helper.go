@@ -21,6 +21,30 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/tokens"
 )
 
+const watchLockFile = "movelooper.lock"
+
+// acquireWatchLock creates an exclusive lock file in the OS temp directory.
+// Returns a release function that removes the file on clean shutdown.
+// If the file already exists, returns an error with the full path so the user
+// knows where to delete it manually after a crash or unexpected shutdown.
+func acquireWatchLock() (func(), error) {
+	path := filepath.Join(os.TempDir(), watchLockFile)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //#nosec G304 -- fixed filename in OS temp dir
+	if err != nil {
+		if os.IsExist(err) {
+			return nil, fmt.Errorf(
+				"another instance of movelooper watch appears to be running\n"+
+					"lock file: %s\n"+
+					"if no instance is running, delete the file manually and retry",
+				path,
+			)
+		}
+		return nil, fmt.Errorf("could not create lock file %s: %w", path, err)
+	}
+	f.Close()
+	return func() { os.Remove(path) }, nil
+}
+
 // tickerInterval is how often the watch loop checks whether pending files have stabilized.
 // Kept shorter than the default watch-delay so stable files are detected promptly.
 const tickerInterval = 5 * time.Second
@@ -56,6 +80,12 @@ type watchConfig struct {
 
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
 func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) error {
+	release, err := acquireWatchLock()
+	if err != nil {
+		return err
+	}
+	defer release()
+
 	names := ParseCategoryNames(opts.CategoryFilter)
 	filtered, err := FilterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
 	if err != nil {

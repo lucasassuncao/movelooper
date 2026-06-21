@@ -41,9 +41,9 @@ type Category struct {
 }
 
 // IsEnabled reports whether the category is active.
-// A category is enabled when the field is omitted (nil) or explicitly set to true.
+// A category must have enabled: true set explicitly; omitting the field disables it.
 func (c *Category) IsEnabled() bool {
-	return c.Enabled == nil || *c.Enabled
+	return c.Enabled != nil && *c.Enabled
 }
 
 // CategorySource holds the source path, extensions, and filters for a category
@@ -121,8 +121,8 @@ func (Category) Metadata() map[string]*metadata.Node {
 			Example:     "name: screenshots",
 		}},
 		"enabled": {FieldMeta: editor.FieldMeta{
-			Description: "Whether this category is active. Set to false to pause without deleting the entry.",
-			Default:     "true",
+			Description: "Whether this category is active. Must be explicitly set to true; omitting this field disables the category.",
+			Default:     "false",
 			Example:     "enabled: true",
 		}},
 		"source": {FieldMeta: editor.FieldMeta{

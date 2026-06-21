@@ -133,7 +133,7 @@ type Category struct {
 func (c *Category) IsEnabled() bool
 ```
 
-IsEnabled reports whether the category is active. A category is enabled when the field is omitted \(nil\) or explicitly set to true.
+IsEnabled reports whether the category is active. A category must have enabled: true set explicitly; omitting the field disables it.
 
 <a name="Category.Metadata"></a>
 ### func \(Category\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L116>)
