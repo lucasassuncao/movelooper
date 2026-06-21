@@ -27,6 +27,7 @@ Package cmd contains the command line interface commands for the Movelooper appl
 - [func SelfUpdateCmd\(currentVersion string\) \*cobra.Command](<#SelfUpdateCmd>)
 - [func ShowCmd\(\) \*cobra.Command](<#ShowCmd>)
 - [func UndoCmd\(m \*models.Movelooper\) \*cobra.Command](<#UndoCmd>)
+- [func ValidateCmd\(\) \*cobra.Command](<#ValidateCmd>)
 - [func WatchCmd\(m \*models.Movelooper\) \*cobra.Command](<#WatchCmd>)
 - [type MoveOptions](<#MoveOptions>)
 - [type WatchOptions](<#WatchOptions>)
@@ -285,6 +286,15 @@ func UndoCmd(m *models.Movelooper) *cobra.Command
 ```
 
 UndoCmd reverts a batch of file moves
+
+<a name="ValidateCmd"></a>
+## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L35>)
+
+```go
+func ValidateCmd() *cobra.Command
+```
+
+ValidateCmd defines the "validate" subcommand.
 
 <a name="WatchCmd"></a>
 ## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L16>)

@@ -73,6 +73,8 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	initCmd.GroupID = "config"
 	editCmd := EditCmd()
 	editCmd.GroupID = "config"
+	validateCmd := ValidateCmd()
+	validateCmd.GroupID = "config"
 
 	selfUpdateCmd := SelfUpdateCmd(version)
 	selfUpdateCmd.GroupID = "utils"
@@ -80,7 +82,7 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	showCmd.GroupID = "utils"
 
 	GenerateCmd.GroupID = "utils"
-	cmd.AddCommand(watchCmd, undoCmd, initCmd, editCmd, selfUpdateCmd, showCmd, GenerateCmd)
+	cmd.AddCommand(watchCmd, undoCmd, initCmd, editCmd, validateCmd, selfUpdateCmd, showCmd, GenerateCmd)
 
 	cmd.CompletionOptions.HiddenDefaultCmd = true
 	cmd.SetHelpCommand(&cobra.Command{Hidden: true, GroupID: "utils"})
