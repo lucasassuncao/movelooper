@@ -246,3 +246,9 @@ func src(path string, opts ...func(*models.CategorySource)) models.CategorySourc
 	}
 	return s
 }
+
+// touch creates an empty file at the given path.
+func touch(t *testing.T, path string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(path, []byte{}, 0o644))
+}

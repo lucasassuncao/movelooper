@@ -45,7 +45,7 @@ Koanf is used only during startup. Once `AppBuilder.Build()` returns, the koanf 
 | `internal/hooks` | Shell hook execution (`RunHook`). |
 | `internal/tokens` | Template token resolution (`ResolveGroupBy`, `ResolveRename`) and validation. |
 | `internal/history` | Reads and writes the JSON operation log. Thread-safe. |
-| `internal/scanner` | Scans a directory and maps extensions to built-in category names (`init --scan`). |
+| `internal/scanner` | Walks a category's source directory and returns the files eligible for moving (`WalkSource`). |
 | `internal/terminal` | Terminal width detection for log formatting. |
 | `internal/updater` | Self-update logic (GitHub releases). |
 

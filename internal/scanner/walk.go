@@ -1,3 +1,6 @@
+// Package scanner walks a category's source directory and returns the regular
+// files eligible for moving, honoring recursion, depth limits, and path
+// exclusions.
 package scanner
 
 import (
