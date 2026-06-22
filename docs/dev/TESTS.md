@@ -25,8 +25,8 @@ Overview of all test cases across the movelooper project.
 | `TestUnmarshalConfig/size_bytes_populated` | `Size.MinBytes`/`Size.MaxBytes` are correctly populated | no error, `MinBytes == 1000`, `MaxBytes == 10000000` |
 | `TestUnmarshalConfig/invalid_glob_returns_error` | Error for invalid glob pattern | error |
 | `TestLoadConfig_Defaults` | `WatchDelay` and `HistoryLimit` use default values when absent | `WatchDelay == 5m`, `HistoryLimit == 50` |
-| `TestLoadConfig_CustomValues` | Custom `output`, `log-level`, `watch-delay`, `history-limit` are read correctly | no error, fields match YAML values |
-| `TestLoadConfig_WatchDelayFallback` | Missing `watch-delay` falls back to default | `WatchDelay == 5m` |
+| `TestLoadConfig_CustomValues` | Custom `logging.output`, `logging.level`, `watch.delay`, `history.limit` are read correctly | no error, fields match YAML values |
+| `TestLoadConfig_WatchDelayFallback` | Missing `watch.delay` falls back to default | `Watch.Delay == 5m` |
 | `TestValidateCategory_Action` | empty / move / copy / symlink / invalid / uppercase | Only `move`, `copy`, `symlink`, and empty are accepted; others error | no error for valid values, error containing `"action"` otherwise |
 | `TestValidateCategory_Rename` | empty / valid template / unknown token | Unknown tokens in `rename` are rejected at validation time | no error for valid, error containing `"rename"` for unknown token |
 | `TestValidateFilter_AnyAll` | valid any / valid all / valid nesting / any+all same level / any+direct fields / empty any / empty all / invalid child | Validates composite filter nodes recursively | no error for valid, descriptive error for each invalid case |
@@ -41,9 +41,9 @@ Overview of all test cases across the movelooper project.
 | `TestLogWriterFactory_EmptyFallsToConsole` | Empty output mode falls back to `consoleStrategy` | strategy is `consoleStrategy` |
 | `TestConsoleStrategy_WriterReturnsStdout` | Returns stdout writer with nil closer | no error, closer is nil |
 | `TestFileStrategy_WriterCreatesFile` | Creates the log file and returns a non-nil closer | no error, file created, closer non-nil |
-| `TestFileStrategy_WriterErrorWhenNoLogFile` | Error when `log-file` is not set | error containing `"log-file is required"` |
+| `TestFileStrategy_WriterErrorWhenNoLogFile` | Error when `logging.file` is not set | error containing `"log-file is required"` |
 | `TestMultiStrategy_WriterCreatesFileAndMultiWriter` | Returns a multi-writer (stdout + file) and a closer | no error, writer and closer non-nil |
-| `TestMultiStrategy_WriterErrorWhenNoLogFile` | Error when `log-file` is not set | error |
+| `TestMultiStrategy_WriterErrorWhenNoLogFile` | Error when `logging.file` is not set | error |
 | `TestConfigureLogger_ConsoleOutput` | Logger configured with console output, nil closer | no error, closer is nil |
 | `TestConfigureLogger_FileOutput` | Logger configured with file output, non-nil closer | no error, closer non-nil |
 | `TestConfigureLogger_BothOutput` | Logger configured with both outputs, non-nil closer | no error, closer non-nil |

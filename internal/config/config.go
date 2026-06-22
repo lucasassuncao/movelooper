@@ -58,6 +58,43 @@ func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error) {
 	return categories, nil
 }
 
+// applyCategoryDefaults fills each category's empty destination fields from the
+// global defaults block. Per-category values always take precedence. The default
+// values are validated here, since they bypass the per-category validation that
+// runs during unmarshalling.
+func applyCategoryDefaults(cats []*models.Category, d *models.Defaults) error {
+	if d == nil {
+		return nil
+	}
+	if !validConflictStrategies[d.ConflictStrategy] {
+		return fmt.Errorf("defaults: invalid conflict-strategy %q", d.ConflictStrategy)
+	}
+	if !validActions[d.Action] {
+		return fmt.Errorf("defaults: invalid action %q", d.Action)
+	}
+	if d.OrganizeBy != "" {
+		if err := tokens.ValidateTemplate(d.OrganizeBy); err != nil {
+			return fmt.Errorf("defaults: invalid organize-by template: %w", err)
+		}
+		if tokens.ContainsSeqToken(d.OrganizeBy) {
+			return fmt.Errorf("defaults: {seq} is not valid in organize-by; use it in rename only")
+		}
+	}
+
+	for _, cat := range cats {
+		if cat.Destination.ConflictStrategy == "" {
+			cat.Destination.ConflictStrategy = d.ConflictStrategy
+		}
+		if cat.Destination.Action == "" {
+			cat.Destination.Action = d.Action
+		}
+		if cat.Destination.OrganizeBy == "" {
+			cat.Destination.OrganizeBy = d.OrganizeBy
+		}
+	}
+	return nil
+}
+
 // validActions is the set of accepted values for destination.action.
 var validActions = map[models.Action]bool{
 	"":                   true, // empty = default (move)

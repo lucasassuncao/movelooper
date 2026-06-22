@@ -17,8 +17,8 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 
 	required := []struct{ block, path string }{
 		{"configuration", ""},
-		{"configuration", "output"},
-		{"configuration", "log-level"},
+		{"configuration", "logging.output"},
+		{"configuration", "logging.level"},
 		{"categories", ""},
 		{"categories", "name"},
 		{"categories", "source"},
@@ -45,24 +45,34 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 		assert.False(t, src.FieldMeta(f.block, f.path).Required, "FieldMeta(%q, %q).Required", f.block, f.path)
 	}
 
+	conflictStrategies := []string{"rename", "hash_check", "overwrite", "skip", "newest", "oldest", "larger", "smaller"}
+	actions := []string{"move", "copy", "symlink"}
+	onFailure := []string{"abort", "warn"}
+
 	oneOf := []struct {
 		block, path string
-		count       int
+		want        []string
 	}{
-		{"configuration", "output", 4},
-		{"configuration", "log-level", 6},
-		{"categories", "destination.action", 3},
-		{"categories", "destination.conflict-strategy", 8},
-		{"categories", "hooks.before.on-failure", 2},
-		{"categories", "hooks.after.on-failure", 2},
+		{"configuration", "logging.output", []string{"console", "file", "log", "both"}},
+		{"configuration", "logging.level", []string{"trace", "debug", "info", "warn", "error", "fatal"}},
+		{"configuration", "logging.format", []string{"pretty", "json"}},
+		{"configuration", "logging.color", []string{"auto", "always", "never"}},
+		{"configuration", "defaults.conflict-strategy", conflictStrategies},
+		{"configuration", "defaults.action", actions},
+		{"categories", "destination.action", actions},
+		{"categories", "destination.conflict-strategy", conflictStrategies},
+		{"categories", "hooks.before.on-failure", onFailure},
+		{"categories", "hooks.after.on-failure", onFailure},
 	}
 	for _, f := range oneOf {
-		assert.Len(t, src.FieldMeta(f.block, f.path).OneOf, f.count, "FieldMeta(%q, %q).OneOf", f.block, f.path)
+		assert.ElementsMatch(t, f.want, src.FieldMeta(f.block, f.path).OneOf, "FieldMeta(%q, %q).OneOf", f.block, f.path)
 	}
 
 	ranged := []struct{ block, path string }{
-		{"configuration", "watch-delay"},
-		{"configuration", "history-limit"},
+		{"configuration", "watch.delay"},
+		{"configuration", "watch.poll-interval"},
+		{"configuration", "logging.max-width"},
+		{"configuration", "history.limit"},
 		{"categories", "source.max-depth"},
 		{"categories", "source.filter.age.min"},
 		{"categories", "source.filter.size.max"},

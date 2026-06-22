@@ -48,7 +48,7 @@
       <div class="feature-card">
         <div class="icon">🔍</div>
         <h3>Dry-run everywhere</h3>
-        <p><code>--dry-run</code> on move, watch, and undo — preview before committing.</p>
+        <p><code>--dry-run</code> on move and undo — preview before committing.</p>
       </div>
       <div class="feature-card">
         <div class="icon">⚔️</div>
@@ -92,8 +92,8 @@
       </div>
       <div class="feature-card">
         <div class="icon">🧙</div>
-        <h3>Interactive setup</h3>
-        <p>Generate your config with <code>movelooper init -i</code> or from a template.</p>
+        <h3>Template scaffolding</h3>
+        <p>Bootstrap a new config from a built-in template in the TUI editor: <code>movelooper edit -o movelooper.yaml</code>.</p>
       </div>
       <div class="feature-card">
         <div class="icon">📎</div>
@@ -124,8 +124,8 @@
           <pre><span class="cmt"># 1. Download the binary for your platform from the releases page</span>
 <span class="cmt">#    https://github.com/lucasassuncao/movelooper/releases</span>
 
-<span class="cmt"># 2. Extract and add to your PATH, then run:</span>
-movelooper init -i</pre>
+<span class="cmt"># 2. Extract and add to your PATH, then create a config:</span>
+movelooper edit -o movelooper.yaml</pre>
         </div>
       </div>
 
@@ -135,7 +135,7 @@ movelooper init -i</pre>
           <pre>git clone https://github.com/lucasassuncao/movelooper.git
 cd movelooper
 go build -o movelooper .
-./movelooper init -i</pre>
+./movelooper edit -o movelooper.yaml</pre>
         </div>
       </div>
     </div>
@@ -144,14 +144,14 @@ go build -o movelooper .
   <!-- ── Quick start ── -->
   <section id="quickstart">
     <h2>Quick start</h2>
-    <p style="color: var(--text-muted); margin-bottom: 20px;">Generate a config with the interactive wizard, then run.</p>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Scaffold a config from a template in the TUI editor, then run.</p>
 
     <div class="code-block" style="margin-bottom: 16px;">
       <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-      <pre>movelooper init -i        <span class="cmt"># interactive wizard</span>
-movelooper --dry-run      <span class="cmt"># preview what would be moved</span>
-movelooper                <span class="cmt"># move files</span>
-movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
+      <pre>movelooper edit -o movelooper.yaml   <span class="cmt"># create a config from a template in the TUI</span>
+movelooper --dry-run                 <span class="cmt"># preview what would be moved</span>
+movelooper                           <span class="cmt"># move files</span>
+movelooper watch                     <span class="cmt"># real-time monitoring</span></pre>
     </div>
   </section>
 
@@ -171,9 +171,11 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
         <div class="code-block">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
-  <span class="key">output</span>: <span class="val">both</span>
-  <span class="key">log-level</span>: <span class="val">info</span>
-  <span class="key">watch-delay</span>: <span class="val">5m</span>
+  <span class="key">logging</span>:
+    <span class="key">output</span>: <span class="val">both</span>
+    <span class="key">level</span>: <span class="val">info</span>
+  <span class="key">watch</span>:
+    <span class="key">delay</span>: <span class="val">5m</span>
 
 <span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"images"</span>
@@ -197,8 +199,9 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
         <div class="code-block">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
-  <span class="key">output</span>: <span class="val">both</span>
-  <span class="key">log-level</span>: <span class="val">info</span>
+  <span class="key">logging</span>:
+    <span class="key">output</span>: <span class="val">both</span>
+    <span class="key">level</span>: <span class="val">info</span>
 
 <span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"photos-backup"</span>
@@ -217,8 +220,9 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
         <div class="code-block">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
-  <span class="key">output</span>: <span class="val">both</span>
-  <span class="key">log-level</span>: <span class="val">info</span>
+  <span class="key">logging</span>:
+    <span class="key">output</span>: <span class="val">both</span>
+    <span class="key">level</span>: <span class="val">info</span>
 
 <span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"everything-else"</span>
@@ -237,8 +241,9 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
         <div class="code-block" style="margin-bottom: 16px;">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
-  <span class="key">output</span>: <span class="val">console</span>
-  <span class="key">log-level</span>: <span class="val">info</span>
+  <span class="key">logging</span>:
+    <span class="key">output</span>: <span class="val">console</span>
+    <span class="key">level</span>: <span class="val">info</span>
 
 <span class="key">import</span>:
   - <span class="str">categories/media.yaml</span>
@@ -281,9 +286,10 @@ movelooper watch          <span class="cmt"># real-time monitoring</span></pre>
         <tr><td>movelooper undo</td><td>Open interactive picker to select and revert a batch</td></tr>
         <tr><td>movelooper undo --list</td><td>List all recorded batches</td></tr>
         <tr><td>movelooper undo --dry-run</td><td>Preview what would be restored</td></tr>
-        <tr><td>movelooper init -i</td><td>Launch the interactive setup wizard</td></tr>
-        <tr><td>movelooper init -t full</td><td>Generate config from a template</td></tr>
         <tr><td>movelooper edit</td><td>Open the config in an interactive TUI editor</td></tr>
+        <tr><td>movelooper edit -o movelooper.yaml</td><td>Scaffold a new config from a template in the TUI editor</td></tr>
+        <tr><td>movelooper validate</td><td>Validate a config file and report all errors</td></tr>
+        <tr><td>movelooper config</td><td>Print the resolved configuration file path</td></tr>
         <tr><td>movelooper show-docs</td><td>Browse the field reference in the terminal</td></tr>
         <tr><td>movelooper self-update</td><td>Download and install the latest release</td></tr>
       </tbody>

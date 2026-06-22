@@ -127,7 +127,7 @@ var testFileStrategyTestCases = []testFileStrategy{
 	{
 		name: "creates log file",
 		yaml: func(t *testing.T) string {
-			return "configuration:\n  log-file: " + filepath.Join(t.TempDir(), "logs", "app.log") + "\n"
+			return "configuration:\n  logging:\n    file: " + filepath.Join(t.TempDir(), "logs", "app.log") + "\n"
 		},
 	},
 	{
@@ -177,7 +177,7 @@ var testMultiStrategyTestCases = []testMultiStrategy{
 	{
 		name: "creates file and multi-writer",
 		yaml: func(t *testing.T) string {
-			return "configuration:\n  log-file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
+			return "configuration:\n  logging:\n    file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
 		},
 	},
 	{
@@ -226,29 +226,31 @@ type testConfigureLogger struct {
 var testConfigureLoggerTestCases = []testConfigureLogger{
 	{
 		name: "console output",
-		yaml: func(*testing.T) string { return "configuration:\n  output: console\n  log-level: debug\n" },
+		yaml: func(*testing.T) string { return "configuration:\n  logging:\n    output: console\n    level: debug\n" },
 	},
 	{
 		name: "file output creates closer",
 		yaml: func(t *testing.T) string {
-			return "configuration:\n  output: file\n  log-file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
+			return "configuration:\n  logging:\n    output: file\n    file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
 		},
 		wantCloser: true,
 	},
 	{
 		name: "both output creates closer",
 		yaml: func(t *testing.T) string {
-			return "configuration:\n  output: both\n  log-file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
+			return "configuration:\n  logging:\n    output: both\n    file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
 		},
 		wantCloser: true,
 	},
 	{
 		name: "unknown output defaults to console",
-		yaml: func(*testing.T) string { return "configuration:\n  output: syslog\n" },
+		yaml: func(*testing.T) string { return "configuration:\n  logging:\n    output: syslog\n" },
 	},
 	{
-		name:       "show-caller enabled",
-		yaml:       func(*testing.T) string { return "configuration:\n  output: console\n  show-caller: true\n" },
+		name: "show-caller enabled",
+		yaml: func(*testing.T) string {
+			return "configuration:\n  logging:\n    output: console\n    show-caller: true\n"
+		},
 		wantCaller: true,
 	},
 }
@@ -271,7 +273,9 @@ func TestConfigureLogger(t *testing.T) {
 				assert.Nil(t, closer)
 			}
 			if tt.wantCaller {
-				assert.True(t, logger.ShowCaller)
+				pl, ok := logger.(*pterm.Logger)
+				require.True(t, ok, "expected pretty (pterm) logger for caller assertion")
+				assert.True(t, pl.ShowCaller)
 			}
 		})
 	}

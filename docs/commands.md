@@ -26,18 +26,16 @@ movelooper --category archive --include-disabled  # run a disabled category expl
 
 ## `movelooper watch` — real-time monitoring
 
-Monitors all source directories and moves files as they appear, after they stabilize (controlled by `watch-delay`). Hooks are executed per category on each triggered move, same as in the default move command.
+Monitors all source directories and moves files as they appear, after they stabilize (controlled by `watch.delay`). Hooks are executed per category on each triggered move, same as in the default move command.
 
 ```bash
 movelooper watch
-movelooper watch --dry-run                         # preview matched files without moving
 movelooper watch --config /path/to/movelooper.yaml
 movelooper watch --category images                 # watch only the "images" category
 ```
 
 | Flag                  | Description                                                               |
 |-----------------------|---------------------------------------------------------------------------|
-| `--dry-run`           | Log matched files with their intended destination without moving them     |
 | `--category`          | Comma-separated list of category names to monitor (default: all)          |
 | `--include-disabled`  | Include categories with `enabled: false`                                  |
 

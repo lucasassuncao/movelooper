@@ -122,23 +122,25 @@ var MovelooperValidators = []editor.Validator{
     editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
         var doc struct {
             Configuration struct {
-                Output  string `yaml:"output"`
-                LogFile string `yaml:"log-file"`
+                Logging struct {
+                    Output string `yaml:"output"`
+                    File   string `yaml:"file"`
+                } `yaml:"logging"`
             } `yaml:"configuration"`
         }
         if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
             return nil
         }
-        cfg := doc.Configuration
-        if cfg.Output != "file" && cfg.Output != "both" {
+        log := doc.Configuration.Logging
+        if log.Output != "file" && log.Output != "both" {
             return nil
         }
-        if cfg.LogFile != "" {
+        if log.File != "" {
             return nil
         }
         return []editor.Violation{{
-            Path:    "configuration.log-file",
-            Message: fmt.Sprintf("required when output is %q", cfg.Output),
+            Path:    "configuration.logging.file",
+            Message: fmt.Sprintf("required when output is %q", log.Output),
         }}
     }),
 
@@ -180,7 +182,7 @@ var MovelooperValidators = []editor.Validator{
 ```
 
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L489>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L433>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -198,7 +200,7 @@ func ConfigCmd() *cobra.Command
 ConfigCmd returns the "config" command for configuration utilities.
 
 <a name="ConfigurationPreset"></a>
-## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L161>)
+## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L105>)
 
 ```go
 func ConfigurationPreset(name string) *models.Configuration
@@ -229,7 +231,7 @@ When names is empty, all categories are returned. Without includeDisabled, categ
 When names is non\-empty, each name is validated against the config. An unknown name returns an error. A disabled category without includeDisabled is skipped with a warning that suggests the flag.
 
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L493>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L437>)
 
 ```go
 func ListOfCategoriesPresets() []string
@@ -238,7 +240,7 @@ func ListOfCategoriesPresets() []string
 
 
 <a name="ListOfConfigurationPresets"></a>
-## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L165>)
+## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L109>)
 
 ```go
 func ListOfConfigurationPresets() []string
@@ -301,7 +303,7 @@ func ValidateCmd() *cobra.Command
 ValidateCmd defines the "validate" subcommand.
 
 <a name="WatchCmd"></a>
-## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L17>)
+## func [WatchCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L16>)
 
 ```go
 func WatchCmd(m *models.Movelooper) *cobra.Command
@@ -324,13 +326,12 @@ type MoveOptions struct {
 ```
 
 <a name="WatchOptions"></a>
-## type [WatchOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L9-L14>)
+## type [WatchOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/watch.go#L9-L13>)
 
 WatchOptions carries the CLI flags for the watch command.
 
 ```go
 type WatchOptions struct {
-    DryRun          bool
     ShowFiles       bool
     CategoryFilter  string
     IncludeDisabled bool

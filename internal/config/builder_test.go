@@ -12,8 +12,9 @@ import (
 
 const minimalBuilderYAML = `
 configuration:
-  output: console
-  log-level: info
+  logging:
+    output: console
+    level: info
 categories:
   - name: docs
     source:
@@ -53,7 +54,7 @@ var testBuildCases = []struct {
 		yaml: minimalBuilderYAML,
 		opts: []Option{WithLogger(), WithConfig()},
 		check: func(t *testing.T, m *models.Movelooper) {
-			assert.Equal(t, "console", m.Config.Output)
+			assert.Equal(t, "console", m.Config.Logging.Output)
 		},
 	},
 	{

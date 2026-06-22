@@ -260,7 +260,7 @@ All shared types live in `models` with no dependencies on other internal package
 
 ### Watch mode uses a stability window, not inotify CLOSE_WRITE
 
-`fsnotify` does not expose `CLOSE_WRITE` on all platforms. Instead, watch mode records when a file was first detected and only moves it after its `ModTime` has been stable for longer than `watch-delay` (default 5 minutes). This handles large or slow file writes correctly on all supported platforms.
+`fsnotify` does not expose `CLOSE_WRITE` on all platforms. Instead, watch mode records when a file was first detected and only moves it after its `ModTime` has been stable for longer than `watch.delay` (default 5 minutes). This handles large or slow file writes correctly on all supported platforms.
 
 ### Conflict resolution and file actions are open/closed
 

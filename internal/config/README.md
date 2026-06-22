@@ -12,7 +12,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 - [Constants](<#constants>)
 - [Variables](<#variables>)
-- [func ConfigureLogger\(k \*koanf.Koanf\) \(\*pterm.Logger, io.Closer, error\)](<#ConfigureLogger>)
+- [func ConfigureLogger\(k \*koanf.Koanf\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
 - [func LoadConfig\(k \*koanf.Koanf\) models.Configuration](<#LoadConfig>)
@@ -45,16 +45,16 @@ var ErrConfigNotFound = errors.New("config file not found")
 ```
 
 <a name="ConfigureLogger"></a>
-## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L62>)
+## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L65>)
 
 ```go
-func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error)
+func ConfigureLogger(k *koanf.Koanf) (logger.Logger, io.Closer, error)
 ```
 
-ConfigureLogger configures the logger based on the configuration. Returns the logger, a Closer that must be called on exit \(non\-nil only when writing to a file\), and any error.
+ConfigureLogger configures the logger based on the configuration. It returns a pretty \(pterm\) logger by default, or a structured JSON \(slog\) logger when logging.format is "json". The Closer must be called on exit \(non\-nil only when writing to a file\).
 
 <a name="FilterDepthOK"></a>
-## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L173>)
+## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L210>)
 
 ```go
 func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
@@ -72,7 +72,7 @@ func InitConfig(k *koanf.Koanf, path string) error
 InitConfig reads the YAML file at path, resolves any import: entries, and loads the merged document into k. Returns ErrConfigNotFound when the file does not exist, or a descriptive error for any other failure.
 
 <a name="LoadConfig"></a>
-## func [LoadConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/appconfig.go#L16>)
+## func [LoadConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/appconfig.go#L17>)
 
 ```go
 func LoadConfig(k *koanf.Koanf) models.Configuration
@@ -90,7 +90,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 NewApp resolves the config file and runs the requested initialization steps in order.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L332>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L369>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)

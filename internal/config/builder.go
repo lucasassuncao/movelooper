@@ -84,15 +84,20 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 		if err != nil {
 			return err
 		}
+		if err := applyCategoryDefaults(cats, m.Config.Defaults); err != nil {
+			return err
+		}
 		m.Categories = cats
 	}
 
-	if o.initHistory {
-		histPath := m.Config.HistoryFile
+	// History.Enabled is populated by LoadConfig (default true); preRunHandler
+	// always loads the config before initializing history.
+	if o.initHistory && m.Config.History.Enabled {
+		histPath := m.Config.History.File
 		if histPath == "" {
 			histPath = defaultHistoryFilePath()
 		}
-		if hist, err := history.NewHistory(histPath, m.Config.HistoryLimit); err != nil {
+		if hist, err := history.NewHistory(histPath, m.Config.History.Limit); err != nil {
 			m.Logger.Warn("failed to initialize history tracking", m.Logger.Args("error", err.Error()))
 		} else {
 			m.History = hist

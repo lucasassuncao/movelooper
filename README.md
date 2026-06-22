@@ -24,7 +24,7 @@
 
 - Watch mode: monitors directories in real-time, moves files as they stabilize
 - Undo: interactive batch picker to select and revert a batch · pass a batch ID to skip the picker
-- `--dry-run` on move, watch, and undo to preview before committing
+- `--dry-run` on move and undo to preview before committing
 - Hooks: run shell commands before and after each category — notify, log, call webhooks, or trigger scripts
 
 ### Configure
@@ -57,9 +57,11 @@ Or write the config manually — see [Config File Reference](docs/config.md) for
 
 ```yaml
 configuration:
-  output: console
-  log-level: info
-  watch-delay: 5m
+  logging:
+    output: console
+    level: info
+  watch:
+    delay: 5m
 
 categories:
   - name: images
@@ -108,8 +110,7 @@ categories:
 
 ### Safety & Dry-run
 
-- Run with `--dry-run` first to preview actions before organizing real files - works on `movelooper`, `watch`, and `undo`.
-- Use `watch --dry-run` to test your rules in real-time without moving anything.
+- Run with `--dry-run` first to preview actions before organizing real files - works on `movelooper` and `undo`.
 - Use `undo --dry-run` to inspect what a restore would do before committing.
 - Use `undo --list` to inspect past operations and roll back any batch.
 

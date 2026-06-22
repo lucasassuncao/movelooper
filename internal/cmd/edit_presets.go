@@ -73,88 +73,32 @@ func buildDocPresets() *docPresetSource {
 
 func configurationPresetsMap() map[string]*models.Configuration {
 	logFile := "~/.movelooper/logs/movelooper.log"
+	histFile := "~/.movelooper/history/movelooper.json"
+
+	base := func(output, level string, showCaller bool) *models.Configuration {
+		return &models.Configuration{
+			Logging: models.Logging{
+				Output:     output,
+				File:       logFile,
+				Level:      level,
+				ShowCaller: showCaller,
+			},
+			Watch:   models.Watch{Delay: 5 * time.Minute},
+			History: models.History{Limit: 100, File: histFile},
+		}
+	}
 
 	return map[string]*models.Configuration{
-		"base": {
-			Output:       "console",
-			LogFile:      logFile,
-			LogLevel:     "info",
-			ShowCaller:   false,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"output-console": {
-			Output:       "console",
-			LogFile:      logFile,
-			LogLevel:     "debug",
-			ShowCaller:   false,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"output-file": {
-			Output:       "file",
-			LogFile:      logFile,
-			LogLevel:     "warn",
-			ShowCaller:   false,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"output-console-and-file": {
-			Output:       "both",
-			LogFile:      logFile,
-			LogLevel:     "error",
-			ShowCaller:   false,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"loglevel-trace": {
-			Output:       "console",
-			LogFile:      logFile,
-			LogLevel:     "trace",
-			ShowCaller:   true,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"debug": {
-			Output:       "console",
-			LogFile:      logFile,
-			LogLevel:     "debug",
-			ShowCaller:   true,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"loglevel-info": {
-			Output:       "console",
-			LogFile:      logFile,
-			LogLevel:     "info",
-			ShowCaller:   false,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"loglevel-warn": {
-			Output:       "file",
-			LogFile:      logFile,
-			LogLevel:     "warn",
-			ShowCaller:   false,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"loglevel-error": {
-			Output:       "file",
-			LogFile:      logFile,
-			LogLevel:     "error",
-			ShowCaller:   true,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
-		"loglevel-fatal": {
-			Output:       "file",
-			LogFile:      logFile,
-			LogLevel:     "fatal",
-			ShowCaller:   true,
-			WatchDelay:   5 * time.Minute,
-			HistoryLimit: 100,
-		},
+		"base":                    base("console", "info", false),
+		"output-console":          base("console", "debug", false),
+		"output-file":             base("file", "warn", false),
+		"output-console-and-file": base("both", "error", false),
+		"loglevel-trace":          base("console", "trace", true),
+		"debug":                   base("console", "debug", true),
+		"loglevel-info":           base("console", "info", false),
+		"loglevel-warn":           base("file", "warn", false),
+		"loglevel-error":          base("file", "error", true),
+		"loglevel-fatal":          base("file", "fatal", true),
 	}
 }
 

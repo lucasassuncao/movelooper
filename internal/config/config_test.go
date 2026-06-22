@@ -384,37 +384,79 @@ type testLoadConfig struct {
 }
 
 // testLoadConfigTestCases defines a set of test cases for the LoadConfig function,
-// covering default values, custom values, and watch-delay fallback.
+// covering default values, custom values, and watch.delay fallback.
 var testLoadConfigTestCases = []testLoadConfig{
 	{
 		name: "defaults when not set",
 		yaml: "",
 		check: func(t *testing.T, cfg models.Configuration) {
-			assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
-			assert.Equal(t, defaultHistoryLimit, cfg.HistoryLimit)
+			assert.Equal(t, defaultWatchDelay, cfg.Watch.Delay)
+			assert.Equal(t, defaultPollInterval, cfg.Watch.PollInterval)
+			assert.Equal(t, defaultHistoryLimit, cfg.History.Limit)
+			assert.True(t, cfg.History.Enabled, "history enabled by default")
+			assert.Nil(t, cfg.Defaults, "no defaults block when absent")
+		},
+	},
+	{
+		name: "history disabled and custom poll-interval",
+		yaml: `
+configuration:
+  watch:
+    poll-interval: 2s
+  history:
+    enabled: false
+`,
+		check: func(t *testing.T, cfg models.Configuration) {
+			assert.Equal(t, 2*time.Second, cfg.Watch.PollInterval)
+			assert.False(t, cfg.History.Enabled)
+		},
+	},
+	{
+		name: "defaults block is read",
+		yaml: `
+configuration:
+  defaults:
+    conflict-strategy: skip
+    action: copy
+    organize-by: "{ext}"
+`,
+		check: func(t *testing.T, cfg models.Configuration) {
+			require.NotNil(t, cfg.Defaults)
+			assert.Equal(t, models.ConflictStrategySkip, cfg.Defaults.ConflictStrategy)
+			assert.Equal(t, models.ActionCopy, cfg.Defaults.Action)
+			assert.Equal(t, "{ext}", cfg.Defaults.OrganizeBy)
 		},
 	},
 	{
 		name: "custom values",
 		yaml: `
 configuration:
-  output: json
-  log-level: debug
-  watch-delay: 2m
-  history-limit: 100
+  logging:
+    output: json
+    level: debug
+    file: /var/log/movelooper.log
+    show-caller: true
+  watch:
+    delay: 2m
+  history:
+    limit: 100
+    file: /var/lib/movelooper/history.json
 `,
 		check: func(t *testing.T, cfg models.Configuration) {
-			assert.Equal(t, "json", cfg.Output)
-			assert.Equal(t, "debug", cfg.LogLevel)
-			assert.Equal(t, 2*time.Minute, cfg.WatchDelay)
-			assert.Equal(t, 100, cfg.HistoryLimit)
+			assert.Equal(t, "json", cfg.Logging.Output)
+			assert.Equal(t, "debug", cfg.Logging.Level)
+			assert.Equal(t, "/var/log/movelooper.log", cfg.Logging.File)
+			assert.True(t, cfg.Logging.ShowCaller)
+			assert.Equal(t, 2*time.Minute, cfg.Watch.Delay)
+			assert.Equal(t, 100, cfg.History.Limit)
+			assert.Equal(t, "/var/lib/movelooper/history.json", cfg.History.File)
 		},
 	},
 	{
-		name: "watch-delay fallback to default",
-		yaml: "configuration:\n  output: text\n",
+		name: "watch.delay fallback to default",
+		yaml: "configuration:\n  logging:\n    output: text\n",
 		check: func(t *testing.T, cfg models.Configuration) {
-			assert.Equal(t, defaultWatchDelay, cfg.WatchDelay)
+			assert.Equal(t, defaultWatchDelay, cfg.Watch.Delay)
 		},
 	},
 }
@@ -701,4 +743,56 @@ func writeYAML(t *testing.T, dir, name, content string) string {
 	path := filepath.Join(dir, name)
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 	return path
+}
+
+func TestApplyCategoryDefaults(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fills empty fields and respects per-category values", func(t *testing.T) {
+		t.Parallel()
+		cats := []*models.Category{
+			{Name: "a"},
+			{Name: "b", Destination: models.CategoryDestination{
+				ConflictStrategy: models.ConflictStrategyOverwrite,
+				OrganizeBy:       "{year}",
+			}},
+		}
+		d := &models.Defaults{
+			ConflictStrategy: models.ConflictStrategySkip,
+			Action:           models.ActionCopy,
+			OrganizeBy:       "{ext}",
+		}
+		require.NoError(t, applyCategoryDefaults(cats, d))
+
+		// category "a" had no destination fields → all filled from defaults
+		assert.Equal(t, models.ConflictStrategySkip, cats[0].Destination.ConflictStrategy)
+		assert.Equal(t, models.ActionCopy, cats[0].Destination.Action)
+		assert.Equal(t, "{ext}", cats[0].Destination.OrganizeBy)
+
+		// category "b" keeps its own conflict-strategy/organize-by, gets default action
+		assert.Equal(t, models.ConflictStrategyOverwrite, cats[1].Destination.ConflictStrategy)
+		assert.Equal(t, "{year}", cats[1].Destination.OrganizeBy)
+		assert.Equal(t, models.ActionCopy, cats[1].Destination.Action)
+	})
+
+	t.Run("nil defaults is a no-op", func(t *testing.T) {
+		t.Parallel()
+		cats := []*models.Category{{Name: "a"}}
+		require.NoError(t, applyCategoryDefaults(cats, nil))
+		assert.Empty(t, string(cats[0].Destination.ConflictStrategy))
+	})
+
+	t.Run("invalid default conflict-strategy errors", func(t *testing.T) {
+		t.Parallel()
+		err := applyCategoryDefaults(nil, &models.Defaults{ConflictStrategy: "bogus"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "conflict-strategy")
+	})
+
+	t.Run("invalid default organize-by errors", func(t *testing.T) {
+		t.Parallel()
+		err := applyCategoryDefaults(nil, &models.Defaults{OrganizeBy: "{nope}"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "organize-by")
+	})
 }

@@ -1,10 +1,14 @@
 configuration:
-  output: both
-  log-file: "D:\\Scripts\\go\\logs\\movelooper.log"
-  log-level: info
-  show-caller: false
-  watch-delay: 10s
-  history-limit: 100
+  logging:
+    output: both
+    level: info
+    file: "D:\\Scripts\\go\\logs\\movelooper.log"
+    show-caller: false
+  watch:
+    delay: 10s
+  history:
+    limit: 100
+    file: "~/.movelooper/history/movelooper.json"
 
 import:
   - ./movelooper/miscellaneous.yaml

@@ -77,27 +77,29 @@ var MovelooperValidators = []editor.Validator{
 		return errs
 	}),
 
-	// Custom validation to check that log-file is required when output is "file" or "both".
+	// Custom validation to check that logging.file is required when output is "file" or "both".
 	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
 		var doc struct {
 			Configuration struct {
-				Output  string `yaml:"output"`
-				LogFile string `yaml:"log-file"`
+				Logging struct {
+					Output string `yaml:"output"`
+					File   string `yaml:"file"`
+				} `yaml:"logging"`
 			} `yaml:"configuration"`
 		}
 		if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
 			return nil
 		}
-		cfg := doc.Configuration
-		if cfg.Output != "file" && cfg.Output != "both" {
+		log := doc.Configuration.Logging
+		if log.Output != "file" && log.Output != "both" {
 			return nil
 		}
-		if cfg.LogFile != "" {
+		if log.File != "" {
 			return nil
 		}
 		return []editor.Violation{{
-			Path:    "configuration.log-file",
-			Message: fmt.Sprintf("required when output is %q", cfg.Output),
+			Path:    "configuration.logging.file",
+			Message: fmt.Sprintf("required when output is %q", log.Output),
 		}}
 	}),
 

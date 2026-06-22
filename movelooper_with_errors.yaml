@@ -1,10 +1,13 @@
 configuration:
-  output: file                        # valid; no log-file below → custom validator fires
-  # log-file absent: required when output is "file" or "both"
-  log-level: verbose                  # OneOf: must be trace/debug/info/warn/error/fatal
-  show-caller: false
-  watch-delay: "five minutes"         # FormatDuration: not a valid Go duration string
-  history-limit: 0                    # Range: min is 1
+  logging:
+    output: file                      # valid; no file below → custom validator fires
+    # file absent: required when output is "file" or "both"
+    level: verbose                    # OneOf: must be trace/debug/info/warn/error/fatal
+    show-caller: false
+  watch:
+    delay: "five minutes"             # FormatDuration: not a valid Go duration string
+  history:
+    limit: 0                          # Range: min is 1
 
 categories:
   # ── 1. Required fields missing ────────────────────────────────────────────

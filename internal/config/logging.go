@@ -5,8 +5,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/knadh/koanf/v2"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/pterm/pterm"
 )
 
@@ -57,23 +59,63 @@ func logWriterFactory(output string) writerBuilder {
 }
 
 // ConfigureLogger configures the logger based on the configuration.
-// Returns the logger, a Closer that must be called on exit (non-nil only when
-// writing to a file), and any error.
-func ConfigureLogger(k *koanf.Koanf) (*pterm.Logger, io.Closer, error) {
-	strategy := logWriterFactory(k.String("configuration.output"))
+// It returns a pretty (pterm) logger by default, or a structured JSON (slog)
+// logger when logging.format is "json". The Closer must be called on exit
+// (non-nil only when writing to a file).
+func ConfigureLogger(k *koanf.Koanf) (logger.Logger, io.Closer, error) {
+	output := k.String("configuration.logging.output")
+	strategy := logWriterFactory(output)
 
 	w, closer, err := strategy.Writer(k)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	logger := pterm.DefaultLogger.
-		WithCaller(k.Bool("configuration.show-caller")).
-		WithLevel(parseLogLevel(k.String("configuration.log-level"))).
-		WithWriter(w).
-		WithMaxWidth(maxWidth)
+	level := k.String("configuration.logging.level")
+	showCaller := k.Bool("configuration.logging.show-caller")
 
-	return logger, closer, nil
+	if k.String("configuration.logging.format") == "json" {
+		return logger.NewSlog(w, level, showCaller), closer, nil
+	}
+
+	applyColor(k.String("configuration.logging.color"), output)
+
+	width := k.Int("configuration.logging.max-width")
+	if width <= 0 {
+		width = maxWidth
+	}
+
+	plog := pterm.DefaultLogger.
+		WithCaller(showCaller).
+		WithLevel(parseLogLevel(level)).
+		WithWriter(w).
+		WithMaxWidth(width)
+
+	return plog, closer, nil
+}
+
+// colorMu serializes the pterm color toggle, which mutates process-global
+// state. ConfigureLogger runs once in production, but tests configure loggers
+// concurrently; the lock keeps that access race-free.
+var colorMu sync.Mutex
+
+// applyColor toggles pterm's global ANSI styling for the pretty format.
+// "auto" keeps color only for pure console output, so file logs stay clean.
+func applyColor(mode, output string) {
+	colorMu.Lock()
+	defer colorMu.Unlock()
+	switch mode {
+	case "never":
+		pterm.DisableColor()
+	case "always":
+		pterm.EnableColor()
+	default: // auto, and any unrecognized value
+		if output == "console" {
+			pterm.EnableColor()
+		} else {
+			pterm.DisableColor()
+		}
+	}
 }
 
 func defaultLogFilePath() string {
@@ -86,7 +128,7 @@ func defaultLogFilePath() string {
 
 // openLogFile opens the log file for writing
 func openLogFile(k *koanf.Koanf) (*os.File, error) {
-	file := k.String("configuration.log-file")
+	file := k.String("configuration.logging.file")
 	if file == "" {
 		file = defaultLogFilePath()
 	}

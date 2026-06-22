@@ -32,11 +32,19 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 - [type Configuration](<#Configuration>)
   - [func \(Configuration\) Metadata\(\) map\[string\]\*metadata.Node](<#Configuration.Metadata>)
 - [type ConflictStrategy](<#ConflictStrategy>)
+- [type Defaults](<#Defaults>)
+  - [func \(Defaults\) Metadata\(\) map\[string\]\*metadata.Node](<#Defaults.Metadata>)
+- [type History](<#History>)
+  - [func \(History\) Metadata\(\) map\[string\]\*metadata.Node](<#History.Metadata>)
+- [type Logging](<#Logging>)
+  - [func \(Logging\) Metadata\(\) map\[string\]\*metadata.Node](<#Logging.Metadata>)
 - [type MatchFilter](<#MatchFilter>)
   - [func \(MatchFilter\) Metadata\(\) map\[string\]\*metadata.Node](<#MatchFilter.Metadata>)
 - [type Movelooper](<#Movelooper>)
 - [type SizeFilter](<#SizeFilter>)
   - [func \(SizeFilter\) Metadata\(\) map\[string\]\*metadata.Node](<#SizeFilter.Metadata>)
+- [type Watch](<#Watch>)
+  - [func \(Watch\) Metadata\(\) map\[string\]\*metadata.Node](<#Watch.Metadata>)
 
 
 ## Variables
@@ -274,7 +282,7 @@ type Config struct {
 ```
 
 <a name="Config.Metadata"></a>
-### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L27>)
+### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L56>)
 
 ```go
 func (Config) Metadata() map[string]*metadata.Node
@@ -283,24 +291,21 @@ func (Config) Metadata() map[string]*metadata.Node
 
 
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L17-L25>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L18-L23>)
 
-Configuration holds the general settings for Movelooper
+Configuration holds the general settings for Movelooper, grouped into logging, watch, history, and defaults sub\-sections.
 
 ```go
 type Configuration struct {
-    Output       string        `yaml:"output" mapstructure:"output"`
-    LogFile      string        `yaml:"log-file" mapstructure:"log-file"`
-    LogLevel     string        `yaml:"log-level" mapstructure:"log-level"`
-    ShowCaller   bool          `yaml:"show-caller" mapstructure:"show-caller"`
-    WatchDelay   time.Duration `yaml:"watch-delay" mapstructure:"watch-delay"`
-    HistoryLimit int           `yaml:"history-limit" mapstructure:"history-limit"`
-    HistoryFile  string        `yaml:"history-file" mapstructure:"history-file"`
+    Logging  Logging   `yaml:"logging" mapstructure:"logging"`
+    Watch    Watch     `yaml:"watch" mapstructure:"watch"`
+    History  History   `yaml:"history" mapstructure:"history"`
+    Defaults *Defaults `yaml:"defaults,omitempty" mapstructure:"defaults"`
 }
 ```
 
 <a name="Configuration.Metadata"></a>
-### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L40>)
+### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L69>)
 
 ```go
 func (Configuration) Metadata() map[string]*metadata.Node
@@ -331,6 +336,76 @@ const (
     ConflictStrategySmaller   ConflictStrategy = "smaller"
 )
 ```
+
+<a name="Defaults"></a>
+## type [Defaults](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L50-L54>)
+
+Defaults holds fallback values applied to any category that omits them.
+
+```go
+type Defaults struct {
+    ConflictStrategy ConflictStrategy `yaml:"conflict-strategy,omitempty" mapstructure:"conflict-strategy"`
+    Action           Action           `yaml:"action,omitempty" mapstructure:"action"`
+    OrganizeBy       string           `yaml:"organize-by,omitempty" mapstructure:"organize-by"`
+}
+```
+
+<a name="Defaults.Metadata"></a>
+### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L180>)
+
+```go
+func (Defaults) Metadata() map[string]*metadata.Node
+```
+
+
+
+<a name="History"></a>
+## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L43-L47>)
+
+History holds the undo\-history settings.
+
+```go
+type History struct {
+    Limit   int    `yaml:"limit" mapstructure:"limit"`
+    File    string `yaml:"file" mapstructure:"file"`
+    Enabled bool   `yaml:"enabled,omitempty" mapstructure:"enabled"`
+}
+```
+
+<a name="History.Metadata"></a>
+### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L157>)
+
+```go
+func (History) Metadata() map[string]*metadata.Node
+```
+
+
+
+<a name="Logging"></a>
+## type [Logging](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L26-L34>)
+
+Logging holds the log output settings.
+
+```go
+type Logging struct {
+    Output     string `yaml:"output" mapstructure:"output"`
+    Level      string `yaml:"level" mapstructure:"level"`
+    File       string `yaml:"file" mapstructure:"file"`
+    ShowCaller bool   `yaml:"show-caller" mapstructure:"show-caller"`
+    Format     string `yaml:"format,omitempty" mapstructure:"format"`
+    Color      string `yaml:"color,omitempty" mapstructure:"color"`
+    MaxWidth   int    `yaml:"max-width,omitempty" mapstructure:"max-width"`
+}
+```
+
+<a name="Logging.Metadata"></a>
+### func \(Logging\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L87>)
+
+```go
+func (Logging) Metadata() map[string]*metadata.Node
+```
+
+
 
 <a name="MatchFilter"></a>
 ## type [MatchFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L81-L87>)
@@ -390,6 +465,27 @@ type SizeFilter struct {
 
 ```go
 func (SizeFilter) Metadata() map[string]*metadata.Node
+```
+
+
+
+<a name="Watch"></a>
+## type [Watch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L37-L40>)
+
+Watch holds the watch\-mode settings.
+
+```go
+type Watch struct {
+    Delay        time.Duration `yaml:"delay" mapstructure:"delay"`
+    PollInterval time.Duration `yaml:"poll-interval,omitempty" mapstructure:"poll-interval"`
+}
+```
+
+<a name="Watch.Metadata"></a>
+### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L136>)
+
+```go
+func (Watch) Metadata() map[string]*metadata.Node
 ```
 
 

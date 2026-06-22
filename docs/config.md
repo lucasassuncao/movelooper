@@ -2,15 +2,44 @@
 
 ## `configuration` block
 
-| Field            | Type     | Required | Default   | Description                                                                        |
-|------------------|----------|----------|-----------|------------------------------------------------------------------------------------|
-| `output`         | string   | no       | `console` | Where to write logs: `console`, `file`, or `both`                                 |
-| `log-file`       | string   | no       | —         | Path to the log file (required when `output` is `file` or `both`)                 |
-| `log-level`      | string   | no       | `info`    | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`                 |
-| `show-caller`    | bool     | no       | `false`   | Include the source location in log lines                                           |
-| `watch-delay`    | duration | no       | `5m`      | How long a file must be stable before `watch` moves it (e.g. `30s`, `5m`)        |
-| `history-limit`  | int      | no       | `100`     | Maximum number of batches retained in undo history                                 |
-| `history-file`   | string   | no       | `~/.movelooper/history/movelooper.json` | Path to the history JSON file used for undo (supports `~`)    |
+Grouped into four sub-sections: `logging`, `watch`, `history`, and the optional `defaults`.
+
+### `logging`
+
+| Field         | Type   | Required | Default   | Description                                                                          |
+|---------------|--------|----------|-----------|--------------------------------------------------------------------------------------|
+| `output`      | string | no       | `console` | Where to write logs: `console`, `file`, or `both`                                    |
+| `level`       | string | no       | `info`    | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`                    |
+| `file`        | string | no       | —         | Path to the log file (required when `output` is `file` or `both`)                    |
+| `show-caller` | bool   | no       | `false`   | Include the source location in log lines                                             |
+| `format`      | string | no       | `pretty`  | `pretty` for the human console renderer; `json` for structured slog lines            |
+| `color`       | string | no       | `auto`    | ANSI color for `pretty`: `auto` (console only), `always`, `never`. Ignored for `json` |
+| `max-width`   | int    | no       | `70`      | Column width for wrapping `pretty` lines (20–500). Ignored for `json`                |
+
+### `watch`
+
+| Field           | Type     | Required | Default | Description                                                                       |
+|-----------------|----------|----------|---------|-----------------------------------------------------------------------------------|
+| `delay`         | duration | no       | `5m`    | How long a file must be stable before `watch` moves it (e.g. `30s`, `5m`)         |
+| `poll-interval` | duration | no       | `5s`    | How often watch re-checks pending files for stability (keep shorter than `delay`) |
+
+### `history`
+
+| Field     | Type   | Required | Default                                 | Description                                                  |
+|-----------|--------|----------|-----------------------------------------|--------------------------------------------------------------|
+| `enabled` | bool   | no       | `true`                                  | Whether move events are recorded for undo                    |
+| `limit`   | int    | no       | `100`                                   | Maximum number of batches retained in undo history           |
+| `file`    | string | no       | `~/.movelooper/history/movelooper.json` | Path to the history JSON file used for undo (supports `~`)   |
+
+### `defaults` (optional)
+
+Fallback destination settings applied to any category that omits them. Per-category values always win.
+
+| Field               | Type   | Required | Default | Description                                                          |
+|---------------------|--------|----------|---------|---------------------------------------------------------------------|
+| `conflict-strategy` | string | no       | —       | Fallback for `destination.conflict-strategy` (same 8 allowed values) |
+| `action`            | string | no       | —       | Fallback for `destination.action`: `move`, `copy`, `symlink`        |
+| `organize-by`       | string | no       | —       | Fallback for `destination.organize-by` template                     |
 
 ## `categories` block
 
@@ -431,11 +460,16 @@ hooks:
 
 ```yaml
 configuration:
-  output: both
-  log-file: ~/.movelooper/logs/movelooper.log
-  log-level: info
-  show-caller: false
-  watch-delay: 5m
+  logging:
+    output: both
+    level: info
+    file: ~/.movelooper/logs/movelooper.log
+    show-caller: false
+  watch:
+    delay: 5m
+  history:
+    limit: 100
+    file: ~/.movelooper/history/movelooper.json
 
 categories:
   - name: images
@@ -529,9 +563,14 @@ For large configs, you can split `categories` across multiple YAML files using t
 
 ```yaml
 configuration:
-  output: console
-  log-level: info
-  watch-delay: 5m
+  logging:
+    output: console
+    level: info
+  watch:
+    delay: 5m
+  history:
+    limit: 100
+    file: ~/.movelooper/history/movelooper.json
 
 import:
   - categories/media.yaml

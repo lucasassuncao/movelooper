@@ -45,10 +45,6 @@ func acquireWatchLock() (func(), error) {
 	return func() { os.Remove(path) }, nil
 }
 
-// tickerInterval is how often the watch loop checks whether pending files have stabilized.
-// Kept shorter than the default watch-delay so stable files are detected promptly.
-const tickerInterval = 5 * time.Second
-
 // fileInfoDirEntry adapts an os.FileInfo to the os.DirEntry interface.
 // It is used in watch mode, where we obtain file metadata via os.Lstat
 // rather than os.ReadDir, but downstream helpers expect an os.DirEntry.
@@ -65,7 +61,7 @@ func (e fileInfoDirEntry) Info() (fs.FileInfo, error) { return e.info, nil }
 // Each entry maps an absolute file path to the time it was first seen in the
 // current event burst. The ticker loop inspects these entries periodically and
 // moves a file once its on-disk ModTime has been stable for longer than the
-// configured watch-delay, indicating that the write is complete.
+// configured watch.delay, indicating that the write is complete.
 type fileTracker struct {
 	mu    sync.Mutex
 	files map[string]time.Time // absolute path → time of first detection
@@ -75,18 +71,11 @@ type fileTracker struct {
 type watchConfig struct {
 	tracker   *fileTracker
 	threshold time.Duration
-	dryRun    bool
 	showFiles bool
 }
 
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
 func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) error {
-	release, err := acquireWatchLock()
-	if err != nil {
-		return err
-	}
-	defer release()
-
 	names := ParseCategoryNames(opts.CategoryFilter)
 	filtered, err := FilterCategories(m.Categories, names, opts.IncludeDisabled, m.Logger)
 	if err != nil {
@@ -94,11 +83,13 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	}
 	m.Categories = filtered
 
-	if opts.DryRun {
-		m.Logger.Info("starting watch mode (dry-run)", m.Logger.Args("stability_delay", m.Config.WatchDelay.String()))
-	} else {
-		m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", m.Config.WatchDelay.String()))
+	release, err := acquireWatchLock()
+	if err != nil {
+		return err
 	}
+	defer release()
+
+	m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", m.Config.Watch.Delay.String()))
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -108,8 +99,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 
 	cfg := watchConfig{
 		tracker:   &fileTracker{files: make(map[string]time.Time)},
-		threshold: m.Config.WatchDelay,
-		dryRun:    opts.DryRun,
+		threshold: m.Config.Watch.Delay,
 		showFiles: opts.ShowFiles,
 	}
 
@@ -123,6 +113,8 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 
 	go runEventLoop(ctx, m, watcher, cfg.tracker)
 	go runTickerLoop(ctx, m, &cfg)
+
+	m.Logger.Info("watching for changes — press Ctrl+C to stop")
 
 	<-ctx.Done()
 	m.Logger.Info("shutting down watch mode")
@@ -180,7 +172,7 @@ func runEventLoop(ctx context.Context, m *models.Movelooper, watcher *fsnotify.W
 
 // runTickerLoop periodically checks for stable files and moves them.
 func runTickerLoop(ctx context.Context, m *models.Movelooper, cfg *watchConfig) {
-	ticker := time.NewTicker(tickerInterval)
+	ticker := time.NewTicker(m.Config.Watch.PollInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -252,7 +244,7 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchCo
 		}
 
 		if now.Sub(detected) > cfg.threshold {
-			if err := attemptMoveFile(ctx, m, path, cfg.dryRun, cfg.showFiles); err != nil {
+			if err := attemptMoveFile(ctx, m, path, cfg.showFiles); err != nil {
 				if !os.IsNotExist(err) {
 					m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
 				}
@@ -264,9 +256,9 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchCo
 	}
 }
 
-// resolveDryRunDest returns the destination directory that would be used for a
+// resolveDestDir returns the destination directory that would be used for a
 // given file and category, resolving the organize-by template when set.
-func resolveDryRunDest(cat *models.Category, path string) string {
+func resolveDestDir(cat *models.Category, path string) string {
 	destDir := cat.Destination.Path
 	template := cat.Destination.OrganizeBy
 	if template == "" {
@@ -284,8 +276,7 @@ func resolveDryRunDest(cat *models.Category, path string) string {
 }
 
 // attemptMoveFile tries to find a matching category and move the file.
-// In dry-run mode it logs what would be moved without performing any I/O.
-func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, dryRun, showFiles bool) error {
+func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, showFiles bool) error {
 	fileName := filepath.Base(path)
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 	if ext == "" {
@@ -299,14 +290,9 @@ func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, dry
 		if !matchesExtensionAndFilters(cat, fileName, path) {
 			continue
 		}
-		if dryRun {
-			m.Logger.Info("[dry-run] would move file",
-				m.Logger.Args("file", fileName, "to", resolveDryRunDest(cat, path), "category", cat.Name))
-			return nil
-		}
 		if showFiles {
 			m.Logger.Info("moving file",
-				m.Logger.Args("file", fileName, "to", resolveDryRunDest(cat, path), "category", cat.Name))
+				m.Logger.Args("file", fileName, "to", resolveDestDir(cat, path), "category", cat.Name))
 		}
 		return moveFileToCategory(ctx, m, *cat, path, ext)
 	}
