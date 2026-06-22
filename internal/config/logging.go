@@ -75,6 +75,9 @@ func ConfigureLogger(k *koanf.Koanf) (logger.Logger, io.Closer, error) {
 	showCaller := k.Bool("configuration.logging.show-caller")
 
 	if k.String("configuration.logging.format") == "json" {
+		// Disable pterm color so any color helpers used in message strings stay
+		// inert, keeping the structured JSON output free of ANSI escape codes.
+		applyColor("never", output)
 		return logger.NewSlog(w, level, showCaller), closer, nil
 	}
 

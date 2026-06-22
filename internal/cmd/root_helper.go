@@ -13,6 +13,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/hooks"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/scanner"
+	"github.com/pterm/pterm"
 )
 
 // movedSet tracks absolute paths that have already been moved in the current
@@ -254,19 +255,38 @@ func matchesCategory(category *models.Category, fe scanner.FileEntry, moved move
 }
 
 // logExtensionResult logs a summary of files found for an extension.
+// The category and count are colorized via pterm; in JSON mode color is
+// disabled (see ConfigureLogger), so the structured message stays plain.
 func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName, extension string, showFiles bool) {
+	category := pterm.Cyan(fmt.Sprintf("[%s]", categoryName))
 	count := len(files)
 	if count == 0 {
-		m.Logger.Info(fmt.Sprintf("[%s] No .%s files found", categoryName, extension))
+		m.Logger.Info(fmt.Sprintf("%s %s %s found", category, pterm.Red("No"), fileNoun(extension, 0)))
 		return
 	}
-	message := fmt.Sprintf("[%s] %d .%s files to move", categoryName, count, extension)
+	// Categories with files to move are logged at WARN so they stand out (and
+	// surface even when the level is raised to warn); empty ones stay at INFO.
+	message := fmt.Sprintf("%s %s %s to move", category, pterm.Green(fmt.Sprintf("%d", count)), fileNoun(extension, count))
 	if showFiles {
 		logArgs := filters.GenerateLogArgs(files, extension)
 		if len(logArgs) > 0 {
-			m.Logger.Info(message, m.Logger.Args(logArgs...))
+			m.Logger.Warn(message, m.Logger.Args(logArgs...))
 			return
 		}
 	}
-	m.Logger.Info(message)
+	m.Logger.Warn(message)
+}
+
+// fileNoun renders the file-count subject for a scan summary, agreeing in number
+// with count ("file" vs "files"). The "all" sentinel drops the ".all" label since
+// it is not a real extension; real extensions keep their ".ext" prefix.
+func fileNoun(extension string, count int) string {
+	noun := "files"
+	if count == 1 {
+		noun = "file"
+	}
+	if strings.EqualFold(extension, filters.ExtAll) {
+		return noun
+	}
+	return fmt.Sprintf(".%s %s", extension, noun)
 }
