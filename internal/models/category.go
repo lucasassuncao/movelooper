@@ -167,8 +167,8 @@ func (CategorySource) Metadata() map[string]*metadata.Node {
 			Example:     "max-depth: 3",
 		}},
 		"exclude-paths": {FieldMeta: editor.FieldMeta{
-			Description: "Sub-paths (relative to the source path) to skip during scanning.",
-			Example:     "exclude-paths:\n  - tmp\n  - .Trash",
+			Description: "Absolute paths to skip during recursive walk. The destination path is always auto-excluded.",
+			Example:     "exclude-paths:\n  - /home/user/Downloads/archives\n  - /home/user/Downloads/.Trash",
 		}},
 		"filter": {
 			FieldMeta: editor.FieldMeta{
@@ -320,9 +320,8 @@ func (CategoryHooks) Metadata() map[string]*metadata.Node {
 func (CategoryHook) Metadata() map[string]*metadata.Node {
 	return map[string]*metadata.Node{
 		"shell": {FieldMeta: editor.FieldMeta{
-			Description: "Shell interpreter for hook commands.",
-			Default:     "/bin/sh",
-			Example:     "shell: /bin/bash",
+			Description: "Shell interpreter for hook commands. Defaults to $SHELL on Unix/macOS and cmd on Windows.",
+			Example:     "shell: bash",
 		}},
 		"on-failure": {FieldMeta: editor.FieldMeta{
 			Description: "What to do if a hook command exits non-zero: abort the file's operation, or warn and continue.",

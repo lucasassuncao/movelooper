@@ -14,6 +14,7 @@ Package cmd contains the command line interface commands for the Movelooper appl
 
 - [Variables](<#variables>)
 - [func CategoriesPreset\(name string\) \[\]models.Category](<#CategoriesPreset>)
+- [func ConfigCmd\(\) \*cobra.Command](<#ConfigCmd>)
 - [func ConfigurationPreset\(name string\) \*models.Configuration](<#ConfigurationPreset>)
 - [func EditCmd\(\) \*cobra.Command](<#EditCmd>)
 - [func FilterCategories\(all \[\]\*models.Category, names \[\]string, includeDisabled bool, log logger.Logger\) \(\[\]\*models.Category, error\)](<#FilterCategories>)
@@ -187,6 +188,15 @@ func CategoriesPreset(name string) []models.Category
 
 
 
+<a name="ConfigCmd"></a>
+## func [ConfigCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/config.go#L11>)
+
+```go
+func ConfigCmd() *cobra.Command
+```
+
+ConfigCmd returns the "config" command for configuration utilities.
+
 <a name="ConfigurationPreset"></a>
 ## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L161>)
 
@@ -264,7 +274,7 @@ func SelfUpdateCmd(currentVersion string) *cobra.Command
 SelfUpdateCmd returns the self\-update command.
 
 <a name="ShowCmd"></a>
-## func [ShowCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/show_docs.go#L14>)
+## func [ShowCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/show_docs.go#L15>)
 
 ```go
 func ShowCmd() *cobra.Command
@@ -282,7 +292,7 @@ func UndoCmd(m *models.Movelooper) *cobra.Command
 UndoCmd reverts a batch of file moves
 
 <a name="ValidateCmd"></a>
-## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L35>)
+## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L36>)
 
 ```go
 func ValidateCmd() *cobra.Command

@@ -30,8 +30,7 @@
 ### Configure
 
 - Split config across multiple YAML files with `import:`
-- Interactive setup wizard (`init -i`) or generate from a template (`init -t full`)
-- `edit` — interactive TUI editor for the config file · `show-docs` to browse the field reference in the terminal
+- `edit` — interactive TUI editor for the config file · `validate` to check all rules · `show-docs` to browse the field reference in the terminal
 - Self-update with `self-update`
 
 ## How It Works
@@ -46,29 +45,13 @@ Download the latest version from the [releases page](https://github.com/lucasass
 
 ## First-time Setup
 
-Use the interactive wizard (recommended):
+Create a `movelooper.yaml` config file and open it in the interactive editor:
 
 ```bash
-movelooper init -i
+movelooper edit
 ```
 
-Or initialize from a template:
-
-```bash
-movelooper init -t full
-```
-
-Save to a custom path:
-
-```bash
-movelooper init -o /path/to/movelooper.yaml
-```
-
-Force overwrite an existing config:
-
-```bash
-movelooper init -f
-```
+Or write the config manually — see [Config File Reference](docs/config.md) for all fields and a [full example](docs/config.md#full-example).
 
 ## Quick Example
 

@@ -18,6 +18,7 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
+	"gopkg.in/yaml.v3"
 )
 
 type validateFormat string
@@ -36,6 +37,7 @@ func ValidateCmd() *cobra.Command {
 	var (
 		format  string
 		summary bool
+		strict  bool
 	)
 
 	cmd := &cobra.Command{
@@ -46,17 +48,18 @@ func ValidateCmd() *cobra.Command {
 		PersistentPreRunE: func(*cobra.Command, []string) error { return nil },
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configPath, _ := cmd.Root().PersistentFlags().GetString("config")
-			return runValidate(configPath, validateFormat(format), summary)
+			return runValidate(configPath, validateFormat(format), summary, strict)
 		},
 	}
 
 	cmd.Flags().StringVarP(&format, "format", "f", "pretty", fmt.Sprintf("Output format: %s", strings.Join(validFormats, ", ")))
 	cmd.Flags().BoolVar(&summary, "summary", false, "Show only error counts, not individual violations")
+	cmd.Flags().BoolVar(&strict, "strict", false, "Also verify that source and destination directories exist on disk")
 	return cmd
 }
 
 // runValidate performs the validation logic: it loads the config, runs validators, and prints results in the specified format.
-func runValidate(configPath string, format validateFormat, summaryOnly bool) error {
+func runValidate(configPath string, format validateFormat, summaryOnly bool, strict bool) error {
 	switch format {
 	case formatPretty, formatPlain, formatTable, formatJSON:
 	default:
@@ -85,6 +88,10 @@ func runValidate(configPath string, format validateFormat, summaryOnly bool) err
 
 	violations := editor.RunAll(wired, doc.Raw(), doc.Blocks())
 
+	if strict {
+		violations = append(violations, strictDirViolations(doc.Raw())...)
+	}
+
 	switch format {
 	case formatJSON:
 		printValidateJSON(violations, summaryOnly)
@@ -100,6 +107,48 @@ func runValidate(configPath string, format validateFormat, summaryOnly bool) err
 		return errors.New("validation failed")
 	}
 	return nil
+}
+
+// strictDirViolations checks whether source.path and destination.path for each
+// category exist on disk, returning a violation for each path that does not.
+func strictDirViolations(rawYAML []byte) []editor.Violation {
+	var doc map[string]any
+	if err := yaml.Unmarshal(rawYAML, &doc); err != nil {
+		return nil
+	}
+	cats, ok := doc["categories"].([]any)
+	if !ok {
+		return nil
+	}
+	var out []editor.Violation
+	for i, item := range cats {
+		cat, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		prefix := fmt.Sprintf("categories[%d]", i)
+		if src, ok := cat["source"].(map[string]any); ok {
+			if p, ok := src["path"].(string); ok && p != "" {
+				if _, err := os.Stat(p); os.IsNotExist(err) {
+					out = append(out, editor.Violation{
+						Path:    prefix + ".source.path",
+						Message: fmt.Sprintf("directory does not exist: %s", p),
+					})
+				}
+			}
+		}
+		if dst, ok := cat["destination"].(map[string]any); ok {
+			if p, ok := dst["path"].(string); ok && p != "" {
+				if _, err := os.Stat(p); os.IsNotExist(err) {
+					out = append(out, editor.Violation{
+						Path:    prefix + ".destination.path",
+						Message: fmt.Sprintf("directory does not exist: %s", p),
+					})
+				}
+			}
+		}
+	}
+	return out
 }
 
 var topSectionRe = regexp.MustCompile(`^([a-zA-Z][a-zA-Z0-9_-]*)`)

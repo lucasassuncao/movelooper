@@ -11,7 +11,7 @@ The following arguments are supported:
 | filter | object | - | Optional filtering rules applied to each matched file. All populated sub-fields must match (AND logic) unless any/all are used. | No | - |
 | recursive | bool | - | Whether to scan sub-directories of the source path. Combine with max-depth to limit depth. | No | false |
 | max-depth | int | - | Maximum sub-directory depth when recursive is true. 0 means unlimited. | No | 0 |
-| exclude-paths | []string | - | Sub-paths (relative to the source path) to skip during scanning. | No | - |
+| exclude-paths | []string | - | Absolute paths to skip during recursive walk. The destination path is always auto-excluded. | No | - |
 
 ### filter
 

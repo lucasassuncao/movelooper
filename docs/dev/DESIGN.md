@@ -23,7 +23,7 @@ main.go
   └── cmd.RootCmd(m *Movelooper, version)
         ├── PersistentPreRunE → config.AppBuilder → populates m
         ├── RunE             → runMove(m, ...)
-        └── subcommands: watch, undo, config, init, self-update
+        └── subcommands: watch, undo, edit, validate, config, self-update, show-docs
 ```
 
 The application is built around a single shared state object, `models.Movelooper`, which is created empty in `main.go` and populated by `AppBuilder` before every command runs. Commands read from it; they never write back. This keeps command logic stateless and easy to test.
@@ -101,24 +101,21 @@ Unknown or empty action names fall back to `moveAction`. This is consistent with
 
 ### 3.2 Builder
 
-`AppBuilder` (`internal/config/builder.go`) constructs a fully initialised `*Movelooper` through a chain of named steps:
+`NewApp` (`internal/config/builder.go`) constructs a fully initialised `*Movelooper` by running a fixed sequence of functional options:
 
 ```go
-config.NewAppBuilder(m, configPath).
-    ResolveConfig().
-    ConfigureLogger().
-    LoadConfig().
-    LoadCategories().
-    InitHistory().
-    ValidateDirectories().
-    Build()
+config.NewApp(m, configPath,
+    config.WithLogger(),
+    config.WithConfig(),
+    config.WithCategories(),
+    config.WithHistory(),
+    config.WithValidateDirs(),
+)
 ```
 
-Each method is a no-op when a previous step has already set an error (error accumulation pattern). `Build()` returns the first error encountered.
+Each `With*` option enables one initialization step. Steps always run in declaration order and share an error-stop: if any step fails, subsequent steps are skipped and the first error is returned.
 
-**Why Builder instead of Functional Options:** the startup steps have strict ordering dependencies (logger requires config, categories require koanf, history requires `HistoryLimit`). Functional Options are unordered by design and do not model dependencies well. Builder makes the sequence explicit and each step independently testable.
-
-**Why not in `cmd`:** the config package owns all the knowledge needed to construct a `Movelooper` (path resolution, YAML parsing, logger setup, category validation). Keeping `AppBuilder` there avoids leaking config logic into the command layer. `preRunHandler` in `cmd/root.go` becomes a thin orchestrator (~12 lines) responsible only for user-facing error formatting and closing the log file on failure.
+**Why not in `cmd`:** the config package owns all the knowledge needed to construct a `Movelooper` (path resolution, YAML parsing, logger setup, category validation). Keeping this logic there avoids leaking it into the command layer. `preRunHandler` in `cmd/root.go` stays a thin orchestrator responsible only for user-facing error formatting and closing the log file on failure.
 
 ---
 
@@ -242,8 +239,8 @@ After `AppBuilder.Build()` returns, koanf is discarded. No other part of the app
 
 ### Add a new AppBuilder step
 
-1. Add a method on `*AppBuilder` in `internal/config/builder.go` following the error-accumulation pattern.
-2. Call it in the chain in `preRunHandler` (`internal/cmd/root.go`).
+1. Add a `With*` option function and its corresponding initialization step in `internal/config/builder.go`.
+2. Pass the new `With*` to `config.NewApp` in `preRunHandler` (`internal/cmd/root.go`).
 
 ---
 

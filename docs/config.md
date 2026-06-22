@@ -9,7 +9,8 @@
 | `log-level`      | string   | no       | `info`    | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`                 |
 | `show-caller`    | bool     | no       | `false`   | Include the source location in log lines                                           |
 | `watch-delay`    | duration | no       | `5m`      | How long a file must be stable before `watch` moves it (e.g. `30s`, `5m`)        |
-| `history-limit`  | int      | no       | `50`      | Maximum number of batches retained in undo history                                 |
+| `history-limit`  | int      | no       | `100`     | Maximum number of batches retained in undo history                                 |
+| `history-file`   | string   | no       | `~/.movelooper/history/movelooper.json` | Path to the history JSON file used for undo (supports `~`)    |
 
 ## `categories` block
 

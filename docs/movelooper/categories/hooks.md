@@ -15,7 +15,7 @@ The following arguments are supported:
 
 | Name | Type | Description | Required | Default |
 |------|------|-------------|----------|---------|
-| shell | string | Shell interpreter for hook commands. | No | /bin/sh |
+| shell | string | Shell interpreter for hook commands. Defaults to $SHELL on Unix/macOS and cmd on Windows. | No | - |
 | on-failure | string | What to do if a hook command exits non-zero: abort the file's operation, or warn and continue. | Yes | abort |
 | run | []string | Shell commands executed in order. | Yes | - |
 
@@ -25,7 +25,7 @@ The following arguments are supported:
 
 | Name | Type | Description | Required | Default |
 |------|------|-------------|----------|---------|
-| shell | string | Shell interpreter for hook commands. | No | /bin/sh |
+| shell | string | Shell interpreter for hook commands. Defaults to $SHELL on Unix/macOS and cmd on Windows. | No | - |
 | on-failure | string | What to do if a hook command exits non-zero: abort the file's operation, or warn and continue. | Yes | abort |
 | run | []string | Shell commands executed in order. | Yes | - |
 
