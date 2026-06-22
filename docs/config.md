@@ -364,6 +364,8 @@ These tokens are also valid in `destination.rename` unless noted otherwise.
 
 Optional. Defines shell commands to run before and/or after the category is processed.
 
+> **Note:** Hooks run only on the one-shot `movelooper` command, not in `watch` mode. `movelooper watch` logs a warning at startup for any watched category that defines hooks.
+
 ```yaml
 hooks:
   before:

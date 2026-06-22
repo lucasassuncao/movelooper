@@ -74,6 +74,19 @@ type watchConfig struct {
 	showFiles bool
 }
 
+// categoriesWithHooks returns the names of categories that define before/after
+// hooks. Hooks run only in the one-shot move command, so watch mode warns about
+// these at startup rather than silently ignoring them.
+func categoriesWithHooks(cats []*models.Category) []string {
+	var names []string
+	for _, cat := range cats {
+		if cat.Hooks != nil && (cat.Hooks.Before != nil || cat.Hooks.After != nil) {
+			names = append(names, cat.Name)
+		}
+	}
+	return names
+}
+
 // runWatch sets up the file watcher and blocks until a shutdown signal is received.
 func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) error {
 	names := ParseCategoryNames(opts.CategoryFilter)
@@ -90,6 +103,11 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	defer release()
 
 	m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", m.Config.Watch.Delay.String()))
+
+	for _, name := range categoriesWithHooks(m.Categories) {
+		m.Logger.Warn("hooks are ignored in watch mode; they run only on the one-shot 'movelooper' command",
+			m.Logger.Args("category", name))
+	}
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {

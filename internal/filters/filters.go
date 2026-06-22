@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,13 +110,23 @@ func ParseSize(s string) (int64, error) {
 			if _, err := fmt.Sscanf(numStr, "%f", &val); err != nil {
 				return 0, fmt.Errorf("could not parse numeric value %q", numStr)
 			}
-			return int64(val * float64(entry.multiplier)), nil
+			if val < 0 {
+				return 0, fmt.Errorf("size must not be negative: %q", s)
+			}
+			bytes := val * float64(entry.multiplier)
+			if bytes > float64(math.MaxInt64) {
+				return 0, fmt.Errorf("size out of range: %q", s)
+			}
+			return int64(bytes), nil
 		}
 	}
 
 	var val int64
 	if _, err := fmt.Sscanf(s, "%d", &val); err != nil {
 		return 0, fmt.Errorf("unrecognised size format %q", s)
+	}
+	if val < 0 {
+		return 0, fmt.Errorf("size must not be negative: %q", s)
 	}
 	return val, nil
 }
@@ -177,6 +188,13 @@ func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
 
 // MatchesFilter reports whether the file identified by fileName and info passes the filter f.
 func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) bool {
+	// not is a modifier that excludes files and may coexist with any/all at the
+	// same level, so it must be evaluated before the any/all branches return.
+	for _, n := range f.Not {
+		if MatchesFilter(n, fileName, info) {
+			return false
+		}
+	}
 	if len(f.Any) > 0 {
 		for _, child := range f.Any {
 			if MatchesFilter(child, fileName, info) {
@@ -192,11 +210,6 @@ func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) b
 			}
 		}
 		return true
-	}
-	for _, n := range f.Not {
-		if MatchesFilter(n, fileName, info) {
-			return false
-		}
 	}
 	if !MatchesNameFilters(fileName, f) {
 		return false

@@ -136,6 +136,46 @@ categories:
 		},
 	},
 	{
+		name: "diamond import is not circular",
+		setup: func(t *testing.T, dir string) string {
+			writeYAML(t, dir, "common.yaml", `
+categories:
+  - name: common
+    source: {path: /tmp, extensions: [txt]}
+    destination: {path: /tmp}
+`)
+			writeYAML(t, dir, "b.yaml", `
+import:
+  - common.yaml
+categories:
+  - name: b
+    source: {path: /tmp, extensions: [txt]}
+    destination: {path: /tmp}
+`)
+			writeYAML(t, dir, "c.yaml", `
+import:
+  - common.yaml
+categories:
+  - name: c
+    source: {path: /tmp, extensions: [txt]}
+    destination: {path: /tmp}
+`)
+			return writeYAML(t, dir, "main.yaml", `
+import:
+  - b.yaml
+  - c.yaml
+categories:
+  - name: main
+    source: {path: /tmp, extensions: [txt]}
+    destination: {path: /tmp}
+`)
+		},
+		check: func(t *testing.T, data []byte) {
+			// main + b + common + c; the shared common.yaml is merged once.
+			assert.Equal(t, 4, countCategories(t, data))
+		},
+	},
+	{
 		name:    "circular import",
 		wantErr: "circular import",
 		setup: func(t *testing.T, dir string) string {

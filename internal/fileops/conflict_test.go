@@ -83,7 +83,7 @@ func TestGetUniqueDestinationPath(t *testing.T) {
 type testResolver struct {
 	name    string
 	setup   func(t *testing.T, src, dst string)
-	resolve func(ConflictArgs) (string, bool, error)
+	resolve func(ConflictArgs) (string, bool, FinalizeFunc, error)
 	want    testResolverWant
 }
 
@@ -115,8 +115,9 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, dst, []byte("old"))
 		},
 		resolve: (&overwriteResolver{}).Resolve,
-		// dst is NOT removed by Resolve; on POSIX os.Rename replaces atomically.
-		want: testResolverWant{move: true, pathIsDst: true, dstRemoved: false},
+		// On POSIX os.Rename replaces atomically (dst left in place); on Windows
+		// Resolve moves dst aside under a backup. Either way resolved == dst.
+		want: testResolverWant{move: true, pathIsDst: true},
 	},
 	{
 		name: "skip/does not move",
@@ -235,7 +236,7 @@ func TestResolvers(t *testing.T) {
 			dst := filepath.Join(dir, "dst.txt")
 			tt.setup(t, src, dst)
 
-			path, shouldMove, err := tt.resolve(ConflictArgs{Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt"})
+			path, shouldMove, _, err := tt.resolve(ConflictArgs{Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt"})
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.move, shouldMove)
 
@@ -256,6 +257,66 @@ func TestResolvers(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestSafeSwap verifies that a replace-style resolver moves the existing
+// destination aside and that the returned finalize either restores it (when the
+// action fails) or discards it (when the action succeeds), so a failed action
+// never destroys the previous destination file.
+func TestSafeSwap(t *testing.T) {
+	t.Parallel()
+
+	t.Run("restores original destination when action fails", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		src := filepath.Join(dir, "src.txt")
+		dst := filepath.Join(dir, "dst.txt")
+		writeFile(t, src, make([]byte, 200)) // src larger → larger strategy moves
+		writeFile(t, dst, []byte("original"))
+
+		_, shouldMove, finalize, err := (&largerResolver{}).Resolve(
+			ConflictArgs{Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt"})
+		require.NoError(t, err)
+		require.True(t, shouldMove)
+		require.NotNil(t, finalize)
+
+		// resolver moved dst aside, freeing the original path for the action.
+		assert.NoFileExists(t, dst)
+
+		// the action failed → finalize must restore the original destination.
+		require.NoError(t, finalize(true))
+		got, err := os.ReadFile(dst)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("original"), got)
+	})
+
+	t.Run("discards set-aside destination when action succeeds", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		src := filepath.Join(dir, "src.txt")
+		dst := filepath.Join(dir, "dst.txt")
+		writeFile(t, src, make([]byte, 200))
+		writeFile(t, dst, []byte("original"))
+
+		_, _, finalize, err := (&largerResolver{}).Resolve(
+			ConflictArgs{Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt"})
+		require.NoError(t, err)
+		require.NotNil(t, finalize)
+
+		// simulate a successful action writing a fresh destination.
+		writeFile(t, dst, []byte("new content"))
+		require.NoError(t, finalize(false))
+
+		// the backup is gone and only the new destination remains.
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		for _, e := range entries {
+			assert.NotContains(t, e.Name(), ".ml-bak", "backup should be removed on success")
+		}
+		got, err := os.ReadFile(dst)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("new content"), got)
+	})
 }
 
 func writeFile(t *testing.T, path string, content []byte) {

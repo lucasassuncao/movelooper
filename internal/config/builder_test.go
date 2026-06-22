@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -107,4 +108,32 @@ func TestNewApp(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestWrapConfigNotFound verifies the not-found guidance points users at the
+// current bootstrap command ('movelooper edit'), not the removed 'init'.
+func TestWrapConfigNotFound(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no path points to edit, not init", func(t *testing.T) {
+		t.Parallel()
+		err := wrapConfigNotFound("", ErrConfigNotFound)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "movelooper edit")
+		assert.NotContains(t, err.Error(), "movelooper init")
+		assert.ErrorIs(t, err, ErrConfigNotFound)
+	})
+
+	t.Run("explicit path is echoed", func(t *testing.T) {
+		t.Parallel()
+		err := wrapConfigNotFound("/tmp/x.yaml", ErrConfigNotFound)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "/tmp/x.yaml")
+	})
+
+	t.Run("non-notfound error passes through unchanged", func(t *testing.T) {
+		t.Parallel()
+		orig := errors.New("boom")
+		assert.Equal(t, orig, wrapConfigNotFound("", orig))
+	})
 }

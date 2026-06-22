@@ -39,7 +39,7 @@ func ResolveImports(path string) ([]byte, error) {
 		return nil, fmt.Errorf("%q: expected a YAML mapping at top level", absPath)
 	}
 
-	visited := map[string]bool{absPath: true}
+	merged := map[string]bool{absPath: true}
 
 	var importPaths []string
 	var categoriesValNode *yaml.Node
@@ -85,7 +85,7 @@ func ResolveImports(path string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, absPath, err)
 		}
-		items, err := loadImportedCategories(impAbs, visited, []string{absPath})
+		items, err := loadImportedCategories(impAbs, merged, []string{absPath})
 		if err != nil {
 			return nil, fmt.Errorf("importing %q: %w", imp, err)
 		}
@@ -97,11 +97,21 @@ func ResolveImports(path string) ([]byte, error) {
 
 // loadImportedCategories reads a YAML file, resolves its own `import:` entries
 // recursively, and returns the merged list of category sequence nodes.
-func loadImportedCategories(absPath string, visited map[string]bool, chain []string) ([]*yaml.Node, error) {
-	if visited[absPath] {
-		return nil, fmt.Errorf("circular import detected: %s", strings.Join(append(chain, absPath), " → "))
+func loadImportedCategories(absPath string, merged map[string]bool, chain []string) ([]*yaml.Node, error) {
+	// A cycle exists only when the file is already an ancestor on the current
+	// import path. Checking against the active chain (not a global visited set)
+	// lets a file be shared by sibling imports (a diamond) without a false cycle.
+	for _, ancestor := range chain {
+		if ancestor == absPath {
+			return nil, fmt.Errorf("circular import detected: %s", strings.Join(append(chain, absPath), " → "))
+		}
 	}
-	visited[absPath] = true
+	// Already pulled in via another import path: skip to avoid duplicating its
+	// categories. This is what distinguishes a diamond from a cycle.
+	if merged[absPath] {
+		return nil, nil
+	}
+	merged[absPath] = true
 
 	data, err := os.ReadFile(absPath) //#nosec G304 -- absPath resolved via filepath.Abs
 	if err != nil {
@@ -142,7 +152,7 @@ func loadImportedCategories(absPath string, visited map[string]bool, chain []str
 		if err != nil {
 			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, absPath, err)
 		}
-		nested, err := loadImportedCategories(impAbs, visited, append(chain, absPath))
+		nested, err := loadImportedCategories(impAbs, merged, append(chain, absPath))
 		if err != nil {
 			return nil, fmt.Errorf("importing %q: %w", imp, err)
 		}

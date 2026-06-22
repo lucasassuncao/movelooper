@@ -118,7 +118,7 @@ func wrapConfigNotFound(configPath string, err error) error {
 	if configPath != "" {
 		return fmt.Errorf("configuration file not found at %q: %w", configPath, err)
 	}
-	return fmt.Errorf("configuration file not found\n\nPlease run 'movelooper init' to create a configuration file: %w", err)
+	return fmt.Errorf("configuration file not found\n\nPlease create a movelooper.yaml and run 'movelooper edit' to configure it: %w", err)
 }
 
 func defaultHistoryFilePath() string {

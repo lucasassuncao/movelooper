@@ -104,7 +104,8 @@ var MovelooperValidators = []editor.Validator{
 	}),
 
 	// Validate rename and organize-by templates against the known token set.
-	// Also enforces that {seq}/{seq:N} is not used in organize-by (rename only).
+	// Also enforces that sequence/hash tokens (resolved only at rename time) are
+	// not used in organize-by, where they would leak literally into dir names.
 	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
 		var doc struct {
 			Categories []struct {
@@ -130,10 +131,10 @@ var MovelooperValidators = []editor.Validator{
 					Path:    fmt.Sprintf("categories[%d].destination.organize-by", i),
 					Message: err.Error(),
 				})
-			} else if tokens.ContainsSeqToken(c.Destination.OrganizeBy) {
+			} else if tok := tokens.RenameOnlyToken(c.Destination.OrganizeBy); tok != "" {
 				errs = append(errs, editor.Violation{
 					Path:    fmt.Sprintf("categories[%d].destination.organize-by", i),
-					Message: "{seq} is not valid in organize-by; use it in rename only",
+					Message: fmt.Sprintf("%s is not valid in organize-by; use it in rename only", tok),
 				})
 			}
 		}

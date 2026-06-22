@@ -63,11 +63,17 @@ var knownTokens = map[string]bool{
 
 var tokenPattern = regexp.MustCompile(`\{[^}]+\}`)
 var paramPattern = regexp.MustCompile(`^\d+$`)
-var seqPattern = regexp.MustCompile(`\{seq(?::\d+)?\}`)
 
-// ContainsSeqToken reports whether template contains a {seq} or {seq:N} token.
-func ContainsSeqToken(template string) bool {
-	return seqPattern.MatchString(template)
+// renameOnlyPattern matches the sequence and hash tokens that ResolveRename
+// resolves but ResolveGroupBy does not, so they would leak literally into
+// directory names if used in organize-by.
+var renameOnlyPattern = regexp.MustCompile(`\{(?:seq-alpha|seq-roman|seq(?::\d+)?|md5(?::\d+)?|sha256:\d+)\}`)
+
+// RenameOnlyToken returns the first rename-only token (sequence or hash family)
+// found in template, or "" if there is none. These tokens are resolved only by
+// ResolveRename, never by ResolveGroupBy, so callers reject them in organize-by.
+func RenameOnlyToken(template string) string {
+	return renameOnlyPattern.FindString(template)
 }
 
 // ValidateTemplate returns an error if the template contains any unrecognised

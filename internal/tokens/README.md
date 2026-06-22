@@ -10,7 +10,7 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 
 ## Index
 
-- [func ContainsSeqToken\(template string\) bool](<#ContainsSeqToken>)
+- [func RenameOnlyToken\(template string\) string](<#RenameOnlyToken>)
 - [func ResolveGroupBy\(template string, ctx \*TokenContext\) string](<#ResolveGroupBy>)
 - [func ResolveRename\(template string, ctx \*TokenContext\) string](<#ResolveRename>)
 - [func ResolveSeq\(destDir string\) int](<#ResolveSeq>)
@@ -20,14 +20,14 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 - [type TokenContext](<#TokenContext>)
 
 
-<a name="ContainsSeqToken"></a>
-## func [ContainsSeqToken](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L69>)
+<a name="RenameOnlyToken"></a>
+## func [RenameOnlyToken](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L75>)
 
 ```go
-func ContainsSeqToken(template string) bool
+func RenameOnlyToken(template string) string
 ```
 
-ContainsSeqToken reports whether template contains a \{seq\} or \{seq:N\} token.
+RenameOnlyToken returns the first rename\-only token \(sequence or hash family\) found in template, or "" if there is none. These tokens are resolved only by ResolveRename, never by ResolveGroupBy, so callers reject them in organize\-by.
 
 <a name="ResolveGroupBy"></a>
 ## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L93>)
@@ -48,7 +48,7 @@ func ResolveRename(template string, ctx *TokenContext) string
 ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy, plus \{seq\}, \{seq:N\}, \{seq\-alpha\}, \{seq\-roman\}, \{md5\}, \{md5:N\}, and \{sha256:N\}. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
 
 <a name="ResolveSeq"></a>
-## func [ResolveSeq](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L39>)
+## func [ResolveSeq](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L46>)
 
 ```go
 func ResolveSeq(destDir string) int
@@ -57,7 +57,7 @@ func ResolveSeq(destDir string) int
 ResolveSeq scans destDir for files whose names begin with a decimal number, finds the maximum, and returns max\+1. Returns 1 when the directory is empty, does not exist, or contains no files with a leading number.
 
 <a name="ResolveSeqAlpha"></a>
-## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L82>)
+## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L89>)
 
 ```go
 func ResolveSeqAlpha(destDir string) string
@@ -66,7 +66,7 @@ func ResolveSeqAlpha(destDir string) string
 ResolveSeqAlpha scans destDir for files with leading lowercase alpha prefixes and returns the next label in Excel\-style sequence \(a, b, ..., z, aa, ab, ...\).
 
 <a name="ResolveSeqRoman"></a>
-## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L142>)
+## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L149>)
 
 ```go
 func ResolveSeqRoman(destDir string) string
@@ -75,7 +75,7 @@ func ResolveSeqRoman(destDir string) string
 ResolveSeqRoman scans destDir for files with leading roman numeral prefixes and returns the next roman numeral in sequence.
 
 <a name="ValidateTemplate"></a>
-## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L75>)
+## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L81>)
 
 ```go
 func ValidateTemplate(template string) error

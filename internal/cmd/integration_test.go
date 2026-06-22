@@ -83,6 +83,35 @@ func TestIntegration_MoveThenUndo(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(dstDir, "b.jpg"))
 }
 
+// TestIntegration_AllExtensionMovesEverything verifies that the "all" sentinel
+// in source.extensions matches files of any extension in the one-shot run,
+// mirroring the behavior already honored by watch mode.
+func TestIntegration_AllExtensionMovesEverything(t *testing.T) {
+	t.Parallel()
+
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	histPath := filepath.Join(t.TempDir(), "history.json")
+
+	names := []string{"a.jpg", "notes.txt", "archive.zip", "noext"}
+	for _, name := range names {
+		require.NoError(t, os.WriteFile(filepath.Join(srcDir, name), []byte("data"), 0o644))
+	}
+
+	m := buildIntegrationMovelooper(t, srcDir, dstDir, histPath, []string{"all"})
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+	for _, name := range names {
+		assert.FileExists(t, filepath.Join(dstDir, name))
+		assert.NoFileExists(t, filepath.Join(srcDir, name))
+	}
+
+	batches := m.History.GetAllBatches()
+	require.Len(t, batches, 1)
+	assert.Equal(t, len(names), batches[0].Count)
+}
+
 // TestIntegration_DryRunMovesNothing verifies that --dry-run reports files
 // without touching them.
 func TestIntegration_DryRunMovesNothing(t *testing.T) {

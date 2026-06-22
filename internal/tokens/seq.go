@@ -9,8 +9,15 @@ import (
 	"sync"
 )
 
-// seqDirLocks serialises sequence-number resolution per destination directory
-// to prevent two concurrent moves to the same dir from receiving identical numbers.
+// seqDirLocks serialises the per-directory scan that computes the next sequence
+// number, so two resolutions for the same dir do not read the directory at once.
+//
+// NOTE: the lock is released as soon as the number is computed, before the file
+// is written to disk, so on its own it does not guarantee unique numbers under
+// concurrent moves. That is acceptable today because the move pipeline is
+// single-threaded (the one-shot run processes categories serially and watch runs
+// on a single ticker goroutine). Revisit and hold the lock across the whole
+// resolve-and-move sequence if moves are ever parallelised.
 var seqDirLocks sync.Map
 
 func acquireSeqLock(destDir string) func() {

@@ -103,7 +103,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		if strategy == "" {
 			strategy = models.ConflictStrategyRename
 		}
-		resolved, skip, stratErr := applyConflictStrategy(mctx, strategy, ConflictArgs{
+		resolved, skip, finalize, stratErr := applyConflictStrategy(mctx, strategy, ConflictArgs{
 			Src:      sourcePath,
 			Dst:      destPath,
 			DestDir:  destDir,
@@ -123,11 +123,12 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		if action == "" {
 			action = models.ActionMove
 		}
-		if err := dispatchAction(ctx, action, sourcePath, destPath); err != nil {
-			if errors.Is(err, ErrTimestampPreserve) {
+		actionErr := performAction(ctx, mctx, action, sourcePath, destPath, finalize)
+		if actionErr != nil {
+			if errors.Is(actionErr, ErrTimestampPreserve) {
 				mctx.Logger.Warn("file processed but timestamps could not be preserved", mctx.Logger.Args("file", sourcePath))
 			} else {
-				mctx.Logger.Warn("failed to perform action on file", mctx.Logger.Args("file", sourcePath, "action", action, "destination", destPath, "conflict_strategy", strategy, "error", err.Error()))
+				mctx.Logger.Warn("failed to perform action on file", mctx.Logger.Args("file", sourcePath, "action", action, "destination", destPath, "conflict_strategy", strategy, "error", actionErr.Error()))
 				continue
 			}
 		}
@@ -185,6 +186,23 @@ var fileActions = map[models.Action]FileAction{
 	models.ActionSymlink: &symlinkAction{},
 }
 
+// performAction runs the file action and then finalizes any destination that the
+// conflict resolver set aside: on failure the original destination is restored,
+// on success the set-aside copy is discarded. ErrTimestampPreserve counts as
+// success (the file was placed; only timestamps could not be preserved). It
+// returns the raw action error for the caller to log.
+func performAction(ctx context.Context, mctx MoveContext, action models.Action, src, dst string, finalize FinalizeFunc) error {
+	actionErr := dispatchAction(ctx, action, src, dst)
+	if finalize != nil {
+		failed := actionErr != nil && !errors.Is(actionErr, ErrTimestampPreserve)
+		if ferr := finalize(failed); ferr != nil {
+			mctx.Logger.Error("failed to finalize destination after conflict strategy",
+				mctx.Logger.Args("file", dst, "error", ferr.Error()))
+		}
+	}
+	return actionErr
+}
+
 // dispatchAction performs the file operation indicated by action.
 // Supported values: ActionMove (default), ActionCopy, ActionSymlink.
 func dispatchAction(ctx context.Context, action models.Action, src, dst string) error {
@@ -198,26 +216,26 @@ func dispatchAction(ctx context.Context, action models.Action, src, dst string) 
 // applyConflictStrategy checks whether destPath already exists and resolves the
 // conflict according to strategy. Returns a non-nil error only for unknown strategies;
 // resolver failures are logged internally and surfaced as skip=true, err=nil.
-func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, args ConflictArgs) (resolved string, skip bool, err error) {
+func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, args ConflictArgs) (resolved string, skip bool, finalize FinalizeFunc, err error) {
 	if _, err := os.Stat(args.Dst); err != nil {
-		return args.Dst, false, nil
+		return args.Dst, false, nil, nil
 	}
 	resolver, ok := conflictResolvers[strategy]
 	if !ok {
-		return "", true, fmt.Errorf("unknown conflict strategy %q", strategy)
+		return "", true, nil, fmt.Errorf("unknown conflict strategy %q", strategy)
 	}
-	resolvedPath, shouldMove, resolveErr := resolver.Resolve(args)
+	resolvedPath, shouldMove, fin, resolveErr := resolver.Resolve(args)
 	if resolveErr != nil {
 		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", args.FileName, "error", resolveErr.Error()))
-		return "", true, nil
+		return "", true, nil, nil
 	}
 	if !shouldMove {
 		if msg := resolver.SkipMessage(); msg != "" {
 			ctx.Logger.Info(msg, ctx.Logger.Args("file", args.FileName))
 		}
-		return "", true, nil
+		return "", true, nil, nil
 	}
-	return resolvedPath, false, nil
+	return resolvedPath, false, fin, nil
 }
 
 // MoveFileCtx attempts to move a file from source to destination.

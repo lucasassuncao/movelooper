@@ -17,6 +17,7 @@ import "github.com/lucasassuncao/movelooper/internal/fileops"
 - [type ConflictArgs](<#ConflictArgs>)
 - [type ConflictResolver](<#ConflictResolver>)
 - [type FileAction](<#FileAction>)
+- [type FinalizeFunc](<#FinalizeFunc>)
 - [type MoveContext](<#MoveContext>)
 - [type MoveRequest](<#MoveRequest>)
 - [type MoveResult](<#MoveResult>)
@@ -41,7 +42,7 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="MoveFileCtx"></a>
-## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L225>)
+## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L243>)
 
 ```go
 func MoveFileCtx(ctx context.Context, src, dst string) error
@@ -73,19 +74,19 @@ type ConflictArgs struct {
 ```
 
 <a name="ConflictResolver"></a>
-## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L26-L29>)
+## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L33-L36>)
 
-ConflictResolver resolves a naming conflict when a destination file already exists. Resolve returns the final destination path, whether the move should proceed, and any error encountered. When shouldMove is false the caller must skip the file. SkipMessage returns the log message to emit when shouldMove is false; "" means no log.
+ConflictResolver resolves a naming conflict when a destination file already exists. Resolve returns the final destination path, whether the move should proceed, an optional finalize callback \(nil when the destination is left untouched\), and any error encountered. When shouldMove is false the caller must skip the file. SkipMessage returns the log message to emit when shouldMove is false; "" means no log.
 
 ```go
 type ConflictResolver interface {
-    Resolve(args ConflictArgs) (resolvedPath string, shouldMove bool, err error)
+    Resolve(args ConflictArgs) (resolvedPath string, shouldMove bool, finalize FinalizeFunc, err error)
     SkipMessage() string
 }
 ```
 
 <a name="FileAction"></a>
-## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L156-L158>)
+## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L157-L159>)
 
 FileAction executes a file operation from src to dst.
 
@@ -93,6 +94,15 @@ FileAction executes a file operation from src to dst.
 type FileAction interface {
     Execute(ctx context.Context, src, dst string) error
 }
+```
+
+<a name="FinalizeFunc"></a>
+## type [FinalizeFunc](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L26>)
+
+FinalizeFunc commits or rolls back a destination that a resolver moved aside before the file action ran. It is invoked once the action completes: when failed is true the original destination is restored, otherwise the set\-aside copy is discarded. Resolvers that do not displace the destination return nil.
+
+```go
+type FinalizeFunc func(failed bool) error
 ```
 
 <a name="MoveContext"></a>

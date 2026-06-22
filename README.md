@@ -25,7 +25,7 @@
 - Watch mode: monitors directories in real-time, moves files as they stabilize
 - Undo: interactive batch picker to select and revert a batch · pass a batch ID to skip the picker
 - `--dry-run` on move and undo to preview before committing
-- Hooks: run shell commands before and after each category — notify, log, call webhooks, or trigger scripts
+- Hooks: run shell commands before and after each category — notify, log, call webhooks, or trigger scripts (one-shot `movelooper` run only, not `watch`)
 
 ### Configure
 

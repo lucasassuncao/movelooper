@@ -310,6 +310,9 @@ var testParseSizeTestCases = []testParseSize{
 	{"500", 500, false},
 	{"", 0, true},
 	{"abcXB", 0, true},
+	{"-5MB", 0, true},
+	{"-100", 0, true},
+	{"1000000000000TB", 0, true},
 }
 
 // TestParseSize tests the ParseSize function to ensure it correctly parses human-readable size strings.
@@ -607,6 +610,54 @@ var testMatchesFilterCompositeTestCases = []testMatchesFilterComposite{
 			return makeInfo(t, "report_2024.pdf", 100, time.Now())
 		},
 		want: true,
+	},
+	{
+		name: "not alongside any - excludes matching draft",
+		filter: models.CategoryFilter{
+			Any: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Match: &models.MatchFilter{Glob: "invoice_*"}},
+			},
+			Not: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "*draft*"}},
+			},
+		},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_draft.pdf", 100, time.Now())
+		},
+		want: false,
+	},
+	{
+		name: "not alongside any - keeps non-draft",
+		filter: models.CategoryFilter{
+			Any: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Match: &models.MatchFilter{Glob: "invoice_*"}},
+			},
+			Not: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "*draft*"}},
+			},
+		},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_2024.pdf", 100, time.Now())
+		},
+		want: true,
+	},
+	{
+		name: "not alongside all - excludes matching draft",
+		filter: models.CategoryFilter{
+			All: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "report_*"}},
+				{Size: &models.SizeFilter{MinBytes: 100}},
+			},
+			Not: []models.CategoryFilter{
+				{Match: &models.MatchFilter{Glob: "*draft*"}},
+			},
+		},
+		info: func(t *testing.T) os.FileInfo {
+			return makeInfo(t, "report_draft.pdf", 2048, time.Now())
+		},
+		want: false,
 	},
 }
 

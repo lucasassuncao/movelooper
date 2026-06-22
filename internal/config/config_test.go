@@ -582,9 +582,14 @@ type testValidateCategoryOrganizeBy struct {
 var testValidateCategoryOrganizeByTestCases = []testValidateCategoryOrganizeBy{
 	{"empty - ok", "", false, ""},
 	{"valid tokens - ok", "{ext}/{mod-year}", false, ""},
+	{"username allowed - ok", "{username}/{year}", false, ""},
 	{"unknown token - error", "{unknown}", true, "organize-by"},
-	{"seq in organize-by - error", "{seq:4}/{ext}", true, "{seq}"},
-	{"seq no padding in organize-by - error", "{seq}/{ext}", true, "{seq}"},
+	{"seq in organize-by - error", "{seq:4}/{ext}", true, "organize-by"},
+	{"seq no padding in organize-by - error", "{seq}/{ext}", true, "organize-by"},
+	{"md5 in organize-by - error", "{md5}/{name}", true, "organize-by"},
+	{"sha256 in organize-by - error", "{sha256:8}/{ext}", true, "organize-by"},
+	{"seq-alpha in organize-by - error", "{seq-alpha}/{ext}", true, "organize-by"},
+	{"seq-roman in organize-by - error", "{seq-roman}/{ext}", true, "organize-by"},
 }
 
 // TestValidateCategoryOrganizeBy tests validateCategory to ensure it correctly validates the organize-by field.
@@ -792,6 +797,13 @@ func TestApplyCategoryDefaults(t *testing.T) {
 	t.Run("invalid default organize-by errors", func(t *testing.T) {
 		t.Parallel()
 		err := applyCategoryDefaults(nil, &models.Defaults{OrganizeBy: "{nope}"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "organize-by")
+	})
+
+	t.Run("rename-only token in default organize-by errors", func(t *testing.T) {
+		t.Parallel()
+		err := applyCategoryDefaults(nil, &models.Defaults{OrganizeBy: "{md5}/{name}"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "organize-by")
 	})

@@ -478,7 +478,7 @@ func TestApplyConflictStrategy(t *testing.T) {
 			dstFile := filepath.Join(dst, "file.txt")
 			tt.setup(t, srcFile, dstFile)
 
-			resolved, skip, err := applyConflictStrategy(newTestMoveContext(), tt.strategy, ConflictArgs{
+			resolved, skip, _, err := applyConflictStrategy(newTestMoveContext(), tt.strategy, ConflictArgs{
 				Src: srcFile, Dst: dstFile, DestDir: dst, FileName: "file.txt",
 			})
 			if tt.wantErr {

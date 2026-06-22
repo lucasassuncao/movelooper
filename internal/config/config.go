@@ -76,8 +76,8 @@ func applyCategoryDefaults(cats []*models.Category, d *models.Defaults) error {
 		if err := tokens.ValidateTemplate(d.OrganizeBy); err != nil {
 			return fmt.Errorf("defaults: invalid organize-by template: %w", err)
 		}
-		if tokens.ContainsSeqToken(d.OrganizeBy) {
-			return fmt.Errorf("defaults: {seq} is not valid in organize-by; use it in rename only")
+		if tok := tokens.RenameOnlyToken(d.OrganizeBy); tok != "" {
+			return fmt.Errorf("defaults: %s is not valid in organize-by; use it in rename only", tok)
 		}
 	}
 
@@ -148,8 +148,8 @@ func validateCategory(cat *models.Category) error {
 		if err := tokens.ValidateTemplate(cat.Destination.OrganizeBy); err != nil {
 			return fmt.Errorf("category %q: invalid organize-by template: %w", cat.Name, err)
 		}
-		if tokens.ContainsSeqToken(cat.Destination.OrganizeBy) {
-			return fmt.Errorf("category %q: {seq} is not valid in organize-by; use it in rename only", cat.Name)
+		if tok := tokens.RenameOnlyToken(cat.Destination.OrganizeBy); tok != "" {
+			return fmt.Errorf("category %q: %s is not valid in organize-by; use it in rename only", cat.Name, tok)
 		}
 	}
 

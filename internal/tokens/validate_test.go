@@ -87,3 +87,39 @@ func TestValidateTemplate(t *testing.T) {
 		})
 	}
 }
+
+// testRenameOnlyToken defines a structure for test cases of the RenameOnlyToken function,
+// containing the name, the template, and the first rename-only token expected (or "").
+type testRenameOnlyToken struct {
+	name     string
+	template string
+	want     string
+}
+
+// testRenameOnlyTokenTestCases covers tokens that are valid in rename but must be
+// rejected in organize-by (sequence and hash families), plus tokens that are fine in both.
+var testRenameOnlyTokenTestCases = []testRenameOnlyToken{
+	{"organize-by-safe tokens", "{ext}/{mod-year}/{name}", ""},
+	{"name-trunc is allowed", "{name-trunc:10}", ""},
+	{"username is allowed", "{username}/{year}", ""},
+	{"seq", "{seq}/{ext}", "{seq}"},
+	{"seq padded", "{seq:4}", "{seq:4}"},
+	{"seq-alpha", "{seq-alpha}", "{seq-alpha}"},
+	{"seq-roman", "{seq-roman}", "{seq-roman}"},
+	{"md5", "{md5}", "{md5}"},
+	{"md5 param", "{md5:8}", "{md5:8}"},
+	{"sha256 param", "{sha256:16}", "{sha256:16}"},
+	{"returns first match", "{ext}/{md5}/{seq}", "{md5}"},
+}
+
+// TestRenameOnlyToken tests that RenameOnlyToken flags sequence/hash tokens that
+// ResolveGroupBy cannot resolve, while leaving organize-by-safe tokens untouched.
+func TestRenameOnlyToken(t *testing.T) {
+	t.Parallel()
+	for _, tt := range testRenameOnlyTokenTestCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, RenameOnlyToken(tt.template))
+		})
+	}
+}

@@ -139,8 +139,12 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 
 	var totalMoved, totalSkipped, totalFailed int
 	for _, extension := range category.Source.Extensions {
-		matched := make([]scanner.FileEntry, 0, len(byExt[extension]))
-		for _, fe := range byExt[extension] {
+		candidates := byExt[extension]
+		if strings.EqualFold(extension, filters.ExtAll) {
+			candidates = allEntries
+		}
+		matched := make([]scanner.FileEntry, 0, len(candidates))
+		for _, fe := range candidates {
 			info, err := matchesCategory(category, fe, batch.moved, extension)
 			if err != nil {
 				m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
