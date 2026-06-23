@@ -367,14 +367,14 @@ func categoriesPresetsMap() map[string][]models.Category {
 						OnFailure: "abort",
 						Run: []string{
 							"mkdir -p ~/Downloads/videos",
-							"echo 'moving {file}'",
+							"echo \"moving files in $ML_CATEGORY\"",
 						},
 					},
 					After: &models.CategoryHook{
 						Shell:     "bash",
 						OnFailure: "warn",
 						Run: []string{
-							"echo '{file} moved to {dest}'",
+							"echo \"$ML_FILES_MOVED files moved to $ML_DEST_PATH\"",
 						},
 					},
 				},
@@ -422,7 +422,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 					After: &models.CategoryHook{
 						Shell:     "bash",
 						OnFailure: "warn",
-						Run:       []string{"echo 'move complete: {file}'"},
+						Run:       []string{"echo \"move complete: $ML_FILES_MOVED files in $ML_CATEGORY\""},
 					},
 				},
 			},

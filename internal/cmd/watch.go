@@ -36,5 +36,6 @@ func WatchCmd(m *models.Movelooper) *cobra.Command {
 	cmd.Flags().BoolVar(&showFiles, "show-files", false, "Log each file and its destination as it is moved")
 	cmd.Flags().StringVar(&categoryFilter, "category", "", "Comma-separated list of category names to monitor (default: all)")
 	cmd.Flags().BoolVar(&includeDisabled, "include-disabled", false, "Include categories with enabled: false")
+	_ = cmd.RegisterFlagCompletionFunc("category", categoryNameCompletion)
 	return cmd
 }

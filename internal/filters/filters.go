@@ -41,18 +41,6 @@ func MatchesAnyExtension(fileName string, extensions []string) bool {
 	return false
 }
 
-// MatchesIgnorePatterns reports whether fileName matches any of the provided glob patterns.
-func MatchesIgnorePatterns(fileName string, patterns []string, caseSensitive bool) bool {
-	name := normalizeCase(fileName, caseSensitive)
-	for _, pattern := range patterns {
-		matched, err := filepath.Match(normalizeCase(pattern, caseSensitive), name)
-		if err == nil && matched {
-			return true
-		}
-	}
-	return false
-}
-
 // MatchesGlob reports whether fileName matches the glob pattern.
 // Supports brace expansion: *.{jpg,png} expands to *.jpg and *.png.
 func MatchesGlob(fileName, pattern string, caseSensitive bool) bool {

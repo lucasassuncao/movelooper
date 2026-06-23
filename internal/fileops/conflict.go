@@ -120,6 +120,20 @@ func (r *skipResolver) Resolve(_ ConflictArgs) (string, bool, FinalizeFunc, erro
 func (r *skipResolver) SkipMessage() string { return "file skipped due to conflict strategy" }
 
 func compareFileHashes(file1, file2 string) (bool, error) {
+	info1, err := os.Stat(file1)
+	if err != nil {
+		return false, err
+	}
+	info2, err := os.Stat(file2)
+	if err != nil {
+		return false, err
+	}
+	// Files of different sizes cannot have identical content, so skip reading
+	// and hashing both in full on the common "different file" path.
+	if info1.Size() != info2.Size() {
+		return false, nil
+	}
+
 	h1, err := calculateHash(file1)
 	if err != nil {
 		return false, err

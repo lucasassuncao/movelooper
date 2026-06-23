@@ -13,6 +13,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 - [Constants](<#constants>)
 - [Variables](<#variables>)
 - [func ConfigureLogger\(k \*koanf.Koanf\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
+- [func ExpandTilde\(path string\) string](<#ExpandTilde>)
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
 - [func LoadConfig\(k \*koanf.Koanf\) models.Configuration](<#LoadConfig>)
@@ -53,8 +54,17 @@ func ConfigureLogger(k *koanf.Koanf) (logger.Logger, io.Closer, error)
 
 ConfigureLogger configures the logger based on the configuration. It returns a pretty \(pterm\) logger by default, or a structured JSON \(slog\) logger when logging.format is "json". The Closer must be called on exit \(non\-nil only when writing to a file\).
 
+<a name="ExpandTilde"></a>
+## func [ExpandTilde](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/paths.go#L12>)
+
+```go
+func ExpandTilde(path string) string
+```
+
+ExpandTilde expands a leading "\~" or "\~/" \(and "\~\\" on Windows\) in path to the user's home directory. Any other value — including a bare "\~username" — is returned unchanged, as is path when the home directory cannot be resolved.
+
 <a name="FilterDepthOK"></a>
-## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L210>)
+## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L215>)
 
 ```go
 func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
@@ -90,7 +100,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 NewApp resolves the config file and runs the requested initialization steps in order.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L369>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L374>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)

@@ -15,5 +15,6 @@ type TokenContext struct {
 	Now          time.Time
 	DestDir      string // required for seq, seq-alpha, seq-roman
 	SourcePath   string // required for {md5}, {sha256:N}
+	DryRun       bool   // when true, seq/hash tokens are left as literal placeholders
 	replacer     *strings.Replacer
 }

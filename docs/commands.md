@@ -36,6 +36,7 @@ movelooper watch --category images                 # watch only the "images" cat
 
 | Flag                  | Description                                                               |
 |-----------------------|---------------------------------------------------------------------------|
+| `--show-files`        | Log each file and its destination as it is moved                          |
 | `--category`          | Comma-separated list of category names to monitor (default: all)          |
 | `--include-disabled`  | Include categories with `enabled: false`                                  |
 
@@ -78,7 +79,7 @@ movelooper edit --config /path/to/movelooper.yaml
 |-------------------------|--------------------------------------------------------------------------|
 | `--theme`               | Theme name (default: `dark`) — run `--list-themes` to see options        |
 | `--list-themes`         | List available theme names and exit                                      |
-| `--output`              | Save to this file instead of the loaded config (load path is unchanged)  |
+| `--output`, `-o`        | Save to this file instead of the loaded config (load path is unchanged)  |
 | `--no-save-confirm`     | Skip the save confirmation dialog                                        |
 | `--no-delete-confirm`   | Skip the block-delete confirmation dialog                                |
 | `--no-validate-on-save` | Allow saving even when validators report errors (a warning is shown)     |
@@ -131,12 +132,23 @@ movelooper show-docs --list-themes
 
 ## `movelooper self-update` — update the binary
 
-Downloads the latest release from GitHub and replaces the current binary. The old binary is saved as `movelooper.exe.old` and cleaned up on the next run.
+Downloads a release from GitHub and replaces the current binary. The old binary is saved with a `.old` suffix (e.g. `movelooper.exe.old` on Windows) and cleaned up on the next run.
 
 ```bash
-movelooper self-update
+movelooper self-update                          # install the latest stable release
+movelooper self-update --list                   # list available releases
+movelooper self-update --list --prerelease      # include rc/beta/alpha in the list
+movelooper self-update --version v1.2.0         # install a specific release tag
 movelooper self-update --repo lucasassuncao/movelooper
 ```
+
+| Flag           | Description                                                                |
+|----------------|----------------------------------------------------------------------------|
+| `--repo`       | GitHub repository in `owner/repo` format                                   |
+| `--version`    | Install this specific release tag (e.g. `v1.2.0`) instead of the latest     |
+| `--list`       | List available releases and exit                                           |
+| `--prerelease` | Include prereleases (rc/beta/alpha) in `--list`, or as the latest target   |
+| `--limit`      | Maximum number of releases to show with `--list` (default `20`, max `100`)  |
 
 ---
 

@@ -112,6 +112,22 @@ func TestIntegration_AllExtensionMovesEverything(t *testing.T) {
 	assert.Equal(t, len(names), batches[0].Count)
 }
 
+// TestIntegration_FailingCategoryReturnsError verifies that a category that
+// cannot be processed (here: a non-existent source directory) makes runMove
+// return an error, so the process exits non-zero for scripts and cron.
+func TestIntegration_FailingCategoryReturnsError(t *testing.T) {
+	t.Parallel()
+
+	dstDir := t.TempDir()
+	histPath := filepath.Join(t.TempDir(), "history.json")
+	missingSrc := filepath.Join(t.TempDir(), "does-not-exist")
+
+	m := buildIntegrationMovelooper(t, missingSrc, dstDir, histPath, []string{"jpg"})
+
+	err := runMove(context.Background(), m, MoveOptions{})
+	require.Error(t, err)
+}
+
 // TestIntegration_DryRunMovesNothing verifies that --dry-run reports files
 // without touching them.
 func TestIntegration_DryRunMovesNothing(t *testing.T) {

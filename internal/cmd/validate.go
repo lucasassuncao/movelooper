@@ -129,7 +129,7 @@ func strictDirViolations(rawYAML []byte) []editor.Violation {
 		prefix := fmt.Sprintf("categories[%d]", i)
 		if src, ok := cat["source"].(map[string]any); ok {
 			if p, ok := src["path"].(string); ok && p != "" {
-				if _, err := os.Stat(p); os.IsNotExist(err) {
+				if _, err := os.Stat(config.ExpandTilde(p)); os.IsNotExist(err) {
 					out = append(out, editor.Violation{
 						Path:    prefix + ".source.path",
 						Message: fmt.Sprintf("directory does not exist: %s", p),
@@ -139,7 +139,7 @@ func strictDirViolations(rawYAML []byte) []editor.Violation {
 		}
 		if dst, ok := cat["destination"].(map[string]any); ok {
 			if p, ok := dst["path"].(string); ok && p != "" {
-				if _, err := os.Stat(p); os.IsNotExist(err) {
+				if _, err := os.Stat(config.ExpandTilde(p)); os.IsNotExist(err) {
 					out = append(out, editor.Violation{
 						Path:    prefix + ".destination.path",
 						Message: fmt.Sprintf("directory does not exist: %s", p),

@@ -71,5 +71,6 @@ Use --category to undo only files from specific categories within a batch.`,
 	cmd.Flags().BoolVarP(&listBatches, "list", "l", false, "List all available batches")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview what would be restored without moving any files")
 	cmd.Flags().StringVar(&categoryFilter, "category", "", "Comma-separated list of category names to undo (default: all)")
+	_ = cmd.RegisterFlagCompletionFunc("category", categoryNameCompletion)
 	return cmd
 }

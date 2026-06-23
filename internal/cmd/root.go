@@ -29,6 +29,9 @@ based on configurable categories.
 By default, it runs the move operation automatically.
 Use --dry-run for a preview without moving files, and --show-files to display filenames.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if isCompletionCommand(cmd) {
+				return nil
+			}
 			configPath, _ := cmd.Root().PersistentFlags().GetString("config")
 			return preRunHandler(m, configPath)
 		},
@@ -54,6 +57,7 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	cmd.Flags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
 	cmd.Flags().StringVar(&categoryFilter, "category", "", "Comma-separated list of category names to process (default: all)")
 	cmd.Flags().BoolVar(&includeDisabled, "include-disabled", false, "Include categories with enabled: false")
+	_ = cmd.RegisterFlagCompletionFunc("category", categoryNameCompletion)
 
 	cmd.AddGroup(
 		&cobra.Group{ID: "ops", Title: "File Operation Commands"},
@@ -81,10 +85,39 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	GenerateCmd.GroupID = "utils"
 	cmd.AddCommand(watchCmd, undoCmd, editCmd, validateCmd, configCmd, selfUpdateCmd, showCmd, GenerateCmd)
 
-	cmd.CompletionOptions.HiddenDefaultCmd = true
 	cmd.SetHelpCommand(&cobra.Command{Hidden: true, GroupID: "utils"})
 
 	return cmd
+}
+
+// isCompletionCommand reports whether cmd is one of cobra's completion commands
+// (the user-facing `completion` script generator or a hidden `__complete`
+// request). These must not trigger the full app initialization, which requires a
+// loadable config that a user generating completions may not have yet.
+func isCompletionCommand(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		switch c.Name() {
+		case cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd, "completion":
+			return true
+		}
+	}
+	return false
+}
+
+// categoryNameCompletion provides shell completion for the --category flag.
+// Completion requests run before PersistentPreRunE, so the configured categories
+// are loaded here on demand; any load failure simply yields no suggestions.
+func categoryNameCompletion(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+	configPath, _ := cmd.Root().PersistentFlags().GetString("config")
+	tmp := &models.Movelooper{}
+	if err := config.NewApp(tmp, configPath, config.WithCategories()); err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	names := make([]string, 0, len(tmp.Categories))
+	for _, c := range tmp.Categories {
+		names = append(names, c.Name)
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
 }
 
 // preRunHandler handles the necessary configuration before command execution.

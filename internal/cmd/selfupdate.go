@@ -25,7 +25,7 @@ func SelfUpdateCmd(currentVersion string) *cobra.Command {
 		Short:             "Update movelooper to a GitHub release",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 		Long: `Downloads a release of movelooper from GitHub and replaces the current binary.
-The old binary is kept as movelooper.old until the next run.
+The old binary is kept alongside the new one with a .old suffix until the next run.
 
 With no flags, installs the latest stable release.
 Use --list to see available versions, --version to pick a specific one,

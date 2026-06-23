@@ -69,8 +69,11 @@ categories:
       path: ~/Downloads
       extensions: [jpg, jpeg, png, webp]
       filter:
-        ignore: ["screenshot_*"]
-        min-age: 10m
+        not:
+          - match:
+              glob: "screenshot_*"
+        age:
+          min: 10m
     destination:
       path: ~/Images
       conflict-strategy: rename
@@ -122,8 +125,8 @@ categories:
 
 ### Filters
 
-- Add `filter.ignore` patterns to skip screenshots, drafts, or temp files from being moved.
-- Use `filter.min-age` to avoid moving files that are still being downloaded.
+- Add `filter.not` patterns to skip screenshots, drafts, or temp files from being moved.
+- Use `filter.age.min` to avoid moving files that are still being downloaded.
 - Use `source.extensions: [all]` with `destination.organize-by: "{ext}"` as a catch-all that organizes any file by its real extension.
 
 ### Actions & Rename

@@ -48,7 +48,7 @@ Each entry in the `categories` list has the following top-level fields:
 | Field         | Type   | Required | Default | Description                                            |
 |---------------|--------|----------|---------|--------------------------------------------------------|
 | `name`        | string | yes      | —       | Label for the category (used in logs and undo history). Must be unique across the list. |
-| `enabled`     | bool   | no       | `true`  | When `false`, the category is skipped in all modes     |
+| `enabled`     | bool   | no       | `false` | Must be explicitly set to `true`; omitting the field disables the category |
 | `source`      | object | yes      | —       | Where to scan for files (see below)                    |
 | `destination` | object | yes      | —       | Where to move files and how (see below)                |
 
@@ -407,6 +407,7 @@ Both `before` and `after` are optional and independent. If `before` fails with `
 | Variable | Description |
 |---|---|
 | `ML_FILES_MOVED` | Files successfully processed |
+| `ML_FILES_SKIPPED` | Files skipped (e.g. `conflict-strategy: skip`, or already claimed by another category) |
 | `ML_FILES_FAILED` | Files that failed to process |
 | `ML_BATCH_ID` | Batch ID usable with `movelooper undo` |
 

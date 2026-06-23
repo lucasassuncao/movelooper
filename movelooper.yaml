@@ -23,8 +23,9 @@ categories:
       path: "C:\\Users\\lucas\\Downloads\\"
       extensions: ["jpg", "jpeg", "png", "gif", "webp", "bmp"]
       filter:
-        ignore:
-          - "wallhaven*"
+        not:
+          - match:
+              glob: "wallhaven*"
     destination:
       path: "C:\\Users\\lucas\\Downloads\\Media\\Images\\"
       conflict-strategy: rename
@@ -56,8 +57,9 @@ categories:
       path: "C:\\Users\\lucas\\Downloads\\"
       extensions: ["pdf", "txt", "docx", "pptx", "epub", "mobi", "md"]
       filter:
-        ignore:
-          - "*Anna's Archive*"
+        not:
+          - match:
+              glob: "*Anna's Archive*"
     destination:
       path: "C:\\Users\\lucas\\Downloads\\Documents\\"
       conflict-strategy: rename

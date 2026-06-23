@@ -93,7 +93,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 	// History.Enabled is populated by LoadConfig (default true); preRunHandler
 	// always loads the config before initializing history.
 	if o.initHistory && m.Config.History.Enabled {
-		histPath := m.Config.History.File
+		histPath := ExpandTilde(m.Config.History.File)
 		if histPath == "" {
 			histPath = defaultHistoryFilePath()
 		}

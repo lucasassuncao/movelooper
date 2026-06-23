@@ -76,7 +76,7 @@ func (Configuration) Metadata() map[string]*metadata.Node {
 			Description: "Watch-mode settings.",
 		}},
 		"history": {FieldMeta: editor.FieldMeta{
-			Description: "Undo-history settings: whether tracking is on, how many move events to keep, and where to store them.",
+			Description: "Undo-history settings: whether tracking is on, how many batches to keep, and where to store them.",
 		}},
 		"defaults": {FieldMeta: editor.FieldMeta{
 			Description: "Fallback destination settings applied to any category that omits them. Per-category values always win.",
@@ -162,7 +162,7 @@ func (History) Metadata() map[string]*metadata.Node {
 			Example:     "enabled: true",
 		}},
 		"limit": {FieldMeta: editor.FieldMeta{
-			Description: "Maximum number of move events kept in the undo history. Older entries are evicted when the limit is reached.",
+			Description: "Maximum number of move batches kept in the undo history. Older batches are evicted when the limit is reached.",
 			Default:     "100",
 			Min:         "1",
 			Max:         "100000",

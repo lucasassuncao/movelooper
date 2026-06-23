@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/fileops"
 	"github.com/lucasassuncao/movelooper/internal/filters"
@@ -13,6 +14,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/hooks"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/scanner"
+	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/pterm/pterm"
 )
 
@@ -28,6 +30,7 @@ type runStats struct {
 	totalFiles int
 	totalBytes int64
 	skipped    int
+	failed     int
 }
 
 // MoveOptions carries the CLI flags for the move command.
@@ -85,6 +88,12 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	} else {
 		m.Logger.Info("run complete",
 			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "categories_skipped", stats.skipped))
+	}
+
+	// Surface failures through the exit code so scripts and cron can detect them.
+	// The run is not aborted on failure, only reported here after it completes.
+	if stats.skipped > 0 || stats.failed > 0 {
+		return fmt.Errorf("run completed with failures: %d categories failed, %d files failed to move", stats.skipped, stats.failed)
 	}
 	return nil
 }
@@ -164,7 +173,11 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		logExtensionResult(m, asDirEntries, category.Name, extension, batch.showFiles)
 		batch.stats.totalFiles += len(matched)
 
-		if !batch.dryRun && len(matched) > 0 {
+		if batch.dryRun {
+			for _, fe := range matched {
+				logPlannedMove(m, category, fe)
+			}
+		} else if len(matched) > 0 {
 			byDir := groupByDir(matched)
 			for dir, dirFiles := range byDir {
 				req := fileops.MoveRequest{
@@ -181,6 +194,8 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 			}
 		}
 	}
+
+	batch.stats.failed += totalFailed
 
 	if category.Hooks != nil && category.Hooks.After != nil {
 		env := hookEnv(category, batch.dryRun, &hookAfterVars{
@@ -275,6 +290,30 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 		}
 	}
 	m.Logger.Warn(message)
+}
+
+// logPlannedMove logs where a file would land under the category's organize-by
+// and rename templates, without creating directories or moving anything. It
+// mirrors the destination resolution in fileops.MoveFiles; seq and hash tokens
+// are left as literal placeholders (resolved only at move time).
+func logPlannedMove(m *models.Movelooper, category *models.Category, fe scanner.FileEntry) {
+	info, err := fe.Entry.Info()
+	if err != nil {
+		return
+	}
+	sourcePath := filepath.Join(fe.Dir, fe.Entry.Name())
+	tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath, DryRun: true}
+
+	destDir := category.Destination.Path
+	if template := category.Destination.OrganizeBy; template != "" {
+		if subdir := tokens.ResolveGroupBy(template, &tctx); subdir != "" {
+			destDir = filepath.Join(category.Destination.Path, subdir)
+		}
+	}
+	tctx.DestDir = destDir
+	destName := tokens.ResolveRename(category.Destination.Rename, &tctx)
+
+	m.Logger.Info("would move", m.Logger.Args("source", sourcePath, "destination", filepath.Join(destDir, destName)))
 }
 
 // fileNoun renders the file-count subject for a scan summary, agreeing in number

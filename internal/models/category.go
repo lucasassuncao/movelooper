@@ -206,7 +206,7 @@ func (CategoryDestination) Metadata() map[string]*metadata.Node {
 		"rename": {FieldMeta: editor.FieldMeta{
 			Description: "Token pattern for the destination filename (without extension). Leave empty to keep the original name.",
 			Formats:     []editor.Format{FormatRenamePattern},
-			Example:     "rename: \"{year}-{month}-{day}_{name}\"\n\n# Available tokens:\n# {name}  original filename without extension\n# {ext}   original extension\n# {year}, {month}, {day}, {hour}, {min}, {sec}\n# {seq}   auto-incrementing counter\n# {hash}  SHA-256 prefix of the file content",
+			Example:     "rename: \"{year}-{month}-{day}_{name}\"\n\n# Available tokens:\n# {name}  original filename without extension\n# {ext}   original extension\n# {year}, {month}, {day}, {hour}, {minute}, {second}\n# {seq}   auto-incrementing counter\n# {sha256:N}  first N hex chars of SHA-256",
 		}},
 	}
 }
@@ -334,7 +334,7 @@ func (CategoryHook) Metadata() map[string]*metadata.Node {
 			Description: "Shell commands executed in order.",
 			Required:    true,
 			MinCount:    1,
-			Example:     "run:\n  - echo \"before: {{.Source}}\"",
+			Example:     "run:\n  - echo \"before: $ML_SOURCE_PATH\"",
 		}},
 	}
 }

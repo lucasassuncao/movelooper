@@ -84,7 +84,7 @@ func ValidateTemplate(template string) error
 ValidateTemplate returns an error if the template contains any unrecognised or malformed \{token\}.
 
 <a name="TokenContext"></a>
-## type [TokenContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/model.go#L12-L19>)
+## type [TokenContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/model.go#L12-L20>)
 
 TokenContext carries all inputs needed to resolve any token in a template. ResolveGroupBy uses Info, CategoryName, and Now. ResolveRename additionally uses DestDir and SourcePath.
 
@@ -95,6 +95,7 @@ type TokenContext struct {
     Now          time.Time
     DestDir      string // required for seq, seq-alpha, seq-roman
     SourcePath   string // required for {md5}, {sha256:N}
+    DryRun       bool   // when true, seq/hash tokens are left as literal placeholders
     // contains filtered or unexported fields
 }
 ```

@@ -53,6 +53,11 @@ func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error) {
 		if err := validateCategory(cat); err != nil {
 			return nil, err
 		}
+		cat.Source.Path = ExpandTilde(cat.Source.Path)
+		cat.Destination.Path = ExpandTilde(cat.Destination.Path)
+		for i, p := range cat.Source.ExcludePaths {
+			cat.Source.ExcludePaths[i] = ExpandTilde(p)
+		}
 	}
 
 	return categories, nil

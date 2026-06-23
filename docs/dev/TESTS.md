@@ -233,7 +233,6 @@ Overview of all test cases across the movelooper project.
 
 | Test | What it verifies | Expected |
 |---|---|---|
-| `TestMatchesIgnorePatterns` | Ignore patterns are applied correctly | `true` for ignored files, `false` otherwise |
 | `TestExpandGlobPattern` | Expands `*.{jpg,png}` into separate patterns | correct list of expanded patterns |
 | `TestMatchesGlob` | Glob matches names with configurable case sensitivity | `true`/`false` per case |
 | `TestValidateGlob` | Validates glob pattern syntax | no error for valid, error for invalid |

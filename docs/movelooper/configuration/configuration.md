@@ -8,7 +8,7 @@ The following arguments are supported:
 |------|------|-------------|----------|---------|
 | logging | object | Log output settings: destination, severity level, format, file path, and caller info. | Yes | - |
 | watch | object | Watch-mode settings. | No | - |
-| history | object | Undo-history settings: whether tracking is on, how many move events to keep, and where to store them. | No | - |
+| history | object | Undo-history settings: whether tracking is on, how many batches to keep, and where to store them. | No | - |
 | defaults | object | Fallback destination settings applied to any category that omits them. Per-category values always win. | No | - |
 
 ### logging
@@ -40,7 +40,7 @@ The following arguments are supported:
 
 | Name | Type | Format | Description | Required | Default |
 |------|------|--------|-------------|----------|---------|
-| limit | int | - | Maximum number of move events kept in the undo history. Older entries are evicted when the limit is reached. | No | 100 |
+| limit | int | - | Maximum number of move batches kept in the undo history. Older batches are evicted when the limit is reached. | No | 100 |
 | file | string | directory | Path to the history file used for undo. Defaults to ~/.movelooper/history/movelooper.json when not set. | No | ~/.movelooper/history/movelooper.json |
 | enabled | bool | - | Whether move events are recorded for undo. Set to false to skip history tracking entirely. | No | true |
 

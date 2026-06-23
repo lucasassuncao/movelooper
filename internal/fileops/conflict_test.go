@@ -319,6 +319,36 @@ func TestSafeSwap(t *testing.T) {
 	})
 }
 
+// TestCompareFileHashes covers content equality, including the size-mismatch
+// short-circuit that returns "not equal" without hashing either file.
+func TestCompareFileHashes(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		a, b []byte
+		want bool
+	}{
+		{"identical content", []byte("same bytes"), []byte("same bytes"), true},
+		{"same size, different content", []byte("content A"), []byte("content B"), false},
+		{"different sizes short-circuit", []byte("short"), []byte("a much longer body"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			a := filepath.Join(dir, "a.bin")
+			b := filepath.Join(dir, "b.bin")
+			writeFile(t, a, tc.a)
+			writeFile(t, b, tc.b)
+
+			got, err := compareFileHashes(a, b)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func writeFile(t *testing.T, path string, content []byte) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(path, content, 0o644))

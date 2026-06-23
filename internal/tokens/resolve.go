@@ -109,17 +109,22 @@ func ResolveRename(template string, ctx *TokenContext) string {
 		return ctx.Info.Name()
 	}
 
-	template = preProcessHash(template, ctx.SourcePath)
-	if ctx.DestDir != "" && hasSeqToken(template) {
-		unlock := acquireSeqLock(ctx.DestDir)
-		template = preProcessSeqAlpha(template, ctx.DestDir)
-		template = preProcessSeqRoman(template, ctx.DestDir)
-		template = preProcessSeq(template, ctx.DestDir)
-		unlock()
-	} else {
-		template = preProcessSeqAlpha(template, ctx.DestDir)
-		template = preProcessSeqRoman(template, ctx.DestDir)
-		template = preProcessSeq(template, ctx.DestDir)
+	// In dry-run the seq and hash tokens are left literal as placeholders: they
+	// must not read the source file (hashing) or scan the destination directory
+	// (which does not exist yet), keeping the preview strictly non-mutating.
+	if !ctx.DryRun {
+		template = preProcessHash(template, ctx.SourcePath)
+		if ctx.DestDir != "" && hasSeqToken(template) {
+			unlock := acquireSeqLock(ctx.DestDir)
+			template = preProcessSeqAlpha(template, ctx.DestDir)
+			template = preProcessSeqRoman(template, ctx.DestDir)
+			template = preProcessSeq(template, ctx.DestDir)
+			unlock()
+		} else {
+			template = preProcessSeqAlpha(template, ctx.DestDir)
+			template = preProcessSeqRoman(template, ctx.DestDir)
+			template = preProcessSeq(template, ctx.DestDir)
+		}
 	}
 
 	resolved := ResolveGroupBy(template, ctx)

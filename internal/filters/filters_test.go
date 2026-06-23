@@ -31,42 +31,6 @@ func makeInfo(t *testing.T, name string, size int, modTime time.Time) os.FileInf
 	return info
 }
 
-// testMatchesIgnorePatterns defines the structure for test cases of the MatchesIgnorePatterns function,
-// containing the file name, patterns, case sensitivity flag, and expected result.
-type testMatchesIgnorePatterns struct {
-	name          string
-	fileName      string
-	patterns      []string
-	caseSensitive bool
-	want          bool
-}
-
-// testMatchesIgnorePatternsTestCases defines a set of test cases for the MatchesIgnorePatterns function,
-// covering no patterns, simple match, no match, case sensitivity, and multiple patterns.
-var testMatchesIgnorePatternsTestCases = []testMatchesIgnorePatterns{
-	{"no patterns", "file.txt", nil, false, false},
-	{"simple match", "file.txt", []string{"*.txt"}, false, true},
-	{"no match", "file.go", []string{"*.txt"}, false, false},
-	{"case insensitive match", "FILE.TXT", []string{"*.txt"}, false, true},
-	{"case sensitive no match", "FILE.TXT", []string{"*.txt"}, true, false},
-	{"case sensitive match", "file.txt", []string{"*.txt"}, true, true},
-	{"multiple patterns first matches", "file.txt", []string{"*.txt", "*.go"}, false, true},
-	{"multiple patterns second matches", "file.go", []string{"*.txt", "*.go"}, false, true},
-	{"invalid pattern skipped", "file.txt", []string{"["}, false, false},
-}
-
-// TestMatchesIgnorePatterns tests the MatchesIgnorePatterns function with various patterns
-// to ensure it correctly identifies files matching ignore patterns.
-func TestMatchesIgnorePatterns(t *testing.T) {
-	t.Parallel()
-	for _, tt := range testMatchesIgnorePatternsTestCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, MatchesIgnorePatterns(tt.fileName, tt.patterns, tt.caseSensitive))
-		})
-	}
-}
-
 // testExpandGlobPattern defines the structure for test cases of the expandGlobPattern function,
 // containing the input pattern and the expected expanded patterns.
 type testExpandGlobPattern struct {

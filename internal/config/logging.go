@@ -131,7 +131,7 @@ func defaultLogFilePath() string {
 
 // openLogFile opens the log file for writing
 func openLogFile(k *koanf.Koanf) (*os.File, error) {
-	file := k.String("configuration.logging.file")
+	file := ExpandTilde(k.String("configuration.logging.file"))
 	if file == "" {
 		file = defaultLogFilePath()
 	}
