@@ -16,6 +16,9 @@ import:
   - ./movelooper/annas-archive.yaml
   - ./movelooper/everything-else.yaml
 
+testfield:
+  test: "test"
+
 categories:
   - name: "images"
     enabled: true
