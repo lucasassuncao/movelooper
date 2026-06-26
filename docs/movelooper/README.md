@@ -4,8 +4,8 @@ This documentation describes all available configuration structures.
 
 ## Available Configurations
 
-- [Configuration](./configuration/configuration.md)
-- [Category](./categories/category.md)
-- [source](./categories/source.md)
-- [destination](./categories/destination.md)
-- [hooks](./categories/hooks.md)
+- [Configuration](./attributes/configuration/configuration.md)
+- [Category](./attributes/categories/category.md)
+- [source](./attributes/categories/source.md)
+- [destination](./attributes/categories/destination.md)
+- [hooks](./attributes/categories/hooks.md)

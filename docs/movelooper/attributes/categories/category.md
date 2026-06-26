@@ -1,5 +1,9 @@
 # Category
 
+## Examples
+
+For usage examples, see [Category presets](../../examples/category.md).
+
 ## Arguments
 
 The following arguments are supported:

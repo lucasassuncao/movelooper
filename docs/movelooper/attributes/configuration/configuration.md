@@ -1,5 +1,9 @@
 # Configuration
 
+## Examples
+
+For usage examples, see [Configuration presets](../../examples/configuration.md).
+
 ## Arguments
 
 The following arguments are supported:
