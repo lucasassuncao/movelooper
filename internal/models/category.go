@@ -37,7 +37,7 @@ type Category struct {
 	Enabled     *bool               `yaml:"enabled" mapstructure:"enabled"`
 	Source      CategorySource      `yaml:"source" mapstructure:"source"`
 	Destination CategoryDestination `yaml:"destination" mapstructure:"destination"`
-	Hooks       *CategoryHooks      `yaml:"hooks" mapstructure:"hooks"`
+	Hooks       *CategoryHooks      `yaml:"hooks,omitempty" mapstructure:"hooks"`
 }
 
 // IsEnabled reports whether the category is active.
@@ -48,69 +48,75 @@ func (c *Category) IsEnabled() bool {
 
 // CategorySource holds the source path, extensions, and filters for a category
 type CategorySource struct {
-	Path         string         `yaml:"path"          mapstructure:"path"`
-	Extensions   []string       `yaml:"extensions"    mapstructure:"extensions"`
-	Filter       CategoryFilter `yaml:"filter"        mapstructure:"filter"`
-	Recursive    bool           `yaml:"recursive"     mapstructure:"recursive"`
-	MaxDepth     int            `yaml:"max-depth"     mapstructure:"max-depth"`
-	ExcludePaths []string       `yaml:"exclude-paths" mapstructure:"exclude-paths"`
+	Path         string         `yaml:"path"                    mapstructure:"path"`
+	Extensions   []string       `yaml:"extensions"              mapstructure:"extensions"`
+	Filter       CategoryFilter `yaml:"filter,omitempty"        mapstructure:"filter"`
+	Recursive    bool           `yaml:"recursive,omitempty"     mapstructure:"recursive"`
+	MaxDepth     int            `yaml:"max-depth,omitempty"     mapstructure:"max-depth"`
+	ExcludePaths []string       `yaml:"exclude-paths,omitempty" mapstructure:"exclude-paths"`
 }
 
 // CategoryDestination holds the destination path and placement rules for a category
 type CategoryDestination struct {
-	Path             string           `yaml:"path" mapstructure:"path"`
-	OrganizeBy       string           `yaml:"organize-by" mapstructure:"organize-by"`
-	ConflictStrategy ConflictStrategy `yaml:"conflict-strategy" mapstructure:"conflict-strategy"`
-	Action           Action           `yaml:"action" mapstructure:"action"`
-	Rename           string           `yaml:"rename" mapstructure:"rename"`
+	Path             string           `yaml:"path"                        mapstructure:"path"`
+	OrganizeBy       string           `yaml:"organize-by,omitempty"       mapstructure:"organize-by"`
+	ConflictStrategy ConflictStrategy `yaml:"conflict-strategy,omitempty" mapstructure:"conflict-strategy"`
+	Action           Action           `yaml:"action,omitempty"            mapstructure:"action"`
+	Rename           string           `yaml:"rename,omitempty"            mapstructure:"rename"`
 }
 
 // CategoryFilter holds the optional filtering rules applied to files before they are moved.
 // At the top level it behaves as an implicit AND: all populated sub-fields must pass.
 // Use any/all/not for explicit boolean composition.
 type CategoryFilter struct {
-	Match *MatchFilter     `yaml:"match" mapstructure:"match"`
-	Age   *AgeFilter       `yaml:"age"   mapstructure:"age"`
-	Size  *SizeFilter      `yaml:"size"  mapstructure:"size"`
-	Any   []CategoryFilter `yaml:"any"   mapstructure:"any"`
-	All   []CategoryFilter `yaml:"all"   mapstructure:"all"`
-	Not   []CategoryFilter `yaml:"not"   mapstructure:"not"`
+	Match *MatchFilter     `yaml:"match,omitempty" mapstructure:"match"`
+	Age   *AgeFilter       `yaml:"age,omitempty"   mapstructure:"age"`
+	Size  *SizeFilter      `yaml:"size,omitempty"  mapstructure:"size"`
+	Any   []CategoryFilter `yaml:"any,omitempty"   mapstructure:"any"`
+	All   []CategoryFilter `yaml:"all,omitempty"   mapstructure:"all"`
+	Not   []CategoryFilter `yaml:"not,omitempty"   mapstructure:"not"`
+}
+
+// IsZero lets yaml.v3 omit an empty CategoryFilter when the parent field has omitempty.
+func (f CategoryFilter) IsZero() bool {
+	return f.Match == nil && f.Age == nil && f.Size == nil &&
+		len(f.Any) == 0 && len(f.All) == 0 && len(f.Not) == 0
 }
 
 // MatchFilter constrains by filename: one of literal, regex, or glob (mutually exclusive).
 type MatchFilter struct {
-	Literal       string         `yaml:"literal"        mapstructure:"literal"`
-	Regex         string         `yaml:"regex"          mapstructure:"regex"`
-	Glob          string         `yaml:"glob"           mapstructure:"glob"`
-	CaseSensitive bool           `yaml:"case-sensitive" mapstructure:"case-sensitive"`
-	CompiledRegex *regexp.Regexp `yaml:"-"              mapstructure:"-"`
+	Literal       string         `yaml:"literal,omitempty"        mapstructure:"literal"`
+	Regex         string         `yaml:"regex,omitempty"          mapstructure:"regex"`
+	Glob          string         `yaml:"glob,omitempty"           mapstructure:"glob"`
+	CaseSensitive bool           `yaml:"case-sensitive,omitempty" mapstructure:"case-sensitive"`
+	CompiledRegex *regexp.Regexp `yaml:"-"                        mapstructure:"-"`
 }
 
 // AgeFilter constrains by modification time.
 type AgeFilter struct {
-	Min time.Duration `yaml:"min" mapstructure:"min"`
-	Max time.Duration `yaml:"max" mapstructure:"max"`
+	Min time.Duration `yaml:"min,omitempty" mapstructure:"min"`
+	Max time.Duration `yaml:"max,omitempty" mapstructure:"max"`
 }
 
 // SizeFilter constrains by file size.
 type SizeFilter struct {
-	Min      string `yaml:"min" mapstructure:"min"`
-	Max      string `yaml:"max" mapstructure:"max"`
-	MinBytes int64  `yaml:"-"   mapstructure:"-"`
-	MaxBytes int64  `yaml:"-"   mapstructure:"-"`
+	Min      string `yaml:"min,omitempty" mapstructure:"min"`
+	Max      string `yaml:"max,omitempty" mapstructure:"max"`
+	MinBytes int64  `yaml:"-"             mapstructure:"-"`
+	MaxBytes int64  `yaml:"-"             mapstructure:"-"`
 }
 
 // CategoryHooks holds optional before/after hooks for a category.
 type CategoryHooks struct {
-	Before *CategoryHook `yaml:"before" mapstructure:"before"`
-	After  *CategoryHook `yaml:"after" mapstructure:"after"`
+	Before *CategoryHook `yaml:"before,omitempty" mapstructure:"before"`
+	After  *CategoryHook `yaml:"after,omitempty"  mapstructure:"after"`
 }
 
 // CategoryHook defines a list of shell commands to run at a lifecycle point.
 type CategoryHook struct {
-	Shell     string   `yaml:"shell" mapstructure:"shell"`
-	OnFailure string   `yaml:"on-failure" mapstructure:"on-failure"`
-	Run       []string `yaml:"run" mapstructure:"run"`
+	Shell     string   `yaml:"shell,omitempty" mapstructure:"shell"`
+	OnFailure string   `yaml:"on-failure"      mapstructure:"on-failure"`
+	Run       []string `yaml:"run"             mapstructure:"run"`
 }
 
 func (Category) Metadata() map[string]*metadata.Node {

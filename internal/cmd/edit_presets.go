@@ -47,22 +47,17 @@ func (s *docPresetSource) PresetYAML(field, name string) (string, error) {
 }
 
 func buildDocPresets() *docPresetSource {
-	cats := categoriesPresetsMap()
-	baseCfg := ConfigurationPreset("base")
+	docs := docPresetsMap()
 
-	names := make([]string, 0, len(cats))
-	for name := range cats {
+	names := make([]string, 0, len(docs))
+	for name := range docs {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 
-	yamls := make(map[string]string, len(cats))
+	yamls := make(map[string]string, len(docs))
 	for _, name := range names {
-		cfg := &models.Config{
-			Configuration: *baseCfg,
-			Categories:    cats[name],
-		}
-		raw, err := yaml.Marshal(cfg)
+		raw, err := yaml.Marshal(docs[name])
 		if err != nil {
 			continue
 		}
@@ -71,17 +66,289 @@ func buildDocPresets() *docPresetSource {
 	return &docPresetSource{names: names, yamls: yamls}
 }
 
+func docPresetsMap() map[string]*models.Config {
+	downloads := "~/Downloads"
+	enabled := true
+	logFile := "~/.movelooper/logs/movelooper.log"
+	histFile := "~/.movelooper/history/movelooper.json"
+
+	consoleCfg := models.Configuration{
+		Logging: models.Logging{
+			Output: "console",
+			Level:  "info",
+			File:   logFile,
+			Format: "pretty",
+			Color:  "auto",
+		},
+		Watch:   models.Watch{Delay: 5 * time.Minute},
+		History: models.History{Limit: 100, File: histFile},
+	}
+
+	fileCfg := models.Configuration{
+		Logging: models.Logging{
+			Output: "file",
+			Level:  "info",
+			File:   logFile,
+			Format: "pretty",
+		},
+		Watch:   models.Watch{Delay: 5 * time.Minute},
+		History: models.History{Limit: 100, File: histFile},
+	}
+
+	return map[string]*models.Config{
+		// filter.any: files that qualify if they satisfy at least one sub-filter (OR)
+		"full-filter-any": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "reports",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "xlsx", "csv"},
+						Filter: models.CategoryFilter{
+							Any: []models.CategoryFilter{
+								{Match: &models.MatchFilter{Regex: `^report_`}},
+								{Match: &models.MatchFilter{Glob: "summary_*"}},
+								{Size: &models.SizeFilter{Min: "1MB"}},
+							},
+						},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/reports",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{year}/{month}",
+					},
+				},
+				{
+					Name:    "media",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"mp4", "mkv", "mp3", "flac"},
+						Filter: models.CategoryFilter{
+							Any: []models.CategoryFilter{
+								{Size: &models.SizeFilter{Min: "100MB"}},
+								{Match: &models.MatchFilter{Regex: `^\d{4}-\d{2}-\d{2}`}},
+							},
+						},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/media",
+						ConflictStrategy: models.ConflictStrategyHashCheck,
+						OrganizeBy:       "{year}",
+					},
+				},
+			},
+		},
+		// filter.all: files that qualify only when every sub-filter passes (AND)
+		"full-filter-all": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "invoices",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "xml"},
+						Filter: models.CategoryFilter{
+							All: []models.CategoryFilter{
+								{Size: &models.SizeFilter{Min: "50KB"}},
+								{Age: &models.AgeFilter{Max: 90 * 24 * time.Hour}},
+								{Match: &models.MatchFilter{Regex: `^invoice_`}},
+							},
+						},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/invoices",
+						ConflictStrategy: models.ConflictStrategyHashCheck,
+						OrganizeBy:       "{year}/{month}",
+					},
+				},
+				{
+					Name:    "recent-photos",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"jpg", "jpeg", "heic"},
+						Filter: models.CategoryFilter{
+							All: []models.CategoryFilter{
+								{Size: &models.SizeFilter{Min: "500KB"}},
+								{Age: &models.AgeFilter{Max: 30 * 24 * time.Hour}},
+							},
+						},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/photos",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{year}/{month}",
+					},
+				},
+			},
+		},
+		// flat filters: match + size + age used directly (implicit AND, mutually exclusive with any/all)
+		"full-filter-flat": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "dated-docs",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "docx"},
+						Filter: models.CategoryFilter{
+							Match: &models.MatchFilter{Regex: `^\d{4}-\d{2}-\d{2}_`},
+							Age:   &models.AgeFilter{Min: 7 * 24 * time.Hour},
+							Size:  &models.SizeFilter{Min: "10KB"},
+						},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/documents",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{year}",
+					},
+				},
+				{
+					Name:    "screenshots",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"png", "jpg"},
+						Filter: models.CategoryFilter{
+							Match: &models.MatchFilter{Glob: "screenshot_*"},
+							Size:  &models.SizeFilter{Max: "5MB"},
+						},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/screenshots",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{year}/{month}",
+					},
+				},
+			},
+		},
+		// classic downloads organizer: no filters, sort by extension group
+		"downloads-organizer": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "images",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/images",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{ext}",
+					},
+				},
+				{
+					Name:    "documents",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "doc", "docx", "txt", "odt"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/documents",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{year}",
+					},
+				},
+				{
+					Name:    "videos",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"mp4", "mkv", "avi"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/videos",
+						ConflictStrategy: models.ConflictStrategyHashCheck,
+						OrganizeBy:       "{year}/{month}",
+					},
+				},
+				{
+					Name:    "music",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"mp3", "flac", "wav"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/music",
+						ConflictStrategy: models.ConflictStrategySkip,
+						OrganizeBy:       "{ext}",
+					},
+				},
+				{
+					Name:    "archives",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"zip", "tar", "gz", "rar", "7z"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/archives",
+						ConflictStrategy: models.ConflictStrategyHashCheck,
+						OrganizeBy:       "{ext}",
+					},
+				},
+			},
+		},
+		// non-destructive photographer workflow: copy to separate RAW/JPEG trees, log to file
+		"photographer": {
+			Configuration: fileCfg,
+			Categories: []models.Category{
+				{
+					Name:    "raw",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"raw", "cr2", "nef", "arw"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             "~/Pictures/RAW",
+						ConflictStrategy: models.ConflictStrategyHashCheck,
+						Action:           models.ActionCopy,
+						OrganizeBy:       "{year}/{month}",
+					},
+				},
+				{
+					Name:    "jpeg",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"jpg", "jpeg", "heic"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             "~/Pictures/JPEG",
+						ConflictStrategy: models.ConflictStrategyRename,
+						Action:           models.ActionCopy,
+						OrganizeBy:       "{year}/{month}",
+						Rename:           "{year}-{month}-{day}_{name}",
+					},
+				},
+			},
+		},
+	}
+}
+
 func configurationPresetsMap() map[string]*models.Configuration {
 	logFile := "~/.movelooper/logs/movelooper.log"
 	histFile := "~/.movelooper/history/movelooper.json"
 
-	base := func(output, level string, showCaller bool) *models.Configuration {
+	cfg := func(output, level string, showCaller bool, format string) *models.Configuration {
 		return &models.Configuration{
 			Logging: models.Logging{
 				Output:     output,
-				File:       logFile,
 				Level:      level,
+				File:       logFile,
 				ShowCaller: showCaller,
+				Format:     format,
+				Color:      "auto",
 			},
 			Watch:   models.Watch{Delay: 5 * time.Minute},
 			History: models.History{Limit: 100, File: histFile},
@@ -89,16 +356,15 @@ func configurationPresetsMap() map[string]*models.Configuration {
 	}
 
 	return map[string]*models.Configuration{
-		"base":                    base("console", "info", false),
-		"output-console":          base("console", "debug", false),
-		"output-file":             base("file", "warn", false),
-		"output-console-and-file": base("both", "error", false),
-		"loglevel-trace":          base("console", "trace", true),
-		"debug":                   base("console", "debug", true),
-		"loglevel-info":           base("console", "info", false),
-		"loglevel-warn":           base("file", "warn", false),
-		"loglevel-error":          base("file", "error", true),
-		"loglevel-fatal":          base("file", "fatal", true),
+		"console-trace": cfg("console", "trace", true, "pretty"),
+		"console-debug": cfg("console", "debug", true, "pretty"),
+		"console-info":  cfg("console", "info", false, "pretty"),
+		"console-warn":  cfg("console", "warn", false, "pretty"),
+		"console-error": cfg("console", "error", false, "pretty"),
+		"console-fatal": cfg("console", "fatal", false, "pretty"),
+		"file":          cfg("file", "warn", false, "pretty"),
+		"both":          cfg("both", "info", false, "pretty"),
+		"json":          cfg("file", "info", false, "json"),
 	}
 }
 
@@ -114,111 +380,16 @@ func ListOfConfigurationPresets() []string {
 func categoriesPresetsMap() map[string][]models.Category {
 	downloads := "~/Downloads"
 	enabled := true
+
 	return map[string][]models.Category{
-		"base": {
+		// rename: appends a counter when destination file already exists
+		"conflict-rename": {
 			{
-				Name: "images",
+				Name:    "photos",
+				Enabled: &enabled,
 				Source: models.CategorySource{
 					Path:       downloads,
-					Extensions: []string{"jpg", "jpeg", "png", "gif", "bmp", "webp"},
-				},
-				Destination: models.CategoryDestination{
-					Path:             downloads + "/images",
-					ConflictStrategy: models.ConflictStrategyRename,
-					OrganizeBy:       "{ext}",
-				},
-			},
-		},
-		"regex": {
-			// match files whose names start with a date prefix (YYYY-MM-DD_)
-			{
-				Name: "dated-reports",
-				Source: models.CategorySource{
-					Path:       downloads,
-					Extensions: []string{"pdf", "csv", "xlsx"},
-					Filter: models.CategoryFilter{
-						Match: &models.MatchFilter{
-							Regex: `^\d{4}-\d{2}-\d{2}_.*`,
-						},
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             downloads + "/reports",
-					ConflictStrategy: models.ConflictStrategyRename,
-					OrganizeBy:       "{year}/{month}",
-				},
-			},
-			// match invoice files regardless of case, skip anything in draft state
-			{
-				Name: "invoices",
-				Source: models.CategorySource{
-					Path:       downloads,
-					Extensions: []string{"pdf", "xml"},
-					Filter: models.CategoryFilter{
-						Match: &models.MatchFilter{
-							Regex: `(?i)^invoice[-_]`,
-						},
-						Not: []models.CategoryFilter{
-							{Match: &models.MatchFilter{Glob: "*_draft.*"}},
-						},
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             downloads + "/invoices",
-					ConflictStrategy: models.ConflictStrategyHashCheck,
-					OrganizeBy:       "{year}",
-				},
-			},
-		},
-		"glob": {
-			// match files following a specific naming convention, excluding edited/cropped versions
-			{
-				Name: "screenshots",
-				Source: models.CategorySource{
-					Path:       downloads,
-					Extensions: []string{"png", "jpg"},
-					Filter: models.CategoryFilter{
-						Match: &models.MatchFilter{Glob: "screenshot_????-??-??_*"},
-						Not: []models.CategoryFilter{
-							{Match: &models.MatchFilter{Glob: "*_edited.*"}},
-							{Match: &models.MatchFilter{Glob: "*_crop.*"}},
-						},
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             downloads + "/screenshots",
-					ConflictStrategy: models.ConflictStrategyRename,
-					OrganizeBy:       "{year}/{month}",
-				},
-			},
-			// exclude temp and backup files
-			{
-				Name: "documents",
-				Source: models.CategorySource{
-					Path:       downloads,
-					Extensions: []string{"doc", "docx", "odt"},
-					Filter: models.CategoryFilter{
-						Not: []models.CategoryFilter{
-							{Match: &models.MatchFilter{Glob: "*_temp.*"}},
-							{Match: &models.MatchFilter{Glob: "*_backup.*"}},
-							{Match: &models.MatchFilter{Glob: "~*"}},
-						},
-					},
-				},
-				Destination: models.CategoryDestination{
-					Path:             downloads + "/documents",
-					ConflictStrategy: models.ConflictStrategyRename,
-					OrganizeBy:       "{ext}",
-				},
-			},
-		},
-		"conflict": {
-			// rename: appends a counter when destination file already exists
-			{
-				Name: "photos-rename",
-				Source: models.CategorySource{
-					Path:       downloads,
-					Extensions: []string{"jpg", "jpeg", "heic"},
+					Extensions: []string{"jpg", "jpeg", "png"},
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/photos",
@@ -226,35 +397,12 @@ func categoriesPresetsMap() map[string][]models.Category {
 					OrganizeBy:       "{year}/{month}",
 				},
 			},
-			// overwrite: replaces the destination file unconditionally
+		},
+		// hash_check: skips the move if source and destination are byte-identical
+		"conflict-hash-check": {
 			{
-				Name: "config-sync",
-				Source: models.CategorySource{
-					Path:       downloads,
-					Extensions: []string{"yaml", "json", "toml"},
-				},
-				Destination: models.CategoryDestination{
-					Path:             downloads + "/config",
-					ConflictStrategy: models.ConflictStrategyOverwrite,
-					OrganizeBy:       "{ext}",
-				},
-			},
-			// skip: leaves the destination untouched when a conflict occurs
-			{
-				Name: "music-skip",
-				Source: models.CategorySource{
-					Path:       downloads,
-					Extensions: []string{"mp3", "flac", "wav"},
-				},
-				Destination: models.CategoryDestination{
-					Path:             downloads + "/music",
-					ConflictStrategy: models.ConflictStrategySkip,
-					OrganizeBy:       "{ext}",
-				},
-			},
-			// hash_check: skips only if source and destination are identical
-			{
-				Name: "archives-dedup",
+				Name:    "archives",
+				Enabled: &enabled,
 				Source: models.CategorySource{
 					Path:       downloads,
 					Extensions: []string{"zip", "tar", "gz", "rar", "7z"},
@@ -266,26 +414,126 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 			},
 		},
-		"filters": {
-			// size bounds: only move files within a specific size range
+		// overwrite: replaces the destination file unconditionally
+		"conflict-overwrite": {
 			{
-				Name: "large-videos",
+				Name:    "config-sync",
+				Enabled: &enabled,
 				Source: models.CategorySource{
 					Path:       downloads,
-					Extensions: []string{"mp4", "mkv", "avi"},
-					Filter: models.CategoryFilter{
-						Size: &models.SizeFilter{Min: "500MB", Max: "50GB"},
-					},
+					Extensions: []string{"yaml", "json", "toml"},
 				},
 				Destination: models.CategoryDestination{
-					Path:             downloads + "/videos/large",
-					ConflictStrategy: models.ConflictStrategyHashCheck,
+					Path:             downloads + "/config",
+					ConflictStrategy: models.ConflictStrategyOverwrite,
 					OrganizeBy:       "{ext}",
 				},
 			},
-			// age bounds: archive files older than 30 days, no older than 1 year
+		},
+		// skip: leaves the destination file untouched on conflict
+		"conflict-skip": {
 			{
-				Name: "old-downloads",
+				Name:    "music",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"mp3", "flac", "wav"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/music",
+					ConflictStrategy: models.ConflictStrategySkip,
+					OrganizeBy:       "{ext}",
+				},
+			},
+		},
+		// newest: keeps whichever file has the most recent modification time
+		"conflict-newest": {
+			{
+				Name:    "videos",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"mp4", "mkv", "avi"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/videos",
+					ConflictStrategy: models.ConflictStrategyNewest,
+					OrganizeBy:       "{year}",
+				},
+			},
+		},
+		// oldest: keeps whichever file has the earliest modification time
+		"conflict-oldest": {
+			{
+				Name:    "documents",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"pdf", "doc", "docx"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/documents",
+					ConflictStrategy: models.ConflictStrategyOldest,
+					OrganizeBy:       "{year}",
+				},
+			},
+		},
+		// larger: keeps whichever file is larger in bytes
+		"conflict-larger": {
+			{
+				Name:    "archives-large",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"zip", "7z"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/archives/large",
+					ConflictStrategy: models.ConflictStrategyLarger,
+					OrganizeBy:       "{ext}",
+				},
+			},
+		},
+		// smaller: keeps whichever file is smaller in bytes
+		"conflict-smaller": {
+			{
+				Name:    "photos-small",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"jpg", "jpeg"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/photos/small",
+					ConflictStrategy: models.ConflictStrategySmaller,
+					OrganizeBy:       "{year}",
+				},
+			},
+		},
+		// filter.size: match files within a byte-size range
+		"filter-size": {
+			{
+				Name:    "large-videos",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"mp4", "mkv"},
+					Filter: models.CategoryFilter{
+						Size: &models.SizeFilter{Min: "100MB", Max: "10GB"},
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/videos",
+					ConflictStrategy: models.ConflictStrategyHashCheck,
+					OrganizeBy:       "{year}/{month}",
+				},
+			},
+		},
+		// filter.age: match files within a modification-time window
+		"filter-age": {
+			{
+				Name:    "old-downloads",
+				Enabled: &enabled,
 				Source: models.CategorySource{
 					Path:       downloads,
 					Extensions: []string{"pdf", "zip", "exe", "dmg"},
@@ -302,9 +550,12 @@ func categoriesPresetsMap() map[string][]models.Category {
 					OrganizeBy:       "{year}",
 				},
 			},
-			// any: match files that satisfy at least one sub-filter
+		},
+		// filter.any: OR — match files satisfying at least one sub-filter
+		"filter-any": {
 			{
-				Name: "reports-any",
+				Name:    "reports",
+				Enabled: &enabled,
 				Source: models.CategorySource{
 					Path:       downloads,
 					Extensions: []string{"pdf", "xlsx", "csv"},
@@ -322,9 +573,12 @@ func categoriesPresetsMap() map[string][]models.Category {
 					OrganizeBy:       "{ext}",
 				},
 			},
-			// all: match files that satisfy every sub-filter simultaneously
+		},
+		// filter.all: AND — match files satisfying every sub-filter simultaneously
+		"filter-all": {
 			{
-				Name: "large-recent-docs",
+				Name:    "recent-docs",
+				Enabled: &enabled,
 				Source: models.CategorySource{
 					Path:       downloads,
 					Extensions: []string{"pdf", "docx"},
@@ -345,10 +599,90 @@ func categoriesPresetsMap() map[string][]models.Category {
 				},
 			},
 		},
-		"hooks": {
-			// before hook: validate or prepare before moving; after hook: notify or post-process
+		// filter.not: exclude files matching any of the sub-filters
+		"filter-not": {
 			{
-				Name: "processed-videos",
+				Name:    "documents",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"doc", "docx", "odt"},
+					Filter: models.CategoryFilter{
+						Not: []models.CategoryFilter{
+							{Match: &models.MatchFilter{Glob: "*_temp.*"}},
+							{Match: &models.MatchFilter{Glob: "*_backup.*"}},
+							{Match: &models.MatchFilter{Glob: "~*"}},
+						},
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/documents",
+					ConflictStrategy: models.ConflictStrategyRename,
+					OrganizeBy:       "{ext}",
+				},
+			},
+		},
+		// match.glob: wildcard pattern against the filename
+		"filter-match-glob": {
+			{
+				Name:    "screenshots",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"png", "jpg"},
+					Filter: models.CategoryFilter{
+						Match: &models.MatchFilter{Glob: "screenshot_????-??-??_*"},
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/screenshots",
+					ConflictStrategy: models.ConflictStrategyRename,
+					OrganizeBy:       "{year}/{month}",
+				},
+			},
+		},
+		// match.regex: RE2 regular expression against the filename
+		"filter-match-regex": {
+			{
+				Name:    "dated-reports",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"pdf", "csv", "xlsx"},
+					Filter: models.CategoryFilter{
+						Match: &models.MatchFilter{Regex: `^\d{4}-\d{2}-\d{2}_.*`},
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/reports",
+					ConflictStrategy: models.ConflictStrategyRename,
+					OrganizeBy:       "{year}/{month}",
+				},
+			},
+		},
+		// match.literal: exact filename match (whole name including extension)
+		"filter-match-literal": {
+			{
+				Name:    "annas-archive",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"pdf"},
+					Filter: models.CategoryFilter{
+						Match: &models.MatchFilter{Literal: "Anna's Archive.pdf"},
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/books",
+					ConflictStrategy: models.ConflictStrategySkip,
+				},
+			},
+		},
+		// hooks.before: shell commands run before each file operation; on-failure: abort cancels the move
+		"hooks-before": {
+			{
+				Name:    "videos-before",
+				Enabled: &enabled,
 				Source: models.CategorySource{
 					Path:       downloads,
 					Extensions: []string{"mp4", "mkv"},
@@ -367,22 +701,44 @@ func categoriesPresetsMap() map[string][]models.Category {
 						OnFailure: "abort",
 						Run: []string{
 							"mkdir -p ~/Downloads/videos",
-							"echo \"moving files in $ML_CATEGORY\"",
-						},
-					},
-					After: &models.CategoryHook{
-						Shell:     "bash",
-						OnFailure: "warn",
-						Run: []string{
-							"echo \"$ML_FILES_MOVED files moved to $ML_DEST_PATH\"",
+							`echo "moving $ML_SOURCE_PATH"`,
 						},
 					},
 				},
 			},
 		},
-		"full": {
+		// hooks.after: shell commands run after each file operation; on-failure: warn logs but continues
+		"hooks-after": {
 			{
-				Name:    "documents",
+				Name:    "videos-after",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"mp4", "mkv"},
+					Filter: models.CategoryFilter{
+						Size: &models.SizeFilter{Min: "100MB"},
+					},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/videos",
+					ConflictStrategy: models.ConflictStrategyHashCheck,
+					OrganizeBy:       "{year}/{month}",
+				},
+				Hooks: &models.CategoryHooks{
+					After: &models.CategoryHook{
+						Shell:     "bash",
+						OnFailure: "warn",
+						Run: []string{
+							`echo "$ML_FILES_MOVED files moved to $ML_DEST_PATH"`,
+						},
+					},
+				},
+			},
+		},
+		// recursive: scan sub-directories up to max-depth, skipping exclude-paths
+		"recursive": {
+			{
+				Name:    "documents-recursive",
 				Enabled: &enabled,
 				Source: models.CategorySource{
 					Path:         downloads,
@@ -390,40 +746,45 @@ func categoriesPresetsMap() map[string][]models.Category {
 					Recursive:    true,
 					MaxDepth:     3,
 					ExcludePaths: []string{downloads + "/archives", downloads + "/temp"},
-					Filter: models.CategoryFilter{
-						Not: []models.CategoryFilter{
-							{Match: &models.MatchFilter{Glob: "*_draft.*"}},
-							{Match: &models.MatchFilter{Glob: "*_temp.*"}},
-						},
-						All: []models.CategoryFilter{
-							{Match: &models.MatchFilter{Regex: `^\d{4}-\d{2}-\d{2}_.*`, CaseSensitive: true}},
-							{Age: &models.AgeFilter{Min: 7 * 24 * time.Hour, Max: 365 * 24 * time.Hour}},
-							{Size: &models.SizeFilter{Min: "10KB", Max: "500MB"}},
-							{Any: []models.CategoryFilter{
-								{Match: &models.MatchFilter{Regex: `^invoice_.*`}},
-								{Match: &models.MatchFilter{Glob: "contract_*"}},
-							}},
-						},
-					},
 				},
 				Destination: models.CategoryDestination{
 					Path:             downloads + "/documents",
-					OrganizeBy:       "{year}/{month}",
 					ConflictStrategy: models.ConflictStrategyHashCheck,
-					Action:           "move",
-					Rename:           "{year}-{month}-{day}_{name}",
+					OrganizeBy:       "{year}/{month}",
 				},
-				Hooks: &models.CategoryHooks{
-					Before: &models.CategoryHook{
-						Shell:     "bash",
-						OnFailure: "abort",
-						Run:       []string{"echo 'starting move'", "mkdir -p ~/Downloads/documents"},
-					},
-					After: &models.CategoryHook{
-						Shell:     "bash",
-						OnFailure: "warn",
-						Run:       []string{"echo \"move complete: $ML_FILES_MOVED files in $ML_CATEGORY\""},
-					},
+			},
+		},
+		// action.copy: keeps the source file, places a copy at the destination
+		"action-copy": {
+			{
+				Name:    "photos-backup",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"jpg", "jpeg", "heic"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/Pictures/backup",
+					ConflictStrategy: models.ConflictStrategySkip,
+					Action:           models.ActionCopy,
+					OrganizeBy:       "{year}/{month}",
+				},
+			},
+		},
+		// action.symlink: creates a symbolic link at the destination pointing to the source
+		"action-symlink": {
+			{
+				Name:    "media-links",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"mp4", "mkv", "avi"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/Media/links",
+					ConflictStrategy: models.ConflictStrategySkip,
+					Action:           models.ActionSymlink,
+					OrganizeBy:       "{year}",
 				},
 			},
 		},
