@@ -100,12 +100,67 @@ func resolveSeqAt(destDir string, pos seqPos) int {
 	return max + 1
 }
 
-func preProcessSeq(template string, destDir string) string {
+// SeqAllocator hands out sequence numbers per destination directory without
+// re-scanning the directory for every file. The first request for a directory
+// seeds the counter from the existing files (the same scan ResolveSeq* perform);
+// subsequent requests increment in memory. This turns an O(files) directory scan
+// per moved file into a single scan per directory for a whole batch.
+//
+// Not safe for concurrent use: the move pipeline is single-threaded (see the
+// seqDirLocks note). A failed or skipped move leaves a gap in the numbering,
+// which is harmless — sequence numbers are not guaranteed to be contiguous.
+type SeqAllocator struct {
+	num   map[string]int
+	alpha map[string]int
+	roman map[string]int
+}
+
+// NewSeqAllocator returns an empty allocator ready to seed directories on demand.
+func NewSeqAllocator() *SeqAllocator {
+	return &SeqAllocator{
+		num:   map[string]int{},
+		alpha: map[string]int{},
+		roman: map[string]int{},
+	}
+}
+
+func (a *SeqAllocator) nextNum(destDir string, pos seqPos) int {
+	n, ok := a.num[destDir]
+	if !ok {
+		n = resolveSeqAt(destDir, pos)
+	}
+	a.num[destDir] = n + 1
+	return n
+}
+
+func (a *SeqAllocator) nextAlpha(destDir string) int {
+	n, ok := a.alpha[destDir]
+	if !ok {
+		n = resolveSeqAlphaInt(destDir)
+	}
+	a.alpha[destDir] = n + 1
+	return n
+}
+
+func (a *SeqAllocator) nextRoman(destDir string) int {
+	n, ok := a.roman[destDir]
+	if !ok {
+		n = resolveSeqRomanInt(destDir)
+	}
+	a.roman[destDir] = n + 1
+	return n
+}
+
+func preProcessSeq(template, destDir string, alloc *SeqAllocator) string {
 	loc := seqToken.FindStringIndex(template)
 	if loc == nil {
 		return template
 	}
-	next := resolveSeqAt(destDir, seqTokenPosition(template, loc))
+	pos := seqTokenPosition(template, loc)
+	next := resolveSeqAt(destDir, pos)
+	if alloc != nil {
+		next = alloc.nextNum(destDir, pos)
+	}
 	return seqToken.ReplaceAllStringFunc(template, func(tok string) string {
 		m := seqToken.FindStringSubmatch(tok)
 		if m[1] == "" {
@@ -126,9 +181,15 @@ var (
 // ResolveSeqAlpha scans destDir for files with leading lowercase alpha prefixes
 // and returns the next label in Excel-style sequence (a, b, ..., z, aa, ab, ...).
 func ResolveSeqAlpha(destDir string) string {
+	return intToAlpha(resolveSeqAlphaInt(destDir))
+}
+
+// resolveSeqAlphaInt is the 1-based integer behind ResolveSeqAlpha, returning 1
+// (which maps to "a") when the directory is empty or unreadable.
+func resolveSeqAlphaInt(destDir string) int {
 	entries, err := os.ReadDir(destDir)
 	if err != nil {
-		return "a"
+		return 1
 	}
 	max := 0
 	for _, e := range entries {
@@ -141,7 +202,7 @@ func ResolveSeqAlpha(destDir string) string {
 			}
 		}
 	}
-	return intToAlpha(max + 1)
+	return max + 1
 }
 
 // alphaToInt converts an Excel-style column label to a 1-based integer ("a"=1, "z"=26, "aa"=27).
@@ -168,11 +229,15 @@ func intToAlpha(n int) string {
 	return string(rr)
 }
 
-func preProcessSeqAlpha(template, destDir string) string {
+func preProcessSeqAlpha(template, destDir string, alloc *SeqAllocator) string {
 	if !seqAlphaToken.MatchString(template) {
 		return template
 	}
-	return seqAlphaToken.ReplaceAllString(template, ResolveSeqAlpha(destDir))
+	label := ResolveSeqAlpha(destDir)
+	if alloc != nil {
+		label = intToAlpha(alloc.nextAlpha(destDir))
+	}
+	return seqAlphaToken.ReplaceAllString(template, label)
 }
 
 // --- roman numeral sequence ---
@@ -186,9 +251,15 @@ var (
 // ResolveSeqRoman scans destDir for files with leading roman numeral prefixes
 // and returns the next roman numeral in sequence.
 func ResolveSeqRoman(destDir string) string {
+	return intToRoman(resolveSeqRomanInt(destDir))
+}
+
+// resolveSeqRomanInt is the 1-based integer behind ResolveSeqRoman, returning 1
+// (which maps to "i") when the directory is empty or unreadable.
+func resolveSeqRomanInt(destDir string) int {
 	entries, err := os.ReadDir(destDir)
 	if err != nil {
-		return "i"
+		return 1
 	}
 	max := 0
 	for _, e := range entries {
@@ -202,7 +273,7 @@ func ResolveSeqRoman(destDir string) string {
 			}
 		}
 	}
-	return intToRoman(max + 1)
+	return max + 1
 }
 
 func romanToInt(s string) int {
@@ -239,9 +310,13 @@ func intToRoman(n int) string {
 	return b.String()
 }
 
-func preProcessSeqRoman(template, destDir string) string {
+func preProcessSeqRoman(template, destDir string, alloc *SeqAllocator) string {
 	if !seqRomanToken.MatchString(template) {
 		return template
 	}
-	return seqRomanToken.ReplaceAllString(template, ResolveSeqRoman(destDir))
+	label := ResolveSeqRoman(destDir)
+	if alloc != nil {
+		label = intToRoman(alloc.nextRoman(destDir))
+	}
+	return seqRomanToken.ReplaceAllString(template, label)
 }

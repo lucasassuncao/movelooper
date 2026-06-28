@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -118,16 +117,6 @@ func (e fileInfoDirEntry) IsDir() bool                { return e.info.IsDir() }
 func (e fileInfoDirEntry) Type() fs.FileMode          { return e.info.Mode().Type() }
 func (e fileInfoDirEntry) Info() (fs.FileInfo, error) { return e.info, nil }
 
-// fileTracker records files that the watcher has detected but not yet moved.
-// Each entry maps an absolute file path to the time of the most recent
-// create/write event for it; every new event pushes this timestamp forward. The
-// ticker loop moves a file once no further event has arrived for longer than the
-// configured watch.delay, treating that quiet period as the write being complete.
-type fileTracker struct {
-	mu    sync.Mutex
-	files map[string]time.Time // absolute path → time of first detection
-}
-
 // watchConfig groups the runtime state shared by the ticker and pending-files loops.
 type watchConfig struct {
 	tracker   *fileTracker
@@ -177,7 +166,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	defer watcher.Close()
 
 	cfg := watchConfig{
-		tracker:   &fileTracker{files: make(map[string]time.Time)},
+		tracker:   newFileTracker(),
 		threshold: m.Config.Watch.Delay,
 		showFiles: opts.ShowFiles,
 	}
@@ -227,14 +216,7 @@ func runEventLoop(ctx context.Context, m *models.Movelooper, watcher *fsnotify.W
 				return
 			}
 			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
-				alreadyTracked := func() bool {
-					tracker.mu.Lock()
-					defer tracker.mu.Unlock()
-					_, tracked := tracker.files[event.Name]
-					tracker.files[event.Name] = time.Now()
-					return tracked
-				}()
-				if !alreadyTracked {
+				if !tracker.touch(event.Name, time.Now()) {
 					m.Logger.Info("detected new file", m.Logger.Args("path", event.Name))
 				}
 			}
@@ -265,9 +247,6 @@ func runTickerLoop(ctx context.Context, m *models.Movelooper, cfg *watchConfig) 
 
 // performInitialScan verifies existing files in source directories and adds them to the tracker.
 func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *fileTracker) {
-	tracker.mu.Lock()
-	defer tracker.mu.Unlock()
-
 	for _, cat := range m.Categories {
 		if !cat.IsEnabled() {
 			continue
@@ -291,52 +270,23 @@ func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *file
 				continue
 			}
 			fullPath := filepath.Join(fe.Dir, fe.Entry.Name())
-			tracker.files[fullPath] = time.Now()
+			tracker.touch(fullPath, time.Now())
 		}
 	}
 }
 
-// processPendingFiles checks which files have stabilized and attempts to move them.
+// processPendingFiles moves the files whose stability delay has elapsed. due()
+// pops them off the heap atomically, so a file that received an event after the
+// tick fired stays queued (its timestamp moved forward) instead of moving early.
 func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchConfig) {
-	now := time.Now()
-
-	snapshot := func() map[string]time.Time {
-		cfg.tracker.mu.Lock()
-		defer cfg.tracker.mu.Unlock()
-		snap := make(map[string]time.Time, len(cfg.tracker.files))
-		for p, t := range cfg.tracker.files {
-			snap[p] = t
-		}
-		return snap
-	}()
-
-	for path, detected := range snapshot {
+	for _, path := range cfg.tracker.due(time.Now(), cfg.threshold) {
 		if _, err := os.Stat(path); err != nil {
-			cfg.tracker.mu.Lock()
-			delete(cfg.tracker.files, path)
-			cfg.tracker.mu.Unlock()
 			if !os.IsNotExist(err) {
-				m.Logger.Warn("failed to stat tracked file, removing from tracker",
+				m.Logger.Warn("failed to stat tracked file, skipping",
 					m.Logger.Args("path", path, "error", err.Error()))
 			}
 			continue
 		}
-
-		if now.Sub(detected) <= cfg.threshold {
-			continue
-		}
-
-		// Re-check under lock: an event may have arrived after the snapshot was
-		// taken, pushing the detection time forward. If so the file is still
-		// being written — leave it for a later tick rather than moving it early.
-		cfg.tracker.mu.Lock()
-		current, ok := cfg.tracker.files[path]
-		if !ok || current.After(detected) {
-			cfg.tracker.mu.Unlock()
-			continue
-		}
-		delete(cfg.tracker.files, path)
-		cfg.tracker.mu.Unlock()
 
 		if err := attemptMoveFile(ctx, m, path, cfg.showFiles); err != nil {
 			if !os.IsNotExist(err) {

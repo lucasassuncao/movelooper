@@ -22,10 +22,10 @@ type testConflictResolverSkipMessage struct {
 // across all resolver types.
 var testConflictResolverSkipMessageTestCases = []testConflictResolverSkipMessage{
 	{"skip", &skipResolver{}, "file skipped due to conflict strategy"},
-	{"newest", &newestResolver{}, "file skipped - destination is newer"},
-	{"oldest", &oldestResolver{}, "file skipped - destination is older"},
-	{"larger", &largerResolver{}, "file skipped - destination is larger"},
-	{"smaller", &smallerResolver{}, "file skipped - destination is smaller"},
+	{"newest", newestResolver, "file skipped - destination is newer"},
+	{"oldest", oldestResolver, "file skipped - destination is older"},
+	{"larger", largerResolver, "file skipped - destination is larger"},
+	{"smaller", smallerResolver, "file skipped - destination is smaller"},
 	{"hash_check", &hashCheckResolver{}, "duplicate file removed from source"},
 	{"rename", &renameResolver{}, ""},
 	{"overwrite", &overwriteResolver{}, ""},
@@ -153,7 +153,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, dst, []byte("dst"))
 			require.NoError(t, os.Chtimes(dst, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
 		},
-		resolve: (&newestResolver{}).Resolve,
+		resolve: (newestResolver).Resolve,
 		want:    testResolverWant{move: true, pathIsDst: true},
 	},
 	{
@@ -163,7 +163,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, dst, []byte("dst"))
 			require.NoError(t, os.Chtimes(src, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
 		},
-		resolve: (&newestResolver{}).Resolve,
+		resolve: (newestResolver).Resolve,
 		want:    testResolverWant{move: false},
 	},
 	{
@@ -173,7 +173,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, dst, []byte("dst"))
 			require.NoError(t, os.Chtimes(src, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
 		},
-		resolve: (&oldestResolver{}).Resolve,
+		resolve: (oldestResolver).Resolve,
 		want:    testResolverWant{move: true, pathIsDst: true},
 	},
 	{
@@ -183,7 +183,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, dst, []byte("dst"))
 			require.NoError(t, os.Chtimes(dst, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
 		},
-		resolve: (&oldestResolver{}).Resolve,
+		resolve: (oldestResolver).Resolve,
 		want:    testResolverWant{move: false},
 	},
 	{
@@ -192,7 +192,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, src, make([]byte, 200))
 			writeFile(t, dst, make([]byte, 100))
 		},
-		resolve: (&largerResolver{}).Resolve,
+		resolve: (largerResolver).Resolve,
 		want:    testResolverWant{move: true, pathIsDst: true},
 	},
 	{
@@ -201,7 +201,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, src, make([]byte, 100))
 			writeFile(t, dst, make([]byte, 200))
 		},
-		resolve: (&largerResolver{}).Resolve,
+		resolve: (largerResolver).Resolve,
 		want:    testResolverWant{move: false},
 	},
 	{
@@ -210,7 +210,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, src, make([]byte, 100))
 			writeFile(t, dst, make([]byte, 200))
 		},
-		resolve: (&smallerResolver{}).Resolve,
+		resolve: (smallerResolver).Resolve,
 		want:    testResolverWant{move: true, pathIsDst: true},
 	},
 	{
@@ -219,7 +219,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, src, make([]byte, 200))
 			writeFile(t, dst, make([]byte, 100))
 		},
-		resolve: (&smallerResolver{}).Resolve,
+		resolve: (smallerResolver).Resolve,
 		want:    testResolverWant{move: false},
 	},
 }
@@ -274,7 +274,7 @@ func TestSafeSwap(t *testing.T) {
 		writeFile(t, src, make([]byte, 200)) // src larger → larger strategy moves
 		writeFile(t, dst, []byte("original"))
 
-		_, shouldMove, finalize, err := (&largerResolver{}).Resolve(
+		_, shouldMove, finalize, err := (largerResolver).Resolve(
 			ConflictArgs{Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt"})
 		require.NoError(t, err)
 		require.True(t, shouldMove)
@@ -298,7 +298,7 @@ func TestSafeSwap(t *testing.T) {
 		writeFile(t, src, make([]byte, 200))
 		writeFile(t, dst, []byte("original"))
 
-		_, _, finalize, err := (&largerResolver{}).Resolve(
+		_, _, finalize, err := (largerResolver).Resolve(
 			ConflictArgs{Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt"})
 		require.NoError(t, err)
 		require.NotNil(t, finalize)

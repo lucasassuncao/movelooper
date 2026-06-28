@@ -17,6 +17,8 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 - [func ResolveSeqAlpha\(destDir string\) string](<#ResolveSeqAlpha>)
 - [func ResolveSeqRoman\(destDir string\) string](<#ResolveSeqRoman>)
 - [func ValidateTemplate\(template string\) error](<#ValidateTemplate>)
+- [type SeqAllocator](<#SeqAllocator>)
+  - [func NewSeqAllocator\(\) \*SeqAllocator](<#NewSeqAllocator>)
 - [type TokenContext](<#TokenContext>)
 
 
@@ -57,7 +59,7 @@ func ResolveSeq(destDir string) int
 ResolveSeq scans destDir for files whose names begin with a decimal number, finds the maximum, and returns max\+1. Returns 1 when the directory is empty, does not exist, or contains no files with a leading number.
 
 <a name="ResolveSeqAlpha"></a>
-## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L128>)
+## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L183>)
 
 ```go
 func ResolveSeqAlpha(destDir string) string
@@ -66,7 +68,7 @@ func ResolveSeqAlpha(destDir string) string
 ResolveSeqAlpha scans destDir for files with leading lowercase alpha prefixes and returns the next label in Excel\-style sequence \(a, b, ..., z, aa, ab, ...\).
 
 <a name="ResolveSeqRoman"></a>
-## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L188>)
+## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L253>)
 
 ```go
 func ResolveSeqRoman(destDir string) string
@@ -83,8 +85,30 @@ func ValidateTemplate(template string) error
 
 ValidateTemplate returns an error if the template contains any unrecognised or malformed \{token\}.
 
+<a name="SeqAllocator"></a>
+## type [SeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L112-L116>)
+
+SeqAllocator hands out sequence numbers per destination directory without re\-scanning the directory for every file. The first request for a directory seeds the counter from the existing files \(the same scan ResolveSeq\* perform\); subsequent requests increment in memory. This turns an O\(files\) directory scan per moved file into a single scan per directory for a whole batch.
+
+Not safe for concurrent use: the move pipeline is single\-threaded \(see the seqDirLocks note\). A failed or skipped move leaves a gap in the numbering, which is harmless — sequence numbers are not guaranteed to be contiguous.
+
+```go
+type SeqAllocator struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewSeqAllocator"></a>
+### func [NewSeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L119>)
+
+```go
+func NewSeqAllocator() *SeqAllocator
+```
+
+NewSeqAllocator returns an empty allocator ready to seed directories on demand.
+
 <a name="TokenContext"></a>
-## type [TokenContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/model.go#L12-L20>)
+## type [TokenContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/model.go#L12-L21>)
 
 TokenContext carries all inputs needed to resolve any token in a template. ResolveGroupBy uses Info, CategoryName, and Now. ResolveRename additionally uses DestDir and SourcePath.
 
@@ -93,9 +117,10 @@ type TokenContext struct {
     Info         os.FileInfo
     CategoryName string
     Now          time.Time
-    DestDir      string // required for seq, seq-alpha, seq-roman
-    SourcePath   string // required for {md5}, {sha256:N}
-    DryRun       bool   // when true, seq/hash tokens are left as literal placeholders
+    DestDir      string        // required for seq, seq-alpha, seq-roman
+    SourcePath   string        // required for {md5}, {sha256:N}
+    DryRun       bool          // when true, seq/hash tokens are left as literal placeholders
+    SeqAlloc     *SeqAllocator // optional per-batch sequence counter; nil falls back to a directory scan per file
     // contains filtered or unexported fields
 }
 ```

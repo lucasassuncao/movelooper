@@ -73,10 +73,10 @@ var conflictResolvers = map[models.ConflictStrategy]ConflictResolver{
 	models.ConflictStrategyOverwrite: &overwriteResolver{},
 	models.ConflictStrategySkip:      &skipResolver{},
 	models.ConflictStrategyHashCheck: &hashCheckResolver{},
-	models.ConflictStrategyNewest:    &newestResolver{},
-	models.ConflictStrategyOldest:    &oldestResolver{},
-	models.ConflictStrategyLarger:    &largerResolver{},
-	models.ConflictStrategySmaller:   &smallerResolver{},
+	models.ConflictStrategyNewest:    newestResolver,
+	models.ConflictStrategyOldest:    oldestResolver,
+	models.ConflictStrategyLarger:    largerResolver,
+	models.ConflictStrategySmaller:   smallerResolver,
 }
 
 type renameResolver struct{}
@@ -160,9 +160,16 @@ func calculateHash(filePath string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-type newestResolver struct{}
+// comparatorResolver replaces a conflicting destination only when src wins a
+// comparison against dst. The newest/oldest/larger/smaller strategies differ
+// solely in the predicate and the skip message, so they share this one type.
+type comparatorResolver struct {
+	name          string                          // strategy name, used for error context
+	shouldReplace func(src, dst os.FileInfo) bool // true → replace dst with src
+	skipMsg       string
+}
 
-func (r *newestResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
+func (r *comparatorResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
 	srcInfo, err := os.Stat(args.Src)
 	if err != nil {
 		return "", false, nil, err
@@ -171,86 +178,40 @@ func (r *newestResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc,
 	if err != nil {
 		return "", false, nil, err
 	}
-	if !srcInfo.ModTime().After(dstInfo.ModTime()) {
+	if !r.shouldReplace(srcInfo, dstInfo) {
 		return "", false, nil, nil
 	}
 	finalize, err := swapAside(args.Dst)
 	if err != nil {
-		return "", false, nil, fmt.Errorf("newest: failed to set aside older destination: %w", err)
+		return "", false, nil, fmt.Errorf("%s: failed to set aside destination: %w", r.name, err)
 	}
 	return args.Dst, true, finalize, nil
 }
 
-func (r *newestResolver) SkipMessage() string { return "file skipped - destination is newer" }
+func (r *comparatorResolver) SkipMessage() string { return r.skipMsg }
 
-type oldestResolver struct{}
-
-func (r *oldestResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
-	srcInfo, err := os.Stat(args.Src)
-	if err != nil {
-		return "", false, nil, err
+var (
+	newestResolver = &comparatorResolver{
+		name:          "newest",
+		shouldReplace: func(src, dst os.FileInfo) bool { return src.ModTime().After(dst.ModTime()) },
+		skipMsg:       "file skipped - destination is newer",
 	}
-	dstInfo, err := os.Stat(args.Dst)
-	if err != nil {
-		return "", false, nil, err
+	oldestResolver = &comparatorResolver{
+		name:          "oldest",
+		shouldReplace: func(src, dst os.FileInfo) bool { return src.ModTime().Before(dst.ModTime()) },
+		skipMsg:       "file skipped - destination is older",
 	}
-	if !srcInfo.ModTime().Before(dstInfo.ModTime()) {
-		return "", false, nil, nil
+	largerResolver = &comparatorResolver{
+		name:          "larger",
+		shouldReplace: func(src, dst os.FileInfo) bool { return src.Size() > dst.Size() },
+		skipMsg:       "file skipped - destination is larger",
 	}
-	finalize, err := swapAside(args.Dst)
-	if err != nil {
-		return "", false, nil, fmt.Errorf("oldest: failed to set aside newer destination: %w", err)
+	smallerResolver = &comparatorResolver{
+		name:          "smaller",
+		shouldReplace: func(src, dst os.FileInfo) bool { return src.Size() < dst.Size() },
+		skipMsg:       "file skipped - destination is smaller",
 	}
-	return args.Dst, true, finalize, nil
-}
-
-func (r *oldestResolver) SkipMessage() string { return "file skipped - destination is older" }
-
-type largerResolver struct{}
-
-func (r *largerResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
-	srcInfo, err := os.Stat(args.Src)
-	if err != nil {
-		return "", false, nil, err
-	}
-	dstInfo, err := os.Stat(args.Dst)
-	if err != nil {
-		return "", false, nil, err
-	}
-	if srcInfo.Size() <= dstInfo.Size() {
-		return "", false, nil, nil
-	}
-	finalize, err := swapAside(args.Dst)
-	if err != nil {
-		return "", false, nil, fmt.Errorf("larger: failed to set aside smaller destination: %w", err)
-	}
-	return args.Dst, true, finalize, nil
-}
-
-func (r *largerResolver) SkipMessage() string { return "file skipped - destination is larger" }
-
-type smallerResolver struct{}
-
-func (r *smallerResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
-	srcInfo, err := os.Stat(args.Src)
-	if err != nil {
-		return "", false, nil, err
-	}
-	dstInfo, err := os.Stat(args.Dst)
-	if err != nil {
-		return "", false, nil, err
-	}
-	if srcInfo.Size() >= dstInfo.Size() {
-		return "", false, nil, nil
-	}
-	finalize, err := swapAside(args.Dst)
-	if err != nil {
-		return "", false, nil, fmt.Errorf("smaller: failed to set aside larger destination: %w", err)
-	}
-	return args.Dst, true, finalize, nil
-}
-
-func (r *smallerResolver) SkipMessage() string { return "file skipped - destination is smaller" }
+)
 
 type hashCheckResolver struct{}
 

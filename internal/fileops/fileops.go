@@ -64,6 +64,9 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 	category := req.Category
 	files := req.Files
 	var result MoveResult
+	// One allocator per call seeds each destination directory once, then hands
+	// out sequence numbers in memory instead of re-scanning the directory per file.
+	seqAlloc := tokens.NewSeqAllocator()
 	for _, file := range files {
 		select {
 		case <-ctx.Done():
@@ -83,7 +86,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		sourcePath := filepath.Join(req.SourceDir, file.Name())
 
 		destDir := category.Destination.Path
-		tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath}
+		tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath, SeqAlloc: seqAlloc}
 		if template := category.Destination.OrganizeBy; template != "" {
 			if subdir := tokens.ResolveGroupBy(template, &tctx); subdir != "" {
 				destDir = filepath.Join(category.Destination.Path, subdir)

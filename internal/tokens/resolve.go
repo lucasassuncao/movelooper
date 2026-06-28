@@ -116,14 +116,14 @@ func ResolveRename(template string, ctx *TokenContext) string {
 		template = preProcessHash(template, ctx.SourcePath)
 		if ctx.DestDir != "" && hasSeqToken(template) {
 			unlock := acquireSeqLock(ctx.DestDir)
-			template = preProcessSeqAlpha(template, ctx.DestDir)
-			template = preProcessSeqRoman(template, ctx.DestDir)
-			template = preProcessSeq(template, ctx.DestDir)
+			template = preProcessSeqAlpha(template, ctx.DestDir, ctx.SeqAlloc)
+			template = preProcessSeqRoman(template, ctx.DestDir, ctx.SeqAlloc)
+			template = preProcessSeq(template, ctx.DestDir, ctx.SeqAlloc)
 			unlock()
 		} else {
-			template = preProcessSeqAlpha(template, ctx.DestDir)
-			template = preProcessSeqRoman(template, ctx.DestDir)
-			template = preProcessSeq(template, ctx.DestDir)
+			template = preProcessSeqAlpha(template, ctx.DestDir, ctx.SeqAlloc)
+			template = preProcessSeqRoman(template, ctx.DestDir, ctx.SeqAlloc)
+			template = preProcessSeq(template, ctx.DestDir, ctx.SeqAlloc)
 		}
 	}
 

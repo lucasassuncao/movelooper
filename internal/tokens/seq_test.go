@@ -100,6 +100,41 @@ func TestSeqTokenPosition(t *testing.T) {
 	}
 }
 
+// TestSeqAllocator verifies the per-batch counter seeds from existing files once
+// and then increments in memory, keeping a separate counter per directory.
+func TestSeqAllocator(t *testing.T) {
+	t.Parallel()
+
+	t.Run("numeric seeds from existing max then increments", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "0002_seed.jpg"), []byte("x"), 0o644))
+		a := NewSeqAllocator()
+		assert.Equal(t, 3, a.nextNum(dir, seqLeading))
+		assert.Equal(t, 4, a.nextNum(dir, seqLeading))
+		assert.Equal(t, 5, a.nextNum(dir, seqLeading))
+	})
+
+	t.Run("separate directories keep independent counters", func(t *testing.T) {
+		t.Parallel()
+		a := NewSeqAllocator()
+		d1, d2 := t.TempDir(), t.TempDir()
+		assert.Equal(t, 1, a.nextNum(d1, seqLeading))
+		assert.Equal(t, 1, a.nextNum(d2, seqLeading))
+		assert.Equal(t, 2, a.nextNum(d1, seqLeading))
+	})
+
+	t.Run("alpha and roman seed then increment", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		a := NewSeqAllocator()
+		assert.Equal(t, "a", intToAlpha(a.nextAlpha(dir)))
+		assert.Equal(t, "b", intToAlpha(a.nextAlpha(dir)))
+		assert.Equal(t, "i", intToRoman(a.nextRoman(dir)))
+		assert.Equal(t, "ii", intToRoman(a.nextRoman(dir)))
+	})
+}
+
 type testAlphaConversion struct {
 	n    int
 	want string
