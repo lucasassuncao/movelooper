@@ -289,7 +289,7 @@ destination:
   rename: "{seq:4}_{name}.{ext}"      # e.g., photo.jpg → 0001_photo.jpg, 0002_photo.jpg
 ```
 
-The counter is derived by scanning the destination directory for existing leading numbers — no external state file. Each subdirectory (when `organize-by` is set) maintains its own independent sequence.
+The counter is derived by scanning the destination directory for existing numbers — no external state file. `{seq}` reads the start or the end of existing filenames depending on where the token sits in the template: `{seq}_{name}` scans leading numbers, `{name}_{seq}` scans trailing ones. Each subdirectory (when `organize-by` is set) maintains its own independent sequence.
 
 ### Filename matching (`filter.match`)
 

@@ -46,11 +46,11 @@ movelooper watch --category images                 # watch only the "images" cat
 movelooper undo                                      # open interactive batch picker
 movelooper undo --list                               # list all recorded batches
 movelooper undo --dry-run                            # preview what would be restored
-movelooper undo batch_1718000000                     # undo a specific move batch
-movelooper undo batch_1718000000 --dry-run           # preview a specific batch restore
-movelooper undo watch_1718000000000000000            # undo a specific watch batch
+movelooper undo batch_a1b2c3d4e5f6a7b8               # undo a specific move batch
+movelooper undo batch_a1b2c3d4e5f6a7b8 --dry-run     # preview a specific batch restore
+movelooper undo watch_0f1e2d3c4b5a6978               # undo a specific watch batch
 movelooper undo --category images                    # undo only "images" entries from the last batch
-movelooper undo batch_1718000000 --category images,docs  # partial undo on a specific batch
+movelooper undo batch_a1b2c3d4e5f6a7b8 --category images,docs  # partial undo on a specific batch
 ```
 
 | Flag          | Short | Description                                                        |

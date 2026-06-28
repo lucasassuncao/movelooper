@@ -210,9 +210,9 @@ func (CategoryDestination) Metadata() map[string]*metadata.Node {
 			Example:     "action: move",
 		}},
 		"rename": {FieldMeta: editor.FieldMeta{
-			Description: "Token pattern for the destination filename (without extension). Leave empty to keep the original name.",
+			Description: "Token pattern for the destination filename. It becomes the whole filename, so include {ext} to keep the extension (omit it and the file is written without one). Leave empty to keep the original name.",
 			Formats:     []editor.Format{FormatRenamePattern},
-			Example:     "rename: \"{year}-{month}-{day}_{name}\"\n\n# Available tokens:\n# {name}  original filename without extension\n# {ext}   original extension\n# {year}, {month}, {day}, {hour}, {minute}, {second}\n# {seq}   auto-incrementing counter\n# {sha256:N}  first N hex chars of SHA-256",
+			Example:     "rename: \"{year}-{month}-{day}_{name}.{ext}\"\n\n# Full filename — include {ext} to keep the extension.\n# {name}  filename without extension\n# {year}, {month}, {day}, {hour}, {minute}, {second}\n# {seq}   auto-incrementing counter\n# {sha256:N}  first N hex chars of SHA-256",
 		}},
 	}
 }

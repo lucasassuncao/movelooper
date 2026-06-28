@@ -75,14 +75,14 @@ logWriterFactory(output string) writerBuilder
 
 ```
 ConflictResolver interface { Resolve(...) / SkipMessage() string }
-  renameResolver, overwriteResolver, skipResolver,
-  hashCheckResolver, newestResolver, oldestResolver,
-  largerResolver, smallerResolver
+  renameResolver, overwriteResolver, skipResolver, hashCheckResolver,
+  comparatorResolver  (newest / oldest / larger / smaller — one type,
+                       parameterised by a comparison predicate + skip message)
 
 conflictResolvers map[string]ConflictResolver
 ```
 
-`SkipMessage()` is part of the interface so each resolver owns its own log message. `applyConflictStrategy` in `fileops.go` does not need to know strategy names to produce log output — adding a new resolver requires only a new struct and one map entry.
+`SkipMessage()` is part of the interface so each resolver owns its own log message. `applyConflictStrategy` in `fileops.go` does not need to know strategy names to produce log output — adding a new resolver requires only one implementation and one map entry (or, for a value comparison, a new `comparatorResolver` entry).
 
 **File actions** (`internal/fileops/fileops.go`)
 
@@ -125,7 +125,7 @@ Each `With*` option enables one initialization step. Steps always run in declara
 
 ```go
 type MoveContext struct {
-    Logger  *pterm.Logger
+    Logger  logger.Logger
     History *history.History
 }
 ```
@@ -138,7 +138,7 @@ It is intentionally narrow — callers supply only what file operations need, no
 
 ### 3.4 Adapter
 
-`fileInfoDirEntry` (`internal/cmd/watch.go`) adapts `os.FileInfo` to the `os.DirEntry` interface. Watch mode detects files via `fsnotify` events and retrieves metadata with `os.Lstat`, but downstream helpers (`MoveFiles`, filters) all expect `os.DirEntry`. The adapter bridges this gap without modifying either side.
+`fileInfoDirEntry` (`internal/cmd/watch_helper.go`) adapts `os.FileInfo` to the `os.DirEntry` interface. Watch mode detects files via `fsnotify` events and retrieves metadata with `os.Lstat`, but downstream helpers (`MoveFiles`, filters) all expect `os.DirEntry`. The adapter bridges this gap without modifying either side.
 
 ---
 
@@ -153,13 +153,14 @@ runMove(ctx, m, ...)
         processCategoryMove(ctx, m, category, ...)
           │
           ├── hooks.RunHook(ctx, category.Hooks.Before, ...)   ← optional
-          ├── fileops.ReadDirectory(category.Source.Path)
+          ├── scanner.WalkSource(ctx, category.Source, autoExclude)  → all entries (honours recursive/max-depth/excludes)
+          │     └── group entries by extension (one pass)
           │
-          └── for each extension:
-                filterFilesForExtension(category, files, moved, extension)
-                  └── matchesCategory → filters.MatchesFilter (recursive any/all/leaf)
+          └── for each configured extension:
+                for each candidate: matchesCategory → filters.MatchesFilter (recursive any/all/leaf)
+                  └── a per-category `seen` set claims each file for the first matching extension
                 │
-                fileops.MoveFiles(ctx, MoveContext, category, filteredFiles, extension, batchID)
+                fileops.MoveFiles(ctx, MoveContext, MoveRequest{Category, Files, Extension, BatchID, SourceDir})
                   └── for each file:
                         [ctx.Done() check]
                         tokens.ResolveGroupBy  → destDir
@@ -260,7 +261,7 @@ All shared types live in `models` with no dependencies on other internal package
 
 ### Watch mode uses a stability window, not inotify CLOSE_WRITE
 
-`fsnotify` does not expose `CLOSE_WRITE` on all platforms. Instead, watch mode records when a file was first detected and only moves it after its `ModTime` has been stable for longer than `watch.delay` (default 5 minutes). This handles large or slow file writes correctly on all supported platforms.
+`fsnotify` does not expose `CLOSE_WRITE` on all platforms. Instead, watch mode records the time of the most recent create/write event for each file and only moves it once no further event has arrived for longer than `watch.delay` (default 5 minutes). Pending files live in an indexed min-heap keyed by that timestamp, so each tick pops only the files whose quiet period has elapsed instead of scanning every tracked file. This handles large or slow file writes correctly on all supported platforms.
 
 ### Conflict resolution and file actions are open/closed
 

@@ -93,17 +93,16 @@ flowchart TD
     Goroutines --> WaitSignal[Wait for SIGINT / SIGTERM]
 
     subgraph EventLoop [Event loop goroutine]
-        E1[fsnotify Create / Write event] --> E2[Add file path to tracker\nwith current timestamp]
+        E1[fsnotify Create / Write event] --> E2[Add or update file in tracker heap\nwith current timestamp]
         E2 --> E1
     end
 
     subgraph TickerLoop [Ticker loop goroutine]
-        T1[Ticker fires\nevery poll interval] --> T2[Snapshot tracker]
-        T2 --> T3{File stable?\ndetected > watch.delay}
+        T1[Ticker fires\nevery poll interval] --> T2[Pop files whose last event is\nolder than watch.delay from the min-heap]
+        T2 --> T3{Any due files?}
         T3 -- no --> T1
         T3 -- yes --> T4[attemptMoveFile\nmatch category → fileops.MoveFiles]
-        T4 --> T5[Remove from tracker]
-        T5 --> T1
+        T4 --> T1
     end
 
     WaitSignal --> Shutdown[Release lock file\nclose watcher]

@@ -35,7 +35,7 @@ The following arguments are supported:
 
 | Name | Type | Format | Description | Required | Default |
 |------|------|--------|-------------|----------|---------|
-| delay | duration | duration | How long a file's size and modification time must stay unchanged before it is considered stable and moved. Accepts Go duration strings (e.g. 30s, 5m, 1h). | No | 5m |
+| delay | duration | duration | How long a file must go without a new create/write event before it is considered stable and moved. Accepts Go duration strings (e.g. 30s, 5m, 1h). | No | 5m |
 | poll-interval | duration | duration | How often watch mode re-checks pending files for stability. Keep it shorter than delay so stable files are picked up promptly. | No | 5s |
 
 ### history

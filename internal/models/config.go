@@ -136,7 +136,7 @@ func (Logging) Metadata() map[string]*metadata.Node {
 func (Watch) Metadata() map[string]*metadata.Node {
 	return map[string]*metadata.Node{
 		"delay": {FieldMeta: editor.FieldMeta{
-			Description: "How long a file's size and modification time must stay unchanged before it is considered stable and moved. Accepts Go duration strings (e.g. 30s, 5m, 1h).",
+			Description: "How long a file must go without a new create/write event before it is considered stable and moved. Accepts Go duration strings (e.g. 30s, 5m, 1h).",
 			Default:     "5m",
 			Min:         "1s",
 			Max:         "168h",

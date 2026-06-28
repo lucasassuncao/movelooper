@@ -10,5 +10,5 @@ The following arguments are supported:
 | organize-by | string | organize-by pattern | Token pattern used to build sub-directories inside the destination path. Leave empty to place all files directly. | No | - |
 | conflict-strategy | string | - | What to do when a file with the same name already exists at the destination. | No | rename |
 | action | string | - | File operation to perform. 'move' removes the source; 'copy' keeps it; 'symlink' creates a symbolic link. | No | move |
-| rename | string | rename pattern | Token pattern for the destination filename (without extension). Leave empty to keep the original name. | No | - |
+| rename | string | rename pattern | Token pattern for the destination filename. It becomes the whole filename, so include {ext} to keep the extension (omit it and the file is written without one). Leave empty to keep the original name. | No | - |
 
