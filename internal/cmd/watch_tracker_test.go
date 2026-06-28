@@ -47,4 +47,15 @@ func TestFileTracker(t *testing.T) {
 		assert.Equal(t, []string{"/f"}, tr.due(now, 5*time.Second))
 		assert.Nil(t, tr.due(now, 5*time.Second))
 	})
+
+	t.Run("tracker still works after draining to empty (compaction)", func(t *testing.T) {
+		t.Parallel()
+		tr := newFileTracker()
+		now := time.Now()
+		tr.touch("/a", now.Add(-10*time.Second))
+		_ = tr.due(now, 5*time.Second) // drains to empty, resetting heap+index
+
+		assert.False(t, tr.touch("/b", now.Add(-10*time.Second)))
+		assert.Equal(t, []string{"/b"}, tr.due(now, 5*time.Second))
+	})
 }

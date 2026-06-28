@@ -90,5 +90,12 @@ func (t *fileTracker) due(now time.Time, threshold time.Duration) []string {
 		delete(t.index, top.path)
 		ready = append(ready, top.path)
 	}
+	// Once the queue fully drains (the watcher's normal idle state between
+	// bursts) reclaim peak memory: the heap's backing array keeps its high-water
+	// capacity and a map never shrinks its buckets after deletes.
+	if t.heap.Len() == 0 {
+		t.heap = nil
+		t.index = make(map[string]*trackedFile)
+	}
 	return ready
 }

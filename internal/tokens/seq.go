@@ -34,8 +34,6 @@ func hasSeqToken(template string) bool {
 		seqRomanToken.MatchString(template)
 }
 
-// --- numeric sequence ---
-
 var (
 	leadingNumber  = regexp.MustCompile(`^(\d+)`)
 	trailingNumber = regexp.MustCompile(`(\d+)$`)
@@ -110,44 +108,58 @@ func resolveSeqAt(destDir string, pos seqPos) int {
 // seqDirLocks note). A failed or skipped move leaves a gap in the numbering,
 // which is harmless — sequence numbers are not guaranteed to be contiguous.
 type SeqAllocator struct {
-	num   map[string]int
-	alpha map[string]int
-	roman map[string]int
+	dirs map[string]*seqState
+}
+
+// seqState holds the next value of each sequence kind for one destination
+// directory. A field of 0 means "not yet seeded", which is unambiguous because
+// every seed (resolveSeq*) returns at least 1.
+type seqState struct {
+	num, alpha, roman int
 }
 
 // NewSeqAllocator returns an empty allocator ready to seed directories on demand.
 func NewSeqAllocator() *SeqAllocator {
-	return &SeqAllocator{
-		num:   map[string]int{},
-		alpha: map[string]int{},
-		roman: map[string]int{},
+	return &SeqAllocator{dirs: map[string]*seqState{}}
+}
+
+// state returns the per-directory counter, creating it on first use.
+func (a *SeqAllocator) state(destDir string) *seqState {
+	s := a.dirs[destDir]
+	if s == nil {
+		s = &seqState{}
+		a.dirs[destDir] = s
 	}
+	return s
 }
 
 func (a *SeqAllocator) nextNum(destDir string, pos seqPos) int {
-	n, ok := a.num[destDir]
-	if !ok {
-		n = resolveSeqAt(destDir, pos)
+	s := a.state(destDir)
+	if s.num == 0 {
+		s.num = resolveSeqAt(destDir, pos)
 	}
-	a.num[destDir] = n + 1
+	n := s.num
+	s.num++
 	return n
 }
 
 func (a *SeqAllocator) nextAlpha(destDir string) int {
-	n, ok := a.alpha[destDir]
-	if !ok {
-		n = resolveSeqAlphaInt(destDir)
+	s := a.state(destDir)
+	if s.alpha == 0 {
+		s.alpha = resolveSeqAlphaInt(destDir)
 	}
-	a.alpha[destDir] = n + 1
+	n := s.alpha
+	s.alpha++
 	return n
 }
 
 func (a *SeqAllocator) nextRoman(destDir string) int {
-	n, ok := a.roman[destDir]
-	if !ok {
-		n = resolveSeqRomanInt(destDir)
+	s := a.state(destDir)
+	if s.roman == 0 {
+		s.roman = resolveSeqRomanInt(destDir)
 	}
-	a.roman[destDir] = n + 1
+	n := s.roman
+	s.roman++
 	return n
 }
 
@@ -170,8 +182,6 @@ func preProcessSeq(template, destDir string, alloc *SeqAllocator) string {
 		return fmt.Sprintf("%0*d", width, next)
 	})
 }
-
-// --- alphabetic sequence ---
 
 var (
 	leadingAlpha  = regexp.MustCompile(`^([a-z]+)`)
@@ -239,8 +249,6 @@ func preProcessSeqAlpha(template, destDir string, alloc *SeqAllocator) string {
 	}
 	return seqAlphaToken.ReplaceAllString(template, label)
 }
-
-// --- roman numeral sequence ---
 
 // leadingRoman matches a non-empty roman numeral at the start of a filename (lowercase).
 var (

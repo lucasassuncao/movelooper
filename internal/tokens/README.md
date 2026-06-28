@@ -50,7 +50,7 @@ func ResolveRename(template string, ctx *TokenContext) string
 ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy, plus \{seq\}, \{seq:N\}, \{seq\-alpha\}, \{seq\-roman\}, \{md5\}, \{md5:N\}, and \{sha256:N\}. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
 
 <a name="ResolveSeq"></a>
-## func [ResolveSeq](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L72>)
+## func [ResolveSeq](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L70>)
 
 ```go
 func ResolveSeq(destDir string) int
@@ -59,7 +59,7 @@ func ResolveSeq(destDir string) int
 ResolveSeq scans destDir for files whose names begin with a decimal number, finds the maximum, and returns max\+1. Returns 1 when the directory is empty, does not exist, or contains no files with a leading number.
 
 <a name="ResolveSeqAlpha"></a>
-## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L183>)
+## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L193>)
 
 ```go
 func ResolveSeqAlpha(destDir string) string
@@ -68,7 +68,7 @@ func ResolveSeqAlpha(destDir string) string
 ResolveSeqAlpha scans destDir for files with leading lowercase alpha prefixes and returns the next label in Excel\-style sequence \(a, b, ..., z, aa, ab, ...\).
 
 <a name="ResolveSeqRoman"></a>
-## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L253>)
+## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L261>)
 
 ```go
 func ResolveSeqRoman(destDir string) string
@@ -86,7 +86,7 @@ func ValidateTemplate(template string) error
 ValidateTemplate returns an error if the template contains any unrecognised or malformed \{token\}.
 
 <a name="SeqAllocator"></a>
-## type [SeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L112-L116>)
+## type [SeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L110-L112>)
 
 SeqAllocator hands out sequence numbers per destination directory without re\-scanning the directory for every file. The first request for a directory seeds the counter from the existing files \(the same scan ResolveSeq\* perform\); subsequent requests increment in memory. This turns an O\(files\) directory scan per moved file into a single scan per directory for a whole batch.
 
@@ -99,7 +99,7 @@ type SeqAllocator struct {
 ```
 
 <a name="NewSeqAllocator"></a>
-### func [NewSeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L119>)
+### func [NewSeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L122>)
 
 ```go
 func NewSeqAllocator() *SeqAllocator
