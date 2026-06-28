@@ -51,6 +51,55 @@ func TestResolveSeq(t *testing.T) {
 	}
 }
 
+// testResolveSeqTrailingTestCases covers numbers at the END of the base name,
+// which is how "{name}_{seq}" templates lay out their sequence.
+var testResolveSeqTrailingTestCases = []testResolveSeq{
+	{"empty directory returns 1", nil, false, 1},
+	{"single file with trailing number", []string{"photo_0001.jpg"}, false, 2},
+	{"multiple files picks max", []string{"a_0001.jpg", "b_0005.jpg", "c_0003.jpg"}, false, 6},
+	{"leading numbers are ignored", []string{"0009_photo.jpg"}, false, 1},
+	{"files without trailing number are ignored", []string{"photo.jpg", "banner.png"}, false, 1},
+}
+
+// TestResolveSeqTrailing ensures resolveSeqAt finds the next number when the
+// sequence sits at the end of the filename (e.g. "{name}_{seq}").
+func TestResolveSeqTrailing(t *testing.T) {
+	t.Parallel()
+	for _, tt := range testResolveSeqTrailingTestCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			for _, name := range tt.existing {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
+			}
+			assert.Equal(t, tt.want, resolveSeqAt(dir, seqTrailing))
+		})
+	}
+}
+
+// TestSeqTokenPosition verifies the template-position detection that decides
+// whether {seq} scans leading or trailing numbers.
+func TestSeqTokenPosition(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		template string
+		want     seqPos
+	}{
+		{"{seq}_{name}", seqLeading},
+		{"{seq}", seqLeading},
+		{"{name}_{seq}", seqTrailing},
+		{"{name}_{seq}_{ext}", seqLeading}, // token in the middle defaults to leading
+	}
+	for _, c := range cases {
+		t.Run(c.template, func(t *testing.T) {
+			t.Parallel()
+			loc := seqToken.FindStringIndex(c.template)
+			require.NotNil(t, loc)
+			assert.Equal(t, c.want, seqTokenPosition(c.template, loc))
+		})
+	}
+}
+
 type testAlphaConversion struct {
 	n    int
 	want string

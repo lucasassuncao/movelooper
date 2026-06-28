@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -94,8 +95,8 @@ func ParseSize(s string) (int64, error) {
 	for _, entry := range suffixes {
 		if strings.HasSuffix(upper, entry.suffix) {
 			numStr := strings.TrimSpace(s[:len(s)-len(entry.suffix)])
-			var val float64
-			if _, err := fmt.Sscanf(numStr, "%f", &val); err != nil {
+			val, err := strconv.ParseFloat(numStr, 64)
+			if err != nil {
 				return 0, fmt.Errorf("could not parse numeric value %q", numStr)
 			}
 			if val < 0 {
@@ -109,8 +110,8 @@ func ParseSize(s string) (int64, error) {
 		}
 	}
 
-	var val int64
-	if _, err := fmt.Sscanf(s, "%d", &val); err != nil {
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
 		return 0, fmt.Errorf("unrecognised size format %q", s)
 	}
 	if val < 0 {
@@ -246,12 +247,16 @@ func expandGlobPattern(pattern string) []string {
 	}
 
 	prefix := pattern[:start]
-	suffix := pattern[end+1:]
 	alternatives := strings.Split(pattern[start+1:end], ",")
+	// Recurse on the tail so multiple groups expand to their cartesian product,
+	// e.g. "{a,b}/{c,d}" -> a/c, a/d, b/c, b/d.
+	rest := expandGlobPattern(pattern[end+1:])
 
-	expanded := make([]string, 0, len(alternatives))
+	expanded := make([]string, 0, len(alternatives)*len(rest))
 	for _, alt := range alternatives {
-		expanded = append(expanded, prefix+strings.TrimSpace(alt)+suffix)
+		for _, r := range rest {
+			expanded = append(expanded, prefix+strings.TrimSpace(alt)+r)
+		}
 	}
 	return expanded
 }

@@ -119,10 +119,10 @@ func (e fileInfoDirEntry) Type() fs.FileMode          { return e.info.Mode().Typ
 func (e fileInfoDirEntry) Info() (fs.FileInfo, error) { return e.info, nil }
 
 // fileTracker records files that the watcher has detected but not yet moved.
-// Each entry maps an absolute file path to the time it was first seen in the
-// current event burst. The ticker loop inspects these entries periodically and
-// moves a file once its on-disk ModTime has been stable for longer than the
-// configured watch.delay, indicating that the write is complete.
+// Each entry maps an absolute file path to the time of the most recent
+// create/write event for it; every new event pushes this timestamp forward. The
+// ticker loop moves a file once no further event has arrived for longer than the
+// configured watch.delay, treating that quiet period as the write being complete.
 type fileTracker struct {
 	mu    sync.Mutex
 	files map[string]time.Time // absolute path → time of first detection
@@ -322,15 +322,26 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchCo
 			continue
 		}
 
-		if now.Sub(detected) > cfg.threshold {
-			if err := attemptMoveFile(ctx, m, path, cfg.showFiles); err != nil {
-				if !os.IsNotExist(err) {
-					m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
-				}
-			}
-			cfg.tracker.mu.Lock()
-			delete(cfg.tracker.files, path)
+		if now.Sub(detected) <= cfg.threshold {
+			continue
+		}
+
+		// Re-check under lock: an event may have arrived after the snapshot was
+		// taken, pushing the detection time forward. If so the file is still
+		// being written — leave it for a later tick rather than moving it early.
+		cfg.tracker.mu.Lock()
+		current, ok := cfg.tracker.files[path]
+		if !ok || current.After(detected) {
 			cfg.tracker.mu.Unlock()
+			continue
+		}
+		delete(cfg.tracker.files, path)
+		cfg.tracker.mu.Unlock()
+
+		if err := attemptMoveFile(ctx, m, path, cfg.showFiles); err != nil {
+			if !os.IsNotExist(err) {
+				m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
+			}
 		}
 	}
 }

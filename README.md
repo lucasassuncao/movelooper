@@ -106,8 +106,9 @@ categories:
 
 ## Documentation
 
-- [Config File Reference](docs/config.md) — all fields, conflict strategies, actions, rename templates, tokens, full example, and config imports
-- [Commands and Flags](docs/commands.md) — all CLI commands with flags and usage examples
+- [Architecture Overview](docs/ARCHITECTURE.md) — how `movelooper` works, the config structure, and the token engine
+- [Config File Reference](docs/CONFIG.md) — all fields, conflict strategies, actions, rename templates, tokens, full example, and config imports
+- [Commands and Flags](docs/COMMANDS.md) — all CLI commands with flags and usage examples
 
 ## Tips
 

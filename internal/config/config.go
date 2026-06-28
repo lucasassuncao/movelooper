@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/rawbytes"
@@ -52,6 +53,11 @@ func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error) {
 	for _, cat := range categories {
 		if err := validateCategory(cat); err != nil {
 			return nil, err
+		}
+		// Normalise extensions to lowercase so the one-shot move (which indexes
+		// files by lowercased extension) and watch mode agree on matching.
+		for i, ext := range cat.Source.Extensions {
+			cat.Source.Extensions[i] = strings.ToLower(ext)
 		}
 		cat.Source.Path = ExpandTilde(cat.Source.Path)
 		cat.Destination.Path = ExpandTilde(cat.Destination.Path)

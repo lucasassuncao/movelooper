@@ -103,6 +103,22 @@ categories:
 		},
 	},
 	{
+		name: "extensions normalised to lowercase",
+		yaml: `
+categories:
+  - name: shouty
+    source:
+      path: /tmp/src
+      extensions: [JPG, Png, ALL]
+    destination:
+      path: /tmp/dst
+`,
+		check: func(t *testing.T, cats []*models.Category) {
+			require.Len(t, cats, 1)
+			assert.Equal(t, []string{"jpg", "png", "all"}, cats[0].Source.Extensions)
+		},
+	},
+	{
 		name:    "missing extensions",
 		wantErr: "source.extensions are required",
 		yaml: `

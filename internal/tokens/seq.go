@@ -3,6 +3,7 @@ package tokens
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -36,24 +37,61 @@ func hasSeqToken(template string) bool {
 // --- numeric sequence ---
 
 var (
-	leadingNumber = regexp.MustCompile(`^(\d+)`)
-	seqToken      = regexp.MustCompile(`\{seq(?::(\d+))?\}`)
+	leadingNumber  = regexp.MustCompile(`^(\d+)`)
+	trailingNumber = regexp.MustCompile(`(\d+)$`)
+	seqToken       = regexp.MustCompile(`\{seq(?::(\d+))?\}`)
 )
+
+// seqPos indicates where a {seq} token sits in the rename template, which
+// controls where resolveSeqAt looks for an existing number in candidate files:
+// a number at the start of the name (e.g. "001_photo") or at the end ("photo_001").
+type seqPos int
+
+const (
+	seqLeading seqPos = iota
+	seqTrailing
+)
+
+// seqTokenPosition reports whether the token spanning loc sits at the very end of
+// template (seqTrailing) or anywhere else (seqLeading). A token that starts at
+// index 0 — including a bare "{seq}" that is both first and last — is treated as
+// leading, which scans correctly since the number then spans the whole base name.
+func seqTokenPosition(template string, loc []int) seqPos {
+	if loc[0] == 0 {
+		return seqLeading
+	}
+	if loc[1] == len(template) {
+		return seqTrailing
+	}
+	return seqLeading
+}
 
 // ResolveSeq scans destDir for files whose names begin with a decimal number,
 // finds the maximum, and returns max+1. Returns 1 when the directory is empty,
 // does not exist, or contains no files with a leading number.
 func ResolveSeq(destDir string) int {
+	return resolveSeqAt(destDir, seqLeading)
+}
+
+// resolveSeqAt scans destDir for files carrying a decimal number at the position
+// indicated by pos — leading or trailing, ignoring the file extension — finds the
+// maximum, and returns max+1. Returns 1 when no candidate carries a number.
+func resolveSeqAt(destDir string, pos seqPos) int {
 	entries, err := os.ReadDir(destDir)
 	if err != nil {
 		return 1
+	}
+	re := leadingNumber
+	if pos == seqTrailing {
+		re = trailingNumber
 	}
 	max := 0
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		if m := leadingNumber.FindStringSubmatch(e.Name()); m != nil {
+		base := strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
+		if m := re.FindStringSubmatch(base); m != nil {
 			if n, err := strconv.Atoi(m[1]); err == nil && n > max {
 				max = n
 			}
@@ -63,10 +101,11 @@ func ResolveSeq(destDir string) int {
 }
 
 func preProcessSeq(template string, destDir string) string {
-	if !seqToken.MatchString(template) {
+	loc := seqToken.FindStringIndex(template)
+	if loc == nil {
 		return template
 	}
-	next := ResolveSeq(destDir)
+	next := resolveSeqAt(destDir, seqTokenPosition(template, loc))
 	return seqToken.ReplaceAllStringFunc(template, func(tok string) string {
 		m := seqToken.FindStringSubmatch(tok)
 		if m[1] == "" {

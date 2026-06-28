@@ -27,10 +27,11 @@ func (s movedSet) has(dir, name string) bool { return s[filepath.Join(dir, name)
 
 // runStats accumulates totals across all categories for the end-of-run summary.
 type runStats struct {
-	totalFiles int
-	totalBytes int64
-	skipped    int
-	failed     int
+	totalFiles   int
+	totalBytes   int64
+	skipped      int // categories that errored out
+	filesSkipped int // files skipped by a conflict strategy (skip / hash_check duplicate)
+	failed       int
 }
 
 // MoveOptions carries the CLI flags for the move command.
@@ -87,7 +88,7 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 		m.Logger.Info("dry-run complete, no files were moved")
 	} else {
 		m.Logger.Info("run complete",
-			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "categories_skipped", stats.skipped))
+			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "files_skipped", stats.filesSkipped, "categories_skipped", stats.skipped))
 	}
 
 	// Surface failures through the exit code so scripts and cron can detect them.
@@ -147,6 +148,11 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		byExt[ext] = append(byExt[ext], fe)
 	}
 
+	// seen claims each file for the first extension in the list that matches it,
+	// so a file is never counted or moved twice when "all" is listed alongside
+	// specific extensions (the "all" pass would otherwise re-grab everything).
+	seen := make(map[string]bool, len(allEntries))
+
 	var totalMoved, totalSkipped, totalFailed int
 	for _, extension := range category.Source.Extensions {
 		candidates := byExt[extension]
@@ -155,12 +161,17 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		}
 		matched := make([]scanner.FileEntry, 0, len(candidates))
 		for _, fe := range candidates {
+			full := filepath.Join(fe.Dir, fe.Entry.Name())
+			if seen[full] {
+				continue
+			}
 			info, err := matchesCategory(category, fe, batch.moved, extension)
 			if err != nil {
 				m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
 				continue
 			}
 			if info != nil {
+				seen[full] = true
 				matched = append(matched, fe)
 				batch.stats.totalBytes += info.Size()
 			}
@@ -196,6 +207,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	}
 
 	batch.stats.failed += totalFailed
+	batch.stats.filesSkipped += totalSkipped
 
 	if category.Hooks != nil && category.Hooks.After != nil {
 		env := hookEnv(category, batch.dryRun, &hookAfterVars{

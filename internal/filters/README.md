@@ -35,7 +35,7 @@ const ExtAll = "all"
 ```
 
 <a name="GenerateLogArgs"></a>
-## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L224>)
+## func [GenerateLogArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L225>)
 
 ```go
 func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
@@ -44,7 +44,7 @@ func GenerateLogArgs(files []os.DirEntry, extension string) []interface{}
 GenerateLogArgs generates log arguments for a given extension.
 
 <a name="HasExtension"></a>
-## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L19>)
+## func [HasExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L20>)
 
 ```go
 func HasExtension(file os.DirEntry, extension string) bool
@@ -53,7 +53,7 @@ func HasExtension(file os.DirEntry, extension string) bool
 HasExtension checks if a file has a given extension \(case\-insensitive\). When extension is "all", every file matches.
 
 <a name="MatchesAnyExtension"></a>
-## func [MatchesAnyExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L29>)
+## func [MatchesAnyExtension](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L30>)
 
 ```go
 func MatchesAnyExtension(fileName string, extensions []string) bool
@@ -62,7 +62,7 @@ func MatchesAnyExtension(fileName string, extensions []string) bool
 MatchesAnyExtension reports whether fileName's extension matches any entry in the list.
 
 <a name="MatchesFilter"></a>
-## func [MatchesFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L178>)
+## func [MatchesFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L179>)
 
 ```go
 func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) bool
@@ -71,7 +71,7 @@ func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) b
 MatchesFilter reports whether the file identified by fileName and info passes the filter f.
 
 <a name="MatchesGlob"></a>
-## func [MatchesGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L46>)
+## func [MatchesGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L47>)
 
 ```go
 func MatchesGlob(fileName, pattern string, caseSensitive bool) bool
@@ -80,7 +80,7 @@ func MatchesGlob(fileName, pattern string, caseSensitive bool) bool
 MatchesGlob reports whether fileName matches the glob pattern. Supports brace expansion: \*.\{jpg,png\} expands to \*.jpg and \*.png.
 
 <a name="MatchesNameFilters"></a>
-## func [MatchesNameFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L170>)
+## func [MatchesNameFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L171>)
 
 ```go
 func MatchesNameFilters(fileName string, f models.CategoryFilter) bool
@@ -89,7 +89,7 @@ func MatchesNameFilters(fileName string, f models.CategoryFilter) bool
 MatchesNameFilters reports whether fileName passes the category's name filter.
 
 <a name="MeetsAgeSizeFilters"></a>
-## func [MeetsAgeSizeFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L155>)
+## func [MeetsAgeSizeFilters](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L156>)
 
 ```go
 func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool
@@ -98,7 +98,7 @@ func MeetsAgeSizeFilters(info os.FileInfo, f models.CategoryFilter) bool
 MeetsAgeSizeFilters reports whether info satisfies all age and size constraints.
 
 <a name="MeetsMaxAge"></a>
-## func [MeetsMaxAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L139>)
+## func [MeetsMaxAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L140>)
 
 ```go
 func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool
@@ -107,7 +107,7 @@ func MeetsMaxAge(info os.FileInfo, maxAge time.Duration) bool
 MeetsMaxAge reports whether the file's modification time is newer than maxAge.
 
 <a name="MeetsMaxSize"></a>
-## func [MeetsMaxSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L147>)
+## func [MeetsMaxSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L148>)
 
 ```go
 func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool
@@ -116,7 +116,7 @@ func MeetsMaxSize(info os.FileInfo, maxSizeBytes int64) bool
 MeetsMaxSize reports whether the file size is at most maxSizeBytes.
 
 <a name="MeetsMinAge"></a>
-## func [MeetsMinAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L123>)
+## func [MeetsMinAge](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L124>)
 
 ```go
 func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool
@@ -125,7 +125,7 @@ func MeetsMinAge(info os.FileInfo, minAge time.Duration) bool
 MeetsMinAge reports whether the file's modification time is older than minAge.
 
 <a name="MeetsMinSize"></a>
-## func [MeetsMinSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L131>)
+## func [MeetsMinSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L132>)
 
 ```go
 func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
@@ -134,7 +134,7 @@ func MeetsMinSize(info os.FileInfo, minSizeBytes int64) bool
 MeetsMinSize reports whether the file size is at least minSizeBytes.
 
 <a name="ParseSize"></a>
-## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L71>)
+## func [ParseSize](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L72>)
 
 ```go
 func ParseSize(s string) (int64, error)
@@ -143,7 +143,7 @@ func ParseSize(s string) (int64, error)
 ParseSize parses a human\-readable size string \(e.g. "10MB", "1.5GB", "256MiB"\) into bytes. Suffixes follow their standard meaning, matching the convention used by yedit's editor validators: KB/MB/GB/TB are decimal \(powers of 1000\) and KiB/MiB/GiB/TiB are binary \(powers of 1024\).
 
 <a name="ValidateGlob"></a>
-## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L58>)
+## func [ValidateGlob](<https://github.com/lucasassuncao/movelooper/blob/main/internal/filters/filters.go#L59>)
 
 ```go
 func ValidateGlob(pattern string) error

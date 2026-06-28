@@ -64,7 +64,7 @@ func ExpandTilde(path string) string
 ExpandTilde expands a leading "\~" or "\~/" \(and "\~\\" on Windows\) in path to the user's home directory. Any other value — including a bare "\~username" — is returned unchanged, as is path when the home directory cannot be resolved.
 
 <a name="FilterDepthOK"></a>
-## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L215>)
+## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L221>)
 
 ```go
 func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
@@ -73,7 +73,7 @@ func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
 FilterDepthOK reports whether f's any/all/not nesting stays within max levels. depth is the level being checked \(0 = the filter itself\). Exported so the edit command's validators \(internal/cmd/edit\_validators.go\) can enforce the same rule inside the TUI, without duplicating the recursion.
 
 <a name="InitConfig"></a>
-## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L31>)
+## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L32>)
 
 ```go
 func InitConfig(k *koanf.Koanf, path string) error
@@ -100,7 +100,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 NewApp resolves the config file and runs the requested initialization steps in order.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L374>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L380>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)
@@ -118,7 +118,7 @@ func ResolveImports(path string) ([]byte, error)
 ResolveImports reads the YAML file at path, recursively resolves any top\-level \`import:\` entries, merges all \`categories:\` items into the main document, and returns the final merged YAML bytes ready to be fed into Viper. The \`import:\` key is stripped from the output. Import paths are relative to the file that declares them. Circular imports are detected and reported as errors.
 
 <a name="UnmarshalConfig"></a>
-## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L46>)
+## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L47>)
 
 ```go
 func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error)

@@ -47,6 +47,7 @@ var testExpandGlobPatternTestCases = []testExpandGlobPattern{
 	{"{a,b}", []string{"a", "b"}},
 	{"no braces", []string{"no braces"}},
 	{"*.{ jpg , png }", []string{"*.jpg", "*.png"}},
+	{"{a,b}/{c,d}", []string{"a/c", "a/d", "b/c", "b/d"}},
 }
 
 // TestExpandGlobPattern tests the expandGlobPattern function to ensure it correctly expands brace patterns.
@@ -277,6 +278,9 @@ var testParseSizeTestCases = []testParseSize{
 	{"-5MB", 0, true},
 	{"-100", 0, true},
 	{"1000000000000TB", 0, true},
+	{"12abc", 0, true},
+	{"1.5.2GB", 0, true},
+	{"10 MB", 10_000_000, false},
 }
 
 // TestParseSize tests the ParseSize function to ensure it correctly parses human-readable size strings.
