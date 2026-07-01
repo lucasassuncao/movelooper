@@ -14,6 +14,7 @@ import "github.com/lucasassuncao/movelooper/internal/fileops"
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
 - [func MoveFileCtx\(ctx context.Context, src, dst string\) error](<#MoveFileCtx>)
 - [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
+- [func UniqueDestination\(destDir, fileName string\) \(string, error\)](<#UniqueDestination>)
 - [type ConflictArgs](<#ConflictArgs>)
 - [type ConflictResolver](<#ConflictResolver>)
 - [type FileAction](<#FileAction>)
@@ -59,6 +60,15 @@ func ReadDirectory(path string) ([]os.DirEntry, error)
 ```
 
 ReadDirectory reads the contents of a given directory and returns the files.
+
+<a name="UniqueDestination"></a>
+## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L371>)
+
+```go
+func UniqueDestination(destDir, fileName string) (string, error)
+```
+
+UniqueDestination returns a path in destDir for fileName that does not collide with an existing file, appending \(n\) before the extension when needed.
 
 <a name="ConflictArgs"></a>
 ## type [ConflictArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L15-L20>)

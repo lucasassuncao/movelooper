@@ -112,6 +112,43 @@ var validActions = map[models.Action]bool{
 	models.ActionMove:    true,
 	models.ActionCopy:    true,
 	models.ActionSymlink: true,
+	models.ActionArchive: true,
+}
+
+// MissingArchiveBlock reports whether cat uses action: archive but omits the
+// archive block, which is required to configure packing. It is the single source
+// of truth for this rule, reused by the editor validators (internal/cmd) and by
+// validateCategory below.
+func MissingArchiveBlock(cat *models.Category) bool {
+	return cat.Destination.Action == models.ActionArchive && cat.Destination.Archive == nil
+}
+
+// archiveConflictAllowed is the set of conflict strategies meaningful for a
+// single archive file. Content-comparison strategies (hash_check/newest/...)
+// compare two files and do not apply.
+var archiveConflictAllowed = map[models.ConflictStrategy]bool{
+	"":                               true, // default (rename)
+	models.ConflictStrategyRename:    true,
+	models.ConflictStrategyOverwrite: true,
+	models.ConflictStrategySkip:      true,
+}
+
+// validateArchive validates the archive block for a category.
+func validateArchive(catName string, cs models.ConflictStrategy, a *models.ArchiveConfig) error {
+	switch a.Format {
+	case "zip", "tar.gz":
+	default:
+		return fmt.Errorf("category %q: invalid archive.format %q - must be zip or tar.gz", catName, a.Format)
+	}
+	switch a.Compression {
+	case "", "none", "fast", "best":
+	default:
+		return fmt.Errorf("category %q: invalid archive.compression %q - must be none, fast, or best", catName, a.Compression)
+	}
+	if !archiveConflictAllowed[cs] {
+		return fmt.Errorf("category %q: conflict-strategy %q is not valid with action archive - use rename, overwrite, or skip", catName, cs)
+	}
+	return nil
 }
 
 // validConflictStrategies is the set of accepted values for destination.conflict-strategy.
@@ -142,7 +179,16 @@ func validateCategory(cat *models.Category) error {
 	}
 
 	if !validActions[cat.Destination.Action] {
-		return fmt.Errorf("category %q: invalid action %q - must be move, copy, or symlink", cat.Name, cat.Destination.Action)
+		return fmt.Errorf("category %q: invalid action %q - must be move, copy, symlink, or archive", cat.Name, cat.Destination.Action)
+	}
+
+	if MissingArchiveBlock(cat) {
+		return fmt.Errorf("category %q: destination.archive is required when action is %q", cat.Name, models.ActionArchive)
+	}
+	if cat.Destination.Archive != nil {
+		if err := validateArchive(cat.Name, cat.Destination.ConflictStrategy, cat.Destination.Archive); err != nil {
+			return err
+		}
 	}
 
 	if !validConflictStrategies[cat.Destination.ConflictStrategy] {

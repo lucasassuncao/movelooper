@@ -824,3 +824,49 @@ func TestApplyCategoryDefaults(t *testing.T) {
 		assert.Contains(t, err.Error(), "organize-by")
 	})
 }
+
+func TestValidateCategory_Archive(t *testing.T) {
+	base := func() *models.Category {
+		enabled := true
+		return &models.Category{
+			Name:    "c",
+			Enabled: &enabled,
+			Source:  models.CategorySource{Path: "/src", Extensions: []string{"jpg"}},
+			Destination: models.CategoryDestination{
+				Path:   "/dst",
+				Action: models.ActionArchive,
+			},
+		}
+	}
+
+	t.Run("archive without block fails", func(t *testing.T) {
+		err := validateCategory(base())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "archive is required")
+	})
+
+	t.Run("archive with valid block passes", func(t *testing.T) {
+		c := base()
+		c.Destination.Archive = &models.ArchiveConfig{Format: "zip"}
+		assert.NoError(t, validateCategory(c))
+	})
+
+	t.Run("invalid format fails", func(t *testing.T) {
+		c := base()
+		c.Destination.Archive = &models.ArchiveConfig{Format: "rar"}
+		require.Error(t, validateCategory(c))
+	})
+
+	t.Run("content conflict-strategy rejected for archive", func(t *testing.T) {
+		c := base()
+		c.Destination.Archive = &models.ArchiveConfig{Format: "zip"}
+		c.Destination.ConflictStrategy = models.ConflictStrategyHashCheck
+		require.Error(t, validateCategory(c))
+	})
+
+	t.Run("non-archive action ignores missing block", func(t *testing.T) {
+		c := base()
+		c.Destination.Action = models.ActionMove
+		assert.NoError(t, validateCategory(c))
+	})
+}

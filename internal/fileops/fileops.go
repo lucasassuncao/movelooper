@@ -366,6 +366,12 @@ func copyFile(ctx context.Context, src, dst string) (retErr error) {
 
 const maxConflictAttempts = 1000
 
+// UniqueDestination returns a path in destDir for fileName that does not collide
+// with an existing file, appending (n) before the extension when needed.
+func UniqueDestination(destDir, fileName string) (string, error) {
+	return getUniqueDestinationPath(destDir, fileName)
+}
+
 // getUniqueDestinationPath ensures no file is overwritten by appending (n) if needed.
 func getUniqueDestinationPath(destDir, fileName string) (string, error) {
 	ext := filepath.Ext(fileName)

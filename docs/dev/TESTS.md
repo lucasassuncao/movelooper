@@ -331,3 +331,37 @@ Overview of all test cases across the movelooper project.
 | | batch becomes empty | Batch with all entries removed is no longer present | no error, batch absent |
 | | empty Category not removed | Entries with empty Category field are not removed by category filter | entry retained |
 | | unknown batchID | Removing from non-existent batch is a no-op | no error, other batches intact |
+
+## `action: archive`
+
+### `internal/archive/archive_test.go`
+
+| Test | Scenario | Expected |
+|------|----------|----------|
+| `TestExtension` | Extension per format | `.zip` / `.tar.gz` |
+| `TestWrite_UnknownFormat` | Unknown format errors, no file left | error, no output file |
+| `TestWrite_ZipRoundTrip` | Zip round-trip incl. non-ASCII name and nested slash entry | entries readable, temp file gone |
+| `TestWrite_TarGzRoundTrip` | tar.gz round-trip | entry readable |
+| `TestWrite_MissingSourceLeavesNoArchive` | Missing source aborts atomically | error, no archive and no temp file |
+
+### `internal/tokens/archive_name_test.go`
+
+| Test | Scenario | Expected |
+|------|----------|----------|
+| `TestResolveArchiveName` | Category/date/system tokens; empty → category; slashes neutralised | resolved plain filename |
+
+### `internal/config/config_test.go`
+
+| Test | Scenario | Expected |
+|------|----------|----------|
+| `TestValidateCategory_Archive` | archive block required/format/conflict-strategy rules | errors when missing/invalid; passes when valid; ignored for non-archive |
+
+### `internal/cmd` (archive)
+
+| Test | Scenario | Expected |
+|------|----------|----------|
+| `TestMovelooperValidators_ArchiveRequired` | Editor validator flags missing archive block | violation at `categories[0].destination.archive` |
+| `TestArchiveCategory_WritesZipAndKeepsSourceByDefault` | Writes zip, keeps originals | `<category>.zip` exists, sources kept |
+| `TestArchiveCategory_KeepSourceFalseDeletesOriginals` | keep-source:false deletes originals after success | archive exists, sources gone |
+| `TestRestoreEntries_SkipsArchiveBatch` | Undo skips archive batches | nothing restored, warning logged |
+| `TestIntegration_ArchiveAction` | End-to-end runMove with action archive | `integration.zip` created, originals kept |

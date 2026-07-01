@@ -97,6 +97,10 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 	var restoreArgs, removeArgs []any
 	for i := len(entries) - 1; i >= 0; i-- {
 		entry := entries[i]
+		if entry.Action == string(models.ActionArchive) {
+			m.Logger.Warn("[dry-run] archive batches cannot be undone", m.Logger.Args("path", entry.Destination))
+			continue
+		}
 		if _, err := os.Stat(entry.Destination); os.IsNotExist(err) {
 			m.Logger.Warn("[dry-run] file not found at destination, would skip", m.Logger.Args("path", entry.Destination))
 			continue
@@ -155,6 +159,12 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 
 	for i := len(entries) - 1; i >= 0; i-- {
 		entry := entries[i]
+
+		if entry.Action == string(models.ActionArchive) {
+			m.Logger.Warn("archive batches cannot be undone; the archive file was left in place",
+				m.Logger.Args("path", entry.Destination))
+			continue
+		}
 
 		if _, err := os.Stat(entry.Destination); os.IsNotExist(err) {
 			m.Logger.Warn("file not found at destination, skipping", m.Logger.Args("path", entry.Destination))

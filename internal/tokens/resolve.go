@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // buildStaticPairs returns key-value pairs for strings.NewReplacer covering all static tokens.
@@ -131,4 +132,39 @@ func ResolveRename(template string, ctx *TokenContext) string {
 	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "_")
 	resolved = strings.ReplaceAll(resolved, "/", "_")
 	return resolved
+}
+
+// ResolveArchiveName resolves an archive filename template using only tokens
+// that do not depend on a specific file: category, run date/time, and system
+// context. It cannot use file tokens ({name}, {ext}, {mod-*}), sequence, or hash
+// tokens, which need a concrete file or destination directory. Unknown tokens are
+// left as-is; path separators in the result are replaced with underscores so the
+// output is always a plain filename. An empty template returns the category name.
+func ResolveArchiveName(template, category string, now time.Time) string {
+	if template == "" {
+		return category
+	}
+	initSystemContext()
+	resolved := strings.NewReplacer(archiveNamePairs(category, now)...).Replace(template)
+	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "_")
+	resolved = strings.ReplaceAll(resolved, "/", "_")
+	return resolved
+}
+
+func archiveNamePairs(category string, now time.Time) []string {
+	return []string{
+		"{category}", category,
+		"{year}", now.Format("2006"),
+		"{month}", now.Format("01"),
+		"{day}", now.Format("02"),
+		"{date}", now.Format("2006-01-02"),
+		"{weekday}", now.Weekday().String(),
+		"{hour}", now.Format("15"),
+		"{minute}", now.Format("04"),
+		"{second}", now.Format("05"),
+		"{timestamp}", now.Format("20060102-150405"),
+		"{hostname}", systemHostname,
+		"{username}", systemUsername,
+		"{os}", systemOS,
+	}
 }

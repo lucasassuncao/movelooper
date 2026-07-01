@@ -24,7 +24,7 @@ func TestLogExtensionResult_PlainWhenColorDisabled(t *testing.T) {
 	var buf bytes.Buffer
 	m := &models.Movelooper{Logger: logger.NewSlog(&buf, "info", false)}
 
-	logExtensionResult(m, nil, "images", "jpg", false)
+	logExtensionResult(m, nil, "images", "jpg", "move", false)
 
 	dir := t.TempDir()
 	for _, name := range []string{"a.jpg", "b.jpg"} {
@@ -32,13 +32,15 @@ func TestLogExtensionResult_PlainWhenColorDisabled(t *testing.T) {
 	}
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-	logExtensionResult(m, entries, "images", "jpg", false)
+	logExtensionResult(m, entries, "images", "jpg", "move", false)
+	logExtensionResult(m, entries, "backups", "jpg", "archive", false)
 
 	out := buf.String()
 	assert.NotContains(t, out, "\x1b", "JSON output must not contain ANSI color codes")
 	assert.Contains(t, out, "[images]")
 	assert.Contains(t, out, "No .jpg files found")
 	assert.Contains(t, out, "2 .jpg files to move")
+	assert.Contains(t, out, "2 .jpg files to archive", "archive categories use the archive verb")
 }
 
 // TestFileNoun covers the scan-summary subject for both real extensions and the

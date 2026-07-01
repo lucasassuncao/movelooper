@@ -382,6 +382,27 @@ func categoriesPresetsMap() map[string][]models.Category {
 	enabled := true
 
 	return map[string][]models.Category{
+		// archive: pack a whole category into one compressed file
+		"archive-old-downloads": {
+			{
+				Name:    "archive-old-downloads",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"all"},
+					Filter:     models.CategoryFilter{Age: &models.AgeFilter{Min: 30 * 24 * time.Hour}},
+				},
+				Destination: models.CategoryDestination{
+					Path:   downloads + "/archives",
+					Action: models.ActionArchive,
+					Archive: &models.ArchiveConfig{
+						Format:      "zip",
+						Name:        "{category}_{date}",
+						Compression: "best",
+					},
+				},
+			},
+		},
 		// rename: appends a counter when destination file already exists
 		"conflict-rename": {
 			{

@@ -18,6 +18,7 @@
 - Wildcard `extensions: [all]` to catch any file type
 - Conflict strategies per category: `rename`, `overwrite`, `skip`, `hash_check`, and more
 - `action: copy` or `action: symlink` to back up or link files without moving them
+- `action: archive` to pack a whole category into a single `.zip`/`.tar.gz` at the destination
 - `rename` template to rename files at the destination using the same token engine
 
 ### Automate

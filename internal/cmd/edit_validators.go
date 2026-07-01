@@ -103,6 +103,27 @@ var MovelooperValidators = []editor.Validator{
 		}}
 	}),
 
+	// Custom validation: the archive block is required when action is "archive".
+	// Reuses config.MissingArchiveBlock so the editor and validate/load agree.
+	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+		var doc struct {
+			Categories []models.Category `yaml:"categories"`
+		}
+		if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
+			return nil
+		}
+		var errs []editor.Violation
+		for i := range doc.Categories {
+			if config.MissingArchiveBlock(&doc.Categories[i]) {
+				errs = append(errs, editor.Violation{
+					Path:    fmt.Sprintf("categories[%d].destination.archive", i),
+					Message: `required when action is "archive"`,
+				})
+			}
+		}
+		return errs
+	}),
+
 	// Validate rename and organize-by templates against the known token set.
 	// Also enforces that sequence/hash tokens (resolved only at rename time) are
 	// not used in organize-by, where they would leak literally into dir names.

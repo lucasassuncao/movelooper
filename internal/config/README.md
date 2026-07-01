@@ -17,6 +17,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
 - [func LoadConfig\(k \*koanf.Koanf\) models.Configuration](<#LoadConfig>)
+- [func MissingArchiveBlock\(cat \*models.Category\) bool](<#MissingArchiveBlock>)
 - [func NewApp\(m \*models.Movelooper, configPath string, opts ...Option\) \(retErr error\)](<#NewApp>)
 - [func ResolveConfigPath\(configPath string\) \(string, error\)](<#ResolveConfigPath>)
 - [func ResolveImports\(path string\) \(\[\]byte, error\)](<#ResolveImports>)
@@ -65,7 +66,7 @@ func ExpandTilde(path string) string
 ExpandTilde expands a leading "\~" or "\~/" \(and "\~\\" on Windows\) in path to the user's home directory. Any other value — including a bare "\~username" — is returned unchanged, as is path when the home directory cannot be resolved.
 
 <a name="FilterDepthOK"></a>
-## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L221>)
+## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L267>)
 
 ```go
 func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
@@ -91,6 +92,15 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
+<a name="MissingArchiveBlock"></a>
+## func [MissingArchiveBlock](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L122>)
+
+```go
+func MissingArchiveBlock(cat *models.Category) bool
+```
+
+MissingArchiveBlock reports whether cat uses action: archive but omits the archive block, which is required to configure packing. It is the single source of truth for this rule, reused by the editor validators \(internal/cmd\) and by validateCategory below.
+
 <a name="NewApp"></a>
 ## func [NewApp](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L54>)
 
@@ -101,7 +111,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 NewApp resolves the config file and runs the requested initialization steps in order.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L380>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L426>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)

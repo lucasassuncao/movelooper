@@ -53,10 +53,11 @@ type moveBatch struct {
 
 // hookAfterVars carries the post-move stats needed for "after" hook env vars.
 type hookAfterVars struct {
-	moved   int
-	skipped int
-	failed  int
-	batchID string
+	moved       int
+	skipped     int
+	failed      int
+	batchID     string
+	archivePath string
 }
 
 // runMove executes the default move operation across all configured categories.
@@ -122,6 +123,9 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 		env["ML_FILES_SKIPPED"] = fmt.Sprintf("%d", after.skipped)
 		env["ML_FILES_FAILED"] = fmt.Sprintf("%d", after.failed)
 		env["ML_BATCH_ID"] = after.batchID
+		if after.archivePath != "" {
+			env["ML_ARCHIVE_PATH"] = after.archivePath
+		}
 	}
 	return env
 }
@@ -153,6 +157,10 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	// specific extensions (the "all" pass would otherwise re-grab everything).
 	seen := make(map[string]bool, len(allEntries))
 
+	isArchive := category.Destination.Action == models.ActionArchive
+	pendingVerb, pastVerb := actionVerbs(category.Destination.Action)
+	var archiveFiles []scanner.FileEntry
+
 	var totalMoved, totalSkipped, totalFailed int
 	for _, extension := range category.Source.Extensions {
 		candidates := byExt[extension]
@@ -181,23 +189,31 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		for i, fe := range matched {
 			asDirEntries[i] = fe.Entry
 		}
-		logExtensionResult(m, asDirEntries, category.Name, extension, batch.showFiles)
+		logExtensionResult(m, asDirEntries, category.Name, extension, pendingVerb, batch.showFiles)
 		batch.stats.totalFiles += len(matched)
 
-		if batch.dryRun {
+		switch {
+		case isArchive:
+			archiveFiles = append(archiveFiles, matched...)
+		case batch.dryRun:
 			plannedArgs := appendPlannedMoves(nil, category, matched)
-			header := fmt.Sprintf("Would move %d %s", len(matched), fileNoun(extension, len(matched)))
+			header := fmt.Sprintf("Would %s %d %s", pendingVerb, len(matched), fileNoun(extension, len(matched)))
 			logFileBlock(m, category.Name, header, plannedArgs)
-		} else if len(matched) > 0 {
+		case len(matched) > 0:
 			t := moveMatchedFiles(ctx, m, category, matched, extension, batch)
 			totalMoved += t.moved
 			totalSkipped += t.skipped
 			totalFailed += t.failed
 			if batch.showFiles {
-				header := fmt.Sprintf("Moved %d %s", t.moved, fileNoun(extension, t.moved))
+				header := fmt.Sprintf("%s %d %s", pastVerb, t.moved, fileNoun(extension, t.moved))
 				logFileBlock(m, category.Name, header, appendMovedDetails(nil, t.details))
 			}
 		}
+	}
+
+	var archivePath string
+	if isArchive {
+		archivePath = archiveCategory(ctx, m, category, archiveFiles, batch)
 	}
 
 	batch.stats.failed += totalFailed
@@ -205,10 +221,11 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 
 	if category.Hooks != nil && category.Hooks.After != nil {
 		env := hookEnv(category, batch.dryRun, &hookAfterVars{
-			moved:   totalMoved,
-			skipped: totalSkipped,
-			failed:  totalFailed,
-			batchID: batch.batchID,
+			moved:       totalMoved,
+			skipped:     totalSkipped,
+			failed:      totalFailed,
+			batchID:     batch.batchID,
+			archivePath: archivePath,
 		})
 		if err := hooks.RunHook(ctx, category.Hooks.After, hooks.HookContext{Log: m.Logger, Stdout: os.Stdout, Stderr: os.Stderr}, env); err != nil {
 			return fmt.Errorf("after hook: %w", err)
@@ -320,19 +337,37 @@ func matchesCategory(category *models.Category, fe scanner.FileEntry, moved move
 	return info, nil
 }
 
-// logExtensionResult logs a summary of files found for an extension.
+// actionVerbs returns the present-tense ("move") and past-tense ("Moved") labels
+// for a destination action, used in scan summaries, dry-run previews, and the
+// consolidated file block so the wording matches the operation.
+func actionVerbs(action models.Action) (pending, past string) {
+	switch action {
+	case models.ActionCopy:
+		return "copy", "Copied"
+	case models.ActionSymlink:
+		return "link", "Linked"
+	case models.ActionArchive:
+		return "archive", "Archived"
+	default: // move and the empty (default) action
+		return "move", "Moved"
+	}
+}
+
+// logExtensionResult logs a summary of files found for an extension. verb is the
+// pending action ("move", "copy", "link", "archive") so the message reads
+// "N files to <verb>".
 // The category and count are colorized via pterm; in JSON mode color is
 // disabled (see ConfigureLogger), so the structured message stays plain.
-func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName, extension string, showFiles bool) {
+func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName, extension, verb string, showFiles bool) {
 	category := pterm.Cyan(fmt.Sprintf("[%s]", categoryName))
 	count := len(files)
 	if count == 0 {
 		m.Logger.Info(fmt.Sprintf("%s %s %s found", category, pterm.Red("No"), fileNoun(extension, 0)))
 		return
 	}
-	// Categories with files to move are logged at WARN so they stand out (and
+	// Categories with pending files are logged at WARN so they stand out (and
 	// surface even when the level is raised to warn); empty ones stay at INFO.
-	message := fmt.Sprintf("%s %s %s to move", category, pterm.Green(fmt.Sprintf("%d", count)), fileNoun(extension, count))
+	message := fmt.Sprintf("%s %s %s to %s", category, pterm.Green(fmt.Sprintf("%d", count)), fileNoun(extension, count), verb)
 	if showFiles {
 		logArgs := filters.GenerateLogArgs(files, extension)
 		if len(logArgs) > 0 {

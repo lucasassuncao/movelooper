@@ -159,6 +159,13 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 			m.Logger.Args("category", name))
 	}
 
+	for _, cat := range m.Categories {
+		if cat.Destination.Action == models.ActionArchive {
+			m.Logger.Warn("action archive is not supported in watch mode; the category will be skipped",
+				m.Logger.Args("category", cat.Name))
+		}
+	}
+
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -342,6 +349,9 @@ func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, sho
 // matchesExtensionAndFilters reports whether the file matches the category's extension,
 // name filters (regex/glob), and age/size constraints.
 func matchesExtensionAndFilters(cat *models.Category, fileName, path string) bool {
+	if cat.Destination.Action == models.ActionArchive {
+		return false // archive is a batch operation, not supported in watch mode
+	}
 	if !filters.MatchesAnyExtension(fileName, cat.Source.Extensions) {
 		return false
 	}

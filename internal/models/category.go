@@ -29,6 +29,7 @@ const (
 	ActionMove    Action = "move"
 	ActionCopy    Action = "copy"
 	ActionSymlink Action = "symlink"
+	ActionArchive Action = "archive"
 )
 
 // Category represents a file category with its properties
@@ -63,6 +64,25 @@ type CategoryDestination struct {
 	ConflictStrategy ConflictStrategy `yaml:"conflict-strategy,omitempty" mapstructure:"conflict-strategy"`
 	Action           Action           `yaml:"action,omitempty"            mapstructure:"action"`
 	Rename           string           `yaml:"rename,omitempty"            mapstructure:"rename"`
+	Archive          *ArchiveConfig   `yaml:"archive,omitempty"           mapstructure:"archive"`
+}
+
+// ArchiveConfig configures action: archive — how a category's files are packed
+// into a single compressed archive at the destination.
+type ArchiveConfig struct {
+	Format      string `yaml:"format"                mapstructure:"format"`
+	Name        string `yaml:"name,omitempty"        mapstructure:"name"`
+	Compression string `yaml:"compression,omitempty" mapstructure:"compression"`
+	// KeepSource controls whether the original files stay after archiving. Absent
+	// means true (keep); set to false to delete the sources after a successful
+	// write. Pointer so "unset" is distinguishable from an explicit false.
+	KeepSource *bool `yaml:"keep-source,omitempty" mapstructure:"keep-source"`
+	Flatten    bool  `yaml:"flatten,omitempty"     mapstructure:"flatten"`
+}
+
+// KeepsSource reports whether original files are retained (the default).
+func (a *ArchiveConfig) KeepsSource() bool {
+	return a.KeepSource == nil || *a.KeepSource
 }
 
 // CategoryFilter holds the optional filtering rules applied to files before they are moved.
@@ -204,15 +224,49 @@ func (CategoryDestination) Metadata() map[string]*metadata.Node {
 			Example:     "conflict-strategy: rename",
 		}},
 		"action": {FieldMeta: editor.FieldMeta{
-			Description: "File operation to perform. 'move' removes the source; 'copy' keeps it; 'symlink' creates a symbolic link.",
-			OneOf:       []string{"move", "copy", "symlink"},
+			Description: "File operation to perform. 'move' removes the source; 'copy' keeps it; 'symlink' links it; 'archive' packs the whole category into one compressed file (requires the archive block).",
+			OneOf:       []string{"move", "copy", "symlink", "archive"},
 			Default:     "move",
 			Example:     "action: move",
+		}},
+		"archive": {FieldMeta: editor.FieldMeta{
+			Description: "Archiving options. Required when action is 'archive'. Packs all matched files of the category into one zip/tar.gz at the destination path.",
 		}},
 		"rename": {FieldMeta: editor.FieldMeta{
 			Description: "Token pattern for the destination filename. It becomes the whole filename, so include {ext} to keep the extension (omit it and the file is written without one). Leave empty to keep the original name.",
 			Formats:     []editor.Format{FormatRenamePattern},
 			Example:     "rename: \"{year}-{month}-{day}_{name}.{ext}\"\n\n# Full filename — include {ext} to keep the extension.\n# {name}  filename without extension\n# {year}, {month}, {day}, {hour}, {minute}, {second}\n# {seq}   auto-incrementing counter\n# {sha256:N}  first N hex chars of SHA-256",
+		}},
+	}
+}
+
+func (ArchiveConfig) Metadata() map[string]*metadata.Node {
+	return map[string]*metadata.Node{
+		"format": {FieldMeta: editor.FieldMeta{
+			Description: "Archive container/compression: 'zip' (universal) or 'tar.gz'. Required — no default.",
+			Required:    true,
+			OneOf:       []string{"zip", "tar.gz"},
+			Example:     "format: zip",
+		}},
+		"name": {FieldMeta: editor.FieldMeta{
+			Description: "Archive filename base (extension is added automatically). Supports category/date/system tokens only: {category}, {date}, {timestamp}, {hostname}, {username}, {os}. Empty uses the category name.",
+			Example:     "name: \"{category}_{date}\"",
+		}},
+		"compression": {FieldMeta: editor.FieldMeta{
+			Description: "Compression effort: 'none', 'fast', or 'best'.",
+			OneOf:       []string{"none", "fast", "best"},
+			Default:     "best",
+			Example:     "compression: best",
+		}},
+		"keep-source": {FieldMeta: editor.FieldMeta{
+			Description: "Keep the original files after archiving. Defaults to true; set false to delete sources after a successful write.",
+			Default:     "true",
+			Example:     "keep-source: true",
+		}},
+		"flatten": {FieldMeta: editor.FieldMeta{
+			Description: "Put every file at the archive root. Defaults to false, which preserves each file's sub-path relative to the source directory (relevant with recursive scans).",
+			Default:     "false",
+			Example:     "flatten: false",
 		}},
 	}
 }

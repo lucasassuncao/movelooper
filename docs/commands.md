@@ -29,6 +29,8 @@ movelooper --dry-run --format json           # preview as JSON lines
 movelooper watch --format json               # structured logs in watch mode
 ```
 
+With `action: archive`, a category is packed into a single `.zip`/`.tar.gz` at the destination instead of moving files individually. `--dry-run` lists what would be archived. Archive is not processed in `watch` mode (a warning is printed at startup) and archive batches cannot be undone.
+
 ## `movelooper watch` — real-time monitoring
 
 Monitors all source directories and moves files as they appear, after they stabilize (controlled by `watch.delay`). Hooks are executed per category on each triggered move, same as in the default move command.

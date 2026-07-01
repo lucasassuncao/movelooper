@@ -147,3 +147,24 @@ func TestIntegration_DryRunMovesNothing(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(dstDir, "photo.jpg"))
 	assert.Empty(t, m.History.GetAllBatches())
 }
+
+// TestIntegration_ArchiveAction verifies action: archive packs the category into
+// a single zip at the destination and keeps the originals by default.
+func TestIntegration_ArchiveAction(t *testing.T) {
+	t.Parallel()
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	histPath := filepath.Join(t.TempDir(), "history.json")
+	for _, n := range []string{"a.jpg", "b.jpg"} {
+		require.NoError(t, os.WriteFile(filepath.Join(srcDir, n), []byte("data"), 0o644))
+	}
+
+	m := buildIntegrationMovelooper(t, srcDir, dstDir, histPath, []string{"jpg"})
+	m.Categories[0].Destination.Action = models.ActionArchive
+	m.Categories[0].Destination.Archive = &models.ArchiveConfig{Format: "zip", Name: "{category}"}
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+	assert.FileExists(t, filepath.Join(dstDir, "integration.zip"))
+	assert.FileExists(t, filepath.Join(srcDir, "a.jpg"), "keep-source defaults to true")
+}

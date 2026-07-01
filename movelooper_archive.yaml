@@ -1,0 +1,34 @@
+configuration:
+  logging:
+    output: both
+    level: info
+    file: "D:\\Scripts\\go\\logs\\movelooper.log"
+    show-caller: false
+  watch:
+    delay: 10s
+  history:
+    limit: 100
+    file: "~/.movelooper/history/movelooper.json"
+
+categories:
+  # Test category for action: archive. Only grabs files named "archive-me*"
+  # (drop a few in Downloads to try it) and keeps the originals, so it is safe
+  # to run repeatedly. Produces C:\Users\lucas\Downloads\Archives\archive-test_<date>.zip
+  - name: "archive-test"
+    enabled: true
+    source:
+      path: "C:\\Users\\lucas\\Downloads\\"
+      extensions: ["all"]
+      filter:
+        match:
+          glob: "archive-me*"
+    destination:
+      path: "C:\\Users\\lucas\\Downloads\\Archives\\"
+      action: archive
+      conflict-strategy: rename
+      archive:
+        format: zip
+        name: "{category}_{date}"
+        compression: best
+        keep-source: true
+        flatten: false

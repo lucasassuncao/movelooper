@@ -38,6 +38,28 @@ categories:
         action: symlink
 ```
 
+## Preset: archive-old-downloads
+
+```yaml
+categories:
+    - name: archive-old-downloads
+      enabled: true
+      source:
+        path: ~/Downloads
+        extensions:
+            - all
+        filter:
+            age:
+                min: 720h0m0s
+      destination:
+        path: ~/Downloads/archives
+        action: archive
+        archive:
+            format: zip
+            name: '{category}_{date}'
+            compression: best
+```
+
 ## Preset: conflict-hash-check
 
 ```yaml

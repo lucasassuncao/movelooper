@@ -10,13 +10,6 @@ configuration:
     limit: 100
     file: "~/.movelooper/history/movelooper.json"
 
-import:
-  - ./movelooper/miscellaneous.yaml
-  - ./movelooper/wallhaven.yaml
-  - ./movelooper/annas-archive.yaml
-  - ./movelooper/everything-else.yaml
-
-
 categories:
   - name: "images"
     enabled: true

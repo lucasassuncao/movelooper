@@ -77,6 +77,8 @@ flowchart TD
 
 ---
 
+> **`action: archive`** bypasses the per-file `fileActions` path. Instead of moving each file, `processCategoryMove` collects all of the category's matched files and hands them to `internal/archive`, which streams them into one `.zip`/`.tar.gz` written atomically (temp file + rename). Sources are deleted only when `keep-source: false` and the archive was written successfully. Archive batches are recorded in history as non-undoable and are skipped in watch mode.
+
 ## Watch mode (`movelooper watch`)
 
 Watch mode uses two goroutines: an event loop that listens to filesystem notifications and a ticker loop that moves files once their writes have stabilised.

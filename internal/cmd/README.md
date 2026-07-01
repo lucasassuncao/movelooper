@@ -146,6 +146,25 @@ var MovelooperValidators = []editor.Validator{
 
     editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
         var doc struct {
+            Categories []models.Category `yaml:"categories"`
+        }
+        if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
+            return nil
+        }
+        var errs []editor.Violation
+        for i := range doc.Categories {
+            if config.MissingArchiveBlock(&doc.Categories[i]) {
+                errs = append(errs, editor.Violation{
+                    Path:    fmt.Sprintf("categories[%d].destination.archive", i),
+                    Message: `required when action is "archive"`,
+                })
+            }
+        }
+        return errs
+    }),
+
+    editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+        var doc struct {
             Categories []struct {
                 Destination struct {
                     Rename     string `yaml:"rename"`
@@ -182,7 +201,7 @@ var MovelooperValidators = []editor.Validator{
 ```
 
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L794>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L815>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -231,7 +250,7 @@ When names is empty, all categories are returned. Without includeDisabled, categ
 When names is non\-empty, each name is validated against the config. An unknown name returns an error. A disabled category without includeDisabled is skipped with a warning that suggests the flag.
 
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L798>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L819>)
 
 ```go
 func ListOfCategoriesPresets() []string

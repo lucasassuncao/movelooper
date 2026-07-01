@@ -245,10 +245,11 @@ filter:
 | Field               | Type   | Required | Default  | Description                                                                                                      |
 |---------------------|--------|----------|----------|------------------------------------------------------------------------------------------------------------------|
 | `path`              | string | yes      | —        | Root directory where matched files are placed                                                                    |
-| `action`            | string | no       | `move`   | Operation to perform: `move`, `copy`, or `symlink`                                                               |
+| `action`            | string | no       | `move`   | Operation to perform: `move`, `copy`, `symlink`, or `archive`                                                    |
 | `rename`            | string | no       | —        | Template to rename the file at the destination (same tokens as `organize-by`). Leave empty to keep original name |
 | `conflict-strategy` | string | no       | `rename` | What to do when a file already exists at the destination (see below)                                             |
 | `organize-by`       | string | no       | —        | Template defining subdirectory structure under `path` (see tokens below). Leave empty to place files directly    |
+| `archive`           | object | no*      | —        | Archiving options. *Required when `action: archive` (see below)                                                  |
 
 ### Conflict strategies
 
@@ -270,6 +271,42 @@ filter:
 | `move`    | Moves the file from source to destination and removes it from the source (default)                                                                    |
 | `copy`    | Copies the file to the destination, leaving the original in place                                                                                     |
 | `symlink` | Creates a symbolic link at the destination pointing to the source file. On Windows, requires elevated privileges; failures are logged as warnings per file |
+| `archive` | Packs all matched files of the category into one compressed archive (`.zip`/`.tar.gz`) at `path`. Requires the `archive` block. Not processed in `watch` mode; archive batches cannot be undone |
+
+### Archive (`destination.archive`)
+
+Required when `action: archive`. All matched files of the category are packed into a single archive at `destination.path`.
+
+| Field         | Type   | Required | Default  | Description                                                        |
+|---------------|--------|----------|----------|--------------------------------------------------------------------|
+| `format`      | string | yes      | —        | `zip` or `tar.gz`                                                  |
+| `name`        | string | no       | category | Filename base (extension added automatically). File-independent tokens only: `{category}`, `{date}`, `{timestamp}`, `{hostname}`, `{username}`, `{os}` |
+| `compression` | string | no       | `best`   | `none`, `fast`, or `best`                                          |
+| `keep-source` | bool   | no       | `true`   | Keep originals; `false` deletes them after a successful write     |
+| `flatten`     | bool   | no       | `false`  | Put all files at the archive root; `false` preserves sub-paths    |
+
+Only `rename`, `overwrite`, and `skip` conflict strategies apply (content-comparison strategies like `hash_check` are rejected). The after-hook receives `ML_ARCHIVE_PATH`.
+
+```yaml
+categories:
+  - name: old-downloads
+    enabled: true
+    source:
+      path: ~/Downloads
+      extensions: [all]
+      filter:
+        age:
+          min: 720h
+    destination:
+      path: ~/Downloads/archives
+      action: archive
+      conflict-strategy: rename
+      archive:
+        format: zip
+        name: "{category}_{date}"
+        compression: best
+        keep-source: true
+```
 
 ### Rename template (`destination.rename`)
 

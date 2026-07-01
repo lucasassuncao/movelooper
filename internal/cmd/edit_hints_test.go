@@ -47,6 +47,8 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 
 	conflictStrategies := []string{"rename", "hash_check", "overwrite", "skip", "newest", "oldest", "larger", "smaller"}
 	actions := []string{"move", "copy", "symlink"}
+	destinationActions := []string{"move", "copy", "symlink", "archive"}
+	archiveFormats := []string{"zip", "tar.gz"}
 	onFailure := []string{"abort", "warn"}
 
 	oneOf := []struct {
@@ -59,7 +61,8 @@ func TestBuildMovelooperHints_metadataReachesFieldHint(t *testing.T) {
 		{"configuration", "logging.color", []string{"auto", "always", "never"}},
 		{"configuration", "defaults.conflict-strategy", conflictStrategies},
 		{"configuration", "defaults.action", actions},
-		{"categories", "destination.action", actions},
+		{"categories", "destination.action", destinationActions},
+		{"categories", "destination.archive.format", archiveFormats},
 		{"categories", "destination.conflict-strategy", conflictStrategies},
 		{"categories", "hooks.before.on-failure", onFailure},
 		{"categories", "hooks.after.on-failure", onFailure},

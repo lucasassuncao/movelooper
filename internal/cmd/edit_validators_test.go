@@ -55,3 +55,18 @@ categories:
 	// any+all+match at same filter level → 3 pair violations (any/all, any/match, all/match)
 	assert.GreaterOrEqual(t, len(errs), 6)
 }
+
+// TestMovelooperValidators_ArchiveRequired verifies the RequiredIf rule: a
+// category with action: archive but no archive block yields a violation.
+func TestMovelooperValidators_ArchiveRequired(t *testing.T) {
+	t.Parallel()
+	raw := []byte("categories:\n  - name: c\n    destination:\n      action: archive\n")
+	errs := editor.RunAll(editor.Wire(MovelooperValidators, editor.Config{}), raw, nil)
+	found := false
+	for _, vi := range errs {
+		if vi.Path == "categories[0].destination.archive" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected an archive-required violation")
+}
