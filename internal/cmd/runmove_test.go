@@ -87,6 +87,7 @@ func TestRunMove_ShowFilesConsolidatesMoves(t *testing.T) {
 
 	out := buf.String()
 	assert.Equal(t, 1, strings.Count(out, "Moved"), "moved files should be reported in a single consolidated block")
+	assert.Contains(t, out, "Moved 2 .jpg files", "header carries the count, extension, and plural noun")
 	assert.Contains(t, out, "[images]", "moved block should be prefixed with the category name")
 	assert.Contains(t, out, "a.jpg")
 	assert.Contains(t, out, "b.jpg")
@@ -94,6 +95,28 @@ func TestRunMove_ShowFilesConsolidatesMoves(t *testing.T) {
 
 	assert.FileExists(t, filepath.Join(dstDir, "a.jpg"))
 	assert.FileExists(t, filepath.Join(dstDir, "b.jpg"))
+}
+
+// TestRunMove_ShowFilesBlockPerExtension verifies that files are reported in one
+// block per extension, each header carrying its own count and singular/plural noun.
+func TestRunMove_ShowFilesBlockPerExtension(t *testing.T) {
+	t.Parallel()
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("x"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.jpg"), []byte("y"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "c.png"), []byte("z"), 0o644))
+
+	cat := moveTestCategory("images", srcDir, dstDir, "", []string{"jpg", "png"})
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{cat})
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{ShowFiles: true}))
+
+	out := buf.String()
+	assert.Equal(t, 2, strings.Count(out, "Moved"), "one block per extension")
+	assert.Contains(t, out, "Moved 2 .jpg files", "plural noun for the two jpgs")
+	assert.Contains(t, out, "Moved 1 .png file", "singular noun for the single png")
 }
 
 // TestRunMove_WithoutShowFilesOmitsFileList verifies that a real move without

@@ -154,7 +154,6 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	seen := make(map[string]bool, len(allEntries))
 
 	var totalMoved, totalSkipped, totalFailed int
-	var plannedArgs, movedArgs []any
 	for _, extension := range category.Source.Extensions {
 		candidates := byExt[extension]
 		if strings.EqualFold(extension, filters.ExtAll) {
@@ -186,20 +185,20 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		batch.stats.totalFiles += len(matched)
 
 		if batch.dryRun {
-			plannedArgs = appendPlannedMoves(plannedArgs, category, matched)
+			plannedArgs := appendPlannedMoves(nil, category, matched)
+			header := fmt.Sprintf("Would move %d %s", len(matched), fileNoun(extension, len(matched)))
+			logFileBlock(m, category.Name, header, plannedArgs)
 		} else if len(matched) > 0 {
 			t := moveMatchedFiles(ctx, m, category, matched, extension, batch)
 			totalMoved += t.moved
 			totalSkipped += t.skipped
 			totalFailed += t.failed
 			if batch.showFiles {
-				movedArgs = appendMovedDetails(movedArgs, t.details)
+				header := fmt.Sprintf("Moved %d %s", t.moved, fileNoun(extension, t.moved))
+				logFileBlock(m, category.Name, header, appendMovedDetails(nil, t.details))
 			}
 		}
 	}
-
-	logFileBlock(m, category.Name, "Would move", plannedArgs)
-	logFileBlock(m, category.Name, "Moved", movedArgs)
 
 	batch.stats.failed += totalFailed
 	batch.stats.filesSkipped += totalSkipped
