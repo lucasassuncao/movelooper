@@ -16,6 +16,7 @@ type Option func(*options)
 
 type options struct {
 	configureLogger bool
+	formatOverride  string
 	loadConfig      bool
 	loadCategories  bool
 	initHistory     bool
@@ -24,6 +25,13 @@ type options struct {
 
 func WithLogger() Option {
 	return func(o *options) { o.configureLogger = true }
+}
+
+// WithFormatOverride forces the log format (e.g. from the --format flag),
+// taking precedence over configuration.logging.format. An empty string is a
+// no-op, leaving the configured value in effect.
+func WithFormatOverride(format string) Option {
+	return func(o *options) { o.formatOverride = format }
 }
 
 func WithConfig() Option {
@@ -67,7 +75,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 	}
 
 	if o.configureLogger {
-		logger, closer, err := ConfigureLogger(k)
+		logger, closer, err := ConfigureLogger(k, o.formatOverride)
 		if err != nil {
 			return fmt.Errorf("failed to configure logger: %w", err)
 		}

@@ -60,9 +60,11 @@ func logWriterFactory(output string) writerBuilder {
 
 // ConfigureLogger configures the logger based on the configuration.
 // It returns a pretty (pterm) logger by default, or a structured JSON (slog)
-// logger when logging.format is "json". The Closer must be called on exit
-// (non-nil only when writing to a file).
-func ConfigureLogger(k *koanf.Koanf) (logger.Logger, io.Closer, error) {
+// logger when the format resolves to "json". formatOverride comes from the
+// --format flag and takes precedence over configuration.logging.format; an
+// empty override leaves the configured value in effect. The Closer must be
+// called on exit (non-nil only when writing to a file).
+func ConfigureLogger(k *koanf.Koanf, formatOverride string) (logger.Logger, io.Closer, error) {
 	output := k.String("configuration.logging.output")
 	strategy := logWriterFactory(output)
 
@@ -74,7 +76,12 @@ func ConfigureLogger(k *koanf.Koanf) (logger.Logger, io.Closer, error) {
 	level := k.String("configuration.logging.level")
 	showCaller := k.Bool("configuration.logging.show-caller")
 
-	if k.String("configuration.logging.format") == "json" {
+	format := k.String("configuration.logging.format")
+	if formatOverride != "" {
+		format = formatOverride
+	}
+
+	if format == "json" {
 		// Disable pterm color so any color helpers used in message strings stay
 		// inert, keeping the structured JSON output free of ANSI escape codes.
 		applyColor("never", output)

@@ -2,6 +2,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
@@ -33,7 +35,13 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 				return nil
 			}
 			configPath, _ := cmd.Root().PersistentFlags().GetString("config")
-			return preRunHandler(m, configPath)
+			// Read the root persistent flag directly so the validate command's
+			// own local --format (validation output) does not leak into here.
+			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			if format != "" && format != "pretty" && format != "json" {
+				return fmt.Errorf("invalid --format %q: must be \"pretty\" or \"json\"", format)
+			}
+			return preRunHandler(m, configPath, format)
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			if m.LogCloser != nil {
@@ -53,6 +61,10 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	}
 
 	cmd.PersistentFlags().StringP("config", "c", "", "Path to configuration file (e.g., /path/to/movelooper.yaml)")
+	cmd.PersistentFlags().String("format", "", "Log output format: pretty (default) or json. Overrides configuration.logging.format")
+	_ = cmd.RegisterFlagCompletionFunc("format", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		return []string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview mode! It shows what would be moved without moving files")
 	cmd.Flags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
 	cmd.Flags().StringVar(&categoryFilter, "category", "", "Comma-separated list of category names to process (default: all)")
@@ -121,9 +133,11 @@ func categoryNameCompletion(cmd *cobra.Command, _ []string, _ string) ([]string,
 }
 
 // preRunHandler handles the necessary configuration before command execution.
-func preRunHandler(m *models.Movelooper, configPath string) error {
+// formatOverride comes from the --format flag and forces the log format.
+func preRunHandler(m *models.Movelooper, configPath, formatOverride string) error {
 	return config.NewApp(m, configPath,
 		config.WithLogger(),
+		config.WithFormatOverride(formatOverride),
 		config.WithConfig(),
 		config.WithCategories(),
 		config.WithHistory(),

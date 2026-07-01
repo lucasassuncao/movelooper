@@ -49,6 +49,8 @@ Overview of all test cases across the movelooper project.
 | `TestConfigureLogger_BothOutput` | Logger configured with both outputs, non-nil closer | no error, closer non-nil |
 | `TestConfigureLogger_UnknownOutputDefaultsToConsole` | Unknown output defaults to console without error | no error, closer is nil |
 | `TestConfigureLogger_ShowCallerEnabled` | `show-caller: true` sets `logger.ShowCaller` | `logger.ShowCaller == true` |
+| `TestConfigureLogger_JSONFormat` | `format: json` selects the structured logger and writes valid JSON lines | no error, output parses as a JSON object |
+| `TestConfigureLogger_FormatOverride` | A non-empty `--format` override wins over the configured `format` | configured `pretty` yields the structured logger when overridden with `json` |
 
 ### `builder_test.go`
 

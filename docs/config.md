@@ -16,6 +16,8 @@ Grouped into four sub-sections: `logging`, `watch`, `history`, and the optional 
 | `color`       | string | no       | `auto`    | ANSI color for `pretty`: `auto` (console only), `always`, `never`. Ignored for `json` |
 | `max-width`   | int    | no       | `70`      | Column width for wrapping `pretty` lines (20–500). Ignored for `json`                |
 
+The global `--format` flag overrides `format` for a single run: `movelooper --format json` (or on `watch`/`undo`) forces structured JSON regardless of the configured value. Accepted flag values are `pretty` and `json`.
+
 ### `watch`
 
 | Field           | Type     | Required | Default | Description                                                                       |

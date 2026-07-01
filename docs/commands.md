@@ -13,15 +13,20 @@ movelooper [flags]
 | `--dry-run`           |       | Show what would be moved without moving files                        |
 | `--show-files`        |       | List each detected file and, after moving, its destination (one block per category) |
 | `--config`            | `-c`  | Path to a custom config file                                         |
+| `--format`            |       | Log output format: `pretty` (default) or `json`. Overrides `configuration.logging.format` |
 | `--version`           |       | Print the current version                                            |
 | `--category`          |       | Comma-separated list of category names to process (default: all)     |
 | `--include-disabled`  |       | Include categories with `enabled: false`                             |
+
+`--config` and `--format` are global flags: they apply to every command (`movelooper`, `watch`, `undo`, …). `--format json` emits structured slog JSON lines instead of the pretty console renderer, useful for piping to a log aggregator.
 
 ```bash
 movelooper --category images                 # run only the "images" category
 movelooper --category images,docs            # run "images" and "docs"
 movelooper --include-disabled                # run all categories including disabled
 movelooper --category archive --include-disabled  # run a disabled category explicitly
+movelooper --dry-run --format json           # preview as JSON lines
+movelooper watch --format json               # structured logs in watch mode
 ```
 
 ## `movelooper watch` — real-time monitoring
@@ -51,6 +56,7 @@ movelooper undo batch_a1b2c3d4e5f6a7b8 --dry-run     # preview a specific batch 
 movelooper undo watch_0f1e2d3c4b5a6978               # undo a specific watch batch
 movelooper undo --category images                    # undo only "images" entries from the last batch
 movelooper undo batch_a1b2c3d4e5f6a7b8 --category images,docs  # partial undo on a specific batch
+movelooper undo --dry-run --format json              # preview the restore as JSON lines
 ```
 
 | Flag          | Short | Description                                                        |
@@ -58,6 +64,8 @@ movelooper undo batch_a1b2c3d4e5f6a7b8 --category images,docs  # partial undo on
 | `--list`      | `-l`  | List all recorded batches                                          |
 | `--dry-run`   |       | Preview which files would be restored without moving any files     |
 | `--category`  |       | Comma-separated list of category names to undo (default: all)      |
+
+The global `--format json` also applies here: undo's restore/dry-run logs (`file(s) restored`, `[dry-run] would restore file(s)`) are emitted as structured JSON lines.
 
 > **Note:** Undoing a `copy` batch removes the copied file at the destination. Undoing a `symlink` batch removes the symbolic link. The source file is never touched in either case.
 >
@@ -102,6 +110,8 @@ movelooper validate --config /path/to/movelooper.yaml
 |-------------|-------|-------------------------------------------------------------------------------------|
 | `--format`  | `-f`  | Output format: `pretty` (default), `plain`, `table`, `json`                        |
 | `--summary` |       | Show only total error counts, not individual violations                             |
+
+> On `validate`, `--format` controls the **validation report** rendering (`pretty`/`plain`/`table`/`json`), not the log format; its local `-f` shadows the global logging `--format` here.
 | `--strict`  |       | Also verify that `source.path` and `destination.path` directories exist on disk    |
 
 ## `movelooper config` — show resolved config path

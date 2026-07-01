@@ -1,6 +1,9 @@
 package config
 
 import (
+	"bytes"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -263,7 +266,7 @@ func TestConfigureLogger(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			k := loadKoanfFromYAML(t, tt.yaml(t))
-			logger, closer, err := ConfigureLogger(k)
+			logger, closer, err := ConfigureLogger(k, "")
 			require.NoError(t, err)
 			assert.NotNil(t, logger)
 			if tt.wantCloser {
@@ -279,6 +282,49 @@ func TestConfigureLogger(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestConfigureLogger_JSONFormat verifies that logging.format=json selects the
+// structured logger and emits valid JSON lines instead of pretty output.
+func TestConfigureLogger_JSONFormat(t *testing.T) {
+	t.Parallel()
+	logPath := filepath.Join(t.TempDir(), "app.log")
+	yaml := "configuration:\n  logging:\n    output: file\n    level: info\n    format: json\n    file: " + logPath + "\n"
+	k := loadKoanfFromYAML(t, yaml)
+
+	log, closer, err := ConfigureLogger(k, "")
+	require.NoError(t, err)
+	require.NotNil(t, closer)
+
+	_, isPretty := log.(*pterm.Logger)
+	assert.False(t, isPretty, "json format should not use the pretty pterm logger")
+
+	log.Info("hello", log.Args("k", "v"))
+	require.NoError(t, closer.Close())
+
+	data, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(bytes.TrimSpace(data), &entry), "output should be a JSON object")
+	assert.Equal(t, "hello", entry["msg"])
+	assert.Equal(t, "v", entry["k"])
+}
+
+// TestConfigureLogger_FormatOverride verifies that a non-empty format override
+// (from the --format flag) wins over configuration.logging.format.
+func TestConfigureLogger_FormatOverride(t *testing.T) {
+	t.Parallel()
+	logPath := filepath.Join(t.TempDir(), "app.log")
+	yaml := "configuration:\n  logging:\n    output: file\n    format: pretty\n    file: " + logPath + "\n"
+	k := loadKoanfFromYAML(t, yaml)
+
+	log, closer, err := ConfigureLogger(k, "json")
+	require.NoError(t, err)
+	require.NotNil(t, closer)
+	defer func() { require.NoError(t, closer.Close()) }()
+
+	_, isPretty := log.(*pterm.Logger)
+	assert.False(t, isPretty, "override to json should win over the configured pretty format")
 }
 
 // loadKoanfFromYAML is a helper that writes yaml content to a temp file and loads it into koanf.

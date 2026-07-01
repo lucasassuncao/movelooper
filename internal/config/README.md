@@ -12,7 +12,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 - [Constants](<#constants>)
 - [Variables](<#variables>)
-- [func ConfigureLogger\(k \*koanf.Koanf\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
+- [func ConfigureLogger\(k \*koanf.Koanf, formatOverride string\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func ExpandTilde\(path string\) string](<#ExpandTilde>)
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
@@ -24,6 +24,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 - [type Option](<#Option>)
   - [func WithCategories\(\) Option](<#WithCategories>)
   - [func WithConfig\(\) Option](<#WithConfig>)
+  - [func WithFormatOverride\(format string\) Option](<#WithFormatOverride>)
   - [func WithHistory\(\) Option](<#WithHistory>)
   - [func WithLogger\(\) Option](<#WithLogger>)
   - [func WithValidateDirs\(\) Option](<#WithValidateDirs>)
@@ -46,13 +47,13 @@ var ErrConfigNotFound = errors.New("config file not found")
 ```
 
 <a name="ConfigureLogger"></a>
-## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L65>)
+## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L67>)
 
 ```go
-func ConfigureLogger(k *koanf.Koanf) (logger.Logger, io.Closer, error)
+func ConfigureLogger(k *koanf.Koanf, formatOverride string) (logger.Logger, io.Closer, error)
 ```
 
-ConfigureLogger configures the logger based on the configuration. It returns a pretty \(pterm\) logger by default, or a structured JSON \(slog\) logger when logging.format is "json". The Closer must be called on exit \(non\-nil only when writing to a file\).
+ConfigureLogger configures the logger based on the configuration. It returns a pretty \(pterm\) logger by default, or a structured JSON \(slog\) logger when the format resolves to "json". formatOverride comes from the \-\-format flag and takes precedence over configuration.logging.format; an empty override leaves the configured value in effect. The Closer must be called on exit \(non\-nil only when writing to a file\).
 
 <a name="ExpandTilde"></a>
 ## func [ExpandTilde](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/paths.go#L12>)
@@ -91,7 +92,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
 <a name="NewApp"></a>
-## func [NewApp](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L46>)
+## func [NewApp](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L54>)
 
 ```go
 func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr error)
@@ -136,7 +137,7 @@ type Option func(*options)
 ```
 
 <a name="WithCategories"></a>
-### func [WithCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L33>)
+### func [WithCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L41>)
 
 ```go
 func WithCategories() Option
@@ -145,7 +146,7 @@ func WithCategories() Option
 
 
 <a name="WithConfig"></a>
-### func [WithConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L29>)
+### func [WithConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L37>)
 
 ```go
 func WithConfig() Option
@@ -153,8 +154,17 @@ func WithConfig() Option
 
 
 
+<a name="WithFormatOverride"></a>
+### func [WithFormatOverride](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L33>)
+
+```go
+func WithFormatOverride(format string) Option
+```
+
+WithFormatOverride forces the log format \(e.g. from the \-\-format flag\), taking precedence over configuration.logging.format. An empty string is a no\-op, leaving the configured value in effect.
+
 <a name="WithHistory"></a>
-### func [WithHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L37>)
+### func [WithHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L45>)
 
 ```go
 func WithHistory() Option
@@ -163,7 +173,7 @@ func WithHistory() Option
 
 
 <a name="WithLogger"></a>
-### func [WithLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L25>)
+### func [WithLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L26>)
 
 ```go
 func WithLogger() Option
@@ -172,7 +182,7 @@ func WithLogger() Option
 
 
 <a name="WithValidateDirs"></a>
-### func [WithValidateDirs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L41>)
+### func [WithValidateDirs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L49>)
 
 ```go
 func WithValidateDirs() Option
