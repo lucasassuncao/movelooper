@@ -154,6 +154,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	seen := make(map[string]bool, len(allEntries))
 
 	var totalMoved, totalSkipped, totalFailed int
+	var plannedArgs, movedArgs []any
 	for _, extension := range category.Source.Extensions {
 		candidates := byExt[extension]
 		if strings.EqualFold(extension, filters.ExtAll) {
@@ -185,26 +186,20 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		batch.stats.totalFiles += len(matched)
 
 		if batch.dryRun {
-			for _, fe := range matched {
-				logPlannedMove(m, category, fe)
-			}
+			plannedArgs = appendPlannedMoves(plannedArgs, category, matched)
 		} else if len(matched) > 0 {
-			byDir := groupByDir(matched)
-			for dir, dirFiles := range byDir {
-				req := fileops.MoveRequest{
-					Category:  category,
-					Files:     dirFiles,
-					Extension: extension,
-					BatchID:   batch.batchID,
-					SourceDir: dir,
-				}
-				res := moveExtensionWithResult(ctx, m, req, batch.moved)
-				totalMoved += len(res.Moved)
-				totalSkipped += res.Skipped
-				totalFailed += max(0, len(dirFiles)-len(res.Moved)-res.Skipped)
+			t := moveMatchedFiles(ctx, m, category, matched, extension, batch)
+			totalMoved += t.moved
+			totalSkipped += t.skipped
+			totalFailed += t.failed
+			if batch.showFiles {
+				movedArgs = appendMovedDetails(movedArgs, t.details)
 			}
 		}
 	}
+
+	logFileBlock(m, category.Name, "Would move", plannedArgs)
+	logFileBlock(m, category.Name, "Moved", movedArgs)
 
 	batch.stats.failed += totalFailed
 	batch.stats.filesSkipped += totalSkipped
@@ -221,6 +216,51 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		}
 	}
 	return nil
+}
+
+// logFileBlock logs a single "[category] header" entry listing all
+// source/destination pairs in args. It is a no-op when args is empty.
+func logFileBlock(m *models.Movelooper, categoryName, header string, args []any) {
+	if len(args) == 0 {
+		return
+	}
+	label := pterm.Cyan(fmt.Sprintf("[%s]", categoryName))
+	m.Logger.Info(fmt.Sprintf("%s %s", label, header), m.Logger.Args(args...))
+}
+
+// moveTotals aggregates the per-directory outcomes of moving one extension.
+type moveTotals struct {
+	moved, skipped, failed int
+	details                []fileops.MovedDetail
+}
+
+// moveMatchedFiles moves the matched files grouped by source directory and
+// returns the aggregated counts and per-file source/destination details.
+func moveMatchedFiles(ctx context.Context, m *models.Movelooper, category *models.Category, matched []scanner.FileEntry, extension string, batch moveBatch) moveTotals {
+	var t moveTotals
+	for dir, dirFiles := range groupByDir(matched) {
+		req := fileops.MoveRequest{
+			Category:  category,
+			Files:     dirFiles,
+			Extension: extension,
+			BatchID:   batch.batchID,
+			SourceDir: dir,
+		}
+		res := moveExtensionWithResult(ctx, m, req, batch.moved)
+		t.moved += len(res.Moved)
+		t.skipped += res.Skipped
+		t.failed += max(0, len(dirFiles)-len(res.Moved)-res.Skipped)
+		t.details = append(t.details, res.Details...)
+	}
+	return t
+}
+
+// appendMovedDetails appends "source"/"destination" pairs for each moved file.
+func appendMovedDetails(args []any, details []fileops.MovedDetail) []any {
+	for _, d := range details {
+		args = append(args, "source", d.Source, "destination", d.Destination)
+	}
+	return args
 }
 
 // groupByDir groups FileEntries by their containing directory.
@@ -304,14 +344,27 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 	m.Logger.Warn(message)
 }
 
-// logPlannedMove logs where a file would land under the category's organize-by
-// and rename templates, without creating directories or moving anything. It
-// mirrors the destination resolution in fileops.MoveFiles; seq and hash tokens
-// are left as literal placeholders (resolved only at move time).
-func logPlannedMove(m *models.Movelooper, category *models.Category, fe scanner.FileEntry) {
+// appendPlannedMoves resolves the destination for each matched file and appends
+// "source"/"destination" pairs to args, so all planned moves for a category can
+// be logged as a single entry in dry-run mode.
+func appendPlannedMoves(args []any, category *models.Category, matched []scanner.FileEntry) []any {
+	for _, fe := range matched {
+		if src, dst, ok := resolvePlannedMove(category, fe); ok {
+			args = append(args, "source", src, "destination", dst)
+		}
+	}
+	return args
+}
+
+// resolvePlannedMove reports where a file would land under the category's
+// organize-by and rename templates, without creating directories or moving
+// anything. It mirrors the destination resolution in fileops.MoveFiles; seq and
+// hash tokens are left as literal placeholders (resolved only at move time).
+// ok is false when the file's metadata could not be read.
+func resolvePlannedMove(category *models.Category, fe scanner.FileEntry) (source, dest string, ok bool) {
 	info, err := fe.Entry.Info()
 	if err != nil {
-		return
+		return "", "", false
 	}
 	sourcePath := filepath.Join(fe.Dir, fe.Entry.Name())
 	tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath, DryRun: true}
@@ -325,7 +378,7 @@ func logPlannedMove(m *models.Movelooper, category *models.Category, fe scanner.
 	tctx.DestDir = destDir
 	destName := tokens.ResolveRename(category.Destination.Rename, &tctx)
 
-	m.Logger.Info("would move", m.Logger.Args("source", sourcePath, "destination", filepath.Join(destDir, destName)))
+	return sourcePath, filepath.Join(destDir, destName), true
 }
 
 // fileNoun renders the file-count subject for a scan summary, agreeing in number

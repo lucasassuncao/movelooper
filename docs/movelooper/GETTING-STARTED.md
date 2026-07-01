@@ -111,6 +111,12 @@ movelooper
 
 movelooper logs a summary: how many files were moved per category and the total size. Every move is recorded in the history file so you can undo it.
 
+Add `--show-files` to also print each moved file and its destination, grouped into one block per category:
+
+```bash
+movelooper --show-files
+```
+
 To run only specific categories, use `--category`:
 
 ```bash

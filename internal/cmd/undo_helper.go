@@ -94,6 +94,7 @@ func filterEntriesByCategory(m *models.Movelooper, batchID string, all []history
 // dryRunUndoBatch logs what would be restored without performing any file operations.
 func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Entry) error {
 	m.Logger.Info("[dry-run] would restore batch", m.Logger.Args("batch_id", batchID, "files", len(entries)))
+	var restoreArgs, removeArgs []any
 	for i := len(entries) - 1; i >= 0; i-- {
 		entry := entries[i]
 		if _, err := os.Stat(entry.Destination); os.IsNotExist(err) {
@@ -106,12 +107,16 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 		}
 		switch entry.Action {
 		case "copy", "symlink":
-			m.Logger.Info("[dry-run] would remove file",
-				m.Logger.Args("action", entry.Action, "path", entry.Destination))
+			removeArgs = append(removeArgs, "path", entry.Destination)
 		default:
-			m.Logger.Info("[dry-run] would restore file",
-				m.Logger.Args("from", entry.Destination, "to", entry.Source))
+			restoreArgs = append(restoreArgs, "path", entry.Source)
 		}
+	}
+	if len(removeArgs) > 0 {
+		m.Logger.Info("[dry-run] would remove file(s)", m.Logger.Args(removeArgs...))
+	}
+	if len(restoreArgs) > 0 {
+		m.Logger.Info("[dry-run] would restore file(s)", m.Logger.Args(restoreArgs...))
 	}
 	return nil
 }
@@ -173,8 +178,15 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 			failCount++
 			continue
 		}
-		m.Logger.Info("file restored", m.Logger.Args("path", entry.Source))
 		restored = append(restored, entry)
+	}
+
+	if len(restored) > 0 {
+		restoredArgs := make([]any, 0, len(restored)*2)
+		for _, entry := range restored {
+			restoredArgs = append(restoredArgs, "path", entry.Source)
+		}
+		m.Logger.Info("file(s) restored", m.Logger.Args(restoredArgs...))
 	}
 
 	m.Logger.Info("undo completed", m.Logger.Args("restored", len(restored), "failed", failCount))

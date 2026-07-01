@@ -11,7 +11,7 @@ movelooper [flags]
 | Flag                  | Short | Description                                                          |
 |-----------------------|-------|----------------------------------------------------------------------|
 | `--dry-run`           |       | Show what would be moved without moving files                        |
-| `--show-files`        |       | List individual files detected                                       |
+| `--show-files`        |       | List each detected file and, after moving, its destination (one block per category) |
 | `--config`            | `-c`  | Path to a custom config file                                         |
 | `--version`           |       | Print the current version                                            |
 | `--category`          |       | Comma-separated list of category names to process (default: all)     |

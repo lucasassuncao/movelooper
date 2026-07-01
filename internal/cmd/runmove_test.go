@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/history"
@@ -57,7 +58,8 @@ func TestRunMove_DryRunShowsDestinations(t *testing.T) {
 	require.NoError(t, runMove(context.Background(), m, MoveOptions{DryRun: true}))
 
 	out := buf.String()
-	assert.Contains(t, out, "would move")
+	assert.Contains(t, out, "Would move")
+	assert.Contains(t, out, "[images]", "planned move should be prefixed with the category name")
 	assert.Contains(t, out, "photo.jpg")
 	assert.Contains(t, out, "sorted", "destination should include the resolved organize-by subdir")
 
@@ -65,6 +67,82 @@ func TestRunMove_DryRunShowsDestinations(t *testing.T) {
 	assert.FileExists(t, filepath.Join(srcDir, "photo.jpg"))
 	assert.NoFileExists(t, filepath.Join(dstDir, "sorted", "jpg", "photo.jpg"))
 	assert.Empty(t, m.History.GetAllBatches())
+}
+
+// TestRunMove_ShowFilesConsolidatesMoves verifies that a real move with
+// --show-files logs a single "[category] Moved" block listing every moved file,
+// rather than one line per file.
+func TestRunMove_ShowFilesConsolidatesMoves(t *testing.T) {
+	t.Parallel()
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("x"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.jpg"), []byte("y"), 0o644))
+
+	cat := moveTestCategory("images", srcDir, dstDir, "", []string{"jpg"})
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{cat})
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{ShowFiles: true}))
+
+	out := buf.String()
+	assert.Equal(t, 1, strings.Count(out, "Moved"), "moved files should be reported in a single consolidated block")
+	assert.Contains(t, out, "[images]", "moved block should be prefixed with the category name")
+	assert.Contains(t, out, "a.jpg")
+	assert.Contains(t, out, "b.jpg")
+	assert.NotContains(t, out, "file processed", "batch mode should not log per-file in the fileops layer")
+
+	assert.FileExists(t, filepath.Join(dstDir, "a.jpg"))
+	assert.FileExists(t, filepath.Join(dstDir, "b.jpg"))
+}
+
+// TestRunMove_WithoutShowFilesOmitsFileList verifies that a real move without
+// --show-files moves the files but does not emit any per-file listing.
+func TestRunMove_WithoutShowFilesOmitsFileList(t *testing.T) {
+	t.Parallel()
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("x"), 0o644))
+
+	cat := moveTestCategory("images", srcDir, dstDir, "", []string{"jpg"})
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{cat})
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+	out := buf.String()
+	assert.NotContains(t, out, "Moved", "no consolidated file block without --show-files")
+	assert.NotContains(t, out, "file processed")
+	assert.FileExists(t, filepath.Join(dstDir, "a.jpg"), "files are still moved without --show-files")
+}
+
+// TestRestoreEntries_ConsolidatesRestoredBlock verifies that undo reports all
+// restored files under a single "file restored" log entry, not one per file.
+func TestRestoreEntries_ConsolidatesRestoredBlock(t *testing.T) {
+	t.Parallel()
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("x"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.jpg"), []byte("y"), 0o644))
+
+	cat := moveTestCategory("images", srcDir, dstDir, "", []string{"jpg"})
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{cat})
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+	batches := m.History.GetAllBatches()
+	require.Len(t, batches, 1)
+	entries := m.History.GetBatch(batches[0].BatchID)
+
+	buf.Reset()
+	restored := restoreEntries(context.Background(), m, entries)
+	require.Len(t, restored, 2)
+
+	out := buf.String()
+	assert.Equal(t, 1, strings.Count(out, "file(s) restored"), "restored files should be reported in a single block")
+	assert.Equal(t, 2, strings.Count(out, "\"path\":"), "both restored paths belong to the same log entry")
+	assert.Contains(t, out, "a.jpg")
+	assert.Contains(t, out, "b.jpg")
 }
 
 // TestRunMove_DryRunLeavesSeqTokenLiteral verifies that seq/hash tokens are not

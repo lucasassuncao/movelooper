@@ -417,25 +417,22 @@ type testSave struct {
 // covering entries with data and empty entry arrays.
 var testSaveTestCases = []testSave{
 	{
-		name:    "writes ndjson with entries",
+		name:    "writes indented json array with entries",
 		entries: []Entry{{Source: "/src/b.txt", Destination: "/dst/b.txt", Timestamp: time.Now(), BatchID: "batch_save"}},
 		check: func(t *testing.T, data []byte) {
-			dec := json.NewDecoder(bytes.NewReader(data))
+			assert.Equal(t, byte('['), bytes.TrimSpace(data)[0], "file should be a JSON array")
+			assert.Contains(t, string(data), "\n  {", "array should be indented")
 			var loaded []Entry
-			for dec.More() {
-				var e Entry
-				require.NoError(t, dec.Decode(&e))
-				loaded = append(loaded, e)
-			}
+			require.NoError(t, json.Unmarshal(data, &loaded))
 			require.Len(t, loaded, 1)
 			assert.Equal(t, "batch_save", loaded[0].BatchID)
 		},
 	},
 	{
-		name:    "empty entries writes empty file",
+		name:    "empty entries writes empty array",
 		entries: []Entry{},
 		check: func(t *testing.T, data []byte) {
-			assert.Empty(t, bytes.TrimSpace(data))
+			assert.Equal(t, "[]", string(bytes.TrimSpace(data)))
 		},
 	},
 }

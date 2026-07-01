@@ -51,12 +51,23 @@ type MoveRequest struct {
 	Extension string
 	BatchID   string
 	SourceDir string // actual directory of the files; may differ from Category.Source.Path when recursive
+	// LogEachMove logs an INFO line per processed file. Watch mode sets it to
+	// report files as they arrive; batch mode leaves it false and logs a single
+	// consolidated block in the caller instead.
+	LogEachMove bool
 }
 
 // MoveResult holds the outcome of a MoveFiles call.
 type MoveResult struct {
-	Moved   []string // names of files that were successfully processed
-	Skipped int      // files skipped by conflict strategy (skip / hash_check duplicate)
+	Moved   []string      // names of files that were successfully processed
+	Skipped int           // files skipped by conflict strategy (skip / hash_check duplicate)
+	Details []MovedDetail // source/destination of each processed file, in order
+}
+
+// MovedDetail records where a single processed file came from and went to.
+type MovedDetail struct {
+	Source      string
+	Destination string
 }
 
 // MoveFiles processes files matching the given extension in req.SourceDir.
@@ -150,7 +161,10 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 			}
 		}
 
-		mctx.Logger.Info("file processed", mctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
+		if req.LogEachMove {
+			mctx.Logger.Info("file processed", mctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
+		}
+		result.Details = append(result.Details, MovedDetail{Source: sourcePath, Destination: destPath})
 		result.Moved = append(result.Moved, file.Name())
 	}
 	return result

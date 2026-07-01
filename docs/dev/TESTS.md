@@ -114,6 +114,8 @@ Overview of all test cases across the movelooper project.
 | `TestRunMove_CopyAction` | — | `action: copy` copies the file, leaving source intact | no error, file in dst and in src |
 | `TestRunMove_CopyWithRename` | — | `action: copy` + `rename` template produces the renamed file at dst | no error, renamed file in dst, original stays in src |
 | `TestRunMove_SymlinkWithConflictRename` | — | `action: symlink` with a conflicting dst creates a renamed symlink | no error, original dst untouched, symlink as `file(1).txt` |
+| `TestRunMove_ShowFilesConsolidatesMoves` | — | With `--show-files`, moved files are reported in a single `[category] Moved` block, not per file | no error, one "Moved" block, both files in dst |
+| `TestRunMove_WithoutShowFilesOmitsFileList` | — | Without `--show-files`, files still move but no per-file listing is logged | no error, no "Moved" block, file in dst |
 
 ### `watch_test.go`
 

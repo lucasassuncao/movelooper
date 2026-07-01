@@ -89,32 +89,12 @@ func (h *History) rebuildIndex() {
 	}
 }
 
-// Add appends a new entry to the history using a WAL (write-ahead log) strategy:
-// the entry is written to disk first, then updated in memory. Compaction via
-// prune is only triggered when the batch limit is exceeded, and uses an atomic
-// temp-file rename to avoid partial writes.
+// Add records a new entry: it updates the in-memory state, prunes old batches
+// past the limit, and rewrites the whole history file as an indented JSON array
+// via an atomic temp-file rename.
 func (h *History) Add(entry Entry) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-
-	line, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-	line = append(line, '\n')
-
-	f, err := os.OpenFile(h.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //#nosec G304 -- path is set by the application at startup from config, not from user input
-	if err != nil {
-		return err
-	}
-	_, writeErr := f.Write(line)
-	closeErr := f.Close()
-	if writeErr != nil {
-		return writeErr
-	}
-	if closeErr != nil {
-		return closeErr
-	}
 
 	h.entries = append(h.entries, entry)
 	if h.batchCount == nil {
@@ -125,18 +105,15 @@ func (h *History) Add(entry Entry) error {
 	}
 	h.batchCount[entry.BatchID]++
 
-	if h.prune() {
-		return h.save()
-	}
-	return nil
+	h.prune()
+	return h.save()
 }
 
 // prune removes the oldest batches, keeping at most maxBatches.
 // Uses batchDeque for an O(1) limit check; only scans entries when pruning.
-// Returns true when entries were removed and compaction is needed.
-func (h *History) prune() bool {
+func (h *History) prune() {
 	if len(h.batchDeque) <= h.maxBatches {
-		return false
+		return
 	}
 
 	excess := len(h.batchDeque) - h.maxBatches
@@ -154,7 +131,6 @@ func (h *History) prune() bool {
 		}
 	}
 	h.entries = newEntries
-	return true
 }
 
 // BatchSummary holds a brief description of a batch for listing purposes
@@ -298,34 +274,29 @@ func (h *History) RemoveEntries(entries []Entry) error {
 	return nil
 }
 
-// save writes h.entries to disk atomically using a temp file + rename, in
-// NDJSON format (one JSON object per line). Callers must hold h.mu.
+// save writes h.entries to disk atomically using a temp file + rename, as an
+// indented JSON array (2-space). Callers must hold h.mu.
 func (h *History) save() error {
-	tmp := h.path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //#nosec G304 -- path is set by the application at startup from config, not from user input
+	entries := h.entries
+	if entries == nil {
+		entries = []Entry{}
+	}
+	data, err := json.MarshalIndent(entries, "", "  ")
 	if err != nil {
 		return err
 	}
-	enc := json.NewEncoder(f)
-	for _, e := range h.entries {
-		if encErr := enc.Encode(e); encErr != nil {
-			f.Close()
-			os.Remove(tmp)
-			return encErr
-		}
-	}
-	if err := f.Close(); err != nil {
-		os.Remove(tmp)
+	tmp := h.path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil { //#nosec G304 -- path is set by the application at startup from config, not from user input
 		return err
 	}
 	return os.Rename(tmp, h.path)
 }
 
 // load reads the history file into h.entries. It supports two formats:
-//   - NDJSON (current): one JSON object per line; malformed lines are skipped
-//     to tolerate partial writes from a previous crash.
-//   - JSON array (legacy): files written by older versions are detected by a
-//     leading '[' and parsed in full for backwards compatibility.
+//   - JSON array (current): the whole file is an indented array, detected by a
+//     leading '['.
+//   - NDJSON (legacy): one JSON object per line, written by an earlier version;
+//     malformed lines are skipped to tolerate a partial write from a crash.
 //
 // Callers must hold h.mu or call before the History is shared.
 func (h *History) load() error {
@@ -334,7 +305,7 @@ func (h *History) load() error {
 		return err
 	}
 
-	// legacy: JSON array written by older versions
+	// current: whole-file JSON array
 	if content := bytes.TrimSpace(data); len(content) > 0 && content[0] == '[' {
 		var entries []Entry
 		if err := json.Unmarshal(data, &entries); err != nil {
@@ -345,7 +316,7 @@ func (h *History) load() error {
 		return nil
 	}
 
-	// NDJSON: skip malformed lines (e.g. partial last line after a crash)
+	// legacy NDJSON: skip malformed lines (e.g. partial last line after a crash)
 	sc := bufio.NewScanner(bytes.NewReader(data))
 	var entries []Entry
 	for sc.Scan() {
