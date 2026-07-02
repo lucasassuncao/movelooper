@@ -95,6 +95,20 @@ func docPresetsMap() map[string]*models.Config {
 		History: models.History{Limit: 100, File: histFile},
 	}
 
+	watchCfg := models.Configuration{
+		Logging: models.Logging{
+			Output: "console",
+			Level:  "info",
+			File:   logFile,
+			Format: "pretty",
+			Color:  "auto",
+		},
+		Watch:   models.Watch{Delay: 30 * time.Second},
+		History: models.History{Limit: 100, File: histFile},
+	}
+
+	noKeep := false // archive presets that delete sources to reclaim space
+
 	return map[string]*models.Config{
 		// filter.any: files that qualify if they satisfy at least one sub-filter (OR)
 		"full-filter-any": {
@@ -329,6 +343,195 @@ func docPresetsMap() map[string]*models.Config {
 						Action:           models.ActionCopy,
 						OrganizeBy:       "{year}/{month}",
 						Rename:           "{year}-{month}-{day}_{name}",
+					},
+				},
+			},
+		},
+		// archive workflow: pack old files into dated compressed archives to reclaim space
+		"archive-old": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "archive-old-documents",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "docx", "txt", "csv"},
+						Filter:     models.CategoryFilter{Age: &models.AgeFilter{Min: 90 * 24 * time.Hour}},
+					},
+					Destination: models.CategoryDestination{
+						Path:   downloads + "/archives",
+						Action: models.ActionArchive,
+						Archive: &models.ArchiveConfig{
+							Format:      "zip",
+							Name:        "documents_{date}",
+							Compression: "best",
+							KeepSource:  &noKeep,
+						},
+					},
+				},
+				{
+					Name:    "archive-old-installers",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"exe", "msi"},
+						Filter:     models.CategoryFilter{Age: &models.AgeFilter{Min: 60 * 24 * time.Hour}},
+					},
+					Destination: models.CategoryDestination{
+						Path:   downloads + "/archives",
+						Action: models.ActionArchive,
+						Archive: &models.ArchiveConfig{
+							Format:      "tar.gz",
+							Name:        "installers_{date}",
+							Compression: "best",
+							KeepSource:  &noKeep,
+						},
+					},
+				},
+			},
+		},
+		// media library: symlink large media into a media-server tree, leaving originals in place
+		"media-library": {
+			Configuration: fileCfg,
+			Categories: []models.Category{
+				{
+					Name:    "movies",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"mp4", "mkv", "avi"},
+						Filter:     models.CategoryFilter{Size: &models.SizeFilter{Min: "200MB"}},
+					},
+					Destination: models.CategoryDestination{
+						Path:   "~/Media/Movies",
+						Action: models.ActionSymlink,
+					},
+				},
+				{
+					Name:    "music",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"mp3", "flac", "m4a"},
+					},
+					Destination: models.CategoryDestination{
+						Path:       "~/Media/Music",
+						Action:     models.ActionSymlink,
+						OrganizeBy: "{ext}",
+					},
+				},
+			},
+		},
+		// real-time inbox: tuned for watch mode (short stability delay), sorts files as they arrive
+		"inbox-watch": {
+			Configuration: watchCfg,
+			Categories: []models.Category{
+				{
+					Name:    "images",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"jpg", "jpeg", "png", "webp"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/images",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{ext}",
+					},
+				},
+				{
+					Name:    "documents",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "docx", "txt"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/documents",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{year}/{month}",
+					},
+				},
+			},
+		},
+		// recursive cleanup: scan sub-directories up to max-depth, skipping the destination, and sort by type
+		"recursive-cleanup": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "nested-images",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:         downloads,
+						Extensions:   []string{"jpg", "png", "gif"},
+						Recursive:    true,
+						MaxDepth:     3,
+						ExcludePaths: []string{downloads + "/images"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/images",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{ext}",
+					},
+				},
+			},
+		},
+		// rename normalizer: give downloads clean, dated, slugged filenames at the destination
+		"rename-normalizer": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "documents",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "docx", "txt"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/documents",
+						ConflictStrategy: models.ConflictStrategyRename,
+						Rename:           "{mod-date}_{name-slug}",
+					},
+				},
+			},
+		},
+		// non-destructive backup: copy documents to a backup tree with timestamped names
+		"backup-copy": {
+			Configuration: fileCfg,
+			Categories: []models.Category{
+				{
+					Name:    "documents-backup",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "docx", "xlsx", "pptx"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             "~/Backup/documents",
+						Action:           models.ActionCopy,
+						ConflictStrategy: models.ConflictStrategySkip,
+						OrganizeBy:       "{year}/{month}",
+						Rename:           "{mod-date}_{name}",
+					},
+				},
+			},
+		},
+		// keep-newest: when a file already exists at the destination, keep whichever is newer
+		"keep-newest": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "syncing-docs",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"pdf", "docx"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/documents",
+						ConflictStrategy: models.ConflictStrategyNewest,
+						OrganizeBy:       "{year}",
 					},
 				},
 			},
