@@ -168,3 +168,23 @@ func TestIntegration_ArchiveAction(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dstDir, "integration.zip"))
 	assert.FileExists(t, filepath.Join(srcDir, "a.jpg"), "keep-source defaults to true")
 }
+
+// TestIntegration_MimeOrganizeBy verifies organize-by places a file by its real
+// content type, not its (wrong) extension.
+func TestIntegration_MimeOrganizeBy(t *testing.T) {
+	t.Parallel()
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	histPath := filepath.Join(t.TempDir(), "history.json")
+	// a PNG file with a misleading .jpg extension
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "photo.jpg"),
+		[]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, 0o644))
+
+	m := buildIntegrationMovelooper(t, srcDir, dstDir, histPath, []string{"all"})
+	m.Categories[0].Destination.OrganizeBy = "{mime-type}/{mime-ext}"
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+	assert.FileExists(t, filepath.Join(dstDir, "image", "png", "photo.jpg"),
+		"file is placed by its real type, not its extension")
+}

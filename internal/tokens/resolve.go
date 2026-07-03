@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lucasassuncao/movelooper/internal/content"
 )
 
 // buildStaticPairs returns key-value pairs for strings.NewReplacer covering all static tokens.
@@ -97,7 +99,36 @@ func ResolveGroupBy(template string, ctx *TokenContext) string {
 	}
 	name := strings.TrimSuffix(ctx.Info.Name(), filepath.Ext(ctx.Info.Name()))
 	template = preProcessNameTrunc(template, name)
+	template = preProcessMime(template, ctx.SourcePath)
 	return filepath.FromSlash(ctx.staticReplacer().Replace(template))
+}
+
+// preProcessMime resolves the {mime}, {mime-type}, and {mime-ext} tokens by
+// detecting the file's real type. It is a no-op unless the template references a
+// mime token, so files are only read when MIME is actually used. Detection
+// errors fall back to application/octet-stream. Unlike seq/hash, MIME resolves
+// in dry-run too: it is read-only and the preview value is showing the real
+// destination.
+func preProcessMime(template, sourcePath string) string {
+	if !strings.Contains(template, "{mime") {
+		return template
+	}
+	full, top, ext := "application/octet-stream", "application", "bin"
+	if info, err := content.Detect(sourcePath); err == nil {
+		full = info.Full
+		if info.Type != "" {
+			top = info.Type
+		}
+		if info.Ext != "" {
+			ext = info.Ext
+		}
+	}
+	// {mime-type} and {mime-ext} first: {mime} is their common prefix.
+	return strings.NewReplacer(
+		"{mime-type}", top,
+		"{mime-ext}", ext,
+		"{mime}", full,
+	).Replace(template)
 }
 
 // ResolveRename applies a rename template to produce a destination filename.

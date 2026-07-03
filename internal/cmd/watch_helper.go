@@ -273,10 +273,10 @@ func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *file
 			if err != nil {
 				continue
 			}
-			if !filters.MatchesFilter(cat.Source.Filter, fe.Entry.Name(), info) {
+			fullPath := filepath.Join(fe.Dir, fe.Entry.Name())
+			if !filters.MatchesFilter(cat.Source.Filter, fullPath, info) {
 				continue
 			}
-			fullPath := filepath.Join(fe.Dir, fe.Entry.Name())
 			tracker.touch(fullPath, time.Now())
 		}
 	}
@@ -359,7 +359,7 @@ func matchesExtensionAndFilters(cat *models.Category, fileName, path string) boo
 	if err != nil {
 		return false
 	}
-	return filters.MatchesFilter(cat.Source.Filter, fileName, info)
+	return filters.MatchesFilter(cat.Source.Filter, path, info)
 }
 
 func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Category, path, ext string) error {

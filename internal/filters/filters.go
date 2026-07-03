@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"math"
 	"os"
+	gpath "path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/lucasassuncao/movelooper/internal/content"
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
@@ -175,18 +177,20 @@ func MatchesNameFilters(fileName string, f models.CategoryFilter) bool {
 	return matchesName(f.Match, fileName)
 }
 
-// MatchesFilter reports whether the file identified by fileName and info passes the filter f.
-func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) bool {
+// MatchesFilter reports whether the file at path (with metadata info) passes
+// filter f. path is the file's full path; the base name is used for name
+// filters and the full path for MIME detection.
+func MatchesFilter(f models.CategoryFilter, path string, info os.FileInfo) bool {
 	// not is a modifier that excludes files and may coexist with any/all at the
 	// same level, so it must be evaluated before the any/all branches return.
 	for _, n := range f.Not {
-		if MatchesFilter(n, fileName, info) {
+		if MatchesFilter(n, path, info) {
 			return false
 		}
 	}
 	if len(f.Any) > 0 {
 		for _, child := range f.Any {
-			if MatchesFilter(child, fileName, info) {
+			if MatchesFilter(child, path, info) {
 				return true
 			}
 		}
@@ -194,16 +198,34 @@ func MatchesFilter(f models.CategoryFilter, fileName string, info os.FileInfo) b
 	}
 	if len(f.All) > 0 {
 		for _, child := range f.All {
-			if !MatchesFilter(child, fileName, info) {
+			if !MatchesFilter(child, path, info) {
 				return false
 			}
 		}
 		return true
 	}
-	if !MatchesNameFilters(fileName, f) {
+	if !MatchesNameFilters(filepath.Base(path), f) {
 		return false
 	}
-	return MeetsAgeSizeFilters(info, f)
+	if !MeetsAgeSizeFilters(info, f) {
+		return false
+	}
+	return matchesMimeFilter(f, path)
+}
+
+// matchesMimeFilter reports whether the file at path matches f.Mime, a glob
+// (path.Match, slash-separated) against the detected MIME type. Empty f.Mime
+// always matches; a detection error means no match for a positive mime rule.
+func matchesMimeFilter(f models.CategoryFilter, path string) bool {
+	if f.Mime == "" {
+		return true
+	}
+	detected, err := content.Detect(path)
+	if err != nil {
+		return false
+	}
+	matched, err := gpath.Match(f.Mime, detected.Full)
+	return err == nil && matched
 }
 
 func matchesName(m *models.MatchFilter, fileName string) bool {

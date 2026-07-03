@@ -249,7 +249,7 @@ func validateHook(catName, position string, hook *models.CategoryHook) error {
 // hasDirectFilterFields reports whether f has any direct leaf fields set.
 // not is excluded: it is a modifier that can coexist with any/all.
 func hasDirectFilterFields(f *models.CategoryFilter) bool {
-	return f.Match != nil || f.Age != nil || f.Size != nil
+	return f.Match != nil || f.Age != nil || f.Size != nil || f.Mime != ""
 }
 
 // validateFilter validates a filter node recursively.
@@ -344,6 +344,11 @@ func validateLeafFilter(catName string, f *models.CategoryFilter) error {
 	if f.Size != nil {
 		if err := validateSizeFilter(catName, f.Size); err != nil {
 			return err
+		}
+	}
+	if f.Mime != "" {
+		if err := filters.ValidateGlob(f.Mime); err != nil {
+			return fmt.Errorf("category %q: invalid filter mime %q: %w", catName, f.Mime, err)
 		}
 	}
 	return nil

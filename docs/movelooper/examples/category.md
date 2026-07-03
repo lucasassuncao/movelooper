@@ -1,43 +1,5 @@
 # Category Examples
 
-## Preset: action-copy
-
-```yaml
-categories:
-    - name: photos-backup
-      enabled: true
-      source:
-        path: ~/Downloads
-        extensions:
-            - jpg
-            - jpeg
-            - heic
-      destination:
-        path: ~/Downloads/Pictures/backup
-        organize-by: '{year}/{month}'
-        conflict-strategy: skip
-        action: copy
-```
-
-## Preset: action-symlink
-
-```yaml
-categories:
-    - name: media-links
-      enabled: true
-      source:
-        path: ~/Downloads
-        extensions:
-            - mp4
-            - mkv
-            - avi
-      destination:
-        path: ~/Downloads/Media/links
-        organize-by: '{year}'
-        conflict-strategy: skip
-        action: symlink
-```
-
 ## Preset: archive-old-downloads
 
 ```yaml
@@ -60,7 +22,45 @@ categories:
             compression: best
 ```
 
-## Preset: conflict-hash-check
+## Preset: with-action-copy
+
+```yaml
+categories:
+    - name: photos-backup
+      enabled: true
+      source:
+        path: ~/Downloads
+        extensions:
+            - jpg
+            - jpeg
+            - heic
+      destination:
+        path: ~/Downloads/Pictures/backup
+        organize-by: '{year}/{month}'
+        conflict-strategy: skip
+        action: copy
+```
+
+## Preset: with-action-symlink
+
+```yaml
+categories:
+    - name: media-links
+      enabled: true
+      source:
+        path: ~/Downloads
+        extensions:
+            - mp4
+            - mkv
+            - avi
+      destination:
+        path: ~/Downloads/Media/links
+        organize-by: '{year}'
+        conflict-strategy: skip
+        action: symlink
+```
+
+## Preset: with-conflict-strategy-hash-check
 
 ```yaml
 categories:
@@ -80,7 +80,7 @@ categories:
         conflict-strategy: hash_check
 ```
 
-## Preset: conflict-larger
+## Preset: with-conflict-strategy-larger
 
 ```yaml
 categories:
@@ -97,7 +97,7 @@ categories:
         conflict-strategy: larger
 ```
 
-## Preset: conflict-newest
+## Preset: with-conflict-strategy-newest
 
 ```yaml
 categories:
@@ -115,7 +115,7 @@ categories:
         conflict-strategy: newest
 ```
 
-## Preset: conflict-oldest
+## Preset: with-conflict-strategy-oldest
 
 ```yaml
 categories:
@@ -133,7 +133,7 @@ categories:
         conflict-strategy: oldest
 ```
 
-## Preset: conflict-overwrite
+## Preset: with-conflict-strategy-overwrite
 
 ```yaml
 categories:
@@ -151,7 +151,7 @@ categories:
         conflict-strategy: overwrite
 ```
 
-## Preset: conflict-rename
+## Preset: with-conflict-strategy-rename
 
 ```yaml
 categories:
@@ -169,7 +169,7 @@ categories:
         conflict-strategy: rename
 ```
 
-## Preset: conflict-skip
+## Preset: with-conflict-strategy-skip
 
 ```yaml
 categories:
@@ -187,7 +187,7 @@ categories:
         conflict-strategy: skip
 ```
 
-## Preset: conflict-smaller
+## Preset: with-conflict-strategy-smaller
 
 ```yaml
 categories:
@@ -204,7 +204,7 @@ categories:
         conflict-strategy: smaller
 ```
 
-## Preset: filter-age
+## Preset: with-filter-age
 
 ```yaml
 categories:
@@ -227,7 +227,7 @@ categories:
         conflict-strategy: skip
 ```
 
-## Preset: filter-all
+## Preset: with-filter-all
 
 ```yaml
 categories:
@@ -253,7 +253,7 @@ categories:
         conflict-strategy: rename
 ```
 
-## Preset: filter-any
+## Preset: with-filter-any
 
 ```yaml
 categories:
@@ -279,7 +279,7 @@ categories:
         conflict-strategy: rename
 ```
 
-## Preset: filter-match-glob
+## Preset: with-filter-match-glob
 
 ```yaml
 categories:
@@ -299,7 +299,7 @@ categories:
         conflict-strategy: rename
 ```
 
-## Preset: filter-match-literal
+## Preset: with-filter-match-literal
 
 ```yaml
 categories:
@@ -317,7 +317,7 @@ categories:
         conflict-strategy: skip
 ```
 
-## Preset: filter-match-regex
+## Preset: with-filter-match-regex
 
 ```yaml
 categories:
@@ -338,7 +338,7 @@ categories:
         conflict-strategy: rename
 ```
 
-## Preset: filter-not
+## Preset: with-filter-not
 
 ```yaml
 categories:
@@ -364,7 +364,7 @@ categories:
         conflict-strategy: rename
 ```
 
-## Preset: filter-size
+## Preset: with-filter-size
 
 ```yaml
 categories:
@@ -385,7 +385,7 @@ categories:
         conflict-strategy: hash_check
 ```
 
-## Preset: hooks-after
+## Preset: with-hooks-after
 
 ```yaml
 categories:
@@ -411,7 +411,7 @@ categories:
                 - echo "$ML_FILES_MOVED files moved to $ML_DEST_PATH"
 ```
 
-## Preset: hooks-before
+## Preset: with-hooks-before
 
 ```yaml
 categories:
@@ -438,7 +438,25 @@ categories:
                 - echo "moving $ML_SOURCE_PATH"
 ```
 
-## Preset: recursive
+## Preset: with-mime-real-images
+
+```yaml
+categories:
+    - name: real-images
+      enabled: true
+      source:
+        path: ~/Downloads
+        extensions:
+            - all
+        filter:
+            mime: image/*
+      destination:
+        path: ~/Downloads/images
+        organize-by: '{mime-type}/{mime-ext}'
+        conflict-strategy: rename
+```
+
+## Preset: with-recursive
 
 ```yaml
 categories:

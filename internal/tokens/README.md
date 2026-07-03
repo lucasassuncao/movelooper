@@ -24,7 +24,7 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 
 
 <a name="RenameOnlyToken"></a>
-## func [RenameOnlyToken](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L75>)
+## func [RenameOnlyToken](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L79>)
 
 ```go
 func RenameOnlyToken(template string) string
@@ -33,7 +33,7 @@ func RenameOnlyToken(template string) string
 RenameOnlyToken returns the first rename\-only token \(sequence or hash family\) found in template, or "" if there is none. These tokens are resolved only by ResolveRename, never by ResolveGroupBy, so callers reject them in organize\-by.
 
 <a name="ResolveArchiveName"></a>
-## func [ResolveArchiveName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L143>)
+## func [ResolveArchiveName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L174>)
 
 ```go
 func ResolveArchiveName(template, category string, now time.Time) string
@@ -42,7 +42,7 @@ func ResolveArchiveName(template, category string, now time.Time) string
 ResolveArchiveName resolves an archive filename template using only tokens that do not depend on a specific file: category, run date/time, and system context. It cannot use file tokens \(\{name\}, \{ext\}, \{mod\-\*\}\), sequence, or hash tokens, which need a concrete file or destination directory. Unknown tokens are left as\-is; path separators in the result are replaced with underscores so the output is always a plain filename. An empty template returns the category name.
 
 <a name="ResolveGroupBy"></a>
-## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L94>)
+## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L96>)
 
 ```go
 func ResolveGroupBy(template string, ctx *TokenContext) string
@@ -51,7 +51,7 @@ func ResolveGroupBy(template string, ctx *TokenContext) string
 ResolveGroupBy resolves a group\-by template string into a relative subdirectory path that should be appended to the category destination.
 
 <a name="ResolveRename"></a>
-## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L108>)
+## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L139>)
 
 ```go
 func ResolveRename(template string, ctx *TokenContext) string
@@ -87,7 +87,7 @@ func ResolveSeqRoman(destDir string) string
 ResolveSeqRoman scans destDir for files with leading roman numeral prefixes and returns the next roman numeral in sequence.
 
 <a name="ValidateTemplate"></a>
-## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L81>)
+## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L85>)
 
 ```go
 func ValidateTemplate(template string) error

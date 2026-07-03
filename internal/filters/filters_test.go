@@ -743,3 +743,20 @@ func TestGenerateLogArgs(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchesFilter_Mime(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	png := filepath.Join(dir, "photo.jpg") // wrong extension on purpose
+	require.NoError(t, os.WriteFile(png, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, 0o644))
+	info, err := os.Stat(png)
+	require.NoError(t, err)
+
+	assert.True(t, MatchesFilter(models.CategoryFilter{Mime: "image/*"}, png, info), "PNG content matches image/*")
+	assert.True(t, MatchesFilter(models.CategoryFilter{Mime: "image/png"}, png, info))
+	assert.False(t, MatchesFilter(models.CategoryFilter{Mime: "text/*"}, png, info))
+	assert.False(t, MatchesFilter(models.CategoryFilter{Not: []models.CategoryFilter{{Mime: "image/*"}}}, png, info), "not image/* excludes a PNG")
+
+	missing := filepath.Join(dir, "gone.bin")
+	assert.False(t, MatchesFilter(models.CategoryFilter{Mime: "image/*"}, missing, info), "unreadable file does not match a positive mime rule")
+}

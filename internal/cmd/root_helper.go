@@ -331,7 +331,7 @@ func matchesCategory(category *models.Category, fe scanner.FileEntry, moved move
 	if err != nil {
 		return nil, fmt.Errorf("could not read metadata for %q: %w", fe.Entry.Name(), err)
 	}
-	if !filters.MatchesFilter(category.Source.Filter, fe.Entry.Name(), info) {
+	if !filters.MatchesFilter(category.Source.Filter, filepath.Join(fe.Dir, fe.Entry.Name()), info) {
 		return nil, nil
 	}
 	return info, nil

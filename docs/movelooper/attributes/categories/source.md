@@ -22,6 +22,7 @@ The following arguments are supported:
 | match | object | Name-based filter: glob, regex, or literal match (pick one). | No | - |
 | age | object | Modification-time constraints. | No | - |
 | size | object | File-size constraints. | No | - |
+| mime | string | Match by the file's real MIME type (magic bytes), as a glob against the detected type. Examples: "image/*", "application/pdf". Reads the file content; combine with extensions: [all] to match by real type. | No | - |
 | any | []object | OR logic: file must match at least one sub-filter. | No | - |
 | all | []object | AND logic: file must match all sub-filters simultaneously. | No | - |
 | not | []object | NOT logic: exclude files matching any of these sub-filters. | No | - |

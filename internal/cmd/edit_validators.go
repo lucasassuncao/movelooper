@@ -42,10 +42,10 @@ var MovelooperValidators = []editor.Validator{
 	// any and all are mutually exclusive with each other and with leaf fields
 	// (match/age/size). not is a modifier and may coexist with any/all.
 	// Four validators cover all nesting depths.
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+	editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
 
 	// age and size min/max pairs must be ordered at any nesting depth.
 	editor.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),

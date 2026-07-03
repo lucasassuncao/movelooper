@@ -870,3 +870,21 @@ func TestValidateCategory_Archive(t *testing.T) {
 		assert.NoError(t, validateCategory(c))
 	})
 }
+
+func TestValidateCategory_MimeFilter(t *testing.T) {
+	enabled := true
+	base := func(mime string) *models.Category {
+		return &models.Category{
+			Name:    "c",
+			Enabled: &enabled,
+			Source: models.CategorySource{
+				Path:       "/src",
+				Extensions: []string{"all"},
+				Filter:     models.CategoryFilter{Mime: mime},
+			},
+			Destination: models.CategoryDestination{Path: "/dst"},
+		}
+	}
+	assert.NoError(t, validateCategory(base("image/*")))
+	require.Error(t, validateCategory(base("image/[")), "malformed glob is rejected")
+}

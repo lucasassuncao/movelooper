@@ -12,7 +12,7 @@
 
 ### Organize
 
-- Category-based rules: match files by extension, regex, glob, age, and size
+- Category-based rules: match files by extension, regex, glob, age, size, and real content type (`filter.mime: "image/*"`, magic bytes)
 - Organize files into subdirectories using templates: `{ext}`, `{mod-year}`, `{mod-month}`, `{size-range}`, and [more](docs/config.md#organize-by-tokens)
 - Rich rename tokens: name transforms (`{name-slug}`, `{name-snake}`, `{name-upper}`, `{name-trunc:N}`, …), system info (`{hostname}`, `{username}`, `{os}`), time (`{hour}`, `{minute}`, `{timestamp}`), hashes (`{md5}`, `{sha256:N}`), and sequences (`{seq}`, `{seq-alpha}`, `{seq-roman}`)
 - Wildcard `extensions: [all]` to catch any file type

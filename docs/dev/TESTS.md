@@ -365,3 +365,22 @@ Overview of all test cases across the movelooper project.
 | `TestArchiveCategory_KeepSourceFalseDeletesOriginals` | keep-source:false deletes originals after success | archive exists, sources gone |
 | `TestRestoreEntries_SkipsArchiveBatch` | Undo skips archive batches | nothing restored, warning logged |
 | `TestIntegration_ArchiveAction` | End-to-end runMove with action archive | `integration.zip` created, originals kept |
+
+## MIME / content-type detection
+
+### `internal/content/content_test.go`
+
+| Test | Scenario | Expected |
+|------|----------|----------|
+| `TestDetect` | PNG/PDF signatures and plain text detected regardless of extension | correct Full/Type/Ext |
+| `TestDetect_MissingFile` | Missing file errors | error |
+
+### `internal/filters` / `internal/tokens` / `internal/config` / `internal/cmd` (mime)
+
+| Test | Scenario | Expected |
+|------|----------|----------|
+| `TestMatchesFilter_Mime` | `mime: "image/*"` matches PNG content, not text; `not` excludes; unreadable file no-match | correct booleans |
+| `TestResolveGroupBy_Mime` | `{mime-type}/{mime-ext}` on a PNG resolves to `image/png` | `image/png` path |
+| `TestValidateTemplate_Mime` | `{mime}`/`{mime-type}`/`{mime-ext}` are known tokens | no error |
+| `TestValidateCategory_MimeFilter` | valid glob passes, malformed glob rejected | error only for malformed |
+| `TestIntegration_MimeOrganizeBy` | PNG-with-.jpg placed under `image/png/` via organize-by | file in `image/png/` |

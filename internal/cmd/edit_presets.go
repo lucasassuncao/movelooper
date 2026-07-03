@@ -313,7 +313,7 @@ func docPresetsMap() map[string]*models.Config {
 			},
 		},
 		// non-destructive photographer workflow: copy to separate RAW/JPEG trees, log to file
-		"photographer": {
+		"with-copy-photographer": {
 			Configuration: fileCfg,
 			Categories: []models.Category{
 				{
@@ -392,7 +392,7 @@ func docPresetsMap() map[string]*models.Config {
 			},
 		},
 		// media library: symlink large media into a media-server tree, leaving originals in place
-		"media-library": {
+		"with-symlink-media-library": {
 			Configuration: fileCfg,
 			Categories: []models.Category{
 				{
@@ -536,6 +536,71 @@ func docPresetsMap() map[string]*models.Config {
 				},
 			},
 		},
+		// content-router: route by real type — images and PDFs to their own trees, the rest sorted by type
+		"with-mime-content-router": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "real-images",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"all"},
+						Filter:     models.CategoryFilter{Mime: "image/*"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/images",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{mime-ext}",
+					},
+				},
+				{
+					Name:    "pdfs",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"all"},
+						Filter:     models.CategoryFilter{Mime: "application/pdf"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/documents/pdf",
+						ConflictStrategy: models.ConflictStrategyHashCheck,
+					},
+				},
+				{
+					Name:    "everything-else",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"all"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/sorted",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{mime-type}/{mime-ext}",
+					},
+				},
+			},
+		},
+		// sort by real type: organize any file by its detected MIME type/extension
+		"with-mime-sort-by-type": {
+			Configuration: consoleCfg,
+			Categories: []models.Category{
+				{
+					Name:    "by-type",
+					Enabled: &enabled,
+					Source: models.CategorySource{
+						Path:       downloads,
+						Extensions: []string{"all"},
+					},
+					Destination: models.CategoryDestination{
+						Path:             downloads + "/sorted",
+						ConflictStrategy: models.ConflictStrategyRename,
+						OrganizeBy:       "{mime-type}/{mime-ext}",
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -585,6 +650,23 @@ func categoriesPresetsMap() map[string][]models.Category {
 	enabled := true
 
 	return map[string][]models.Category{
+		// mime: match and organize by real content type (magic bytes)
+		"with-mime-real-images": {
+			{
+				Name:    "real-images",
+				Enabled: &enabled,
+				Source: models.CategorySource{
+					Path:       downloads,
+					Extensions: []string{"all"},
+					Filter:     models.CategoryFilter{Mime: "image/*"},
+				},
+				Destination: models.CategoryDestination{
+					Path:             downloads + "/images",
+					ConflictStrategy: models.ConflictStrategyRename,
+					OrganizeBy:       "{mime-type}/{mime-ext}",
+				},
+			},
+		},
 		// archive: pack a whole category into one compressed file
 		"archive-old-downloads": {
 			{
@@ -607,7 +689,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// rename: appends a counter when destination file already exists
-		"conflict-rename": {
+		"with-conflict-strategy-rename": {
 			{
 				Name:    "photos",
 				Enabled: &enabled,
@@ -623,7 +705,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// hash_check: skips the move if source and destination are byte-identical
-		"conflict-hash-check": {
+		"with-conflict-strategy-hash-check": {
 			{
 				Name:    "archives",
 				Enabled: &enabled,
@@ -639,7 +721,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// overwrite: replaces the destination file unconditionally
-		"conflict-overwrite": {
+		"with-conflict-strategy-overwrite": {
 			{
 				Name:    "config-sync",
 				Enabled: &enabled,
@@ -655,7 +737,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// skip: leaves the destination file untouched on conflict
-		"conflict-skip": {
+		"with-conflict-strategy-skip": {
 			{
 				Name:    "music",
 				Enabled: &enabled,
@@ -671,7 +753,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// newest: keeps whichever file has the most recent modification time
-		"conflict-newest": {
+		"with-conflict-strategy-newest": {
 			{
 				Name:    "videos",
 				Enabled: &enabled,
@@ -687,7 +769,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// oldest: keeps whichever file has the earliest modification time
-		"conflict-oldest": {
+		"with-conflict-strategy-oldest": {
 			{
 				Name:    "documents",
 				Enabled: &enabled,
@@ -703,7 +785,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// larger: keeps whichever file is larger in bytes
-		"conflict-larger": {
+		"with-conflict-strategy-larger": {
 			{
 				Name:    "archives-large",
 				Enabled: &enabled,
@@ -719,7 +801,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// smaller: keeps whichever file is smaller in bytes
-		"conflict-smaller": {
+		"with-conflict-strategy-smaller": {
 			{
 				Name:    "photos-small",
 				Enabled: &enabled,
@@ -735,7 +817,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// filter.size: match files within a byte-size range
-		"filter-size": {
+		"with-filter-size": {
 			{
 				Name:    "large-videos",
 				Enabled: &enabled,
@@ -754,7 +836,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// filter.age: match files within a modification-time window
-		"filter-age": {
+		"with-filter-age": {
 			{
 				Name:    "old-downloads",
 				Enabled: &enabled,
@@ -776,7 +858,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// filter.any: OR — match files satisfying at least one sub-filter
-		"filter-any": {
+		"with-filter-any": {
 			{
 				Name:    "reports",
 				Enabled: &enabled,
@@ -799,7 +881,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// filter.all: AND — match files satisfying every sub-filter simultaneously
-		"filter-all": {
+		"with-filter-all": {
 			{
 				Name:    "recent-docs",
 				Enabled: &enabled,
@@ -824,7 +906,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// filter.not: exclude files matching any of the sub-filters
-		"filter-not": {
+		"with-filter-not": {
 			{
 				Name:    "documents",
 				Enabled: &enabled,
@@ -847,7 +929,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// match.glob: wildcard pattern against the filename
-		"filter-match-glob": {
+		"with-filter-match-glob": {
 			{
 				Name:    "screenshots",
 				Enabled: &enabled,
@@ -866,7 +948,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// match.regex: RE2 regular expression against the filename
-		"filter-match-regex": {
+		"with-filter-match-regex": {
 			{
 				Name:    "dated-reports",
 				Enabled: &enabled,
@@ -885,7 +967,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// match.literal: exact filename match (whole name including extension)
-		"filter-match-literal": {
+		"with-filter-match-literal": {
 			{
 				Name:    "annas-archive",
 				Enabled: &enabled,
@@ -903,7 +985,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// hooks.before: shell commands run before each file operation; on-failure: abort cancels the move
-		"hooks-before": {
+		"with-hooks-before": {
 			{
 				Name:    "videos-before",
 				Enabled: &enabled,
@@ -932,7 +1014,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// hooks.after: shell commands run after each file operation; on-failure: warn logs but continues
-		"hooks-after": {
+		"with-hooks-after": {
 			{
 				Name:    "videos-after",
 				Enabled: &enabled,
@@ -960,7 +1042,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// recursive: scan sub-directories up to max-depth, skipping exclude-paths
-		"recursive": {
+		"with-recursive": {
 			{
 				Name:    "documents-recursive",
 				Enabled: &enabled,
@@ -979,7 +1061,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// action.copy: keeps the source file, places a copy at the destination
-		"action-copy": {
+		"with-action-copy": {
 			{
 				Name:    "photos-backup",
 				Enabled: &enabled,
@@ -996,7 +1078,7 @@ func categoriesPresetsMap() map[string][]models.Category {
 			},
 		},
 		// action.symlink: creates a symbolic link at the destination pointing to the source
-		"action-symlink": {
+		"with-action-symlink": {
 			{
 				Name:    "media-links",
 				Enabled: &enabled,

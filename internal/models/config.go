@@ -186,7 +186,7 @@ func (Defaults) Metadata() map[string]*metadata.Node {
 		}},
 		"action": {FieldMeta: editor.FieldMeta{
 			Description: "Fallback action for categories that omit destination.action.",
-			OneOf:       []string{"move", "copy", "symlink"},
+			OneOf:       []string{"move", "copy", "symlink", "archive"},
 			Example:     "action: move",
 		}},
 		"organize-by": {FieldMeta: editor.FieldMeta{

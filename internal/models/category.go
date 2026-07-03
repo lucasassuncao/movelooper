@@ -92,6 +92,7 @@ type CategoryFilter struct {
 	Match *MatchFilter     `yaml:"match,omitempty" mapstructure:"match"`
 	Age   *AgeFilter       `yaml:"age,omitempty"   mapstructure:"age"`
 	Size  *SizeFilter      `yaml:"size,omitempty"  mapstructure:"size"`
+	Mime  string           `yaml:"mime,omitempty"  mapstructure:"mime"`
 	Any   []CategoryFilter `yaml:"any,omitempty"   mapstructure:"any"`
 	All   []CategoryFilter `yaml:"all,omitempty"   mapstructure:"all"`
 	Not   []CategoryFilter `yaml:"not,omitempty"   mapstructure:"not"`
@@ -99,7 +100,7 @@ type CategoryFilter struct {
 
 // IsZero lets yaml.v3 omit an empty CategoryFilter when the parent field has omitempty.
 func (f CategoryFilter) IsZero() bool {
-	return f.Match == nil && f.Age == nil && f.Size == nil &&
+	return f.Match == nil && f.Age == nil && f.Size == nil && f.Mime == "" &&
 		len(f.Any) == 0 && len(f.All) == 0 && len(f.Not) == 0
 }
 
@@ -295,6 +296,10 @@ func (CategoryFilter) Metadata() map[string]*metadata.Node {
 		}},
 		"size": {FieldMeta: editor.FieldMeta{
 			Description: "File-size constraints.",
+		}},
+		"mime": {FieldMeta: editor.FieldMeta{
+			Description: "Match by the file's real MIME type (magic bytes), as a glob against the detected type. Examples: \"image/*\", \"application/pdf\". Reads the file content; combine with extensions: [all] to match by real type.",
+			Example:     "mime: \"image/*\"",
 		}},
 		"any": anyNode,
 		"all": allNode,

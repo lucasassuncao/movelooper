@@ -54,6 +54,10 @@ var knownTokens = map[string]bool{
 	"{hostname}": true,
 	"{username}": true,
 	"{os}":       true,
+	// content type (magic bytes)
+	"{mime}":      true,
+	"{mime-type}": true,
+	"{mime-ext}":  true,
 	// advanced sequence (rename only)
 	"{seq-alpha}": true,
 	"{seq-roman}": true,

@@ -72,6 +72,7 @@ Each entry in the `categories` list has the following top-level fields:
 | `match` | object   | Filename matching rules (see below). Sub-fields `literal`, `regex`, and `glob` are mutually exclusive |
 | `age`   | object   | Age window: `min` and `max` as Go durations (e.g. `24h`, `168h`)                                    |
 | `size`  | object   | Size window: `min` and `max` as human-readable strings (e.g. `500KB`, `10MB`)                       |
+| `mime`  | string   | Match by the file's real MIME type (magic bytes) as a glob: `image/*`, `application/pdf`. Reads file content; pair with `extensions: [all]` |
 | `any`   | []filter | OR between groups — file passes if at least one group matches                                        |
 | `all`   | []filter | AND between groups — file passes only if every group matches                                         |
 | `not`   | []filter | Exclusion — file is rejected if any entry matches                                                    |
@@ -138,7 +139,7 @@ By default, all fields in `filter` are combined with AND — a file must satisfy
 
 **Rules:**
 - `any` and `all` are mutually exclusive at the same level
-- `any`/`all` and direct fields (`match`, `age`, `size`, `not`) cannot be mixed at the same level
+- `any`/`all` and direct fields (`match`, `age`, `size`, `mime`, `not`) cannot be mixed at the same level
 - `any`/`all` must contain at least one entry
 - Within each `match` block, `literal`, `regex`, and `glob` are mutually exclusive
 
@@ -391,6 +392,9 @@ These tokens are also valid in `destination.rename` unless noted otherwise.
 | `{hostname}`       | `lucas-pc`         | Machine hostname (`unknown` on failure)                                          |
 | `{username}`       | `lucas`            | OS username (`unknown` on failure)                                               |
 | `{os}`             | `windows`          | Operating system (`windows`, `linux`, `darwin`, …)                               |
+| `{mime}`           | `image/png`        | Full detected MIME type (magic bytes)                                            |
+| `{mime-type}`      | `image`            | Top-level detected type (`image`, `audio`, `video`, `application`, …)            |
+| `{mime-ext}`       | `png`              | Canonical extension for the real type (fixes wrong extensions)                   |
 | `{seq}`            | `1`                | Auto-incrementing sequence number (no padding). **`rename` only**                |
 | `{seq:N}`          | `0001`             | Sequence number zero-padded to N digits (1 ≤ N ≤ 20). **`rename` only**         |
 | `{seq-alpha}`      | `a`, `b`, `aa`     | Alphabetic sequence, Excel-style overflow (a→z→aa→ab…). **`rename` only**       |
