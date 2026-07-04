@@ -190,7 +190,7 @@ filter:
         glob: "receipt_*"
 ```
 
-See [Filter evaluation](ARCHITECTURE.md#filter-evaluation) for the full logic.
+See [Filters](/FILTERS.md) for the full reference on `any`, `all`, `not`, `mime`, `size`, and more.
 
 ### Copy or symlink instead of move
 
@@ -210,25 +210,13 @@ destination:
 
 ## 9. Watch mode
 
-Watch mode monitors source directories in real-time and moves files as they stabilize (i.e. after no new writes for `watch.delay`). It is useful for keeping your Downloads folder clean automatically.
+Watch mode monitors source directories in real-time and moves files as they stabilize after no new writes for `watch.delay` (default `5m`).
 
 ```bash
 movelooper watch
 ```
 
-To start watch mode automatically at login, add `movelooper watch` to your shell profile, a cron job, or a systemd user service.
-
-> Hooks (`before`/`after`) do not run in watch mode — they run only on the one-shot `movelooper` command.
-
-### Stability delay
-
-`watch.delay` (default `5m`) controls how long a file must be unchanged before watch moves it. Increase it if you work with large files that take a while to download:
-
-```yaml
-configuration:
-  watch:
-    delay: 10m
-```
+See [Watch Mode](/WATCH.md) for configuration, tuning, limitations, and how to run it automatically at login.
 
 ---
 
@@ -277,7 +265,9 @@ Each imported file is a standalone YAML file with a `categories:` block. moveloo
 
 ## Where to go next
 
-- [Architecture](ARCHITECTURE.md) — package diagram, one-shot and watch-mode flows, category model, filter tree, conflict strategies
-- [Config File Reference](../CONFIG.md) — every field with types, defaults, and examples
-- [Commands and Flags](../COMMANDS.md) — all CLI commands and flags
-- [Attribute reference](attributes/configuration/configuration.md) — browsable field docs (also available in the terminal via `movelooper show-docs`)
+- [Configuration](/CONFIGURATION.md) — `configuration:` block fields: logging, watch, history, defaults, imports
+- [Categories](/CATEGORIES.md) — `categories:` block fields: source, destination, actions, conflict strategies, hooks
+- [Commands and Flags](/COMMANDS.md) — all CLI commands and flags
+- [Tokens](/TOKENS.md) — full token reference for `organize-by` and `rename`
+- [Filters](/FILTERS.md) — filter types and boolean composition
+- [Attribute reference](/movelooper/attributes/configuration/configuration.md) — browsable field docs (also available in the terminal via `movelooper show-docs`)

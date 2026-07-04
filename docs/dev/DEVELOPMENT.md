@@ -14,6 +14,7 @@ Practical reference for contributing to movelooper. Covers setup, daily workflow
 6. [Adding new features](#6-adding-new-features)
 7. [CI pipeline](#7-ci-pipeline)
 8. [Release process](#8-release-process)
+9. [Serving the docs site locally](#9-serving-the-docs-site-locally)
 
 ---
 
@@ -21,7 +22,7 @@ Practical reference for contributing to movelooper. Covers setup, daily workflow
 
 | Tool | Version | Purpose |
 |---|---|---|
-| Go | 1.23+ | Build and test |
+| Go | 1.26.3+ | Build and test |
 | Make | any | Task runner |
 | Git | any | Version control |
 
@@ -70,7 +71,7 @@ make security        # gosec static analysis
 make docs            # regenerate package README files (gomarkdoc)
 make deps            # go mod download && go mod tidy
 make clean           # remove build artifacts and test cache
-make all             # fmt + docs + lint + security + test-coverage
+make all             # deps + fmt + docs + lint + security + test-coverage
 ```
 
 ### Before committing
@@ -112,7 +113,7 @@ go test ./internal/fileops/... -run TestMoveFiles -v   # single package, filtere
 
 ### Test organisation
 
-- Tests live in the **same package** as the code they test (`package helper`, not `package helper_test`). This allows testing unexported functions directly, which is intentional — internal invariants are worth testing.
+- Tests live in the **same package** as the code they test (e.g. `package fileops`, not `package fileops_test`). This allows testing unexported functions directly, which is intentional — internal invariants are worth testing.
 - Each package has one or more `*_test.go` files. Extra test files (e.g. `fileops_extra_test.go`, `filters_extra_test.go`) group related tests that would make the main test file too long.
 - The `internal/cmd/integration_test.go` file contains end-to-end tests that exercise the full command flow against real temporary directories.
 
@@ -154,13 +155,9 @@ require.NoError(t, err)       // test cannot continue if this fails
 assert.Equal(t, want, got)    // collect all assertion failures, then report
 ```
 
-**Silent logger in tests.** Use the `newTestLogger()` helper (defined in `helper/fileops_test.go`) when a function requires a `*pterm.Logger`. It disables all output so test logs stay clean.
+**Silent logger in tests.** Use the `newTestLogger()` helper (defined in `internal/fileops/fileops_test.go`) when a function requires a `*pterm.Logger`. It disables all output so test logs stay clean.
 
 **No mocks.** Tests hit real files and real functions. External state (filesystem, OS executable path) is controlled via `t.TempDir()` and carefully crafted inputs. This is intentional — mocks can mask real integration bugs.
-
-### Test coverage reference
-
-See [`TESTS.md`](TESTS.md) for the full list of test cases per file.
 
 ---
 
@@ -178,9 +175,11 @@ See [`TESTS.md`](TESTS.md) for the full list of test cases per file.
 Follow the existing dependency rule (see [`DESIGN.md`](DESIGN.md) §2):
 
 ```
-models → (nothing internal)
-helper, history → models
-config → helper, history, models
+logger, content, history → (nothing internal)
+tokens → content
+models → logger, history, tokens
+fileops, filters, hooks, scanner → models (+ leaves as needed)
+config → models, filters, tokens, history
 cmd → all of the above
 ```
 
@@ -235,8 +234,7 @@ Run `make lint` before opening a PR. The CI pipeline will fail if lint errors ar
 - [ ] Read [`DESIGN.md`](DESIGN.md) to understand where the change belongs
 - [ ] Follow the extension guides in [`DESIGN.md`](DESIGN.md) §6 for registries and the builder
 - [ ] Write tests before or alongside the implementation (TDD preferred)
-- [ ] Run `make all` (fmt + docs + lint + security + test-coverage) before pushing
-- [ ] Update [`TESTS.md`](TESTS.md) with any new test cases
+- [ ] Run `make all` (deps + fmt + docs + lint + security + test-coverage) before pushing
 - [ ] Update [`DESIGN.md`](DESIGN.md) if a new pattern or architectural decision is introduced
 
 ### Where to put new code
@@ -259,12 +257,12 @@ The CI workflow (`.github/workflows/ci.yml`) runs on every push and pull request
 
 | Step | Command | What it checks |
 |---|---|---|
-| Format | `make fmt` + `git diff` | All code is `gofmt`-formatted |
 | Dependencies | `go mod tidy` + `git diff` | `go.mod` and `go.sum` are up to date |
-| Test | `make test-coverage` | All tests pass; coverage report uploaded as artifact |
-| Lint | `make lint` | golangci-lint passes |
-| Security | `make security` | gosec finds no medium+ severity issues |
+| Format | `make fmt` + `git diff` | All code is `gofmt`-formatted |
 | Docs | `make docs` + `git diff` | Package README files are regenerated and committed |
+| Lint | `make lint` | golangci-lint passes |
+| Test | `make test-coverage` | All tests pass; coverage report uploaded as artifact |
+| Security | `make security` | gosec finds no medium+ severity issues |
 
 **All steps must pass before merging.** There are no exceptions.
 
@@ -298,3 +296,45 @@ Follow [Semantic Versioning](https://semver.org):
 - `MAJOR` (`v1.2.3` → `v2.0.0`): breaking changes to the config format or CLI interface
 
 Pre-release versions (`-alpha`, `-beta`, `-rc.1`) are marked as pre-release on GitHub automatically by goreleaser when the tag contains a pre-release suffix.
+
+---
+
+## 9. Serving the docs site locally
+
+The landing page is plain HTML and works directly from the filesystem. The docs section (docsify) does not — it uses `fetch()` to load `.md` files at runtime, which browsers block on `file://` origins. A local HTTP server is required.
+
+Install [Caddy](https://caddyserver.com/docs/install). On Windows with Chocolatey:
+
+```powershell
+choco install caddy
+```
+
+Or download the binary from [caddyserver.com/download](https://caddyserver.com/download) and add it to `PATH`.
+
+From the repo root:
+
+```bash
+caddy file-server --root docs --listen :8080
+```
+
+| URL | Page |
+|---|---|
+| `http://localhost:8080/pages/` | Landing page |
+| `http://localhost:8080/pages/docs/` | Docs (docsify) |
+
+Caddy serves `docs/` as the HTTP root. The docsify entry point at `docs/pages/docs/index.html` is configured with `basePath: '../../'`, which resolves to the server root — so all markdown files are reachable directly at their `docs/`-relative paths.
+
+To avoid typing the flags every time, create a `Caddyfile` at the repo root:
+
+```
+:8080 {
+    root * docs
+    file_server
+}
+```
+
+Then just run:
+
+```bash
+caddy run
+```

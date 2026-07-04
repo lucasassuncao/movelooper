@@ -39,17 +39,20 @@ Koanf is used only during startup. Once `AppBuilder.Build()` returns, the koanf 
 | `main` | Entry point. Creates `*Movelooper`, delegates everything to `cmd`. |
 | `internal/cmd` | CLI commands (cobra). Orchestrates operations; contains no file I/O logic. |
 | `internal/config` | Reads, validates, and builds configuration. Houses `AppBuilder`. |
-| `internal/models` | Pure data types shared across packages. No logic, no imports from other internal packages. |
+| `internal/models` | Core data types. Imports `logger`, `history`, and `tokens` to type the `Movelooper` struct fields and validate template patterns. |
 | `internal/fileops` | File operations: move, copy, symlink, conflict resolution, `MoveContext`. |
 | `internal/filters` | Extension matching, match (literal/regex/glob)/age/size/not filters, `MatchesFilter`. |
 | `internal/hooks` | Shell hook execution (`RunHook`). |
 | `internal/tokens` | Template token resolution (`ResolveGroupBy`, `ResolveRename`) and validation. |
 | `internal/history` | Reads and writes the JSON operation log. Thread-safe. |
 | `internal/scanner` | Walks a category's source directory and returns the files eligible for moving (`WalkSource`). |
+| `internal/archive` | Packs sets of files into zip or tar.gz archives. Config-agnostic: takes explicit (source, entry-name) pairs. |
+| `internal/content` | Detects a file's real MIME type from magic bytes, independent of extension. Wraps `gabriel-vasile/mimetype`. |
+| `internal/logger` | `Logger` interface (thin wrapper over `*pterm.Logger`). Lets non-`cmd` packages accept a logger without importing pterm directly. |
 | `internal/terminal` | Terminal width detection for log formatting. |
 | `internal/updater` | Self-update logic (GitHub releases). |
 
-**Dependency rule:** `models` imports nothing internal. `fileops`, `filters`, `hooks`, `tokens`, and `history` import only `models`. `config` imports `filters`, `tokens`, `history`, and `models`. `cmd` imports all of the above. This is a strict acyclic graph — no cycles, no upward imports.
+**Dependency rule:** `logger`, `content`, and `history` are leaf packages — they import nothing internal. `tokens` imports `content`. `models` imports `history`, `logger`, and `tokens` (to type `Movelooper` fields and validate template patterns). `fileops`, `filters`, `hooks`, and `scanner` import `models` and other leaves as needed. `config` imports `filters`, `tokens`, `history`, and `models`. `cmd` imports all of the above. The graph is strictly acyclic — no upward imports.
 
 ---
 
@@ -87,7 +90,7 @@ conflictResolvers map[string]ConflictResolver
 **File actions** (`internal/fileops/fileops.go`)
 
 ```
-FileAction interface { Execute(src, dst string) error }
+FileAction interface { Execute(ctx context.Context, src, dst string) error }
   moveAction, copyAction, symlinkAction
 
 fileActions map[string]FileAction
@@ -106,6 +109,7 @@ Unknown or empty action names fall back to `moveAction`. This is consistent with
 ```go
 config.NewApp(m, configPath,
     config.WithLogger(),
+    config.WithFormatOverride(formatOverride),
     config.WithConfig(),
     config.WithCategories(),
     config.WithHistory(),
@@ -203,7 +207,7 @@ After `AppBuilder.Build()` returns, koanf is discarded. No other part of the app
 1. In `internal/fileops/fileops.go`, define:
    ```go
    type hardlinkAction struct{}
-   func (a *hardlinkAction) Execute(src, dst string) error { return os.Link(src, dst) }
+   func (a *hardlinkAction) Execute(_ context.Context, src, dst string) error { return os.Link(src, dst) }
    ```
 2. Register it:
    ```go
@@ -251,9 +255,9 @@ After `AppBuilder.Build()` returns, koanf is discarded. No other part of the app
 
 Koanf is used only to load and validate the YAML file. Once `AppBuilder.Build()` returns, all configuration lives in typed Go structs. This avoids string-keyed config access scattered through the codebase and makes it impossible to read a config key that no longer exists.
 
-### `models` has no logic and no internal imports
+### `models` depends on `logger`, `history`, and `tokens`
 
-All shared types live in `models` with no dependencies on other internal packages. This prevents import cycles and makes the data model readable without understanding any subsystem.
+`models` imports three internal packages: `logger` and `history` to type the fields of `Movelooper`, and `tokens` to implement the format-validator functions in `formats.go`. This is intentional — the alternative would be to use raw `interface{}` or duplicate the validator logic. The dependency is one-directional: `logger`, `history`, and `tokens` do not import `models`, so there are no cycles.
 
 ### History is always written per-file, not per-batch
 

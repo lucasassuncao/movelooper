@@ -13,7 +13,7 @@
 ### Organize
 
 - Category-based rules: match files by extension, regex, glob, age, size, and real content type (`filter.mime: "image/*"`, magic bytes)
-- Organize files into subdirectories using templates: `{ext}`, `{mod-year}`, `{mod-month}`, `{size-range}`, and [more](docs/config.md#organize-by-tokens)
+- Organize files into subdirectories using templates: `{ext}`, `{mod-year}`, `{mod-month}`, `{size-range}`, and [more](docs/TOKENS.md)
 - Rich rename tokens: name transforms (`{name-slug}`, `{name-snake}`, `{name-upper}`, `{name-trunc:N}`, …), system info (`{hostname}`, `{username}`, `{os}`), time (`{hour}`, `{minute}`, `{timestamp}`), hashes (`{md5}`, `{sha256:N}`), and sequences (`{seq}`, `{seq-alpha}`, `{seq-roman}`)
 - Wildcard `extensions: [all]` to catch any file type
 - Conflict strategies per category: `rename`, `overwrite`, `skip`, `hash_check`, and more
@@ -52,7 +52,7 @@ Create a `movelooper.yaml` config file and open it in the interactive editor:
 movelooper edit
 ```
 
-Or write the config manually — see [Config File Reference](docs/config.md) for all fields and a [full example](docs/config.md#full-example).
+Or write the config manually — see [Configuration](docs/CONFIGURATION.md) and [Categories](docs/CATEGORIES.md) for all fields.
 
 ## Quick Example
 
@@ -107,9 +107,17 @@ categories:
 
 ## Documentation
 
-- [Architecture Overview](docs/ARCHITECTURE.md) — how `movelooper` works, the config structure, and the token engine
-- [Config File Reference](docs/CONFIG.md) — all fields, conflict strategies, actions, rename templates, tokens, full example, and config imports
+- [Getting Started](docs/GETTING-STARTED.md) — install, first config, dry-run, watch mode, undo
+- [Configuration](docs/CONFIGURATION.md) — `configuration:` block: logging, watch, history, imports
+- [Categories](docs/CATEGORIES.md) — `categories:` block: source, destination, actions, hooks
 - [Commands and Flags](docs/COMMANDS.md) — all CLI commands with flags and usage examples
+- [Tokens](docs/TOKENS.md) — full token reference for `organize-by` and `rename`
+- [Filters](docs/FILTERS.md) — filter types and boolean composition
+- [Cookbook](docs/COOKBOOK.md) — ready-to-use config recipes
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting issues and submitting pull requests.
 
 ## Tips
 

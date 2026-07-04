@@ -163,5 +163,3 @@ movelooper self-update --repo lucasassuncao/movelooper
 | `--limit`      | Maximum number of releases to show with `--list` (default `20`, max `100`)  |
 
 ---
-
-[← Back to README](../README.md)

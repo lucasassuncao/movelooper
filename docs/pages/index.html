@@ -1,130 +1,251 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="movelooper — a modern CLI tool that automatically organizes and moves your files based on configurable categories." />
   <title>movelooper</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- ── Hero ── -->
-<header class="hero">
-  <img src="movelooper2.png" alt="movelooper logo" width="500" height="500" />
-  <p>A modern CLI tool that automatically organizes and moves your files based on configurable categories. No manual sorting, no chaos.</p>
-
-  <div class="cta">
-    <a class="btn btn-primary" href="https://github.com/lucasassuncao/movelooper/releases">
-      ⬇ Download latest
+<!-- ── Navbar ── -->
+<nav class="navbar navbar-expand-lg fixed-top bg-dark border-bottom border-secondary">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#">
+      <img src="movelooper2.png" height="28" alt="movelooper logo" />
+      movelooper
     </a>
-    <a class="btn btn-secondary" href="https://github.com/lucasassuncao/movelooper">
-      ★ View on GitHub
-    </a>
-  </div>
-</header>
-
-<main class="container">
-
-  <!-- ── Features ── -->
-  <section id="features">
-    <h2>Features</h2>
-    <div class="features">
-      <div class="feature-card">
-        <div class="icon">📂</div>
-        <h3>Category-based rules</h3>
-        <p>Define categories with extensions, filters, and destinations in a simple YAML file.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">👁</div>
-        <h3>Watch mode</h3>
-        <p>Monitor directories in real-time and move files automatically as they appear.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">↩</div>
-        <h3>Undo</h3>
-        <p>Interactive batch picker to select and revert any past operation. Pass a batch ID to skip the picker.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🔍</div>
-        <h3>Dry-run everywhere</h3>
-        <p><code>--dry-run</code> on move and undo — preview before committing.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">⚔️</div>
-        <h3>Conflict strategies</h3>
-        <p><code>rename</code>, <code>overwrite</code>, <code>skip</code>, or <code>hash_check</code> — per category.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🔎</div>
-        <h3>Powerful filters</h3>
-        <p>Regex, glob, age, and size filters; <code>not</code> exclusion; composable <code>any</code>/<code>all</code> logic.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🌐</div>
-        <h3>Wildcard extension</h3>
-        <p><code>extensions: [all]</code> matches any file type — combine with <code>organize-by: "{ext}"</code> for a catch-all sorter.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🗂</div>
-        <h3>organize-by templates</h3>
-        <p>Build subdirectory structures with tokens: <code>{ext}</code>, <code>{mod-year}</code>, <code>{mod-month}</code>, <code>{size-range}</code>, and more.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🏷️</div>
-        <h3>Rich rename tokens</h3>
-        <p>Name transforms, system info, timestamps, hashes, and sequences — e.g. <code>{mod-date}_{name-slug}.{ext}</code>.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">📋</div>
-        <h3>Action control</h3>
-        <p><code>move</code>, <code>copy</code>, or <code>symlink</code> per category — back up or link files without touching the originals.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🔎</div>
-        <h3>Detects real file types</h3>
-        <p>Match and organize by content (magic bytes), not just the extension — a <code>.jpg</code> that is really a PNG is sorted correctly with <code>filter.mime</code> and <code>{mime-type}</code>.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">✏️</div>
-        <h3>Rename at destination</h3>
-        <p>Rename files on arrival using the token engine: <code>rename: "{mod-date}_{name}.{ext}"</code>.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🖊️</div>
-        <h3>TUI config editor</h3>
-        <p><code>movelooper edit</code> opens a two-panel TUI editor with undo, redo, and validation on save.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🧙</div>
-        <h3>Template scaffolding</h3>
-        <p>Bootstrap a new config from a built-in template in the TUI editor: <code>movelooper edit -o movelooper.yaml</code>.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">📎</div>
-        <h3>Config imports</h3>
-        <p>Split categories across multiple YAML files with <code>import:</code>. Use <code>movelooper edit</code> to open the merged config in the interactive TUI editor.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🔄</div>
-        <h3>Self-update</h3>
-        <p>Stay on the latest release with <code>movelooper self-update</code>.</p>
-      </div>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
+      aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarContent">
+      <ul class="navbar-nav ms-auto gap-1">
+        <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="docs/">Docs</a></li>
+        <li class="nav-item">
+          <a class="nav-link" href="https://github.com/lucasassuncao/movelooper" target="_blank" rel="noopener">
+            <i class="bi bi-github me-1"></i>GitHub
+          </a>
+        </li>
+      </ul>
     </div>
-  </section>
+  </div>
+</nav>
 
-  <!-- ── Installation ── -->
-  <section id="install">
-    <h2>Installation</h2>
+<!-- ── Hero ── -->
+<section class="py-5 text-center border-bottom border-secondary hero-section">
+  <div class="container">
+    <img src="movelooper2.png" alt="movelooper logo" width="200" height="200" class="mb-4" />
+    <p class="lead text-secondary col-lg-7 mx-auto mb-4">
+      A modern CLI tool that automatically organizes and moves your files based on configurable categories.
+      No manual sorting, no chaos.
+    </p>
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+      <a class="btn btn-primary btn-lg" href="https://github.com/lucasassuncao/movelooper/releases">
+        <i class="bi bi-download me-2"></i>Download latest
+      </a>
+      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/lucasassuncao/movelooper" target="_blank" rel="noopener">
+        <i class="bi bi-github me-2"></i>View on GitHub
+      </a>
+    </div>
+  </div>
+</section>
 
-    <div class="tab-group">
-      <div class="tabs">
-        <button class="tab active" onclick="switchTab(event, 'tab-download')">Download</button>
-        <button class="tab" onclick="switchTab(event, 'tab-build')">Build from source</button>
+<!-- ── Features ── -->
+<section id="features" class="py-5 border-bottom border-secondary">
+  <div class="container">
+    <h2 class="text-center fw-bold mb-4">Features</h2>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-folder2-open fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Category-based rules</h5>
+            <p class="card-text text-secondary">Define categories with extensions, filters, and destinations in a simple YAML file.</p>
+          </div>
+        </div>
       </div>
 
-      <div id="tab-download" class="tab-content active">
-        <div class="code-block">
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-eye fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Watch mode</h5>
+            <p class="card-text text-secondary">Monitor directories in real-time and move files automatically as they appear.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-arrow-counterclockwise fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Undo</h5>
+            <p class="card-text text-secondary">Interactive batch picker to select and revert any past operation. Pass a batch ID to skip the picker.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-binoculars fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Dry-run everywhere</h5>
+            <p class="card-text text-secondary"><code>--dry-run</code> on move and undo — preview before committing.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-shield-check fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Conflict strategies</h5>
+            <p class="card-text text-secondary"><code>rename</code>, <code>overwrite</code>, <code>skip</code>, or <code>hash_check</code> — per category.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-funnel fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Powerful filters</h5>
+            <p class="card-text text-secondary">Regex, glob, age, and size filters; <code>not</code> exclusion; composable <code>any</code>/<code>all</code> logic.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-asterisk fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Wildcard extension</h5>
+            <p class="card-text text-secondary"><code>extensions: [all]</code> matches any file type — combine with <code>organize-by: "{ext}"</code> for a catch-all sorter.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-grid-3x3-gap fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">organize-by templates</h5>
+            <p class="card-text text-secondary">Build subdirectory structures with tokens: <code>{ext}</code>, <code>{mod-year}</code>, <code>{mod-month}</code>, <code>{size-range}</code>, and more.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-tags fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Rich rename tokens</h5>
+            <p class="card-text text-secondary">Name transforms, system info, timestamps, hashes, and sequences — e.g. <code>{mod-date}_{name-slug}.{ext}</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-arrow-left-right fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Action control</h5>
+            <p class="card-text text-secondary"><code>move</code>, <code>copy</code>, or <code>symlink</code> per category — back up or link files without touching the originals.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-fingerprint fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Detects real file types</h5>
+            <p class="card-text text-secondary">Match and organize by content (magic bytes), not just the extension — a <code>.jpg</code> that is really a PNG is sorted correctly with <code>filter.mime</code> and <code>{mime-type}</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-pencil-square fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Rename at destination</h5>
+            <p class="card-text text-secondary">Rename files on arrival using the token engine: <code>rename: "{mod-date}_{name}.{ext}"</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-terminal fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">TUI config editor</h5>
+            <p class="card-text text-secondary"><code>movelooper edit</code> opens a two-panel TUI editor with undo, redo, and validation on save.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-stars fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Template scaffolding</h5>
+            <p class="card-text text-secondary">Bootstrap a new config from a built-in template in the TUI editor: <code>movelooper edit -o movelooper.yaml</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-diagram-3 fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Config imports</h5>
+            <p class="card-text text-secondary">Split categories across multiple YAML files with <code>import:</code>. Use <code>movelooper edit</code> to open the merged config in the interactive TUI editor.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card h-100 bg-body-secondary border-secondary">
+          <div class="card-body">
+            <i class="bi bi-arrow-repeat fs-2 text-primary mb-3 d-block"></i>
+            <h5 class="card-title">Self-update</h5>
+            <p class="card-text text-secondary">Stay on the latest release with <code>movelooper self-update</code>.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Installation ── -->
+<section id="install" class="py-5 border-bottom border-secondary">
+  <div class="container">
+    <h2 class="fw-bold mb-4">Installation</h2>
+
+    <ul class="nav nav-tabs mb-3" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-download" type="button" role="tab">
+          Download
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-build" type="button" role="tab">
+          Build from source
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="tab-download" role="tabpanel">
+        <div class="code-block position-relative">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="cmt"># 1. Download the binary for your platform from the releases page</span>
 <span class="cmt">#    https://github.com/lucasassuncao/movelooper/releases</span>
@@ -133,9 +254,8 @@
 movelooper edit -o movelooper.yaml</pre>
         </div>
       </div>
-
-      <div id="tab-build" class="tab-content">
-        <div class="code-block">
+      <div class="tab-pane fade" id="tab-build" role="tabpanel">
+        <div class="code-block position-relative">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre>git clone https://github.com/lucasassuncao/movelooper.git
 cd movelooper
@@ -144,36 +264,47 @@ go build -o movelooper .
         </div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ── Quick start ── -->
-  <section id="quickstart">
-    <h2>Quick start</h2>
-    <p style="color: var(--text-muted); margin-bottom: 20px;">Scaffold a config from a template in the TUI editor, then run.</p>
-
-    <div class="code-block" style="margin-bottom: 16px;">
+<!-- ── Quick start ── -->
+<section id="quickstart" class="py-5 border-bottom border-secondary">
+  <div class="container">
+    <h2 class="fw-bold mb-2">Quick start</h2>
+    <p class="text-secondary mb-4">Scaffold a config from a template in the TUI editor, then run.</p>
+    <div class="code-block position-relative">
       <button class="copy-btn" onclick="copyCode(this)">Copy</button>
       <pre>movelooper edit -o movelooper.yaml   <span class="cmt"># create a config from a template in the TUI</span>
 movelooper --dry-run                 <span class="cmt"># preview what would be moved</span>
 movelooper                           <span class="cmt"># move files</span>
 movelooper watch                     <span class="cmt"># real-time monitoring</span></pre>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ── Examples ── -->
-  <section id="examples">
-    <h2>Examples</h2>
+<!-- ── Examples ── -->
+<section id="examples" class="py-5 border-bottom border-secondary">
+  <div class="container">
+    <h2 class="fw-bold mb-4">Examples</h2>
 
-    <div class="tab-group">
-      <div class="tabs">
-        <button class="tab active" onclick="switchTab(event, 'tab-ex-images')">Images</button>
-        <button class="tab" onclick="switchTab(event, 'tab-ex-copy')">Copy &amp; rename</button>
-        <button class="tab" onclick="switchTab(event, 'tab-ex-catchall')">Catch-all</button>
-        <button class="tab" onclick="switchTab(event, 'tab-ex-imports')">Imports</button>
-      </div>
+    <ul class="nav nav-tabs mb-3" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-ex-images" type="button" role="tab">Images</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ex-copy" type="button" role="tab">Copy &amp; rename</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ex-catchall" type="button" role="tab">Catch-all</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ex-imports" type="button" role="tab">Imports</button>
+      </li>
+    </ul>
 
-      <div id="tab-ex-images" class="tab-content active">
-        <div class="code-block">
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="tab-ex-images" role="tabpanel">
+        <div class="code-block position-relative">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
   <span class="key">logging</span>:
@@ -200,8 +331,8 @@ movelooper watch                     <span class="cmt"># real-time monitoring</s
         </div>
       </div>
 
-      <div id="tab-ex-copy" class="tab-content">
-        <div class="code-block">
+      <div class="tab-pane fade" id="tab-ex-copy" role="tabpanel">
+        <div class="code-block position-relative">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
   <span class="key">logging</span>:
@@ -221,8 +352,8 @@ movelooper watch                     <span class="cmt"># real-time monitoring</s
         </div>
       </div>
 
-      <div id="tab-ex-catchall" class="tab-content">
-        <div class="code-block">
+      <div class="tab-pane fade" id="tab-ex-catchall" role="tabpanel">
+        <div class="code-block position-relative">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
   <span class="key">logging</span>:
@@ -241,9 +372,9 @@ movelooper watch                     <span class="cmt"># real-time monitoring</s
         </div>
       </div>
 
-      <div id="tab-ex-imports" class="tab-content">
-        <p style="margin-bottom: 8px; font-weight: 600;">movelooper.yaml <span style="font-weight:400;color:var(--text-muted)">— main file</span></p>
-        <div class="code-block" style="margin-bottom: 16px;">
+      <div class="tab-pane fade" id="tab-ex-imports" role="tabpanel">
+        <p class="mb-2 fw-semibold">movelooper.yaml <span class="fw-normal text-secondary">— main file</span></p>
+        <div class="code-block position-relative mb-4">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
   <span class="key">logging</span>:
@@ -256,8 +387,8 @@ movelooper watch                     <span class="cmt"># real-time monitoring</s
   - <span class="str">categories/wallhaven.yaml</span></pre>
         </div>
 
-        <p style="margin-bottom: 8px; font-weight: 600;">categories/wallhaven.yaml <span style="font-weight:400;color:var(--text-muted)">— imported file</span></p>
-        <div class="code-block">
+        <p class="mb-2 fw-semibold">categories/wallhaven.yaml <span class="fw-normal text-secondary">— imported file</span></p>
+        <div class="code-block position-relative">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">categories</span>:
   - <span class="key">name</span>: <span class="str">"wallhaven"</span>
@@ -273,58 +404,56 @@ movelooper watch                     <span class="cmt"># real-time monitoring</s
         </div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ── Commands ── -->
-  <section id="commands">
-    <h2>Commands</h2>
-    <table class="cmd-table">
-      <thead>
-        <tr>
-          <th>Command</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>movelooper</td><td>Run the move operation once across all categories</td></tr>
-        <tr><td>movelooper watch</td><td>Monitor source directories and move files in real-time</td></tr>
-        <tr><td>movelooper undo</td><td>Open interactive picker to select and revert a batch</td></tr>
-        <tr><td>movelooper undo --list</td><td>List all recorded batches</td></tr>
-        <tr><td>movelooper undo --dry-run</td><td>Preview what would be restored</td></tr>
-        <tr><td>movelooper edit</td><td>Open the config in an interactive TUI editor</td></tr>
-        <tr><td>movelooper edit -o movelooper.yaml</td><td>Scaffold a new config from a template in the TUI editor</td></tr>
-        <tr><td>movelooper validate</td><td>Validate a config file and report all errors</td></tr>
-        <tr><td>movelooper config</td><td>Print the resolved configuration file path</td></tr>
-        <tr><td>movelooper show-docs</td><td>Browse the field reference in the terminal</td></tr>
-        <tr><td>movelooper self-update</td><td>Download and install the latest release</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-</main>
+<!-- ── Commands ── -->
+<section id="commands" class="py-5">
+  <div class="container">
+    <h2 class="fw-bold mb-4">Commands</h2>
+    <div class="table-responsive">
+      <table class="table table-dark table-bordered table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>movelooper</code></td><td>Run the move operation once across all categories</td></tr>
+          <tr><td><code>movelooper watch</code></td><td>Monitor source directories and move files in real-time</td></tr>
+          <tr><td><code>movelooper undo</code></td><td>Open interactive picker to select and revert a batch</td></tr>
+          <tr><td><code>movelooper undo --list</code></td><td>List all recorded batches</td></tr>
+          <tr><td><code>movelooper undo --dry-run</code></td><td>Preview what would be restored</td></tr>
+          <tr><td><code>movelooper edit</code></td><td>Open the config in an interactive TUI editor</td></tr>
+          <tr><td><code>movelooper edit -o movelooper.yaml</code></td><td>Scaffold a new config from a template in the TUI editor</td></tr>
+          <tr><td><code>movelooper validate</code></td><td>Validate a config file and report all errors</td></tr>
+          <tr><td><code>movelooper config</code></td><td>Print the resolved configuration file path</td></tr>
+          <tr><td><code>movelooper show-docs</code></td><td>Browse the field reference in the terminal</td></tr>
+          <tr><td><code>movelooper self-update</code></td><td>Download and install the latest release</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
 <!-- ── Footer ── -->
-<footer>
-  <p>
-    Built with ❤️ by <a href="https://github.com/lucasassuncao" target="_blank">lucasassuncao</a>
-    &nbsp;·&nbsp;
-    <a href="https://github.com/lucasassuncao/movelooper" target="_blank">GitHub</a>
-    &nbsp;·&nbsp;
-    <a href="https://github.com/lucasassuncao/movelooper/releases" target="_blank">Releases</a>
-    &nbsp;·&nbsp;
-    <a href="https://github.com/lucasassuncao/movelooper/blob/main/LICENSE" target="_blank">MIT License</a>
-  </p>
+<footer class="py-4 text-center text-secondary border-top border-secondary">
+  <div class="container">
+    <p class="mb-0">
+      Built with ❤️ by <a href="https://github.com/lucasassuncao" class="text-secondary" target="_blank" rel="noopener">lucasassuncao</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/lucasassuncao/movelooper" class="text-secondary" target="_blank" rel="noopener">GitHub</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/lucasassuncao/movelooper/releases" class="text-secondary" target="_blank" rel="noopener">Releases</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/lucasassuncao/movelooper/blob/main/LICENSE" class="text-secondary" target="_blank" rel="noopener">MIT License</a>
+    </p>
+  </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  function switchTab(event, id) {
-    const group = event.target.closest('.tab-group');
-    group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    group.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    event.target.classList.add('active');
-    document.getElementById(id).classList.add('active');
-  }
-
   function copyCode(btn) {
     const pre = btn.closest('.code-block').querySelector('pre');
     navigator.clipboard.writeText(pre.innerText).then(() => {
