@@ -78,7 +78,7 @@ categories:
       conflict-strategy: skip    # keep only one copy per installer name
 ```
 
-> **See also:** [Filters](/FILTERS.md) — `age`, `size`, `match`, and boolean composition.
+> **See also:** [Filters](/FILTERS.md) — `age`, `size`, `match`, and boolean composition · [Conflict Strategies](/CONFLICTS.md) — `rename`, `skip`, and more.
 
 ---
 
@@ -117,7 +117,7 @@ To also rename files with the modification date as prefix:
       conflict-strategy: hash_check
 ```
 
-> **See also:** [Tokens](/TOKENS.md) — `{mod-year}`, `{mod-date}`, `{name}`, `{ext}`, and all other template tokens.
+> **See also:** [Tokens](/TOKENS.md) — `{mod-year}`, `{mod-date}`, `{name}`, `{ext}`, and all other template tokens · [Conflict Strategies](/CONFLICTS.md) — `hash_check`, `rename`, `skip`, and more.
 
 ---
 
@@ -145,6 +145,8 @@ categories:
 ```
 
 > **Note:** Undoing a `copy` batch removes the copy at the destination. The original is never touched.
+
+> **See also:** [Actions](/ACTIONS.md) — copy, move, symlink, archive · [Undo](/UNDO.md) — batch IDs, limitations per action type.
 
 ---
 

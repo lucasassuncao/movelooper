@@ -4,151 +4,62 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
-🌀 **Movelooper** is a modern CLI tool that automatically organizes and moves your files based on configurable categories. No manual sorting, no chaos. Perfect for keeping your Downloads, Dev, or Media folders clean and structured.
+🌀 **Movelooper** is a modern CLI tool that automatically organizes and moves your files based on configurable categories.
 
-![made with Go](https://img.shields.io/badge/made_with-Go-blue?logo=go) ![type CLI](https://img.shields.io/badge/type-CLI-green) ![license MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+Are your files a mess? **Movelooper** fixes that.\
+Tired of moving files by hand? **Movelooper** does it for you.\
+Scared of losing something? Every move is recorded and undoable.\
+Not sure it will work? Run `--dry-run` and see exactly what happens before touching anything.
+
+For example, your Downloads folder has 847 files... You haven't sorted them in 6 months. You know you won't do it manually.\
+You want to organize them by file type, date, and size, but you also want to rename them in a consistent way.\
+You want to avoid duplicates and conflicts and do it quickly and safely.
+
+That's why you use `movelooper`.
+
+Write one YAML config file, run `movelooper`, and it will automatically move and organize your files into the right folders.\
+Movelooper can also watch your folders in real-time and move files as they arrive, so you never have to worry about clutter again.
 
 ## Features
 
 ### Organize
 
-- Category-based rules: match files by extension, regex, glob, age, size, and real content type (`filter.mime: "image/*"`, magic bytes)
-- Organize files into subdirectories using templates: `{ext}`, `{mod-year}`, `{mod-month}`, `{size-range}`, and [more](docs/TOKENS.md)
-- Rich rename tokens: name transforms (`{name-slug}`, `{name-snake}`, `{name-upper}`, `{name-trunc:N}`, …), system info (`{hostname}`, `{username}`, `{os}`), time (`{hour}`, `{minute}`, `{timestamp}`), hashes (`{md5}`, `{sha256:N}`), and sequences (`{seq}`, `{seq-alpha}`, `{seq-roman}`)
-- Wildcard `extensions: [all]` to catch any file type
-- Conflict strategies per category: `rename`, `overwrite`, `skip`, `hash_check`, and more
-- `action: copy` or `action: symlink` to back up or link files without moving them
-- `action: archive` to pack a whole category into a single `.zip`/`.tar.gz` at the destination
-- `rename` template to rename files at the destination using the same token engine
+- Move files from source to destination based on categories defined in a YAML config file
+- Select actions per category: move, copy, symlink, or archive (.zip or .tar.gz), see [Actions](https://lucasassuncao.github.io/movelooper/docs/#/ACTIONS) for all available actions
+- Filter files by extension, regex, glob, age, size, and real content type (magic bytes), see [Filters](https://lucasassuncao.github.io/movelooper/docs/#/FILTERS) for all available filters
+- Configure conflict strategies per category: rename, overwrite, skip, hash_check, and more, see [Conflict Strategies](https://lucasassuncao.github.io/movelooper/docs/#/CONFLICTS) for all available strategies
+- Organize files into subdirectories using template tokens: `{ext}`, `{mod-year}`, `{mod-month}`, `{size-range}`, see [Tokens](https://lucasassuncao.github.io/movelooper/docs/#/TOKENS) for all available tokens
+- Rename files at the destination using a rich token engine, see [Tokens](https://lucasassuncao.github.io/movelooper/docs/#/TOKENS) for all available tokens
+- Use a catch-all category with `extensions: [all]` to organize any file type by its real extension
+- Keep a history of all moves in `~/.movelooper/history.json` for auditing and undoing
 
 ### Automate
 
-- Watch mode: monitors directories in real-time, moves files as they stabilize
-- Undo: interactive batch picker to select and revert a batch · pass a batch ID to skip the picker
-- `--dry-run` on move and undo to preview before committing
-- Hooks: run shell commands before and after each category — notify, log, call webhooks, or trigger scripts (one-shot `movelooper` run only, not `watch`)
+- Use `--dry-run` to preview what would happen without moving any files
+- Use Watch mode to automatically move files as they arrive in the source folder, see [Watch Mode](https://lucasassuncao.github.io/movelooper/docs/#/WATCH) for reference
+- Use Undo command to roll back any batch of moves, or preview what would be undone with `undo --dry-run`
+- Use Hooks to trigger scripts or webhooks after each category, for example to notify, log, or validate the move, see [Hooks](https://lucasassuncao.github.io/movelooper/docs/#/HOOKS) for reference
 
 ### Configure
 
-- Split config across multiple YAML files with `import:`
-- `edit` — interactive TUI editor for the config file · `validate` to check all rules · `show-docs` to browse the field reference in the terminal
+- Split config across multiple YAML files and import them using `import:` statements
+- Use the `edit` command to open a rich interactive TUI editor for your config file, with validation on save
 - Self-update with `self-update`
 
 ## How It Works
 
-`movelooper` reads your configuration file (`movelooper.yaml` or `conf/movelooper.yaml`), scans all extensions listed per category, and processes matching files from the source to the destination.
+`movelooper` reads your configuration file (defaults to `movelooper.yaml` or `conf/movelooper.yaml`),\
+it scans all extensions listed per category, and processes matching files from the source to the destination\
+following the rules defined in the config. It keeps a history of all moves in `~/.movelooper/history.json` so you can undo any batch any time.
 
-The optional `organize-by` field controls how files are placed inside `<destination>/` using a template — for example `{ext}/{mod-year}/{mod-month}` places a `.jpg` modified in April 2025 into `<destination>/jpg/2025/04/`.
+## Getting Started
 
-## Installation
-
-Download the latest version from the [releases page](https://github.com/lucasassuncao/movelooper/releases), then extract the binary and add it to your system's PATH.
-
-## First-time Setup
-
-Create a `movelooper.yaml` config file and open it in the interactive editor:
-
-```bash
-movelooper edit
-```
-
-Or write the config manually — see [Configuration](docs/CONFIGURATION.md) and [Categories](docs/CATEGORIES.md) for all fields.
-
-## Quick Example
-
-```yaml
-configuration:
-  logging:
-    output: console
-    level: info
-  watch:
-    delay: 5m
-
-categories:
-  - name: images
-    source:
-      path: ~/Downloads
-      extensions: [jpg, jpeg, png, webp]
-      filter:
-        not:
-          - match:
-              glob: "screenshot_*"
-        age:
-          min: 10m
-    destination:
-      path: ~/Images
-      conflict-strategy: rename
-      organize-by: "{ext}"
-
-  - name: photos-backup
-    source:
-      path: ~/Downloads
-      extensions: [jpg, jpeg, raw]
-    destination:
-      path: ~/Backup/photos
-      action: copy                          # keep original in Downloads
-      rename: "{mod-date}_{name}.{ext}"    # photo.jpg → 2025-04-16_photo.jpg
-      conflict-strategy: skip
-    hooks:
-      before:
-        shell: bash
-        on-failure: warn
-        run:
-          - echo "Starting $ML_CATEGORY..."
-      after:
-        shell: bash
-        on-failure: warn
-        run:
-          - |
-            if [ "$ML_FILES_MOVED" -gt 0 ]; then
-              echo "$ML_FILES_MOVED files moved. Batch: $ML_BATCH_ID"
-            fi
-```
+Follow the [Getting Started](https://lucasassuncao.github.io/movelooper/docs/#/GETTING-STARTED) guide to install and set up `movelooper`.
 
 ## Documentation
 
-- [Getting Started](docs/GETTING-STARTED.md) — install, first config, dry-run, watch mode, undo
-- [Configuration](docs/CONFIGURATION.md) — `configuration:` block: logging, watch, history, imports
-- [Categories](docs/CATEGORIES.md) — `categories:` block: source, destination, actions, hooks
-- [Commands and Flags](docs/COMMANDS.md) — all CLI commands with flags and usage examples
-- [Tokens](docs/TOKENS.md) — full token reference for `organize-by` and `rename`
-- [Filters](docs/FILTERS.md) — filter types and boolean composition
-- [Cookbook](docs/COOKBOOK.md) — ready-to-use config recipes
+See the [Documentation](https://lucasassuncao.github.io/movelooper/docs/) for detailed information on how to use `movelooper`, including configuration options, commands, and examples.
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting issues and submitting pull requests.
-
-## Tips
-
-### Safety & Dry-run
-
-- Run with `--dry-run` first to preview actions before organizing real files - works on `movelooper` and `undo`.
-- Use `undo --dry-run` to inspect what a restore would do before committing.
-- Use `undo --list` to inspect past operations and roll back any batch.
-
-### Configuration
-
-- Use `enabled: false` to temporarily pause a category without deleting it from the config.
-- Use `import:` to split a large config into per-category files.
-- Run `movelooper edit` to open the config in the interactive TUI editor — it validates on save.
-
-### Filters
-
-- Add `filter.not` patterns to skip screenshots, drafts, or temp files from being moved.
-- Use `filter.age.min` to avoid moving files that are still being downloaded.
-- Use `source.extensions: [all]` with `destination.organize-by: "{ext}"` as a catch-all that organizes any file by its real extension.
-
-### Actions & Rename
-
-- Use `action: copy` to back up files without removing them from the source.
-- Use `action: symlink` to link files into a media server folder without duplicating them.
-- Use `rename: "{mod-date}_{name}.{ext}"` to timestamp files as they arrive at the destination.
-
-### Automation
-
-- Use `watch` mode to automatically keep your Downloads folder clean at all times.
-- Add `movelooper watch` to a cron job or Windows Task Scheduler for fully automatic cleanup.
-- Run `movelooper self-update` to always stay on the latest release.
-- Use `hooks.after` with `$ML_BATCH_ID` to trigger an undo script if post-move validation fails.
-- On Windows, set `shell: pwsh` and use `$env:ML_*` syntax; on Linux/macOS use `shell: bash` and `$ML_*`.

@@ -7,11 +7,16 @@
   - [Cookbook](/COOKBOOK.md)
   - [Troubleshooting](/TROUBLESHOOTING.md)
   - [Watch Mode](/WATCH.md)
+  - [Editor (TUI)](/EDIT.md)
+  - [FAQ](/FAQ.md)
 
 - **Reference**
   - [Commands](/COMMANDS.md)
   - [Configuration](/CONFIGURATION.md)
   - [Categories](/CATEGORIES.md)
+  - [Actions](/ACTIONS.md)
+  - [Conflicts](/CONFLICTS.md)
+  - [Undo](/UNDO.md)
   - [Tokens](/TOKENS.md)
   - [Filters](/FILTERS.md)
   - [Hooks](/HOOKS.md)

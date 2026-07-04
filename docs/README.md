@@ -88,3 +88,20 @@ categories:
 **Actions:** use `action: copy` to back up without removing originals. Use `action: symlink` to link into a media server folder.
 
 **Automation:** add `movelooper watch` to a cron job or Windows Task Scheduler. Run `movelooper self-update` to stay on the latest release.
+
+## Where to go next
+
+- [Getting Started](/GETTING-STARTED.md) — install, first category, dry-run, undo
+- [Configuration](/CONFIGURATION.md) — logging, watch delay, history, defaults
+- [Categories](/CATEGORIES.md) — source, destination, hooks
+- [Actions](/ACTIONS.md) — move, copy, symlink, archive
+- [Conflicts](/CONFLICTS.md) — rename, overwrite, skip, hash_check, newest, oldest, larger, smaller
+- [Tokens](/TOKENS.md) — full token reference for `organize-by` and `rename`
+- [Filters](/FILTERS.md) — match, age, size, mime, and boolean composition
+- [Hooks](/HOOKS.md) — before/after hooks, `ML_*` env vars, examples
+- [Watch Mode](/WATCH.md) — stability detection, delay tuning, running automatically
+- [Undo](/UNDO.md) — batch IDs, history file, limitations per action type
+- [Cookbook](/COOKBOOK.md) — ready-to-use configs for common scenarios
+- [Commands](/COMMANDS.md) — all CLI commands and flags
+- [Editor (TUI)](/EDIT.md) — interactive config editor, keybindings, themes
+- [FAQ](/FAQ.md) — common questions

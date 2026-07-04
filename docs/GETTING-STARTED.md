@@ -69,7 +69,7 @@ categories:
       conflict-strategy: rename     # append (1), (2)… if the file already exists
 ```
 
-This moves every `.jpg`, `.jpeg`, `.png`, `.webp`, and `.gif` from `~/Downloads` to `~/Pictures`. If a file with the same name already exists at the destination, the incoming file is renamed with a counter suffix (`photo(1).jpg`, `photo(2).jpg`, …).
+This moves every `.jpg`, `.jpeg`, `.png`, `.webp`, and `.gif` from `~/Downloads` to `~/Pictures`. If a file with the same name already exists at the destination, the incoming file is renamed with a counter suffix (`photo(1).jpg`, `photo(2).jpg`, …). See [Conflict Strategies](/CONFLICTS.md) for all available strategies.
 
 ---
 
@@ -206,6 +206,8 @@ destination:
   action: symlink    # create a link without duplicating the file
 ```
 
+See [Actions](/ACTIONS.md) for the full reference: move, copy, symlink, and archive.
+
 ---
 
 ## 9. Watch mode
@@ -240,6 +242,8 @@ To undo only a specific category within a batch:
 movelooper undo --category images
 ```
 
+See [Undo](/UNDO.md) for the full reference: batch IDs, history file, limitations, and behavior per action type.
+
 ---
 
 ## 11. Split a large config with imports
@@ -266,8 +270,12 @@ Each imported file is a standalone YAML file with a `categories:` block. moveloo
 ## Where to go next
 
 - [Configuration](/CONFIGURATION.md) — `configuration:` block fields: logging, watch, history, defaults, imports
-- [Categories](/CATEGORIES.md) — `categories:` block fields: source, destination, actions, conflict strategies, hooks
+- [Categories](/CATEGORIES.md) — `categories:` block fields: source, destination, hooks
+- [Actions](/ACTIONS.md) — move, copy, symlink, archive
+- [Conflict Strategies](/CONFLICTS.md) — rename, overwrite, skip, hash_check, and more
+- [Undo](/UNDO.md) — batch IDs, history file, limitations per action type
 - [Commands and Flags](/COMMANDS.md) — all CLI commands and flags
 - [Tokens](/TOKENS.md) — full token reference for `organize-by` and `rename`
 - [Filters](/FILTERS.md) — filter types and boolean composition
+- [FAQ](/FAQ.md) — common questions
 - [Attribute reference](/movelooper/attributes/configuration/configuration.md) — browsable field docs (also available in the terminal via `movelooper show-docs`)
