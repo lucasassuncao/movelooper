@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD033 -->
 <p align="center">
-  <img src="docs/pages/movelooper2.png" alt="Movelooper logo" width="300" height="300">
+  <img src="../movelooper2.png" alt="Movelooper logo" width="300" height="300">
 </p>
 <!-- markdownlint-enable MD033 -->
 
