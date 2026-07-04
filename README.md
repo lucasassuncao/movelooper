@@ -31,7 +31,7 @@ Movelooper can also watch your folders in real-time and move files as they arriv
 - Organize files into subdirectories using template tokens: `{ext}`, `{mod-year}`, `{mod-month}`, `{size-range}`, see [Tokens](https://lucasassuncao.github.io/movelooper/docs/#/TOKENS) for all available tokens
 - Rename files at the destination using a rich token engine, see [Tokens](https://lucasassuncao.github.io/movelooper/docs/#/TOKENS) for all available tokens
 - Use a catch-all category with `extensions: [all]` to organize any file type by its real extension
-- Keep a history of all moves in `~/.movelooper/history.json` for auditing and undoing
+- Keep a history of all moves in `~/.movelooper/history/movelooper.json` for auditing and undoing
 
 ### Automate
 
@@ -50,7 +50,7 @@ Movelooper can also watch your folders in real-time and move files as they arriv
 
 `movelooper` reads your configuration file (defaults to `movelooper.yaml` or `conf/movelooper.yaml`),\
 it scans all extensions listed per category, and processes matching files from the source to the destination\
-following the rules defined in the config. It keeps a history of all moves in `~/.movelooper/history.json` so you can undo any batch any time.
+following the rules defined in the config. It keeps a history of all moves in `~/.movelooper/history/movelooper.json` so you can undo any batch any time.
 
 ## Getting Started
 
