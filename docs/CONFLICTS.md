@@ -48,7 +48,7 @@ destination:
 ## `hash_check`
 
 Computes the SHA-256 hash of both files:
-- **Identical content** → source is skipped (no duplicate stored)
+- **Identical content** → source is skipped (no duplicate stored). With `action: move` the duplicate source file is deleted (moving it would have consumed it anyway); with `action: copy` or `symlink` the source is left untouched.
 - **Different content** → incoming file is renamed (like `rename`)
 
 Useful for de-duplication: you avoid storing identical files twice without accidentally discarding genuinely different ones.

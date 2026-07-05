@@ -15,7 +15,7 @@ import "github.com/lucasassuncao/movelooper/internal/hooks"
 
 
 <a name="RunHook"></a>
-## func [RunHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/hooks/hooks.go#L29>)
+## func [RunHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/hooks/hooks.go#L27>)
 
 ```go
 func RunHook(ctx context.Context, hook *models.CategoryHook, hctx HookContext, env map[string]string) error
@@ -27,7 +27,7 @@ RunHook executes all commands in hook.Run sequentially, injecting env into each 
 - "warn": logs the error and continues to the next command.
 
 <a name="HookContext"></a>
-## type [HookContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/hooks/hooks.go#L18-L22>)
+## type [HookContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/hooks/hooks.go#L16-L20>)
 
 HookContext carries the dependencies needed to execute hooks.
 

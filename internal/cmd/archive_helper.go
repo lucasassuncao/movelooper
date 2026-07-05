@@ -18,14 +18,16 @@ import (
 
 // archiveCategory packs all matched files of a category into one archive at the
 // destination. It returns the final archive path (empty when nothing was
-// written: no files, dry-run, or an error). Sources are deleted only when
-// keep-source is false and the archive was written successfully.
-func archiveCategory(ctx context.Context, m *models.Movelooper, category *models.Category, files []scanner.FileEntry, batch moveBatch) string {
+// written: no files, dry-run, or a conflict-strategy skip) and a non-nil error
+// when the archive could not be written, so the caller can surface the failure
+// through the run's exit code. Sources are deleted only when keep-source is
+// false and the archive was written successfully.
+func archiveCategory(ctx context.Context, m *models.Movelooper, category *models.Category, files []scanner.FileEntry, batch moveBatch) (string, error) {
 	arc := category.Destination.Archive
 	label := pterm.Cyan(fmt.Sprintf("[%s]", category.Name))
 	if len(files) == 0 {
 		m.Logger.Info(fmt.Sprintf("%s no files to archive", label))
-		return ""
+		return "", nil
 	}
 
 	base := tokens.ResolveArchiveName(arc.Name, category.Name, time.Now())
@@ -40,16 +42,18 @@ func archiveCategory(ctx context.Context, m *models.Movelooper, category *models
 			args = append(args, "entry", e.Name)
 		}
 		m.Logger.Info(fmt.Sprintf("%s would archive %d %s", label, len(entries), fileNoun("all", len(entries))), m.Logger.Args(args...))
-		return ""
+		return "", nil
 	}
 
 	if err := fileops.CreateDirectory(category.Destination.Path); err != nil {
-		m.Logger.Error("failed to create destination directory", m.Logger.Args("path", category.Destination.Path, "error", err.Error()))
-		return ""
+		return "", fmt.Errorf("create destination directory %q: %w", category.Destination.Path, err)
 	}
-	destPath = archiveConflictPath(m, category.Destination.ConflictStrategy, destPath)
+	destPath, err := archiveConflictPath(m, category.Destination.ConflictStrategy, destPath)
+	if err != nil {
+		return "", err
+	}
 	if destPath == "" {
-		return "" // skipped by conflict strategy
+		return "", nil // skipped by conflict strategy
 	}
 
 	opts := archive.Options{
@@ -58,17 +62,16 @@ func archiveCategory(ctx context.Context, m *models.Movelooper, category *models
 		OnProgress:  newArchiveProgress(m),
 	}
 	if err := archive.Write(ctx, destPath, entries, opts); err != nil {
-		m.Logger.Error("failed to write archive", m.Logger.Args("path", destPath, "error", err.Error()))
-		return ""
+		return "", fmt.Errorf("write archive %q: %w", destPath, err)
 	}
 	m.Logger.Info(fmt.Sprintf("%s archived %d %s", label, len(entries), fileNoun("all", len(entries))), m.Logger.Args("archive", destPath))
 
-	recordArchiveHistory(m, category, destPath, batch.batchID)
+	recordArchiveHistory(m, category, destPath, batch)
 
 	if !arc.KeepsSource() {
 		deleteArchivedSources(m, files)
 	}
-	return destPath
+	return destPath, nil
 }
 
 // archiveEntries builds (source, entry-name) pairs. With flatten=false the entry
@@ -94,38 +97,37 @@ func archiveEntries(category *models.Category, files []scanner.FileEntry) []arch
 
 // archiveConflictPath applies the conflict strategy to an already-existing
 // archive path. Returns the path to write, or "" when the strategy says skip.
-func archiveConflictPath(m *models.Movelooper, cs models.ConflictStrategy, destPath string) string {
+func archiveConflictPath(m *models.Movelooper, cs models.ConflictStrategy, destPath string) (string, error) {
 	if _, err := os.Stat(destPath); err != nil {
-		return destPath // does not exist yet
+		return destPath, nil // does not exist yet
 	}
 	switch cs {
 	case models.ConflictStrategySkip:
 		m.Logger.Info("archive already exists, skipping", m.Logger.Args("path", destPath))
-		return ""
+		return "", nil
 	case models.ConflictStrategyOverwrite:
-		return destPath
+		return destPath, nil
 	default: // rename (and default)
 		dir := filepath.Dir(destPath)
 		name := filepath.Base(destPath)
 		unique, err := fileops.UniqueDestination(dir, name)
 		if err != nil {
-			m.Logger.Error("failed to find a unique archive name", m.Logger.Args("path", destPath, "error", err.Error()))
-			return ""
+			return "", fmt.Errorf("find a unique archive name for %q: %w", destPath, err)
 		}
-		return unique
+		return unique, nil
 	}
 }
 
-func recordArchiveHistory(m *models.Movelooper, category *models.Category, destPath, batchID string) {
-	if m.History == nil {
+func recordArchiveHistory(m *models.Movelooper, category *models.Category, destPath string, batch moveBatch) {
+	if batch.recorder == nil {
 		return
 	}
 	// One entry marks the archive batch; Action "archive" makes undo skip it.
-	if err := m.History.Add(history.Entry{
+	if err := batch.recorder.Add(history.Entry{
 		Source:      category.Source.Path,
 		Destination: destPath,
 		Timestamp:   time.Now(),
-		BatchID:     batchID,
+		BatchID:     batch.batchID,
 		Action:      string(models.ActionArchive),
 		Category:    category.Name,
 	}); err != nil {

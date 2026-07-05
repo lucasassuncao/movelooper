@@ -39,7 +39,42 @@ type Entry struct {
 	Category    string    `json:"category"`
 }
 
-// History manages the log of file operations
+// Recorder records file operations for undo. *History saves to disk on every
+// Add; Buffer collects entries in memory for a single save per batch.
+type Recorder interface {
+	Add(Entry) error
+}
+
+// Buffer is a Recorder that collects entries in memory. Flush writes them all
+// to a History in one save, turning one full-file rewrite per moved file into
+// one rewrite per batch. Not safe for concurrent use.
+type Buffer struct {
+	entries []Entry
+}
+
+// Add appends the entry to the in-memory buffer. It never fails.
+func (b *Buffer) Add(entry Entry) error {
+	b.entries = append(b.entries, entry)
+	return nil
+}
+
+// Len returns the number of buffered entries.
+func (b *Buffer) Len() int { return len(b.entries) }
+
+// Flush writes the buffered entries to h in a single save and empties the buffer.
+func (b *Buffer) Flush(h *History) error {
+	entries := b.entries
+	b.entries = nil
+	return h.AddBatch(entries)
+}
+
+// History manages the log of file operations.
+//
+// The mutex only guards access within one process. Two movelooper processes
+// writing at the same time (e.g. a watch daemon plus a one-shot run) each hold
+// their own in-memory copy, and the last save wins — entries written by the
+// other process in between are lost. The save itself is atomic (temp file +
+// rename), so the file is never corrupted, only potentially incomplete.
 type History struct {
 	mu         sync.Mutex
 	entries    []Entry
@@ -91,19 +126,32 @@ func (h *History) rebuildIndex() {
 
 // Add records a new entry: it updates the in-memory state, prunes old batches
 // past the limit, and rewrites the whole history file as an indented JSON array
-// via an atomic temp-file rename.
+// via an atomic temp-file rename. When recording many entries in one operation,
+// prefer AddBatch (or a Buffer) to avoid one full rewrite per entry.
 func (h *History) Add(entry Entry) error {
+	return h.AddBatch([]Entry{entry})
+}
+
+// AddBatch records several entries with a single save, avoiding the quadratic I/O
+// of rewriting the whole history file once per moved file. A nil or empty slice
+// is a no-op.
+func (h *History) AddBatch(entries []Entry) error {
+	if len(entries) == 0 {
+		return nil
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.entries = append(h.entries, entry)
 	if h.batchCount == nil {
 		h.batchCount = make(map[string]int)
 	}
-	if h.batchCount[entry.BatchID] == 0 {
-		h.batchDeque = append(h.batchDeque, entry.BatchID)
+	for _, entry := range entries {
+		h.entries = append(h.entries, entry)
+		if h.batchCount[entry.BatchID] == 0 {
+			h.batchDeque = append(h.batchDeque, entry.BatchID)
+		}
+		h.batchCount[entry.BatchID]++
 	}
-	h.batchCount[entry.BatchID]++
 
 	h.prune()
 	return h.save()
@@ -161,18 +209,6 @@ func (h *History) GetAllBatches() []BatchSummary {
 		})
 	}
 	return summaries
-}
-
-// GetLastBatchID returns the ID of the most recent batch
-func (h *History) GetLastBatchID() (string, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if len(h.entries) == 0 {
-		return "", fmt.Errorf("history is empty")
-	}
-
-	return h.entries[len(h.entries)-1].BatchID, nil
 }
 
 // GetBatch returns all entries for a given batch ID

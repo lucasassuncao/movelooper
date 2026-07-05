@@ -64,13 +64,6 @@ func seqTokenPosition(template string, loc []int) seqPos {
 	return seqLeading
 }
 
-// ResolveSeq scans destDir for files whose names begin with a decimal number,
-// finds the maximum, and returns max+1. Returns 1 when the directory is empty,
-// does not exist, or contains no files with a leading number.
-func ResolveSeq(destDir string) int {
-	return resolveSeqAt(destDir, seqLeading)
-}
-
 // resolveSeqAt scans destDir for files carrying a decimal number at the position
 // indicated by pos — leading or trailing, ignoring the file extension — finds the
 // maximum, and returns max+1. Returns 1 when no candidate carries a number.

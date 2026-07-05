@@ -59,23 +59,17 @@ produce a new config from an existing template).`,
 				return nil
 			}
 
-			all := theme.All()
-			theme, ok := all[themeName]
+			selectedTheme, ok := theme.All()[themeName]
 			if !ok {
 				return fmt.Errorf("unknown theme %q — run 'movelooper edit --list-themes' to see available themes", themeName)
 			}
 
-			loadPath, _ := cmd.Root().PersistentFlags().GetString("config")
-			if loadPath == "" && output != "" {
-				loadPath = output
-				output = ""
-			} else if loadPath == "" {
-				ex, err := os.Executable()
-				if err != nil {
-					return fmt.Errorf("could not determine executable path: %w", err)
-				}
-				loadPath = filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml")
+			configFlag, _ := cmd.Root().PersistentFlags().GetString("config")
+			loadPath, savePath, err := resolveEditPaths(configFlag, output)
+			if err != nil {
+				return err
 			}
+			output = savePath
 
 			movelooperHints, err := buildMovelooperHints()
 			if err != nil {
@@ -91,7 +85,7 @@ produce a new config from an existing template).`,
 				DocPresets:           MovelooperDocPresets,
 				EnableHints:          true,
 				Metadata:             movelooperHints,
-				Theme:                theme,
+				Theme:                selectedTheme,
 				PassthroughKeys:      []string{"import"},
 				NoSaveConfirm:        noSaveConfirm,
 				NoDeleteConfirm:      noDeleteConfirm,
@@ -121,4 +115,27 @@ produce a new config from an existing template).`,
 	cmd.Flags().BoolVar(&noValidateOnSave, "no-validate-on-save", false, "Allow saving even when validators report errors (a warning is shown)")
 
 	return cmd
+}
+
+// resolveEditPaths decides which file the editor loads and where it saves.
+// --config wins; with only --output, that file is both loaded and saved.
+// Otherwise the config is resolved through the same search paths every other
+// command uses (config.ResolveConfigPath), so editing and running always
+// target the same file; only when no config exists anywhere does edit fall
+// back to creating one next to the binary.
+func resolveEditPaths(configFlag, output string) (loadPath, savePath string, err error) {
+	if configFlag != "" {
+		return configFlag, output, nil
+	}
+	if output != "" {
+		return output, "", nil
+	}
+	if resolved, resolveErr := config.ResolveConfigPath(""); resolveErr == nil {
+		return resolved, "", nil
+	}
+	ex, err := os.Executable()
+	if err != nil {
+		return "", "", fmt.Errorf("could not determine executable path: %w", err)
+	}
+	return filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml"), "", nil
 }

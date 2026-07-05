@@ -49,6 +49,9 @@ type moveBatch struct {
 	dryRun    bool
 	showFiles bool
 	stats     *runStats
+	// recorder buffers history entries in memory; runMove flushes them to disk
+	// once at the end of the run. nil when history tracking is disabled.
+	recorder history.Recorder
 }
 
 // hookAfterVars carries the post-move stats needed for "after" hook env vars.
@@ -69,6 +72,7 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	}
 
 	var stats runStats
+	var histBuf *history.Buffer
 	batch := moveBatch{
 		moved:     make(movedSet),
 		batchID:   history.NewBatchID(),
@@ -76,12 +80,23 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 		showFiles: opts.ShowFiles,
 		stats:     &stats,
 	}
+	if m.History != nil {
+		histBuf = &history.Buffer{}
+		batch.recorder = histBuf
+	}
 
 	for _, category := range categories {
 		if err := processCategoryMove(ctx, m, category, batch); err != nil {
 			m.Logger.Error("failed to process category",
 				m.Logger.Args("category", category.Name, "error", err.Error()))
 			batch.stats.skipped++
+		}
+	}
+
+	if histBuf != nil {
+		if err := histBuf.Flush(m.History); err != nil {
+			m.Logger.Warn("failed to record history; undo will not work for this run",
+				m.Logger.Args("error", err.Error()))
 		}
 	}
 
@@ -160,6 +175,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	isArchive := category.Destination.Action == models.ActionArchive
 	pendingVerb, pastVerb := actionVerbs(category.Destination.Action)
 	var archiveFiles []scanner.FileEntry
+	var archiveBytes int64
 
 	var totalMoved, totalSkipped, totalFailed int
 	for _, extension := range category.Source.Extensions {
@@ -167,43 +183,29 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		if strings.EqualFold(extension, filters.ExtAll) {
 			candidates = allEntries
 		}
-		matched := make([]scanner.FileEntry, 0, len(candidates))
-		for _, fe := range candidates {
-			full := filepath.Join(fe.Dir, fe.Entry.Name())
-			if seen[full] {
-				continue
-			}
-			info, err := matchesCategory(category, fe, batch.moved, extension)
-			if err != nil {
-				m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
-				continue
-			}
-			if info != nil {
-				seen[full] = true
-				matched = append(matched, fe)
-				batch.stats.totalBytes += info.Size()
-			}
-		}
+		matched, matchedBytes := matchExtensionFiles(m, category, candidates, extension, batch, seen)
 
 		asDirEntries := make([]os.DirEntry, len(matched))
 		for i, fe := range matched {
 			asDirEntries[i] = fe.Entry
 		}
 		logExtensionResult(m, asDirEntries, category.Name, extension, pendingVerb, batch.showFiles)
-		batch.stats.totalFiles += len(matched)
 
 		switch {
 		case isArchive:
 			archiveFiles = append(archiveFiles, matched...)
+			archiveBytes += matchedBytes
 		case batch.dryRun:
-			plannedArgs := appendPlannedMoves(nil, category, matched)
-			header := fmt.Sprintf("Would %s %d %s", pendingVerb, len(matched), fileNoun(extension, len(matched)))
-			logFileBlock(m, category.Name, header, plannedArgs)
+			previewExtensionMove(m, category, matched, extension, pendingVerb, batch)
 		case len(matched) > 0:
 			t := moveMatchedFiles(ctx, m, category, matched, extension, batch)
 			totalMoved += t.moved
 			totalSkipped += t.skipped
 			totalFailed += t.failed
+			// Only files that were actually processed count towards the run
+			// summary; skipped and failed files are reported separately.
+			batch.stats.totalFiles += t.moved
+			batch.stats.totalBytes += t.bytes
 			if batch.showFiles {
 				header := fmt.Sprintf("%s %d %s", pastVerb, t.moved, fileNoun(extension, t.moved))
 				logFileBlock(m, category.Name, header, appendMovedDetails(nil, t.details))
@@ -213,7 +215,19 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 
 	var archivePath string
 	if isArchive {
-		archivePath = archiveCategory(ctx, m, category, archiveFiles, batch)
+		path, err := archiveCategory(ctx, m, category, archiveFiles, batch)
+		if err != nil {
+			// Propagated so runMove counts the category as failed and the run
+			// exits non-zero — cron/scripts must be able to detect a failed archive.
+			return fmt.Errorf("archive: %w", err)
+		}
+		archivePath = path
+		// Archived files count towards the summary only when the archive was
+		// actually written (not on dry-run or a conflict-strategy skip).
+		if archivePath != "" {
+			batch.stats.totalFiles += len(archiveFiles)
+			batch.stats.totalBytes += archiveBytes
+		}
 	}
 
 	batch.stats.failed += totalFailed
@@ -234,6 +248,44 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	return nil
 }
 
+// matchExtensionFiles returns the candidates that pass the category filters
+// for extension and were not claimed by an earlier extension pass, along with
+// their total size. Matched files are recorded in seen so the "all" sentinel
+// never re-grabs a file already taken by a specific extension.
+func matchExtensionFiles(m *models.Movelooper, category *models.Category, candidates []scanner.FileEntry, extension string, batch moveBatch, seen map[string]bool) ([]scanner.FileEntry, int64) {
+	matched := make([]scanner.FileEntry, 0, len(candidates))
+	var bytes int64
+	for _, fe := range candidates {
+		full := filepath.Join(fe.Dir, fe.Entry.Name())
+		if seen[full] {
+			continue
+		}
+		info, err := matchesCategory(category, fe, batch.moved, extension)
+		if err != nil {
+			m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
+			continue
+		}
+		if info != nil {
+			seen[full] = true
+			matched = append(matched, fe)
+			bytes += info.Size()
+		}
+	}
+	return matched, bytes
+}
+
+// previewExtensionMove logs the dry-run preview for one extension and claims
+// the files in the shared moved set, so a later category does not preview the
+// same file — mirroring how a real run claims them.
+func previewExtensionMove(m *models.Movelooper, category *models.Category, matched []scanner.FileEntry, extension, pendingVerb string, batch moveBatch) {
+	for _, fe := range matched {
+		batch.moved.mark(fe.Dir, fe.Entry.Name())
+	}
+	plannedArgs := appendPlannedMoves(nil, category, matched)
+	header := fmt.Sprintf("Would %s %d %s", pendingVerb, len(matched), fileNoun(extension, len(matched)))
+	logFileBlock(m, category.Name, header, plannedArgs)
+}
+
 // logFileBlock logs a single "[category] header" entry listing all
 // source/destination pairs in args. It is a no-op when args is empty.
 func logFileBlock(m *models.Movelooper, categoryName, header string, args []any) {
@@ -247,6 +299,7 @@ func logFileBlock(m *models.Movelooper, categoryName, header string, args []any)
 // moveTotals aggregates the per-directory outcomes of moving one extension.
 type moveTotals struct {
 	moved, skipped, failed int
+	bytes                  int64
 	details                []fileops.MovedDetail
 }
 
@@ -262,10 +315,11 @@ func moveMatchedFiles(ctx context.Context, m *models.Movelooper, category *model
 			BatchID:   batch.batchID,
 			SourceDir: dir,
 		}
-		res := moveExtensionWithResult(ctx, m, req, batch.moved)
+		res := moveExtensionWithResult(ctx, m, req, batch)
 		t.moved += len(res.Moved)
 		t.skipped += res.Skipped
 		t.failed += max(0, len(dirFiles)-len(res.Moved)-res.Skipped)
+		t.bytes += res.Bytes
 		t.details = append(t.details, res.Details...)
 	}
 	return t
@@ -289,11 +343,11 @@ func groupByDir(entries []scanner.FileEntry) map[string][]os.DirEntry {
 }
 
 // moveExtensionWithResult moves files described by req and returns the MoveResult.
-func moveExtensionWithResult(ctx context.Context, m *models.Movelooper, req fileops.MoveRequest, moved movedSet) fileops.MoveResult {
-	mctx := fileops.MoveContext{Logger: m.Logger, History: m.History}
+func moveExtensionWithResult(ctx context.Context, m *models.Movelooper, req fileops.MoveRequest, batch moveBatch) fileops.MoveResult {
+	mctx := fileops.MoveContext{Logger: m.Logger, History: batch.recorder}
 	result := fileops.MoveFiles(ctx, mctx, req)
 	for _, name := range result.Moved {
-		moved.mark(req.SourceDir, name)
+		batch.moved.mark(req.SourceDir, name)
 	}
 	return result
 }
@@ -353,6 +407,18 @@ func actionVerbs(action models.Action) (pending, past string) {
 	}
 }
 
+// logPending logs a "files pending" summary. On the pretty (pterm) renderer it
+// uses WARN so pending categories stand out visually (and surface even when the
+// level is raised to warn); on the structured JSON logger it stays at INFO, so
+// normal operation does not show up as warnings in log aggregators.
+func logPending(m *models.Movelooper, message string, args ...[]pterm.LoggerArgument) {
+	if _, pretty := m.Logger.(*pterm.Logger); pretty {
+		m.Logger.Warn(message, args...)
+		return
+	}
+	m.Logger.Info(message, args...)
+}
+
 // logExtensionResult logs a summary of files found for an extension. verb is the
 // pending action ("move", "copy", "link", "archive") so the message reads
 // "N files to <verb>".
@@ -365,17 +431,15 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 		m.Logger.Info(fmt.Sprintf("%s %s %s found", category, pterm.Red("No"), fileNoun(extension, 0)))
 		return
 	}
-	// Categories with pending files are logged at WARN so they stand out (and
-	// surface even when the level is raised to warn); empty ones stay at INFO.
 	message := fmt.Sprintf("%s %s %s to %s", category, pterm.Green(fmt.Sprintf("%d", count)), fileNoun(extension, count), verb)
 	if showFiles {
 		logArgs := filters.GenerateLogArgs(files, extension)
 		if len(logArgs) > 0 {
-			m.Logger.Warn(message, m.Logger.Args(logArgs...))
+			logPending(m, message, m.Logger.Args(logArgs...))
 			return
 		}
 	}
-	m.Logger.Warn(message)
+	logPending(m, message)
 }
 
 // appendPlannedMoves resolves the destination for each matched file and appends
@@ -392,9 +456,9 @@ func appendPlannedMoves(args []any, category *models.Category, matched []scanner
 
 // resolvePlannedMove reports where a file would land under the category's
 // organize-by and rename templates, without creating directories or moving
-// anything. It mirrors the destination resolution in fileops.MoveFiles; seq and
-// hash tokens are left as literal placeholders (resolved only at move time).
-// ok is false when the file's metadata could not be read.
+// anything. It shares fileops.ResolveDestination with the real move; DryRun
+// leaves seq and hash tokens as literal placeholders (resolved only at move
+// time). ok is false when the file's metadata could not be read.
 func resolvePlannedMove(category *models.Category, fe scanner.FileEntry) (source, dest string, ok bool) {
 	info, err := fe.Entry.Info()
 	if err != nil {
@@ -402,15 +466,7 @@ func resolvePlannedMove(category *models.Category, fe scanner.FileEntry) (source
 	}
 	sourcePath := filepath.Join(fe.Dir, fe.Entry.Name())
 	tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath, DryRun: true}
-
-	destDir := category.Destination.Path
-	if template := category.Destination.OrganizeBy; template != "" {
-		if subdir := tokens.ResolveGroupBy(template, &tctx); subdir != "" {
-			destDir = filepath.Join(category.Destination.Path, subdir)
-		}
-	}
-	tctx.DestDir = destDir
-	destName := tokens.ResolveRename(category.Destination.Rename, &tctx)
+	destDir, destName := fileops.ResolveDestination(category, &tctx)
 
 	return sourcePath, filepath.Join(destDir, destName), true
 }

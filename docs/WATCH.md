@@ -49,6 +49,7 @@ configuration:
 
 - **`action: archive`** is not processed in watch mode. Categories with `action: archive` are skipped with a warning at startup.
 - **Hooks** (`before`/`after`) do not run in watch mode. Use the one-shot `movelooper` command if you need hooks.
+- **`recursive: true`** is not supported in watch mode: only the top-level source directory is monitored, and a warning is logged at startup. Run the one-shot `movelooper` command to process subdirectories.
 
 ---
 

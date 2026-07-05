@@ -6,29 +6,34 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // testConflictResolverSkipMessage defines the structure for test cases of the SkipMessage method,
-// containing the resolver under test and the expected message.
+// containing the resolver under test, the args passed to it, and the expected message.
 type testConflictResolverSkipMessage struct {
 	name     string
 	resolver ConflictResolver
+	args     ConflictArgs
 	wantMsg  string
 }
 
 // testConflictResolverSkipMessageTestCases defines a set of test cases for the SkipMessage method
 // across all resolver types.
 var testConflictResolverSkipMessageTestCases = []testConflictResolverSkipMessage{
-	{"skip", &skipResolver{}, "file skipped due to conflict strategy"},
-	{"newest", newestResolver, "file skipped - destination is newer"},
-	{"oldest", oldestResolver, "file skipped - destination is older"},
-	{"larger", largerResolver, "file skipped - destination is larger"},
-	{"smaller", smallerResolver, "file skipped - destination is smaller"},
-	{"hash_check", &hashCheckResolver{}, "duplicate file removed from source"},
-	{"rename", &renameResolver{}, ""},
-	{"overwrite", &overwriteResolver{}, ""},
+	{"skip", &skipResolver{}, ConflictArgs{}, "file skipped due to conflict strategy"},
+	{"newest", newestResolver, ConflictArgs{}, "file skipped - destination is newer"},
+	{"oldest", oldestResolver, ConflictArgs{}, "file skipped - destination is older"},
+	{"larger", largerResolver, ConflictArgs{}, "file skipped - destination is larger"},
+	{"smaller", smallerResolver, ConflictArgs{}, "file skipped - destination is smaller"},
+	{"hash_check", &hashCheckResolver{}, ConflictArgs{}, "duplicate file removed from source"},
+	{"hash_check with move", &hashCheckResolver{}, ConflictArgs{Action: models.ActionMove}, "duplicate file removed from source"},
+	{"hash_check with copy", &hashCheckResolver{}, ConflictArgs{Action: models.ActionCopy}, "file skipped - destination already has identical content"},
+	{"hash_check with symlink", &hashCheckResolver{}, ConflictArgs{Action: models.ActionSymlink}, "file skipped - destination already has identical content"},
+	{"rename", &renameResolver{}, ConflictArgs{}, ""},
+	{"overwrite", &overwriteResolver{}, ConflictArgs{}, ""},
 }
 
 // TestConflictResolvers_SkipMessages tests the SkipMessage method for all conflict resolvers
@@ -38,7 +43,32 @@ func TestConflictResolvers_SkipMessages(t *testing.T) {
 	for _, tt := range testConflictResolverSkipMessageTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.wantMsg, tt.resolver.SkipMessage())
+			assert.Equal(t, tt.wantMsg, tt.resolver.SkipMessage(tt.args))
+		})
+	}
+}
+
+// TestHashCheck_CopyAndSymlinkPreserveSource ensures the hash_check strategy
+// does not delete the source file when the action keeps the source (copy,
+// symlink), even when the destination has identical content.
+func TestHashCheck_CopyAndSymlinkPreserveSource(t *testing.T) {
+	t.Parallel()
+	for _, action := range []models.Action{models.ActionCopy, models.ActionSymlink} {
+		t.Run(string(action), func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			src := filepath.Join(dir, "src.txt")
+			dst := filepath.Join(dir, "dst.txt")
+			writeFile(t, src, []byte("identical"))
+			writeFile(t, dst, []byte("identical"))
+
+			_, shouldMove, _, err := (&hashCheckResolver{}).Resolve(ConflictArgs{
+				Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt", Action: action,
+			})
+			require.NoError(t, err)
+			assert.False(t, shouldMove)
+			_, statErr := os.Stat(src)
+			assert.NoError(t, statErr, "source must be preserved for action %q", action)
 		})
 	}
 }

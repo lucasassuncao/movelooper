@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testResolveSeq defines a structure for test cases of the ResolveSeq function,
-// containing the name of the test case, a list of existing file names, a flag for non-existent directory, and the expected next sequence number.
+// testResolveSeq defines a structure for test cases of the leading-number seq
+// resolution (resolveSeqAt with seqLeading), containing the name of the test
+// case, a list of existing file names, a flag for non-existent directory, and
+// the expected next sequence number.
 type testResolveSeq struct {
 	name     string
 	existing []string
@@ -46,7 +48,7 @@ func TestResolveSeq(t *testing.T) {
 					require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
 				}
 			}
-			assert.Equal(t, tt.want, ResolveSeq(dir))
+			assert.Equal(t, tt.want, resolveSeqAt(dir, seqLeading))
 		})
 	}
 }

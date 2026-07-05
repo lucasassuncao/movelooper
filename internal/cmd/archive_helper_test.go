@@ -63,8 +63,9 @@ func TestArchiveCategory_WritesZipAndKeepsSourceByDefault(t *testing.T) {
 	m := newBufMovelooper(t, &buf, []*models.Category{cat})
 	batch := moveBatch{moved: make(movedSet), batchID: "batch_test", stats: &runStats{}}
 
-	path := archiveCategory(context.Background(), m, cat, files, batch)
+	path, err := archiveCategory(context.Background(), m, cat, files, batch)
 
+	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dst, "images.zip"), path)
 	assert.FileExists(t, path)
 	assert.FileExists(t, filepath.Join(src, "a.jpg"), "keep-source defaults to true")
@@ -80,7 +81,28 @@ func TestArchiveCategory_KeepSourceFalseDeletesOriginals(t *testing.T) {
 	m := newBufMovelooper(t, &buf, []*models.Category{cat})
 	batch := moveBatch{moved: make(movedSet), batchID: "batch_test", stats: &runStats{}}
 
-	path := archiveCategory(context.Background(), m, cat, files, batch)
+	path, err := archiveCategory(context.Background(), m, cat, files, batch)
+	require.NoError(t, err)
 	require.FileExists(t, path)
 	assert.NoFileExists(t, filepath.Join(src, "a.jpg"), "keep-source:false removes originals after success")
+}
+
+// TestArchiveCategory_WriteFailureReturnsError is a regression test: a failed
+// archive write must surface as an error (and ultimately a non-zero exit code),
+// not just a log line.
+func TestArchiveCategory_WriteFailureReturnsError(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	files := fileEntriesFrom(t, src, "a.jpg")
+	// Remove the source file after scanning so archive.Write fails on open.
+	require.NoError(t, os.Remove(filepath.Join(src, "a.jpg")))
+
+	cat := archiveTestCategory("images", src, dst, &models.ArchiveConfig{Format: "zip"})
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{cat})
+	batch := moveBatch{moved: make(movedSet), batchID: "batch_test", stats: &runStats{}}
+
+	path, err := archiveCategory(context.Background(), m, cat, files, batch)
+	assert.Error(t, err)
+	assert.Empty(t, path)
 }

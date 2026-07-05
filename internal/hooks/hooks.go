@@ -12,8 +12,6 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
-func setSysProcAttr(cmd *exec.Cmd) {}
-
 // HookContext carries the dependencies needed to execute hooks.
 type HookContext struct {
 	Log    logger.Logger
@@ -38,7 +36,6 @@ func RunHook(ctx context.Context, hook *models.CategoryHook, hctx HookContext, e
 		args := append(shellArgs, command)              //nolint:gocritic
 		cmd := exec.CommandContext(ctx, shell, args...) //#nosec G204 -- shell and command are user-defined config values
 		cmd.Env = combined
-		setSysProcAttr(cmd)
 
 		cmd.Stdout = hctx.Stdout
 		cmd.Stderr = hctx.Stderr

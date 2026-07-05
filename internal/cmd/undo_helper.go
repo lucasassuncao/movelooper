@@ -105,14 +105,15 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 			m.Logger.Warn("[dry-run] file not found at destination, would skip", m.Logger.Args("path", entry.Destination))
 			continue
 		}
-		if _, err := os.Stat(entry.Source); err == nil {
-			m.Logger.Warn("[dry-run] source location already occupied, would skip", m.Logger.Args("path", entry.Source))
-			continue
-		}
 		switch entry.Action {
 		case "copy", "symlink":
+			// Undo removes the destination; the source still existing is expected.
 			removeArgs = append(removeArgs, "path", entry.Destination)
 		default:
+			if _, err := os.Stat(entry.Source); err == nil {
+				m.Logger.Warn("[dry-run] source location already occupied, would skip", m.Logger.Args("path", entry.Source))
+				continue
+			}
 			restoreArgs = append(restoreArgs, "path", entry.Source)
 		}
 	}
@@ -171,17 +172,23 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 			failCount++
 			continue
 		}
-		if _, err := os.Stat(entry.Source); err == nil {
-			m.Logger.Warn("source location already occupied, skipping", m.Logger.Args("path", entry.Source))
-			failCount++
-			continue
-		}
 
-		sourceDir := filepath.Dir(entry.Source)
-		if err := os.MkdirAll(sourceDir, 0o750); err != nil {
-			m.Logger.Error("failed to create source directory", m.Logger.Args("path", sourceDir, "error", err.Error()))
-			failCount++
-			continue
+		// The source checks only apply to move undo, which puts the file back at
+		// the source. copy/symlink undo removes the destination, and the source
+		// still existing is expected (those actions never consumed it).
+		if entry.Action != string(models.ActionCopy) && entry.Action != string(models.ActionSymlink) {
+			if _, err := os.Stat(entry.Source); err == nil {
+				m.Logger.Warn("source location already occupied, skipping", m.Logger.Args("path", entry.Source))
+				failCount++
+				continue
+			}
+
+			sourceDir := filepath.Dir(entry.Source)
+			if err := os.MkdirAll(sourceDir, 0o750); err != nil {
+				m.Logger.Error("failed to create source directory", m.Logger.Args("path", sourceDir, "error", err.Error()))
+				failCount++
+				continue
+			}
 		}
 
 		if err := restoreEntry(ctx, m, entry); err != nil {
@@ -194,7 +201,13 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 	if len(restored) > 0 {
 		restoredArgs := make([]any, 0, len(restored)*2)
 		for _, entry := range restored {
-			restoredArgs = append(restoredArgs, "path", entry.Source)
+			switch entry.Action {
+			case string(models.ActionCopy), string(models.ActionSymlink):
+				// Undo removed the destination; the source was never gone.
+				restoredArgs = append(restoredArgs, "removed", entry.Destination)
+			default:
+				restoredArgs = append(restoredArgs, "path", entry.Source)
+			}
 		}
 		m.Logger.Info("file(s) restored", m.Logger.Args(restoredArgs...))
 	}

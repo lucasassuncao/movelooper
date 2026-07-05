@@ -17,6 +17,10 @@ type ConflictArgs struct {
 	Dst      string
 	DestDir  string
 	FileName string
+	// Action is the file operation being performed. Resolvers that touch the
+	// source file (hash_check) must not do so unless the action is a move,
+	// where consuming the source is part of the contract.
+	Action models.Action
 }
 
 // FinalizeFunc commits or rolls back a destination that a resolver moved aside
@@ -32,7 +36,7 @@ type FinalizeFunc func(failed bool) error
 // SkipMessage returns the log message to emit when shouldMove is false; "" means no log.
 type ConflictResolver interface {
 	Resolve(args ConflictArgs) (resolvedPath string, shouldMove bool, finalize FinalizeFunc, err error)
-	SkipMessage() string
+	SkipMessage(args ConflictArgs) string
 }
 
 // swapAside renames an existing destination to a unique temporary backup and
@@ -89,7 +93,7 @@ func (r *renameResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc,
 	return path, true, nil, nil
 }
 
-func (r *renameResolver) SkipMessage() string { return "" }
+func (r *renameResolver) SkipMessage(ConflictArgs) string { return "" }
 
 type overwriteResolver struct{}
 
@@ -109,7 +113,7 @@ func (r *overwriteResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFu
 	return args.Dst, true, nil, nil
 }
 
-func (r *overwriteResolver) SkipMessage() string { return "" }
+func (r *overwriteResolver) SkipMessage(ConflictArgs) string { return "" }
 
 type skipResolver struct{}
 
@@ -117,7 +121,9 @@ func (r *skipResolver) Resolve(_ ConflictArgs) (string, bool, FinalizeFunc, erro
 	return "", false, nil, nil
 }
 
-func (r *skipResolver) SkipMessage() string { return "file skipped due to conflict strategy" }
+func (r *skipResolver) SkipMessage(ConflictArgs) string {
+	return "file skipped due to conflict strategy"
+}
 
 func compareFileHashes(file1, file2 string) (bool, error) {
 	info1, err := os.Stat(file1)
@@ -188,7 +194,7 @@ func (r *comparatorResolver) Resolve(args ConflictArgs) (string, bool, FinalizeF
 	return args.Dst, true, finalize, nil
 }
 
-func (r *comparatorResolver) SkipMessage() string { return r.skipMsg }
+func (r *comparatorResolver) SkipMessage(ConflictArgs) string { return r.skipMsg }
 
 var (
 	newestResolver = &comparatorResolver{
@@ -215,14 +221,23 @@ var (
 
 type hashCheckResolver struct{}
 
+// consumesSource reports whether the operation removes the source file, so
+// deleting a duplicate source is consistent with what the action would do
+// anyway. copy and symlink promise to leave the source untouched.
+func consumesSource(action models.Action) bool {
+	return action == "" || action == models.ActionMove
+}
+
 func (r *hashCheckResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
 	match, err := compareFileHashes(args.Src, args.Dst)
 	if err != nil {
 		return "", false, nil, err
 	}
 	if match {
-		if err := os.Remove(args.Src); err != nil && !os.IsNotExist(err) {
-			return "", false, nil, fmt.Errorf("failed to remove duplicate source file: %w", err)
+		if consumesSource(args.Action) {
+			if err := os.Remove(args.Src); err != nil && !os.IsNotExist(err) {
+				return "", false, nil, fmt.Errorf("failed to remove duplicate source file: %w", err)
+			}
 		}
 		return "", false, nil, nil
 	}
@@ -233,4 +248,9 @@ func (r *hashCheckResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFu
 	return path, true, nil, nil
 }
 
-func (r *hashCheckResolver) SkipMessage() string { return "duplicate file removed from source" }
+func (r *hashCheckResolver) SkipMessage(args ConflictArgs) string {
+	if consumesSource(args.Action) {
+		return "duplicate file removed from source"
+	}
+	return "file skipped - destination already has identical content"
+}

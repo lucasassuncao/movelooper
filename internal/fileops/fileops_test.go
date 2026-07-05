@@ -48,57 +48,6 @@ func TestCreateDirectory(t *testing.T) {
 	}
 }
 
-// testReadDirectory defines the structure for test cases of the ReadDirectory function,
-// containing setup logic, expected entry count, error expectation, and a non-existent path flag.
-type testReadDirectory struct {
-	name        string
-	setup       func(t *testing.T, dir string)
-	wantLen     int
-	wantErr     bool
-	nonExistent bool
-}
-
-// testReadDirectoryTestCases defines a set of test cases for the ReadDirectory function,
-// covering populated directory and non-existent path scenarios.
-var testReadDirectoryTestCases = []testReadDirectory{
-	{
-		name: "returns entries",
-		setup: func(t *testing.T, dir string) {
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0o644))
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0o644))
-		},
-		wantLen: 2,
-	},
-	{
-		name:        "non-existent returns error",
-		nonExistent: true,
-		wantErr:     true,
-	},
-}
-
-// TestReadDirectory tests the ReadDirectory function to ensure it correctly reads directory entries.
-func TestReadDirectory(t *testing.T) {
-	t.Parallel()
-	for _, tt := range testReadDirectoryTestCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			dir := t.TempDir()
-			if tt.nonExistent {
-				dir = filepath.Join(dir, "nonexistent")
-			} else if tt.setup != nil {
-				tt.setup(t, dir)
-			}
-			entries, err := ReadDirectory(dir)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Len(t, entries, tt.wantLen)
-		})
-	}
-}
-
 // testCopyFile defines the structure for test cases of the copyFile function,
 // containing file content and a check function for assertions on the copied file.
 type testCopyFile struct {

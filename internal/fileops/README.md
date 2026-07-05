@@ -13,7 +13,8 @@ import "github.com/lucasassuncao/movelooper/internal/fileops"
 - [Variables](<#variables>)
 - [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
 - [func MoveFileCtx\(ctx context.Context, src, dst string\) error](<#MoveFileCtx>)
-- [func ReadDirectory\(path string\) \(\[\]os.DirEntry, error\)](<#ReadDirectory>)
+- [func ResolveDestDir\(category \*models.Category, tctx \*tokens.TokenContext\) string](<#ResolveDestDir>)
+- [func ResolveDestination\(category \*models.Category, tctx \*tokens.TokenContext\) \(destDir, destName string\)](<#ResolveDestination>)
 - [func UniqueDestination\(destDir, fileName string\) \(string, error\)](<#UniqueDestination>)
 - [type ConflictArgs](<#ConflictArgs>)
 - [type ConflictResolver](<#ConflictResolver>)
@@ -35,7 +36,7 @@ var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
 ```
 
 <a name="CreateDirectory"></a>
-## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L34>)
+## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L38>)
 
 ```go
 func CreateDirectory(dir string) error
@@ -44,7 +45,7 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="MoveFileCtx"></a>
-## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L260>)
+## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L251>)
 
 ```go
 func MoveFileCtx(ctx context.Context, src, dst string) error
@@ -52,17 +53,26 @@ func MoveFileCtx(ctx context.Context, src, dst string) error
 
 MoveFileCtx attempts to move a file from source to destination. Falls back to copy\+delete when os.Rename fails across different devices/drives.
 
-<a name="ReadDirectory"></a>
-## func [ReadDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L39>)
+<a name="ResolveDestDir"></a>
+## func [ResolveDestDir](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/destination.go#L14>)
 
 ```go
-func ReadDirectory(path string) ([]os.DirEntry, error)
+func ResolveDestDir(category *models.Category, tctx *tokens.TokenContext) string
 ```
 
-ReadDirectory reads the contents of a given directory and returns the files.
+ResolveDestDir resolves the destination directory for one file under the category's organize\-by template. It is the single source of truth for this rule, shared by the real move \(MoveFiles\), the dry\-run preview, and watch mode, so the three can never disagree about where a file lands.
+
+<a name="ResolveDestination"></a>
+## func [ResolveDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/destination.go#L29>)
+
+```go
+func ResolveDestination(category *models.Category, tctx *tokens.TokenContext) (destDir, destName string)
+```
+
+ResolveDestination resolves the destination directory \(organize\-by\) and the final filename \(rename\) for one file. It sets tctx.DestDir before resolving the rename template, which the seq tokens need to scan for existing numbers. It never creates directories or touches the destination; with tctx.DryRun set, seq/hash tokens are left as literal placeholders.
 
 <a name="UniqueDestination"></a>
-## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L371>)
+## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L362>)
 
 ```go
 func UniqueDestination(destDir, fileName string) (string, error)
@@ -71,7 +81,7 @@ func UniqueDestination(destDir, fileName string) (string, error)
 UniqueDestination returns a path in destDir for fileName that does not collide with an existing file, appending \(n\) before the extension when needed.
 
 <a name="ConflictArgs"></a>
-## type [ConflictArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L15-L20>)
+## type [ConflictArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L15-L24>)
 
 ConflictArgs carries the paths needed by a ConflictResolver.
 
@@ -81,23 +91,27 @@ type ConflictArgs struct {
     Dst      string
     DestDir  string
     FileName string
+    // Action is the file operation being performed. Resolvers that touch the
+    // source file (hash_check) must not do so unless the action is a move,
+    // where consuming the source is part of the contract.
+    Action models.Action
 }
 ```
 
 <a name="ConflictResolver"></a>
-## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L33-L36>)
+## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L37-L40>)
 
 ConflictResolver resolves a naming conflict when a destination file already exists. Resolve returns the final destination path, whether the move should proceed, an optional finalize callback \(nil when the destination is left untouched\), and any error encountered. When shouldMove is false the caller must skip the file. SkipMessage returns the log message to emit when shouldMove is false; "" means no log.
 
 ```go
 type ConflictResolver interface {
     Resolve(args ConflictArgs) (resolvedPath string, shouldMove bool, finalize FinalizeFunc, err error)
-    SkipMessage() string
+    SkipMessage(args ConflictArgs) string
 }
 ```
 
 <a name="FileAction"></a>
-## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L174-L176>)
+## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L165-L167>)
 
 FileAction executes a file operation from src to dst.
 
@@ -108,7 +122,7 @@ type FileAction interface {
 ```
 
 <a name="FinalizeFunc"></a>
-## type [FinalizeFunc](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L26>)
+## type [FinalizeFunc](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L30>)
 
 FinalizeFunc commits or rolls back a destination that a resolver moved aside before the file action ran. It is invoked once the action completes: when failed is true the original destination is restored, otherwise the set\-aside copy is discarded. Resolvers that do not displace the destination return nil.
 
@@ -117,19 +131,19 @@ type FinalizeFunc func(failed bool) error
 ```
 
 <a name="MoveContext"></a>
-## type [MoveContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L27-L30>)
+## type [MoveContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L31-L34>)
 
-MoveContext carries the dependencies needed by file\-move operations.
+MoveContext carries the dependencies needed by file\-move operations. History may be a \*history.History \(saved per file, used by watch mode\) or a \*history.Buffer \(collected in memory and flushed once per batch by the one\-shot run\). Callers must leave it nil — not a typed\-nil pointer — when history tracking is disabled.
 
 ```go
 type MoveContext struct {
     Logger  logger.Logger
-    History *history.History
+    History history.Recorder
 }
 ```
 
 <a name="MoveRequest"></a>
-## type [MoveRequest](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L48-L58>)
+## type [MoveRequest](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L43-L53>)
 
 MoveRequest holds the operation\-specific parameters for a MoveFiles call.
 
@@ -148,7 +162,7 @@ type MoveRequest struct {
 ```
 
 <a name="MoveResult"></a>
-## type [MoveResult](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L61-L65>)
+## type [MoveResult](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L56-L61>)
 
 MoveResult holds the outcome of a MoveFiles call.
 
@@ -156,12 +170,13 @@ MoveResult holds the outcome of a MoveFiles call.
 type MoveResult struct {
     Moved   []string      // names of files that were successfully processed
     Skipped int           // files skipped by conflict strategy (skip / hash_check duplicate)
+    Bytes   int64         // total size of the successfully processed files
     Details []MovedDetail // source/destination of each processed file, in order
 }
 ```
 
 <a name="MoveFiles"></a>
-### func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L74>)
+### func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L70>)
 
 ```go
 func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResult
@@ -170,7 +185,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 MoveFiles processes files matching the given extension in req.SourceDir.
 
 <a name="MovedDetail"></a>
-## type [MovedDetail](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L68-L71>)
+## type [MovedDetail](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L64-L67>)
 
 MovedDetail records where a single processed file came from and went to.
 

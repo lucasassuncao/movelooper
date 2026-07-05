@@ -261,6 +261,10 @@ func normalizeCase(s string, caseSensitive bool) string {
 	return strings.ToLower(s)
 }
 
+// expandGlobPattern expands brace groups into a list of plain glob patterns.
+// Groups may appear in sequence ("{a,b}/{c,d}" expands to the cartesian
+// product), but nesting ("{a,{b,c}}") is not supported, and an unmatched brace
+// leaves the pattern untouched (treated as a literal).
 func expandGlobPattern(pattern string) []string {
 	start := strings.Index(pattern, "{")
 	end := strings.Index(pattern, "}")

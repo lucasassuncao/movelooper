@@ -25,10 +25,27 @@ import (
 
 const watchLockFile = "movelooper.lock"
 
-// acquireWatchLock creates an exclusive lock file in the OS temp directory.
+// acquireWatchLock creates an exclusive lock file for watch mode.
 // Returns a release function that removes the file on clean shutdown.
 func acquireWatchLock() (func(), error) {
-	return acquireLockAt(filepath.Join(os.TempDir(), watchLockFile))
+	path := watchLockPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return nil, fmt.Errorf("could not create lock directory for %s: %w", path, err)
+	}
+	return acquireLockAt(path)
+}
+
+// watchLockPath returns the lock file location. It lives under ~/.movelooper
+// (per-user, like logs and history) rather than the OS temp dir, which is
+// shared between users on Unix and would let one user's watcher block
+// another's. The temp dir remains only as a fallback when the home directory
+// cannot be resolved.
+func watchLockPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(os.TempDir(), watchLockFile)
+	}
+	return filepath.Join(home, ".movelooper", watchLockFile)
 }
 
 // acquireLockAt creates an exclusive lock file at path, recording the current
@@ -67,7 +84,7 @@ func acquireLockAt(path string) (func(), error) {
 
 // createLockFile creates path exclusively and writes the current PID into it.
 func createLockFile(path string) (func(), error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //#nosec G304 -- fixed filename in OS temp dir
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //#nosec G304 -- fixed filename under the user's home (or OS temp dir as fallback)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +96,7 @@ func createLockFile(path string) (func(), error) {
 // readLockPID reads the PID recorded in a lock file. ok is false when the file
 // cannot be read or does not hold a valid positive PID.
 func readLockPID(path string) (pid int, ok bool) {
-	data, err := os.ReadFile(path) //#nosec G304 -- fixed filename in OS temp dir
+	data, err := os.ReadFile(path) //#nosec G304 -- fixed filename under the user's home (or OS temp dir as fallback)
 	if err != nil {
 		return 0, false
 	}
@@ -117,11 +134,18 @@ func (e fileInfoDirEntry) IsDir() bool                { return e.info.IsDir() }
 func (e fileInfoDirEntry) Type() fs.FileMode          { return e.info.Mode().Type() }
 func (e fileInfoDirEntry) Info() (fs.FileInfo, error) { return e.info, nil }
 
+// maxWatchMoveRetries caps how many times a failed move is requeued before
+// giving up until a new filesystem event re-tracks the file.
+const maxWatchMoveRetries = 3
+
 // watchConfig groups the runtime state shared by the ticker and pending-files loops.
 type watchConfig struct {
 	tracker   *fileTracker
 	threshold time.Duration
 	showFiles bool
+	// retries counts consecutive failed move attempts per path. Only touched by
+	// the single ticker goroutine, so no locking is needed.
+	retries map[string]int
 }
 
 // categoriesWithHooks returns the names of categories that define before/after
@@ -164,6 +188,10 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 			m.Logger.Warn("action archive is not supported in watch mode; the category will be skipped",
 				m.Logger.Args("category", cat.Name))
 		}
+		if cat.Source.Recursive {
+			m.Logger.Warn("recursive is not supported in watch mode; only the top-level source directory is monitored",
+				m.Logger.Args("category", cat.Name))
+		}
 	}
 
 	watcher, err := fsnotify.NewWatcher()
@@ -176,6 +204,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 		tracker:   newFileTracker(),
 		threshold: m.Config.Watch.Delay,
 		showFiles: opts.ShowFiles,
+		retries:   make(map[string]int),
 	}
 
 	registerSources(m, watcher)
@@ -252,14 +281,20 @@ func runTickerLoop(ctx context.Context, m *models.Movelooper, cfg *watchConfig) 
 	}
 }
 
-// performInitialScan verifies existing files in source directories and adds them to the tracker.
+// performInitialScan verifies existing files in source directories and adds
+// them to the tracker. The scan is deliberately non-recursive: fsnotify only
+// watches the top-level source directory and attemptMoveFile only matches
+// files directly under it, so tracking files from subdirectories would queue
+// entries that can never be moved.
 func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *fileTracker) {
 	for _, cat := range m.Categories {
 		if !cat.IsEnabled() {
 			continue
 		}
+		src := cat.Source
+		src.Recursive = false
 		autoExclude := []string{cat.Destination.Path}
-		entries, err := scanner.WalkSource(ctx, cat.Source, autoExclude)
+		entries, err := scanner.WalkSource(ctx, src, autoExclude)
 		if err != nil {
 			m.Logger.Warn("failed to scan directory during initial scan", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
 			continue
@@ -285,6 +320,9 @@ func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *file
 // processPendingFiles moves the files whose stability delay has elapsed. due()
 // pops them off the heap atomically, so a file that received an event after the
 // tick fired stays queued (its timestamp moved forward) instead of moving early.
+// A failed move is requeued for another stability cycle up to
+// maxWatchMoveRetries times, so a transient failure (e.g. a file briefly locked
+// by another process) does not leave the file behind until a new event arrives.
 func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchConfig) {
 	for _, path := range cfg.tracker.due(time.Now(), cfg.threshold) {
 		if _, err := os.Stat(path); err != nil {
@@ -292,34 +330,43 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchCo
 				m.Logger.Warn("failed to stat tracked file, skipping",
 					m.Logger.Args("path", path, "error", err.Error()))
 			}
+			delete(cfg.retries, path)
 			continue
 		}
 
-		if err := attemptMoveFile(ctx, m, path, cfg.showFiles); err != nil {
-			if !os.IsNotExist(err) {
-				m.Logger.Error("failed to move file", m.Logger.Args("path", path, "error", err.Error()))
-			}
+		err := attemptMoveFile(ctx, m, path, cfg.showFiles)
+		if err == nil || os.IsNotExist(err) {
+			delete(cfg.retries, path)
+			continue
 		}
+
+		cfg.retries[path]++
+		if cfg.retries[path] < maxWatchMoveRetries {
+			m.Logger.Warn("failed to move file, will retry",
+				m.Logger.Args("path", path, "attempt", cfg.retries[path], "error", err.Error()))
+			cfg.tracker.touch(path, time.Now())
+			continue
+		}
+		delete(cfg.retries, path)
+		m.Logger.Error("failed to move file, giving up until a new event re-tracks it",
+			m.Logger.Args("path", path, "attempts", maxWatchMoveRetries, "error", err.Error()))
 	}
 }
 
 // resolveDestDir returns the destination directory that would be used for a
-// given file and category, resolving the organize-by template when set.
+// given file and category, resolving the organize-by template when set. It
+// shares fileops.ResolveDestDir with the real move so the logged destination
+// matches where the file actually lands.
 func resolveDestDir(cat *models.Category, path string) string {
-	destDir := cat.Destination.Path
-	template := cat.Destination.OrganizeBy
-	if template == "" {
-		return destDir
+	if cat.Destination.OrganizeBy == "" {
+		return cat.Destination.Path
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		return destDir
+		return cat.Destination.Path
 	}
-	tctx := tokens.TokenContext{Info: info, CategoryName: cat.Name, Now: time.Now()}
-	if subdir := tokens.ResolveGroupBy(template, &tctx); subdir != "" {
-		return filepath.Join(destDir, subdir)
-	}
-	return destDir
+	tctx := tokens.TokenContext{Info: info, CategoryName: cat.Name, Now: time.Now(), SourcePath: path}
+	return fileops.ResolveDestDir(cat, &tctx)
 }
 
 // attemptMoveFile tries to find a matching category and move the file.
@@ -370,7 +417,13 @@ func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Ca
 
 	targetFile := fileInfoDirEntry{info: info}
 	batchID := history.NewWatchBatchID()
-	result := fileops.MoveFiles(ctx, fileops.MoveContext{Logger: m.Logger, History: m.History}, fileops.MoveRequest{
+	// Watch moves one file at a time, so saving per Add is fine here; assign the
+	// concrete *History only when tracking is enabled to avoid a typed-nil Recorder.
+	mctx := fileops.MoveContext{Logger: m.Logger}
+	if m.History != nil {
+		mctx.History = m.History
+	}
+	result := fileops.MoveFiles(ctx, mctx, fileops.MoveRequest{
 		Category:    &cat,
 		Files:       []os.DirEntry{targetFile},
 		Extension:   ext,
@@ -379,6 +432,11 @@ func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Ca
 		LogEachMove: true,
 	})
 	if len(result.Moved) == 0 {
+		if result.Skipped > 0 {
+			// Skipped by the conflict strategy — a deliberate outcome, already
+			// logged by the resolver, not a failure to retry.
+			return nil
+		}
 		return fmt.Errorf("file was not moved: %s", filepath.Base(path))
 	}
 	return nil

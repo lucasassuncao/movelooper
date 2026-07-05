@@ -121,43 +121,6 @@ func TestGetBatch(t *testing.T) {
 	}
 }
 
-// testGetLastBatchID defines the structure for test cases of the GetLastBatchID function,
-// containing batch IDs to add, the expected batch ID, and an error expectation flag.
-type testGetLastBatchID struct {
-	name    string
-	add     []string
-	want    string
-	wantErr bool
-}
-
-// testGetLastBatchIDTestCases defines a set of test cases for the GetLastBatchID function,
-// covering populated history and empty history scenarios.
-var testGetLastBatchIDTestCases = []testGetLastBatchID{
-	{"returns last added batch", []string{"batch_1", "batch_2"}, "batch_2", false},
-	{"empty history errors", nil, "", true},
-}
-
-// TestGetLastBatchID tests the GetLastBatchID function to ensure it correctly identifies the last batch.
-func TestGetLastBatchID(t *testing.T) {
-	t.Parallel()
-	for _, tt := range testGetLastBatchIDTestCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			h := newTestHistory(t, 10)
-			for _, id := range tt.add {
-				require.NoError(t, h.Add(makeEntry(id)))
-			}
-			id, err := h.GetLastBatchID()
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, id)
-		})
-	}
-}
-
 // testGetAllBatches defines the structure for test cases of the GetAllBatches function,
 // containing batch IDs to add and a check function for assertions.
 type testGetAllBatches struct {
@@ -565,4 +528,49 @@ func TestRemoveCategoryFromBatch(t *testing.T) {
 			assert.Equal(t, tt.wantBatch, hasBatch)
 		})
 	}
+}
+
+// TestBuffer_FlushWritesAllEntriesInOneSave verifies that a Buffer collects
+// entries in memory and AddBatch persists them all, keeping batch indexes
+// consistent with per-entry Add.
+func TestBuffer_FlushWritesAllEntriesInOneSave(t *testing.T) {
+	t.Parallel()
+	h := newTestHistory(t, 10)
+
+	var buf Buffer
+	require.NoError(t, buf.Add(Entry{Source: "/a", Destination: "/x/a", BatchID: "batch_1"}))
+	require.NoError(t, buf.Add(Entry{Source: "/b", Destination: "/x/b", BatchID: "batch_1"}))
+	require.NoError(t, buf.Add(Entry{Source: "/c", Destination: "/y/c", BatchID: "batch_2"}))
+	assert.Equal(t, 3, buf.Len())
+
+	require.NoError(t, buf.Flush(h))
+	assert.Equal(t, 0, buf.Len(), "flush empties the buffer")
+
+	assert.Len(t, h.GetBatch("batch_1"), 2)
+	assert.Len(t, h.GetBatch("batch_2"), 1)
+
+	summaries := h.GetAllBatches()
+	require.Len(t, summaries, 2)
+	assert.Equal(t, "batch_1", summaries[0].BatchID)
+	assert.Equal(t, 2, summaries[0].Count)
+
+	// A second flush with no entries is a no-op.
+	require.NoError(t, buf.Flush(h))
+	assert.Len(t, h.GetAllBatches(), 2)
+}
+
+// TestAddBatch_PrunesPastLimit ensures AddBatch enforces the batch limit the
+// same way Add does.
+func TestAddBatch_PrunesPastLimit(t *testing.T) {
+	t.Parallel()
+	h := newTestHistory(t, 2)
+	require.NoError(t, h.AddBatch([]Entry{
+		{Source: "/a", BatchID: "batch_1"},
+		{Source: "/b", BatchID: "batch_2"},
+		{Source: "/c", BatchID: "batch_3"},
+	}))
+	summaries := h.GetAllBatches()
+	require.Len(t, summaries, 2)
+	assert.Equal(t, "batch_2", summaries[0].BatchID)
+	assert.Equal(t, "batch_3", summaries[1].BatchID)
 }

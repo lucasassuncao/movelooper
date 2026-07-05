@@ -24,24 +24,19 @@ import (
 var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
 
 // MoveContext carries the dependencies needed by file-move operations.
+// History may be a *history.History (saved per file, used by watch mode) or a
+// *history.Buffer (collected in memory and flushed once per batch by the
+// one-shot run). Callers must leave it nil — not a typed-nil pointer — when
+// history tracking is disabled.
 type MoveContext struct {
 	Logger  logger.Logger
-	History *history.History
+	History history.Recorder
 }
 
 // CreateDirectory creates dir and all necessary parents with full permissions.
 // It is idempotent: no error is returned when dir already exists.
 func CreateDirectory(dir string) error {
 	return os.MkdirAll(dir, 0o750)
-}
-
-// ReadDirectory reads the contents of a given directory and returns the files.
-func ReadDirectory(path string) ([]os.DirEntry, error) {
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-	return files, nil
 }
 
 // MoveRequest holds the operation-specific parameters for a MoveFiles call.
@@ -61,6 +56,7 @@ type MoveRequest struct {
 type MoveResult struct {
 	Moved   []string      // names of files that were successfully processed
 	Skipped int           // files skipped by conflict strategy (skip / hash_check duplicate)
+	Bytes   int64         // total size of the successfully processed files
 	Details []MovedDetail // source/destination of each processed file, in order
 }
 
@@ -96,32 +92,30 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 
 		sourcePath := filepath.Join(req.SourceDir, file.Name())
 
-		destDir := category.Destination.Path
 		tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath, SeqAlloc: seqAlloc}
-		if template := category.Destination.OrganizeBy; template != "" {
-			if subdir := tokens.ResolveGroupBy(template, &tctx); subdir != "" {
-				destDir = filepath.Join(category.Destination.Path, subdir)
-			}
-		}
+		destDir, destName := ResolveDestination(category, &tctx)
 
 		if err := CreateDirectory(destDir); err != nil {
 			mctx.Logger.Error("failed to create directory", mctx.Logger.Args("path", destDir, "error", err.Error()))
 			continue
 		}
 
-		tctx.DestDir = destDir
-		destName := tokens.ResolveRename(category.Destination.Rename, &tctx)
 		destPath := filepath.Join(destDir, destName)
 
 		strategy := category.Destination.ConflictStrategy
 		if strategy == "" {
 			strategy = models.ConflictStrategyRename
 		}
+		action := category.Destination.Action
+		if action == "" {
+			action = models.ActionMove
+		}
 		resolved, skip, finalize, stratErr := applyConflictStrategy(mctx, strategy, ConflictArgs{
 			Src:      sourcePath,
 			Dst:      destPath,
 			DestDir:  destDir,
 			FileName: destName,
+			Action:   action,
 		})
 		if stratErr != nil {
 			mctx.Logger.Error("cannot process file", mctx.Logger.Args("file", sourcePath, "error", stratErr.Error()))
@@ -133,10 +127,6 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		}
 		destPath = resolved
 
-		action := category.Destination.Action
-		if action == "" {
-			action = models.ActionMove
-		}
 		actionErr := performAction(ctx, mctx, action, sourcePath, destPath, finalize)
 		if actionErr != nil {
 			if errors.Is(actionErr, ErrTimestampPreserve) {
@@ -166,6 +156,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 		}
 		result.Details = append(result.Details, MovedDetail{Source: sourcePath, Destination: destPath})
 		result.Moved = append(result.Moved, file.Name())
+		result.Bytes += info.Size()
 	}
 	return result
 }
@@ -247,7 +238,7 @@ func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, ar
 		return "", true, nil, nil
 	}
 	if !shouldMove {
-		if msg := resolver.SkipMessage(); msg != "" {
+		if msg := resolver.SkipMessage(args); msg != "" {
 			ctx.Logger.Info(msg, ctx.Logger.Args("file", args.FileName))
 		}
 		return "", true, nil, nil
