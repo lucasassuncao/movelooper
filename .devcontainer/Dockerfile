@@ -1,4 +1,4 @@
-FROM ubuntu:26.04
+FROM ubuntu:24.04
 
 # Install basic tools and apply security updates
 RUN apt-get update && \

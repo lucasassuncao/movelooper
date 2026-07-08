@@ -6,7 +6,8 @@
   },
   "workspaceFolder": "/workspaces/movelooper",
   "shutdownAction": "stopContainer",
-  "postCreateCommand": "[ -f go.mod ] && go mod download || true",
+  "remoteUser": "vscode",
+  "postCreateCommand": "sudo chown -R $(id -u):$(id -g) /go/pkg /home/vscode/.cache && ([ -f go.mod ] && go mod download || true)",
   "postAttachCommand": "bash",
   "forwardPorts": [
     8080
@@ -14,13 +15,17 @@
   "capAdd": [
     "SYS_PTRACE"
   ],
+  "mounts": [
+    "source=movelooper-go-mod-cache,target=/go/pkg/mod,type=volume",
+    "source=movelooper-go-build-cache,target=/home/vscode/.cache/go-build,type=volume"
+  ],
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": "false",
       "upgradePackages": "true",
       "userGid": "automatic",
       "userUid": "automatic",
-      "username": "none"
+      "username": "automatic"
     },
     "ghcr.io/devcontainers/features/git:1": {
       "ppa": "false",
@@ -57,9 +62,6 @@
         "go.inlayHints.functionTypeParameters": true,
         "go.inlayHints.parameterNames": true,
         "go.inlayHints.rangeVariableTypes": true,
-        "go.lintFlags": [
-          "--fast"
-        ],
         "go.lintOnSave": "file",
         "go.lintTool": "golangci-lint",
         "go.testFlags": [
