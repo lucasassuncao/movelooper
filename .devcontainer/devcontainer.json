@@ -7,11 +7,14 @@
   "workspaceFolder": "/workspaces/movelooper",
   "shutdownAction": "stopContainer",
   "remoteUser": "vscode",
-  "postCreateCommand": "sudo chown -R $(id -u):$(id -g) /go/pkg /home/vscode/.cache && ([ -f go.mod ] && go mod download || true)",
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
   "postAttachCommand": "bash",
   "forwardPorts": [
     8080
   ],
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
   "capAdd": [
     "SYS_PTRACE"
   ],
@@ -27,7 +30,7 @@
       "userUid": "automatic",
       "username": "automatic"
     },
-    "ghcr.io/devcontainers/features/git:1": {
+    "ghcr.io/devcontainers/features/git:1.3.7": {
       "ppa": "false",
       "version": "os-provided"
     },
@@ -35,7 +38,10 @@
       "golangciLintVersion": "latest",
       "version": "1.26.4"
     },
-    "ghcr.io/eitsupi/devcontainer-features/jq-likes:2.1.0": {
+    "ghcr.io/devcontainers/features/powershell:2.0.2": {
+      "version": "latest"
+    },
+    "ghcr.io/eitsupi/devcontainer-features/jq-likes:2.1.1": {
       "jqVersion": "latest",
       "yqVersion": "latest"
     }
@@ -68,6 +74,7 @@
           "-v",
           "-race"
         ],
+        "go.toolsManagement.autoUpdate": true,
         "go.toolsManagement.checkForUpdates": "off",
         "go.useLanguageServer": true,
         "gopls": {
@@ -78,17 +85,12 @@
       },
       "extensions": [
         "Anthropic.claude-code",
-        "bruno-api-client.bruno",
-        "docker.docker",
         "golang.go",
         "griimick.vhs",
-        "ms-azuretools.vscode-containers",
-        "ms-azuretools.vscode-docker",
-        "ms-kubernetes-tools.vscode-kubernetes-tools",
-        "ms-vscode-remote.remote-containers",
-        "ms-vscode-remote.remote-wsl",
         "redhat.vscode-yaml",
-        "EditorConfig.EditorConfig"
+        "EditorConfig.EditorConfig",
+        "github.vscode-github-actions",
+        "kamikillerto.vscode-colorize"
       ]
     }
   }

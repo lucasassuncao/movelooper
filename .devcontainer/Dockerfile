@@ -8,9 +8,14 @@ RUN apt-get update && \
     wget \
     vim \
     nano \
+    less \
     build-essential \
-    ca-certificates && \
+    ca-certificates \
+    strace \
+    lsof \
+    iproute2 \
+    dnsutils \
+    htop \
+    ripgrep \
+    plocate && \
     rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /workspace
