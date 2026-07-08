@@ -267,10 +267,16 @@ func normalizeCase(s string, caseSensitive bool) string {
 // leaves the pattern untouched (treated as a literal).
 func expandGlobPattern(pattern string) []string {
 	start := strings.Index(pattern, "{")
-	end := strings.Index(pattern, "}")
-	if start == -1 || end == -1 || end < start {
+	if start == -1 {
 		return []string{pattern}
 	}
+	// Search for "}" only after start, so a literal "}" earlier in the pattern
+	// (e.g. "a}b{c,d}") does not hide a valid group that follows it.
+	end := strings.Index(pattern[start:], "}")
+	if end == -1 {
+		return []string{pattern}
+	}
+	end += start
 
 	prefix := pattern[:start]
 	alternatives := strings.Split(pattern[start+1:end], ",")

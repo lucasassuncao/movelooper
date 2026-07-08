@@ -434,6 +434,34 @@ func TestAdd_ConcurrentSafe(t *testing.T) {
 	assert.Len(t, h.GetBatch("batch_concurrent"), 10)
 }
 
+// TestAddBatch_CrossProcessWritesAreNotLost is a regression test for the
+// last-write-wins race between two movelooper processes sharing one history
+// file (e.g. a watch daemon and a one-shot run): two independent History
+// instances — standing in for two processes — must not silently drop each
+// other's writes. Before the file lock + reload-on-write fix, h2 would save
+// over h1's already-persisted batch because it never saw it.
+func TestAddBatch_CrossProcessWritesAreNotLost(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "movelooper.json")
+
+	h1, err := NewHistory(path, 100)
+	require.NoError(t, err)
+	h2, err := NewHistory(path, 100)
+	require.NoError(t, err)
+
+	require.NoError(t, h1.AddBatch([]Entry{makeEntry("batch_1")}))
+	require.NoError(t, h2.AddBatch([]Entry{makeEntry("batch_2")}))
+
+	h3, err := NewHistory(path, 100)
+	require.NoError(t, err)
+	var ids []string
+	for _, b := range h3.GetAllBatches() {
+		ids = append(ids, b.BatchID)
+	}
+	assert.ElementsMatch(t, []string{"batch_1", "batch_2"}, ids,
+		"both processes' batches must survive on disk")
+}
+
 // TestHistory_LoadAndAddRoundTrip tests that entries added to one History instance
 // are correctly loaded by a second instance reading the same file.
 func TestHistory_LoadAndAddRoundTrip(t *testing.T) {

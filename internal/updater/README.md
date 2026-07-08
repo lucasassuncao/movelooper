@@ -19,7 +19,7 @@ Package updater implements the self\-update mechanism for movelooper.
 
 
 <a name="CleanOldBinary"></a>
-## func [CleanOldBinary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L197>)
+## func [CleanOldBinary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L206>)
 
 ```go
 func CleanOldBinary()
@@ -28,7 +28,7 @@ func CleanOldBinary()
 CleanOldBinary removes a \<exe\>.old file left by a previous self\-update. Call this from main\(\) at startup.
 
 <a name="SelfUpdate"></a>
-## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L48>)
+## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L52>)
 
 ```go
 func SelfUpdate(repo, token, currentVersion, version string, includePrerelease bool) error
@@ -41,7 +41,7 @@ repo must be in "owner/repo" format, e.g. "lucasassuncao/movelooper". currentVer
 version selects the release to install: empty means "latest". includePrerelease only affects the empty\-version path: when true, the most recent release wins even if it is a prerelease; otherwise the latest stable is used. When version is non\-empty, includePrerelease is ignored — the explicit tag is honored.
 
 <a name="Release"></a>
-## type [Release](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L30-L34>)
+## type [Release](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L34-L38>)
 
 Release is the public, presentation\-friendly view of a GitHub release returned by ListReleases. It hides API\-specific fields.
 
@@ -54,7 +54,7 @@ type Release struct {
 ```
 
 <a name="ListReleases"></a>
-### func [ListReleases](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L119>)
+### func [ListReleases](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L128>)
 
 ```go
 func ListReleases(repo, token string, includePrerelease bool, limit int) ([]Release, error)

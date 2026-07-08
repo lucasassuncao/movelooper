@@ -225,7 +225,15 @@ func dispatchAction(ctx context.Context, action models.Action, src, dst string) 
 // conflict according to strategy. Returns a non-nil error only for unknown strategies;
 // resolver failures are logged internally and surfaced as skip=true, err=nil.
 func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, args ConflictArgs) (resolved string, skip bool, finalize FinalizeFunc, err error) {
-	if _, err := os.Stat(args.Dst); err != nil {
+	if _, statErr := os.Stat(args.Dst); statErr != nil {
+		if !os.IsNotExist(statErr) {
+			// Anything other than "does not exist" (e.g. permission denied) means we
+			// cannot tell whether a conflict exists, so skip rather than risk an
+			// unintended overwrite.
+			ctx.Logger.Error("failed to check destination for conflicts",
+				ctx.Logger.Args("file", args.FileName, "error", statErr.Error()))
+			return "", true, nil, nil
+		}
 		return args.Dst, false, nil, nil
 	}
 	resolver, ok := conflictResolvers[strategy]

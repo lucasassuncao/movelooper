@@ -402,9 +402,14 @@ func matchesExtensionAndFilters(cat *models.Category, fileName, path string) boo
 	if !filters.MatchesAnyExtension(fileName, cat.Source.Extensions) {
 		return false
 	}
-	info, err := os.Stat(path)
+	// Lstat (not Stat) so a symlink is judged by its own type, matching the
+	// one-shot scanner (scanner.WalkSource), which never follows symlinks either.
+	info, err := os.Lstat(path)
 	if err != nil {
 		return false
+	}
+	if !info.Mode().IsRegular() {
+		return false // directories, symlinks, and other special files are never moved
 	}
 	return filters.MatchesFilter(cat.Source.Filter, path, info)
 }

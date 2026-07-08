@@ -49,7 +49,7 @@ func NewWatchBatchID() string
 NewWatchBatchID returns a collision\-resistant batch ID for a watch\-mode move operation.
 
 <a name="BatchSummary"></a>
-## type [BatchSummary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L185-L189>)
+## type [BatchSummary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L215-L219>)
 
 BatchSummary holds a brief description of a batch for listing purposes
 
@@ -116,11 +116,11 @@ type Entry struct {
 ```
 
 <a name="History"></a>
-## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L78-L85>)
+## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L80-L88>)
 
 History manages the log of file operations.
 
-The mutex only guards access within one process. Two movelooper processes writing at the same time \(e.g. a watch daemon plus a one\-shot run\) each hold their own in\-memory copy, and the last save wins — entries written by the other process in between are lost. The save itself is atomic \(temp file \+ rename\), so the file is never corrupted, only potentially incomplete.
+The mutex only guards access within one process. Two movelooper processes writing at the same time \(e.g. a watch daemon plus a one\-shot run\) are additionally serialized by an OS\-level lock on a sidecar ".lock" file \(see lock.go\): every mutating method reloads h.entries from disk while holding that lock, so a write from the other process is never silently overwritten. The save itself is also atomic \(temp file \+ rename\), so the file is never corrupted, only potentially incomplete if a process is killed mid\-write.
 
 ```go
 type History struct {
@@ -129,7 +129,7 @@ type History struct {
 ```
 
 <a name="NewHistory"></a>
-### func [NewHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L90>)
+### func [NewHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L93>)
 
 ```go
 func NewHistory(path string, limit int) (*History, error)
@@ -138,7 +138,7 @@ func NewHistory(path string, limit int) (*History, error)
 NewHistory creates a new History manager. path is the file where history is persisted; limit controls the maximum number of batches retained \(values less than 1 fall back to defaultMaxBatches\).
 
 <a name="History.Add"></a>
-### func \(\*History\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L131>)
+### func \(\*History\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L159>)
 
 ```go
 func (h *History) Add(entry Entry) error
@@ -147,7 +147,7 @@ func (h *History) Add(entry Entry) error
 Add records a new entry: it updates the in\-memory state, prunes old batches past the limit, and rewrites the whole history file as an indented JSON array via an atomic temp\-file rename. When recording many entries in one operation, prefer AddBatch \(or a Buffer\) to avoid one full rewrite per entry.
 
 <a name="History.AddBatch"></a>
-### func \(\*History\) [AddBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L138>)
+### func \(\*History\) [AddBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L166>)
 
 ```go
 func (h *History) AddBatch(entries []Entry) error
@@ -156,7 +156,7 @@ func (h *History) AddBatch(entries []Entry) error
 AddBatch records several entries with a single save, avoiding the quadratic I/O of rewriting the whole history file once per moved file. A nil or empty slice is a no\-op.
 
 <a name="History.GetAllBatches"></a>
-### func \(\*History\) [GetAllBatches](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L192>)
+### func \(\*History\) [GetAllBatches](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L222>)
 
 ```go
 func (h *History) GetAllBatches() []BatchSummary
@@ -165,7 +165,7 @@ func (h *History) GetAllBatches() []BatchSummary
 GetAllBatches returns one summary per batch, ordered oldest → newest
 
 <a name="History.GetBatch"></a>
-### func \(\*History\) [GetBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L215>)
+### func \(\*History\) [GetBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L245>)
 
 ```go
 func (h *History) GetBatch(batchID string) []Entry
@@ -174,7 +174,7 @@ func (h *History) GetBatch(batchID string) []Entry
 GetBatch returns all entries for a given batch ID
 
 <a name="History.RemoveBatch"></a>
-### func \(\*History\) [RemoveBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L229>)
+### func \(\*History\) [RemoveBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L259>)
 
 ```go
 func (h *History) RemoveBatch(batchID string) error
@@ -183,7 +183,7 @@ func (h *History) RemoveBatch(batchID string) error
 RemoveBatch removes all entries for a given batch ID
 
 <a name="History.RemoveCategoryFromBatch"></a>
-### func \(\*History\) [RemoveCategoryFromBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L255>)
+### func \(\*History\) [RemoveCategoryFromBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L287>)
 
 ```go
 func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (int, error)
@@ -192,7 +192,7 @@ func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (
 RemoveCategoryFromBatch removes entries belonging to any of the given category names from the specified batch. If the batch becomes empty after removal, its reference is also gone. Entries with an empty Category field are never matched. Returns the number of entries removed.
 
 <a name="History.RemoveEntries"></a>
-### func \(\*History\) [RemoveEntries](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L286>)
+### func \(\*History\) [RemoveEntries](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L323>)
 
 ```go
 func (h *History) RemoveEntries(entries []Entry) error

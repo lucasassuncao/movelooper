@@ -71,16 +71,19 @@ func (b *Buffer) Flush(h *History) error {
 // History manages the log of file operations.
 //
 // The mutex only guards access within one process. Two movelooper processes
-// writing at the same time (e.g. a watch daemon plus a one-shot run) each hold
-// their own in-memory copy, and the last save wins — entries written by the
-// other process in between are lost. The save itself is atomic (temp file +
-// rename), so the file is never corrupted, only potentially incomplete.
+// writing at the same time (e.g. a watch daemon plus a one-shot run) are
+// additionally serialized by an OS-level lock on a sidecar ".lock" file (see
+// lock.go): every mutating method reloads h.entries from disk while holding
+// that lock, so a write from the other process is never silently overwritten.
+// The save itself is also atomic (temp file + rename), so the file is never
+// corrupted, only potentially incomplete if a process is killed mid-write.
 type History struct {
 	mu         sync.Mutex
 	entries    []Entry
 	batchDeque []string       // batch IDs in insertion order, no duplicates
 	batchCount map[string]int // number of entries per batch ID
 	path       string
+	lockPath   string
 	maxBatches int
 }
 
@@ -98,6 +101,7 @@ func NewHistory(path string, limit int) (*History, error) {
 
 	h := &History{
 		path:       path,
+		lockPath:   path + ".lock",
 		maxBatches: limit,
 		batchCount: make(map[string]int),
 	}
@@ -109,6 +113,30 @@ func NewHistory(path string, limit int) (*History, error) {
 	}
 
 	return h, nil
+}
+
+// withFileLock acquires an OS-level exclusive lock on h.lockPath, reloads
+// h.entries from disk so this process sees any writes made by another
+// movelooper process since it last read the file, then runs fn (which mutates
+// h.entries and calls h.save()). Must be called with h.mu already held.
+//
+// If the lock file itself cannot be opened (e.g. a read-only filesystem),
+// locking is skipped and fn runs against whatever h.entries already holds —
+// a best-effort fallback rather than breaking history tracking entirely.
+func (h *History) withFileLock(fn func() error) error {
+	lock, err := acquireFileLock(h.lockPath)
+	if err != nil {
+		return fn()
+	}
+	if err := h.load(); err != nil && !os.IsNotExist(err) {
+		_ = lock.release()
+		return err
+	}
+	fnErr := fn()
+	if relErr := lock.release(); relErr != nil && fnErr == nil {
+		return relErr
+	}
+	return fnErr
 }
 
 // rebuildIndex reconstructs batchDeque and batchCount from h.entries.
@@ -142,19 +170,21 @@ func (h *History) AddBatch(entries []Entry) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.batchCount == nil {
-		h.batchCount = make(map[string]int)
-	}
-	for _, entry := range entries {
-		h.entries = append(h.entries, entry)
-		if h.batchCount[entry.BatchID] == 0 {
-			h.batchDeque = append(h.batchDeque, entry.BatchID)
+	return h.withFileLock(func() error {
+		if h.batchCount == nil {
+			h.batchCount = make(map[string]int)
 		}
-		h.batchCount[entry.BatchID]++
-	}
+		for _, entry := range entries {
+			h.entries = append(h.entries, entry)
+			if h.batchCount[entry.BatchID] == 0 {
+				h.batchDeque = append(h.batchDeque, entry.BatchID)
+			}
+			h.batchCount[entry.BatchID]++
+		}
 
-	h.prune()
-	return h.save()
+		h.prune()
+		return h.save()
+	})
 }
 
 // prune removes the oldest batches, keeping at most maxBatches.
@@ -230,22 +260,24 @@ func (h *History) RemoveBatch(batchID string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	newEntries := make([]Entry, 0, len(h.entries))
-	for _, entry := range h.entries {
-		if entry.BatchID != batchID {
-			newEntries = append(newEntries, entry)
+	return h.withFileLock(func() error {
+		newEntries := make([]Entry, 0, len(h.entries))
+		for _, entry := range h.entries {
+			if entry.BatchID != batchID {
+				newEntries = append(newEntries, entry)
+			}
 		}
-	}
 
-	original := h.entries
-	h.entries = newEntries
-	if err := h.save(); err != nil {
-		h.entries = original
+		original := h.entries
+		h.entries = newEntries
+		if err := h.save(); err != nil {
+			h.entries = original
+			h.rebuildIndex()
+			return err
+		}
 		h.rebuildIndex()
-		return err
-	}
-	h.rebuildIndex()
-	return nil
+		return nil
+	})
 }
 
 // RemoveCategoryFromBatch removes entries belonging to any of the given category
@@ -261,24 +293,29 @@ func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (
 		catSet[c] = true
 	}
 
-	newEntries := make([]Entry, 0, len(h.entries))
-	for _, e := range h.entries {
-		if e.BatchID == batchID && e.Category != "" && catSet[e.Category] {
-			continue
+	var removed int
+	err := h.withFileLock(func() error {
+		newEntries := make([]Entry, 0, len(h.entries))
+		for _, e := range h.entries {
+			if e.BatchID == batchID && e.Category != "" && catSet[e.Category] {
+				continue
+			}
+			newEntries = append(newEntries, e)
 		}
-		newEntries = append(newEntries, e)
-	}
 
-	removed := len(h.entries) - len(newEntries)
-	original := h.entries
-	h.entries = newEntries
-	if err := h.save(); err != nil {
-		h.entries = original
+		removed = len(h.entries) - len(newEntries)
+		original := h.entries
+		h.entries = newEntries
+		if err := h.save(); err != nil {
+			h.entries = original
+			h.rebuildIndex()
+			removed = 0
+			return err
+		}
 		h.rebuildIndex()
-		return 0, err
-	}
-	h.rebuildIndex()
-	return removed, nil
+		return nil
+	})
+	return removed, err
 }
 
 // RemoveEntries removes specific entries from history, matched by BatchID and Source path.
@@ -292,22 +329,24 @@ func (h *History) RemoveEntries(entries []Entry) error {
 		toRemove[e.BatchID+"\x00"+e.Source] = true
 	}
 
-	newEntries := make([]Entry, 0, len(h.entries))
-	for _, e := range h.entries {
-		if !toRemove[e.BatchID+"\x00"+e.Source] {
-			newEntries = append(newEntries, e)
+	return h.withFileLock(func() error {
+		newEntries := make([]Entry, 0, len(h.entries))
+		for _, e := range h.entries {
+			if !toRemove[e.BatchID+"\x00"+e.Source] {
+				newEntries = append(newEntries, e)
+			}
 		}
-	}
 
-	original := h.entries
-	h.entries = newEntries
-	if err := h.save(); err != nil {
-		h.entries = original
+		original := h.entries
+		h.entries = newEntries
+		if err := h.save(); err != nil {
+			h.entries = original
+			h.rebuildIndex()
+			return err
+		}
 		h.rebuildIndex()
-		return err
-	}
-	h.rebuildIndex()
-	return nil
+		return nil
+	})
 }
 
 // save writes h.entries to disk atomically using a temp file + rename, as an

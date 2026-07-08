@@ -2,6 +2,10 @@
 package updater
 
 import (
+	"bufio"
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,6 +87,11 @@ func SelfUpdate(repo, token, currentVersion, version string, includePrerelease b
 	fmt.Printf("Downloading new binary...\n")
 	tmpPath := exePath + ".new"
 	if err := download(asset.BrowserDownloadURL, tmpPath, token, asset.Size); err != nil {
+		return err
+	}
+
+	if err := verifyDownloadedAsset(rel.Assets, asset, tmpPath, token); err != nil {
+		_ = os.Remove(tmpPath)
 		return err
 	}
 
@@ -357,6 +366,136 @@ func selectAsset(assets []ghAsset) *ghAsset {
 	}
 
 	return best
+}
+
+// checksumManifestPatterns identifies release assets that hold checksum data,
+// either a manifest covering every asset (e.g. "checksums.txt", "*_SHA256SUMS")
+// or a per-asset digest file (e.g. "movelooper_linux_amd64.sha256").
+var checksumManifestPatterns = []string{"checksum", "sha256sums", ".sha256"}
+
+// verifyDownloadedAsset checks downloadedPath against a checksum published
+// alongside the release, if one can be found. It is a no-op (nil error) when no
+// checksum data is available, since not every release publishes one; a mismatch
+// against a checksum that was found is always an error.
+func verifyDownloadedAsset(assets []ghAsset, asset *ghAsset, downloadedPath, token string) error {
+	expected, err := findAssetChecksum(assets, asset, token)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not fetch checksum manifest: %v\n", err)
+		return nil
+	}
+	if expected == "" {
+		fmt.Fprintln(os.Stderr, "warning: no checksum manifest found for this release; skipping verification")
+		return nil
+	}
+	got, err := sha256File(downloadedPath)
+	if err != nil {
+		return fmt.Errorf("hashing downloaded binary: %w", err)
+	}
+	if !strings.EqualFold(got, expected) {
+		return fmt.Errorf("checksum mismatch: downloaded binary does not match published checksum (expected %s, got %s)", expected, got)
+	}
+	fmt.Println("Checksum verified ✓")
+	return nil
+}
+
+// findAssetChecksum locates the checksum manifest among assets and returns the
+// expected SHA-256 hex digest for asset. Returns "" (no error) when no manifest
+// is found; an error only for a manifest that was found but could not be read.
+func findAssetChecksum(assets []ghAsset, asset *ghAsset, token string) (string, error) {
+	for i := range assets {
+		lower := strings.ToLower(assets[i].Name)
+		matched := false
+		for _, p := range checksumManifestPatterns {
+			if strings.Contains(lower, p) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		body, err := fetchAssetBody(assets[i].BrowserDownloadURL, token)
+		if err != nil {
+			return "", err
+		}
+		if sum := findChecksumInManifest(body, asset.Name); sum != "" {
+			return sum, nil
+		}
+	}
+	return "", nil
+}
+
+// findChecksumInManifest scans a checksum manifest for fileName. Each line is
+// either "<hex>  <filename>" (the common sha256sum(1) format, with an optional
+// leading "*" for binary mode) or a bare hex digest for a per-asset file, which
+// is accepted regardless of fileName since the whole manifest names only it.
+func findChecksumInManifest(body []byte, fileName string) string {
+	sc := bufio.NewScanner(bytes.NewReader(body))
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		switch len(fields) {
+		case 0:
+			continue
+		case 1:
+			if isHexSHA256(fields[0]) {
+				return fields[0]
+			}
+		default:
+			name := strings.TrimPrefix(fields[len(fields)-1], "*")
+			if name == fileName && isHexSHA256(fields[0]) {
+				return fields[0]
+			}
+		}
+	}
+	return ""
+}
+
+func isHexSHA256(s string) bool {
+	if len(s) != sha256.Size*2 {
+		return false
+	}
+	for _, r := range s {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return false
+		}
+	}
+	return true
+}
+
+// fetchAssetBody downloads a small release asset (a checksum manifest) fully
+// into memory. Capped at 1 MiB, far more than any plain-text manifest needs.
+func fetchAssetBody(rawURL, token string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "github.com/lucasassuncao/movelooper")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := apiClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching checksum manifest: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("checksum manifest returned HTTP %d", resp.StatusCode)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+}
+
+// sha256File computes the SHA-256 hex digest of the file at path.
+func sha256File(path string) (string, error) {
+	f, err := os.Open(filepath.Clean(path)) //#nosec G304 -- path is the updater's own ".new" temp download
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // maxDownloadOverhead caps how much we read beyond the asset's advertised size.

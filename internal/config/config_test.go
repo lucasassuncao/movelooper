@@ -823,6 +823,42 @@ func TestApplyCategoryDefaults(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "organize-by")
 	})
+
+	t.Run("action archive from defaults without archive block errors instead of panicking later", func(t *testing.T) {
+		t.Parallel()
+		cats := []*models.Category{{Name: "a", Destination: models.CategoryDestination{Path: "/dst"}}}
+		err := applyCategoryDefaults(cats, &models.Defaults{Action: models.ActionArchive})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "archive is required")
+	})
+
+	t.Run("action archive from defaults with a valid archive block passes", func(t *testing.T) {
+		t.Parallel()
+		cats := []*models.Category{{
+			Name: "a",
+			Destination: models.CategoryDestination{
+				Path:    "/dst",
+				Archive: &models.ArchiveConfig{Format: "zip"},
+			},
+		}}
+		require.NoError(t, applyCategoryDefaults(cats, &models.Defaults{Action: models.ActionArchive}))
+		assert.Equal(t, models.ActionArchive, cats[0].Destination.Action)
+	})
+
+	t.Run("archive block combined with a content conflict-strategy from defaults errors", func(t *testing.T) {
+		t.Parallel()
+		cats := []*models.Category{{
+			Name: "a",
+			Destination: models.CategoryDestination{
+				Path:    "/dst",
+				Action:  models.ActionArchive,
+				Archive: &models.ArchiveConfig{Format: "zip"},
+			},
+		}}
+		err := applyCategoryDefaults(cats, &models.Defaults{ConflictStrategy: models.ConflictStrategyHashCheck})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not valid with action archive")
+	})
 }
 
 func TestValidateCategory_Archive(t *testing.T) {

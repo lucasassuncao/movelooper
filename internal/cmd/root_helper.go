@@ -227,6 +227,9 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		if archivePath != "" {
 			batch.stats.totalFiles += len(archiveFiles)
 			batch.stats.totalBytes += archiveBytes
+			// Also count towards the after-hook's ML_FILES_MOVED, so it reflects
+			// the archived files instead of always reporting 0 for this action.
+			totalMoved += len(archiveFiles)
 		}
 	}
 

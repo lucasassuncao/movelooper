@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -446,6 +447,30 @@ func TestApplyConflictStrategy(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestApplyConflictStrategy_StatErrorNotIsNotExist covers the case where
+// os.Stat(dst) fails for a reason other than "does not exist" (e.g. an
+// unreadable path component): the file must be skipped rather than treated as
+// having no conflict, since we cannot actually tell whether dst exists.
+func TestApplyConflictStrategy_StatErrorNotIsNotExist(t *testing.T) {
+	t.Parallel()
+	src := t.TempDir()
+	dst := t.TempDir()
+	srcFile := filepath.Join(src, "file.txt")
+	writeFile(t, srcFile, []byte("data"))
+
+	// An intentionally malformed path (invalid syntax on Windows, ENAMETOOLONG
+	// on POSIX) makes os.Stat fail without returning a "not exist" error.
+	badDst := filepath.Join(dst, strings.Repeat("a", 300))
+
+	resolved, skip, finalize, err := applyConflictStrategy(newTestMoveContext(), models.ConflictStrategyRename, ConflictArgs{
+		Src: srcFile, Dst: badDst, DestDir: dst, FileName: "file.txt",
+	})
+	require.NoError(t, err)
+	assert.True(t, skip)
+	assert.Empty(t, resolved)
+	assert.Nil(t, finalize)
 }
 
 // testIsCrossDeviceError defines the structure for test cases of the isCrossDeviceError function,

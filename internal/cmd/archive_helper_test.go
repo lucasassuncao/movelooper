@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func archiveTestCategory(name, srcDir, dstDir string, arc *models.ArchiveConfig) *models.Category {
+func archiveTestCategory(srcDir, dstDir string, arc *models.ArchiveConfig) *models.Category {
 	enabled := true
 	return &models.Category{
-		Name:    name,
+		Name:    "images",
 		Enabled: &enabled,
 		Source:  models.CategorySource{Path: srcDir, Extensions: []string{"jpg"}},
 		Destination: models.CategoryDestination{
@@ -58,7 +58,7 @@ func TestArchiveCategory_WritesZipAndKeepsSourceByDefault(t *testing.T) {
 	dst := t.TempDir()
 	files := fileEntriesFrom(t, src, "a.jpg", "b.jpg")
 
-	cat := archiveTestCategory("images", src, dst, &models.ArchiveConfig{Format: "zip", Name: "{category}"})
+	cat := archiveTestCategory(src, dst, &models.ArchiveConfig{Format: "zip", Name: "{category}"})
 	var buf bytes.Buffer
 	m := newBufMovelooper(t, &buf, []*models.Category{cat})
 	batch := moveBatch{moved: make(movedSet), batchID: "batch_test", stats: &runStats{}}
@@ -76,7 +76,7 @@ func TestArchiveCategory_KeepSourceFalseDeletesOriginals(t *testing.T) {
 	dst := t.TempDir()
 	files := fileEntriesFrom(t, src, "a.jpg")
 	del := false
-	cat := archiveTestCategory("images", src, dst, &models.ArchiveConfig{Format: "zip", KeepSource: &del})
+	cat := archiveTestCategory(src, dst, &models.ArchiveConfig{Format: "zip", KeepSource: &del})
 	var buf bytes.Buffer
 	m := newBufMovelooper(t, &buf, []*models.Category{cat})
 	batch := moveBatch{moved: make(movedSet), batchID: "batch_test", stats: &runStats{}}
@@ -97,7 +97,7 @@ func TestArchiveCategory_WriteFailureReturnsError(t *testing.T) {
 	// Remove the source file after scanning so archive.Write fails on open.
 	require.NoError(t, os.Remove(filepath.Join(src, "a.jpg")))
 
-	cat := archiveTestCategory("images", src, dst, &models.ArchiveConfig{Format: "zip"})
+	cat := archiveTestCategory(src, dst, &models.ArchiveConfig{Format: "zip"})
 	var buf bytes.Buffer
 	m := newBufMovelooper(t, &buf, []*models.Category{cat})
 	batch := moveBatch{moved: make(movedSet), batchID: "batch_test", stats: &runStats{}}

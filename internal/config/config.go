@@ -102,6 +102,17 @@ func applyCategoryDefaults(cats []*models.Category, d *models.Defaults) error {
 		if cat.Destination.OrganizeBy == "" {
 			cat.Destination.OrganizeBy = d.OrganizeBy
 		}
+		// Re-check the archive invariants validateCategory already enforced:
+		// a category can only reach action: archive or a non-empty archive
+		// block here via defaults, which validateCategory could not have seen.
+		if MissingArchiveBlock(cat) {
+			return fmt.Errorf("category %q: destination.archive is required when action is %q", cat.Name, models.ActionArchive)
+		}
+		if cat.Destination.Archive != nil {
+			if err := validateArchive(cat.Name, cat.Destination.ConflictStrategy, cat.Destination.Archive); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

@@ -2,11 +2,13 @@ package updater
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -134,6 +136,76 @@ func TestSelectAsset(t *testing.T) {
 				require.NotNil(t, got)
 				assert.Equal(t, tt.wantName, got.Name)
 			}
+		})
+	}
+}
+
+func TestIsHexSHA256(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"valid lowercase", "8bc3c68d94a3e4de6ea921270c169243da6fd46dedbff8f9608541e7390f4c4b", true},
+		{"valid uppercase", "8BC3C68D94A3E4DE6EA921270C169243DA6FD46DEDBFF8F9608541E7390F4C4B", true},
+		{"too short", "abc123", false},
+		{"too long", "8bc3c68d94a3e4de6ea921270c169243da6fd46dedbff8f9608541e7390f4c4b00", false},
+		{"non-hex characters", strings.Repeat("g", 64), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, isHexSHA256(tt.in))
+		})
+	}
+}
+
+func TestFindChecksumInManifest(t *testing.T) {
+	t.Parallel()
+	const hash = "8bc3c68d94a3e4de6ea921270c169243da6fd46dedbff8f9608541e7390f4c4b"
+
+	tests := []struct {
+		name     string
+		body     string
+		fileName string
+		want     string
+	}{
+		{
+			name:     "sha256sum format with matching filename",
+			body:     hash + "  movelooper_linux_amd64\n" + strings.Repeat("0", 64) + "  other_file\n",
+			fileName: "movelooper_linux_amd64",
+			want:     hash,
+		},
+		{
+			name:     "sha256sum format with binary-mode asterisk",
+			body:     hash + " *movelooper_linux_amd64\n",
+			fileName: "movelooper_linux_amd64",
+			want:     hash,
+		},
+		{
+			name:     "no matching filename",
+			body:     hash + "  some_other_asset\n",
+			fileName: "movelooper_linux_amd64",
+			want:     "",
+		},
+		{
+			name:     "bare digest (per-asset manifest)",
+			body:     hash + "\n",
+			fileName: "movelooper_linux_amd64",
+			want:     hash,
+		},
+		{
+			name:     "empty manifest",
+			body:     "",
+			fileName: "movelooper_linux_amd64",
+			want:     "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, findChecksumInManifest([]byte(tt.body), tt.fileName))
 		})
 	}
 }
@@ -443,4 +515,105 @@ func TestSelfUpdate_DownloadsAndReplacesBinary(t *testing.T) {
 
 	_, err = os.Stat(fakeBin + ".old")
 	assert.NoError(t, err, ".old binary should exist")
+}
+
+// TestSelfUpdate_VerifiesMatchingChecksum is a regression test for the
+// self-update checksum verification: a release that publishes a checksum
+// manifest matching the downloaded binary must install successfully.
+func TestSelfUpdate_VerifiesMatchingChecksum(t *testing.T) {
+	dir := t.TempDir()
+	fakeBin := filepath.Join(dir, "movelooper")
+	require.NoError(t, os.WriteFile(fakeBin, []byte("old"), 0o755))
+
+	newContent := []byte("new binary content")
+	const correctSum = "8bc3c68d94a3e4de6ea921270c169243da6fd46dedbff8f9608541e7390f4c4b"
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/download":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(newContent)
+		case "/checksums.txt":
+			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprintf(w, "%s  movelooper_linux_amd64\n", correctSum)
+		default:
+			rel := ghRelease{
+				TagName: "v9.9.9",
+				Assets: []ghAsset{
+					{Name: "movelooper_linux_amd64", BrowserDownloadURL: srv.URL + "/download", Size: int64(len(newContent))},
+					{Name: "checksums.txt", BrowserDownloadURL: srv.URL + "/checksums.txt"},
+				},
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(rel)
+		}
+	}))
+	defer srv.Close()
+
+	origExecutable := osExecutable
+	osExecutable = func() (string, error) { return fakeBin, nil }
+	t.Cleanup(func() { osExecutable = origExecutable })
+
+	withTestServer(t, srv, func() {
+		require.NoError(t, SelfUpdate("owner/repo", "", "v1.0.0", "", false))
+	})
+
+	got, err := os.ReadFile(fakeBin)
+	require.NoError(t, err)
+	assert.Equal(t, newContent, got)
+}
+
+// TestSelfUpdate_ChecksumMismatchAbortsInstall is a regression test: when the
+// downloaded binary does not match a checksum manifest that was found, the
+// install must abort and leave the original binary untouched.
+func TestSelfUpdate_ChecksumMismatchAbortsInstall(t *testing.T) {
+	dir := t.TempDir()
+	fakeBin := filepath.Join(dir, "movelooper")
+	require.NoError(t, os.WriteFile(fakeBin, []byte("old"), 0o755))
+
+	newContent := []byte("new binary content")
+	wrongSum := strings.Repeat("0", 64)
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/download":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(newContent)
+		case "/checksums.txt":
+			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprintf(w, "%s  movelooper_linux_amd64\n", wrongSum)
+		default:
+			rel := ghRelease{
+				TagName: "v9.9.9",
+				Assets: []ghAsset{
+					{Name: "movelooper_linux_amd64", BrowserDownloadURL: srv.URL + "/download", Size: int64(len(newContent))},
+					{Name: "checksums.txt", BrowserDownloadURL: srv.URL + "/checksums.txt"},
+				},
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(rel)
+		}
+	}))
+	defer srv.Close()
+
+	origExecutable := osExecutable
+	osExecutable = func() (string, error) { return fakeBin, nil }
+	t.Cleanup(func() { osExecutable = origExecutable })
+
+	withTestServer(t, srv, func() {
+		err := SelfUpdate("owner/repo", "", "v1.0.0", "", false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "checksum mismatch")
+	})
+
+	got, err := os.ReadFile(fakeBin)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("old"), got, "original binary must be untouched after a checksum mismatch")
+
+	_, err = os.Stat(fakeBin + ".old")
+	assert.True(t, os.IsNotExist(err), "no .old file should be created when install aborts before replacing the binary")
+	_, err = os.Stat(fakeBin + ".new")
+	assert.True(t, os.IsNotExist(err), "the failed download must be cleaned up")
 }

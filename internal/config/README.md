@@ -66,7 +66,7 @@ func ExpandTilde(path string) string
 ExpandTilde expands a leading "\~" or "\~/" \(and "\~\\" on Windows\) in path to the user's home directory. Any other value — including a bare "\~username" — is returned unchanged, as is path when the home directory cannot be resolved.
 
 <a name="FilterDepthOK"></a>
-## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L267>)
+## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L278>)
 
 ```go
 func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
@@ -93,7 +93,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration
 LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
 
 <a name="MissingArchiveBlock"></a>
-## func [MissingArchiveBlock](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L122>)
+## func [MissingArchiveBlock](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L133>)
 
 ```go
 func MissingArchiveBlock(cat *models.Category) bool
@@ -111,7 +111,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 NewApp resolves the config file and runs the requested initialization steps in order.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L431>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L442>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)

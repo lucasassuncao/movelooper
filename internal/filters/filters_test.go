@@ -48,6 +48,9 @@ var testExpandGlobPatternTestCases = []testExpandGlobPattern{
 	{"no braces", []string{"no braces"}},
 	{"*.{ jpg , png }", []string{"*.jpg", "*.png"}},
 	{"{a,b}/{c,d}", []string{"a/c", "a/d", "b/c", "b/d"}},
+	// A literal "}" before a valid group must not hide that group: the search
+	// for the matching "}" must start after the "{", not from the beginning.
+	{"a}b{c,d}", []string{"a}bc", "a}bd"}},
 }
 
 // TestExpandGlobPattern tests the expandGlobPattern function to ensure it correctly expands brace patterns.
