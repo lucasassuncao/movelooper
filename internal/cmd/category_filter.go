@@ -57,7 +57,7 @@ func FilterCategories(all []*models.Category, names []string, includeDisabled bo
 	for _, name := range names {
 		cat, ok := index[name]
 		if !ok {
-			return nil, fmt.Errorf("unknown category %q", name)
+			return nil, fmt.Errorf("unknown category %q — valid categories: %s", name, strings.Join(categoryNames(all), ", "))
 		}
 		if !cat.IsEnabled() && !includeDisabled {
 			log.Warn(fmt.Sprintf("category %q is disabled - use --include-disabled to run it anyway", name))
@@ -66,4 +66,13 @@ func FilterCategories(all []*models.Category, names []string, includeDisabled bo
 		result = append(result, cat)
 	}
 	return result, nil
+}
+
+// categoryNames returns the names of all categories, in config order.
+func categoryNames(categories []*models.Category) []string {
+	names := make([]string, len(categories))
+	for i, c := range categories {
+		names[i] = c.Name
+	}
+	return names
 }
