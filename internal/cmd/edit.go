@@ -22,6 +22,8 @@ func EditCmd() *cobra.Command {
 	var noSaveConfirm bool
 	var noDeleteConfirm bool
 	var noValidateOnSave bool
+	var dump bool
+	var dumpPath string
 
 	cmd := &cobra.Command{
 		Use:               "edit",
@@ -45,7 +47,13 @@ produce a new config from an existing template).`,
   movelooper edit --list-themes
 
   # Load from --config but save to a new file
-  movelooper edit --output /path/to/new.yaml`,
+  movelooper edit --output /path/to/new.yaml
+
+  # Record a session trace to attach to a bug report
+  movelooper edit --dump
+
+  # Record the trace to a specific file instead of the OS temp dir
+  movelooper edit --dump-path ./trace.jsonl`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if listThemes {
 				names := make([]string, 0, len(theme.All()))
@@ -92,6 +100,8 @@ produce a new config from an existing template).`,
 				NoValidateOnSave:     noValidateOnSave,
 				SchemaRecursionDepth: config.MaxFilterNestingDepth - 1,
 				Validators:           MovelooperValidators,
+				Dump:                 dump || dumpPath != "",
+				DumpPath:             dumpPath,
 			})
 			if err != nil {
 				return err
@@ -103,6 +113,9 @@ produce a new config from an existing template).`,
 				}
 				fmt.Println("configuration saved to", savedTo)
 			}
+			if res.DumpPath != "" {
+				fmt.Println("session trace written to", res.DumpPath)
+			}
 			return nil
 		},
 	}
@@ -113,6 +126,8 @@ produce a new config from an existing template).`,
 	cmd.Flags().BoolVar(&noSaveConfirm, "no-save-confirm", false, "Skip the 'Save changes?' confirmation dialog")
 	cmd.Flags().BoolVar(&noDeleteConfirm, "no-delete-confirm", false, "Skip the 'Remove block?' confirmation dialog")
 	cmd.Flags().BoolVar(&noValidateOnSave, "no-validate-on-save", false, "Allow saving even when validators report errors (a warning is shown)")
+	cmd.Flags().BoolVar(&dump, "dump", false, "Record every editor action to a JSONL trace file for bug reports (path is printed on exit)")
+	cmd.Flags().StringVar(&dumpPath, "dump-path", "", "Write the session trace to this file instead of a temp file (implies --dump)")
 
 	return cmd
 }
