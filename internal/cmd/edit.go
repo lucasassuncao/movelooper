@@ -100,8 +100,10 @@ produce a new config from an existing template).`,
 				NoValidateOnSave:     noValidateOnSave,
 				SchemaRecursionDepth: config.MaxFilterNestingDepth - 1,
 				Validators:           MovelooperValidators,
-				Dump:                 dump || dumpPath != "",
-				DumpPath:             dumpPath,
+				Trace: editor.Trace{
+					Dump:     dump || dumpPath != "",
+					DumpPath: dumpPath,
+				},
 			})
 			if err != nil {
 				return err
