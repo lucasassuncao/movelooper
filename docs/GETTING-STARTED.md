@@ -278,4 +278,4 @@ Each imported file is a standalone YAML file with a `categories:` block. moveloo
 - [Tokens](/TOKENS.md) — full token reference for `organize-by` and `rename`
 - [Filters](/FILTERS.md) — filter types and boolean composition
 - [FAQ](/FAQ.md) — common questions
-- [Attribute reference](/movelooper/attributes/configuration/configuration.md) — browsable field docs (also available in the terminal via `movelooper show-docs`)
+- [Attribute reference](/movelooper/attributes/configuration/configuration.md) — browsable field docs

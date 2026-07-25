@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/editor"
 	"github.com/lucasassuncao/yedit/theme"
+	"github.com/lucasassuncao/yedit/themebrowser"
 	"github.com/spf13/cobra"
 )
 
@@ -40,10 +40,10 @@ produce a new config from an existing template).`,
 		Example: `  # Edit the default configuration file
   movelooper edit
 
-  # Edit with the Dracula theme
-  movelooper edit --theme dracula
+  # Edit with the Grape theme
+  movelooper edit --theme grape
 
-  # List all available themes
+  # Browse available themes in an interactive, tabbed terminal UI
   movelooper edit --list-themes
 
   # Load from --config but save to a new file
@@ -56,15 +56,7 @@ produce a new config from an existing template).`,
   movelooper edit --dump-path ./trace.jsonl`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if listThemes {
-				names := make([]string, 0, len(theme.All()))
-				for name := range theme.All() {
-					names = append(names, name)
-				}
-				sort.Strings(names)
-				for _, name := range names {
-					fmt.Println(name)
-				}
-				return nil
+				return themebrowser.BrowseInTerminal()
 			}
 
 			selectedTheme, ok := theme.All()[themeName]
@@ -123,8 +115,8 @@ produce a new config from an existing template).`,
 	}
 
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Save to this file instead of the loaded config (load path is unchanged)")
-	cmd.Flags().StringVar(&themeName, "theme", "dark", "Theme name (run --list-themes to see options)")
-	cmd.Flags().BoolVar(&listThemes, "list-themes", false, "List available theme names and exit")
+	cmd.Flags().StringVar(&themeName, "theme", "plain", "Theme name (run --list-themes to see options)")
+	cmd.Flags().BoolVar(&listThemes, "list-themes", false, "Browse available themes in an interactive, tabbed terminal UI")
 	cmd.Flags().BoolVar(&noSaveConfirm, "no-save-confirm", false, "Skip the 'Save changes?' confirmation dialog")
 	cmd.Flags().BoolVar(&noDeleteConfirm, "no-delete-confirm", false, "Skip the 'Remove block?' confirmation dialog")
 	cmd.Flags().BoolVar(&noValidateOnSave, "no-validate-on-save", false, "Allow saving even when validators report errors (a warning is shown)")

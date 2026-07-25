@@ -176,6 +176,5 @@ Write-Host "Moving files for $($env:ML_CATEGORY)"
 
 ## Still stuck?
 
-- Run `movelooper show-docs` to browse the full field reference in the terminal
 - Check [Configuration](CONFIGURATION.md) and [Categories](CATEGORIES.md) for all fields and their defaults
 - Open an issue at [github.com/lucasassuncao/movelooper](https://github.com/lucasassuncao/movelooper/issues)

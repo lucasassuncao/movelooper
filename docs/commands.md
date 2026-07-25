@@ -79,7 +79,7 @@ Opens the configuration file in an interactive two-panel TUI editor. The left pa
 
 ```bash
 movelooper edit
-movelooper edit --theme dracula
+movelooper edit --theme grape
 movelooper edit --list-themes
 movelooper edit --output /path/to/new.yaml
 movelooper edit --config /path/to/movelooper.yaml
@@ -87,7 +87,7 @@ movelooper edit --config /path/to/movelooper.yaml
 
 | Flag                    | Description                                                              |
 |-------------------------|--------------------------------------------------------------------------|
-| `--theme`               | Theme name (default: `dark`) — run `--list-themes` to see options        |
+| `--theme`               | Theme name (default: `plain`) — run `--list-themes` to see options       |
 | `--list-themes`         | List available theme names and exit                                      |
 | `--output`, `-o`        | Save to this file instead of the loaded config (load path is unchanged)  |
 | `--no-save-confirm`     | Skip the save confirmation dialog                                        |
@@ -124,23 +124,6 @@ Prints the absolute path of the configuration file that would be loaded, after a
 movelooper config
 movelooper config --config /path/to/movelooper.yaml
 ```
-
-## `movelooper show-docs` — browse field reference in terminal
-
-Renders the full field reference for `configuration` and `category` blocks directly in the terminal.
-
-```bash
-movelooper show-docs
-movelooper show-docs --section source
-movelooper show-docs --theme dracula
-movelooper show-docs --list-themes
-```
-
-| Flag            | Description                                                                                |
-|-----------------|--------------------------------------------------------------------------------------------|
-| `--section`     | Show only docs matching this topic (case-insensitive, partial match)                      |
-| `--theme`       | Theme name (default: `dark`) — run `--list-themes` to see options                         |
-| `--list-themes` | List available theme names and exit                                                        |
 
 ## `movelooper self-update` — update the binary
 

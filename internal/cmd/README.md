@@ -23,7 +23,6 @@ Package cmd contains the command line interface commands for the Movelooper appl
 - [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
 - [func RootCmd\(m \*models.Movelooper, version string\) \*cobra.Command](<#RootCmd>)
 - [func SelfUpdateCmd\(currentVersion string\) \*cobra.Command](<#SelfUpdateCmd>)
-- [func ShowCmd\(\) \*cobra.Command](<#ShowCmd>)
 - [func UndoCmd\(m \*models.Movelooper\) \*cobra.Command](<#UndoCmd>)
 - [func ValidateCmd\(\) \*cobra.Command](<#ValidateCmd>)
 - [func WatchCmd\(m \*models.Movelooper\) \*cobra.Command](<#WatchCmd>)
@@ -293,15 +292,6 @@ func SelfUpdateCmd(currentVersion string) *cobra.Command
 ```
 
 SelfUpdateCmd returns the self\-update command.
-
-<a name="ShowCmd"></a>
-## func [ShowCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/show_docs.go#L15>)
-
-```go
-func ShowCmd() *cobra.Command
-```
-
-
 
 <a name="UndoCmd"></a>
 ## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L11>)

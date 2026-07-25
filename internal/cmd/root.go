@@ -91,11 +91,9 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 
 	selfUpdateCmd := SelfUpdateCmd(version)
 	selfUpdateCmd.GroupID = "utils"
-	showCmd := ShowCmd()
-	showCmd.GroupID = "utils"
 
 	GenerateCmd.GroupID = "utils"
-	cmd.AddCommand(watchCmd, undoCmd, editCmd, validateCmd, configCmd, selfUpdateCmd, showCmd, GenerateCmd)
+	cmd.AddCommand(watchCmd, undoCmd, editCmd, validateCmd, configCmd, selfUpdateCmd, GenerateCmd)
 
 	cmd.SetHelpCommand(&cobra.Command{Hidden: true, GroupID: "utils"})
 

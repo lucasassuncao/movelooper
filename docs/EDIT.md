@@ -53,11 +53,11 @@ Useful for bootstrapping a new config or creating a category file for use with `
 ## Themes
 
 ```bash
-movelooper edit --theme dracula
+movelooper edit --theme grape
 movelooper edit --list-themes   # see all available themes
 ```
 
-The default theme is `dark`. The same `--theme` flag applies to `show-docs`.
+The default theme is `plain`.
 
 ---
 
@@ -65,7 +65,7 @@ The default theme is `dark`. The same `--theme` flag applies to `show-docs`.
 
 | Flag | Description |
 |---|---|
-| `--theme` | Theme name (default: `dark`) |
+| `--theme` | Theme name (default: `plain`) |
 | `--list-themes` | List available themes and exit |
 | `--output`, `-o` | Write to this file instead of the loaded config |
 | `--no-save-confirm` | Skip the save confirmation dialog |

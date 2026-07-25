@@ -23,7 +23,7 @@ main.go
   └── cmd.RootCmd(m *Movelooper, version)
         ├── PersistentPreRunE → config.AppBuilder → populates m
         ├── RunE             → runMove(m, ...)
-        └── subcommands: watch, undo, edit, validate, config, self-update, show-docs
+        └── subcommands: watch, undo, edit, validate, config, self-update, generate-docs
 ```
 
 The application is built around a single shared state object, `models.Movelooper`, which is created empty in `main.go` and populated by `AppBuilder` before every command runs. Commands read from it; they never write back. This keeps command logic stateless and easy to test.
