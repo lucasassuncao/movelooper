@@ -14,7 +14,9 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/document"
-	"github.com/lucasassuncao/yedit/editor"
+	"github.com/lucasassuncao/yedit/schema"
+	"github.com/lucasassuncao/yedit/spec"
+	"github.com/lucasassuncao/yedit/validate"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -80,13 +82,14 @@ func runValidate(configPath string, format validateFormat, summaryOnly bool, str
 	if err != nil {
 		return fmt.Errorf("building hint source: %w", err)
 	}
-	wired := editor.Wire(MovelooperValidators, editor.Config{
-		Schema:               &models.Config{},
-		Metadata:             hints,
-		SchemaRecursionDepth: config.MaxFilterNestingDepth - 1,
-	})
+	// Wired against the schema directly rather than through editor.Wire, so this
+	// command never pulls the TUI into the build. editor.Wire would run the same
+	// discovery: it forwards a positive SchemaRecursionDepth straight to
+	// schema.Discover, and applies no Hidden filter when Config.Hidden is empty.
+	tree := schema.Discover(&models.Config{}, config.MaxFilterNestingDepth-1)
+	wired := validate.WireWithSchema(MovelooperValidators, tree, hints)
 
-	violations := editor.RunAll(wired, doc.Raw(), doc.Blocks())
+	violations := validate.RunAll(wired, doc.Raw(), doc.Blocks())
 
 	if strict {
 		violations = append(violations, strictDirViolations(doc.Raw())...)
@@ -111,7 +114,7 @@ func runValidate(configPath string, format validateFormat, summaryOnly bool, str
 
 // strictDirViolations checks whether source.path and destination.path for each
 // category exist on disk, returning a violation for each path that does not.
-func strictDirViolations(rawYAML []byte) []editor.Violation {
+func strictDirViolations(rawYAML []byte) []spec.Violation {
 	var doc map[string]any
 	if err := yaml.Unmarshal(rawYAML, &doc); err != nil {
 		return nil
@@ -120,7 +123,7 @@ func strictDirViolations(rawYAML []byte) []editor.Violation {
 	if !ok {
 		return nil
 	}
-	var out []editor.Violation
+	var out []spec.Violation
 	for i, item := range cats {
 		cat, ok := item.(map[string]any)
 		if !ok {
@@ -130,7 +133,7 @@ func strictDirViolations(rawYAML []byte) []editor.Violation {
 		if src, ok := cat["source"].(map[string]any); ok {
 			if p, ok := src["path"].(string); ok && p != "" {
 				if _, err := os.Stat(config.ExpandTilde(p)); os.IsNotExist(err) {
-					out = append(out, editor.Violation{
+					out = append(out, spec.Violation{
 						Path:    prefix + ".source.path",
 						Message: fmt.Sprintf("directory does not exist: %s", p),
 					})
@@ -140,7 +143,7 @@ func strictDirViolations(rawYAML []byte) []editor.Violation {
 		if dst, ok := cat["destination"].(map[string]any); ok {
 			if p, ok := dst["path"].(string); ok && p != "" {
 				if _, err := os.Stat(config.ExpandTilde(p)); os.IsNotExist(err) {
-					out = append(out, editor.Violation{
+					out = append(out, spec.Violation{
 						Path:    prefix + ".destination.path",
 						Message: fmt.Sprintf("directory does not exist: %s", p),
 					})
@@ -163,8 +166,8 @@ func sectionOf(path string) string {
 
 // groupViolations groups violations by their top-level section and returns
 // sections in a stable order (general → alphabetical).
-func groupViolations(violations []editor.Violation) ([]string, map[string][]editor.Violation) {
-	bySection := make(map[string][]editor.Violation)
+func groupViolations(violations []spec.Violation) ([]string, map[string][]spec.Violation) {
+	bySection := make(map[string][]spec.Violation)
 	for _, v := range violations {
 		s := sectionOf(v.Path)
 		bySection[s] = append(bySection[s], v)
@@ -187,7 +190,7 @@ func subPath(path string) string {
 }
 
 // summaryLine builds the coloured summary string shared by pretty and table formats.
-func summaryLine(sections []string, bySection map[string][]editor.Violation) string {
+func summaryLine(sections []string, bySection map[string][]spec.Violation) string {
 	parts := make([]string, 0, len(sections))
 	total := 0
 	for _, s := range sections {
@@ -202,7 +205,7 @@ func summaryLine(sections []string, bySection map[string][]editor.Violation) str
 }
 
 // printValidatePretty renders violations grouped by section with a tree-like structure and summary.
-func printValidatePretty(violations []editor.Violation, summaryOnly bool) {
+func printValidatePretty(violations []spec.Violation, summaryOnly bool) {
 	if len(violations) == 0 {
 		pterm.Success.Println("No errors found — configuration is valid")
 		return
@@ -231,7 +234,7 @@ func printValidatePretty(violations []editor.Violation, summaryOnly bool) {
 }
 
 // printValidatePlain renders violations as plain text lines with a final count.
-func printValidatePlain(violations []editor.Violation, summaryOnly bool) {
+func printValidatePlain(violations []spec.Violation, summaryOnly bool) {
 	if len(violations) == 0 {
 		fmt.Println("ok")
 		return
@@ -246,7 +249,7 @@ func printValidatePlain(violations []editor.Violation, summaryOnly bool) {
 }
 
 // printValidateTable renders violations in tables grouped by section, with a final summary line.
-func printValidateTable(violations []editor.Violation, summaryOnly bool) {
+func printValidateTable(violations []spec.Violation, summaryOnly bool) {
 	if len(violations) == 0 {
 		pterm.Success.Println("No errors found — configuration is valid")
 		return
@@ -274,7 +277,7 @@ func printValidateTable(violations []editor.Violation, summaryOnly bool) {
 }
 
 // renderSectionTable renders a single section's violations in a table, adjusting column widths to fit the terminal.
-func renderSectionTable(vs []editor.Violation, termWidth int) {
+func renderSectionTable(vs []spec.Violation, termWidth int) {
 	const col1Max = 40
 	const borders = 7 // "│ " + " │ " + " │"
 	col2Max := termWidth - col1Max - borders
@@ -311,7 +314,7 @@ type validateJSONViolation struct {
 }
 
 // printValidateJSON renders violations as a JSON object with overall validity, error count, optional details, and a summary by section.
-func printValidateJSON(violations []editor.Violation, summaryOnly bool) {
+func printValidateJSON(violations []spec.Violation, summaryOnly bool) {
 	_, bySection := groupViolations(violations)
 
 	summary := make(map[string]int, len(bySection))

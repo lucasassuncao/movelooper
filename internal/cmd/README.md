@@ -70,32 +70,32 @@ var MovelooperDocPresets presets.Source = buildDocPresets()
 Per\-field constraints \(required, allowed values, ranges, counts, uniqueness\) are declared once in the hint tree \(edit\_hints.go\) and enforced by the FromMetadata family — hints are the single source of field metadata. Only cross\-field rules, which cannot live in per\-field metadata, are declared here explicitly.
 
 ```go
-var MovelooperValidators = []editor.Validator{
+var MovelooperValidators = []spec.Validator{
 
-    editor.RequiredFromMetadata(),
-    editor.OneOfFromMetadata(),
-    editor.RangeFromMetadata(),
-    editor.PatternFromMetadata(),
-    editor.CountFromMetadata(),
-    editor.UniqueFromMetadata(),
-    editor.DeprecatedFromMetadata(),
-    editor.FormatFromMetadata(),
-    editor.LengthFromMetadata(),
-    editor.NotOneOfFromMetadata(),
+    validate.RequiredFromMetadata(),
+    validate.OneOfFromMetadata(),
+    validate.RangeFromMetadata(),
+    validate.PatternFromMetadata(),
+    validate.CountFromMetadata(),
+    validate.UniqueFromMetadata(),
+    validate.DeprecatedFromMetadata(),
+    validate.FormatFromMetadata(),
+    validate.LengthFromMetadata(),
+    validate.NotOneOfFromMetadata(),
 
-    editor.NoDuplicates("categories", "name"),
+    validate.NoDuplicates("categories", "name"),
 
-    editor.MutuallyExclusiveNested("categories.source.filter.match", "literal", "regex", "glob"),
+    validate.MutuallyExclusiveNested("categories.source.filter.match", "literal", "regex", "glob"),
 
-    editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
-    editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
-    editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
-    editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+    validate.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+    validate.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+    validate.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+    validate.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
 
-    editor.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),
-    editor.CrossFieldOrderedNested("categories.source.filter.size", "min", "max"),
+    validate.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),
+    validate.CrossFieldOrderedNested("categories.source.filter.size", "min", "max"),
 
-    editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+    spec.ValidatorFunc(func(in spec.ValidationInput) []spec.Violation {
         var doc struct {
             Categories []struct {
                 Source struct {
@@ -106,10 +106,10 @@ var MovelooperValidators = []editor.Validator{
         if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
             return nil
         }
-        var errs []editor.Violation
+        var errs []spec.Violation
         for i, c := range doc.Categories {
             if !config.FilterDepthOK(&c.Source.Filter, config.MaxFilterNestingDepth, 0) {
-                errs = append(errs, editor.Violation{
+                errs = append(errs, spec.Violation{
                     Path:    fmt.Sprintf("categories[%d].source.filter", i),
                     Message: fmt.Sprintf("nesting exceeds maximum depth of %d", config.MaxFilterNestingDepth),
                 })
@@ -118,7 +118,7 @@ var MovelooperValidators = []editor.Validator{
         return errs
     }),
 
-    editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+    spec.ValidatorFunc(func(in spec.ValidationInput) []spec.Violation {
         var doc struct {
             Configuration struct {
                 Logging struct {
@@ -137,23 +137,23 @@ var MovelooperValidators = []editor.Validator{
         if log.File != "" {
             return nil
         }
-        return []editor.Violation{{
+        return []spec.Violation{{
             Path:    "configuration.logging.file",
             Message: fmt.Sprintf("required when output is %q", log.Output),
         }}
     }),
 
-    editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+    spec.ValidatorFunc(func(in spec.ValidationInput) []spec.Violation {
         var doc struct {
             Categories []models.Category `yaml:"categories"`
         }
         if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
             return nil
         }
-        var errs []editor.Violation
+        var errs []spec.Violation
         for i := range doc.Categories {
             if config.MissingArchiveBlock(&doc.Categories[i]) {
-                errs = append(errs, editor.Violation{
+                errs = append(errs, spec.Violation{
                     Path:    fmt.Sprintf("categories[%d].destination.archive", i),
                     Message: `required when action is "archive"`,
                 })
@@ -162,7 +162,7 @@ var MovelooperValidators = []editor.Validator{
         return errs
     }),
 
-    editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+    spec.ValidatorFunc(func(in spec.ValidationInput) []spec.Violation {
         var doc struct {
             Categories []struct {
                 Destination struct {
@@ -174,21 +174,21 @@ var MovelooperValidators = []editor.Validator{
         if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
             return nil
         }
-        var errs []editor.Violation
+        var errs []spec.Violation
         for i, c := range doc.Categories {
             if err := tokens.ValidateTemplate(c.Destination.Rename); err != nil {
-                errs = append(errs, editor.Violation{
+                errs = append(errs, spec.Violation{
                     Path:    fmt.Sprintf("categories[%d].destination.rename", i),
                     Message: err.Error(),
                 })
             }
             if err := tokens.ValidateTemplate(c.Destination.OrganizeBy); err != nil {
-                errs = append(errs, editor.Violation{
+                errs = append(errs, spec.Violation{
                     Path:    fmt.Sprintf("categories[%d].destination.organize-by", i),
                     Message: err.Error(),
                 })
             } else if tok := tokens.RenameOnlyToken(c.Destination.OrganizeBy); tok != "" {
-                errs = append(errs, editor.Violation{
+                errs = append(errs, spec.Violation{
                     Path:    fmt.Sprintf("categories[%d].destination.organize-by", i),
                     Message: fmt.Sprintf("%s is not valid in organize-by; use it in rename only", tok),
                 })
@@ -303,7 +303,7 @@ func UndoCmd(m *models.Movelooper) *cobra.Command
 UndoCmd reverts a batch of file moves
 
 <a name="ValidateCmd"></a>
-## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L36>)
+## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L38>)
 
 ```go
 func ValidateCmd() *cobra.Command

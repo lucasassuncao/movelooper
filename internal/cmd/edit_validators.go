@@ -6,7 +6,8 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
-	"github.com/lucasassuncao/yedit/editor"
+	"github.com/lucasassuncao/yedit/spec"
+	"github.com/lucasassuncao/yedit/validate"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,43 +19,43 @@ import (
 // by the FromMetadata family — hints are the single source of field metadata.
 // Only cross-field rules, which cannot live in per-field metadata, are
 // declared here explicitly.
-var MovelooperValidators = []editor.Validator{
+var MovelooperValidators = []spec.Validator{
 	// Enforce everything the metadata declares.
-	editor.RequiredFromMetadata(),
-	editor.OneOfFromMetadata(),
-	editor.RangeFromMetadata(),
-	editor.PatternFromMetadata(),
-	editor.CountFromMetadata(),
-	editor.UniqueFromMetadata(),
-	editor.DeprecatedFromMetadata(),
-	editor.FormatFromMetadata(),
-	editor.LengthFromMetadata(),
-	editor.NotOneOfFromMetadata(),
+	validate.RequiredFromMetadata(),
+	validate.OneOfFromMetadata(),
+	validate.RangeFromMetadata(),
+	validate.PatternFromMetadata(),
+	validate.CountFromMetadata(),
+	validate.UniqueFromMetadata(),
+	validate.DeprecatedFromMetadata(),
+	validate.FormatFromMetadata(),
+	validate.LengthFromMetadata(),
+	validate.NotOneOfFromMetadata(),
 
 	// Category names must be unique across the list (presence comes from the
 	// hints; NoDuplicates skips unnamed entries).
-	editor.NoDuplicates("categories", "name"),
+	validate.NoDuplicates("categories", "name"),
 
 	// within match blocks, literal/regex/glob are mutually exclusive at any depth.
 	// One validator suffices: MutuallyExclusiveNested walks the full subtree.
-	editor.MutuallyExclusiveNested("categories.source.filter.match", "literal", "regex", "glob"),
+	validate.MutuallyExclusiveNested("categories.source.filter.match", "literal", "regex", "glob"),
 
 	// any and all are mutually exclusive with each other and with leaf fields
 	// (match/age/size). not is a modifier and may coexist with any/all.
 	// Four validators cover all nesting depths.
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
-	editor.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+	validate.MutuallyExclusiveGroupsNested("categories.source.filter", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+	validate.MutuallyExclusiveGroupsNested("categories.source.filter.any", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+	validate.MutuallyExclusiveGroupsNested("categories.source.filter.all", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
+	validate.MutuallyExclusiveGroupsNested("categories.source.filter.not", []string{"any"}, []string{"all"}, []string{"match", "age", "size", "mime"}),
 
 	// age and size min/max pairs must be ordered at any nesting depth.
-	editor.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),
-	editor.CrossFieldOrderedNested("categories.source.filter.size", "min", "max"),
+	validate.CrossFieldOrderedNested("categories.source.filter.age", "min", "max"),
+	validate.CrossFieldOrderedNested("categories.source.filter.size", "min", "max"),
 
 	// filter nesting (any/all/not) cannot exceed config.MaxFilterNestingDepth.
 	// Reuses config.FilterDepthOK so the limit is enforced here in the TUI and
 	// not just on the next `movelooper` run.
-	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+	spec.ValidatorFunc(func(in spec.ValidationInput) []spec.Violation {
 		var doc struct {
 			Categories []struct {
 				Source struct {
@@ -65,10 +66,10 @@ var MovelooperValidators = []editor.Validator{
 		if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
 			return nil
 		}
-		var errs []editor.Violation
+		var errs []spec.Violation
 		for i, c := range doc.Categories {
 			if !config.FilterDepthOK(&c.Source.Filter, config.MaxFilterNestingDepth, 0) {
-				errs = append(errs, editor.Violation{
+				errs = append(errs, spec.Violation{
 					Path:    fmt.Sprintf("categories[%d].source.filter", i),
 					Message: fmt.Sprintf("nesting exceeds maximum depth of %d", config.MaxFilterNestingDepth),
 				})
@@ -78,7 +79,7 @@ var MovelooperValidators = []editor.Validator{
 	}),
 
 	// Custom validation to check that logging.file is required when output is "file" or "both".
-	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+	spec.ValidatorFunc(func(in spec.ValidationInput) []spec.Violation {
 		var doc struct {
 			Configuration struct {
 				Logging struct {
@@ -97,7 +98,7 @@ var MovelooperValidators = []editor.Validator{
 		if log.File != "" {
 			return nil
 		}
-		return []editor.Violation{{
+		return []spec.Violation{{
 			Path:    "configuration.logging.file",
 			Message: fmt.Sprintf("required when output is %q", log.Output),
 		}}
@@ -105,17 +106,17 @@ var MovelooperValidators = []editor.Validator{
 
 	// Custom validation: the archive block is required when action is "archive".
 	// Reuses config.MissingArchiveBlock so the editor and validate/load agree.
-	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+	spec.ValidatorFunc(func(in spec.ValidationInput) []spec.Violation {
 		var doc struct {
 			Categories []models.Category `yaml:"categories"`
 		}
 		if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
 			return nil
 		}
-		var errs []editor.Violation
+		var errs []spec.Violation
 		for i := range doc.Categories {
 			if config.MissingArchiveBlock(&doc.Categories[i]) {
-				errs = append(errs, editor.Violation{
+				errs = append(errs, spec.Violation{
 					Path:    fmt.Sprintf("categories[%d].destination.archive", i),
 					Message: `required when action is "archive"`,
 				})
@@ -127,7 +128,7 @@ var MovelooperValidators = []editor.Validator{
 	// Validate rename and organize-by templates against the known token set.
 	// Also enforces that sequence/hash tokens (resolved only at rename time) are
 	// not used in organize-by, where they would leak literally into dir names.
-	editor.ValidatorFunc(func(in editor.ValidationInput) []editor.Violation {
+	spec.ValidatorFunc(func(in spec.ValidationInput) []spec.Violation {
 		var doc struct {
 			Categories []struct {
 				Destination struct {
@@ -139,21 +140,21 @@ var MovelooperValidators = []editor.Validator{
 		if err := yaml.Unmarshal(in.Raw, &doc); err != nil {
 			return nil
 		}
-		var errs []editor.Violation
+		var errs []spec.Violation
 		for i, c := range doc.Categories {
 			if err := tokens.ValidateTemplate(c.Destination.Rename); err != nil {
-				errs = append(errs, editor.Violation{
+				errs = append(errs, spec.Violation{
 					Path:    fmt.Sprintf("categories[%d].destination.rename", i),
 					Message: err.Error(),
 				})
 			}
 			if err := tokens.ValidateTemplate(c.Destination.OrganizeBy); err != nil {
-				errs = append(errs, editor.Violation{
+				errs = append(errs, spec.Violation{
 					Path:    fmt.Sprintf("categories[%d].destination.organize-by", i),
 					Message: err.Error(),
 				})
 			} else if tok := tokens.RenameOnlyToken(c.Destination.OrganizeBy); tok != "" {
-				errs = append(errs, editor.Violation{
+				errs = append(errs, spec.Violation{
 					Path:    fmt.Sprintf("categories[%d].destination.organize-by", i),
 					Message: fmt.Sprintf("%s is not valid in organize-by; use it in rename only", tok),
 				})
