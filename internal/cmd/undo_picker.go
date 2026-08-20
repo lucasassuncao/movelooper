@@ -160,10 +160,11 @@ func (m batchPicker) viewList() string {
 		}
 		if i == m.cursor {
 			label = strings.Replace(label, "○", "●", 1)
-			sb.WriteString(pickerSelectedStyle.Render(label) + "\n")
+			sb.WriteString(pickerSelectedStyle.Render(label))
 		} else {
-			sb.WriteString(pickerDimStyle.Render(label) + "\n")
+			sb.WriteString(pickerDimStyle.Render(label))
 		}
+		sb.WriteString("\n")
 	}
 
 	sb.WriteString("\n")

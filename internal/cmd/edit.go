@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -92,6 +93,7 @@ produce a new config from an existing template).`,
 				NoValidateOnSave:     noValidateOnSave,
 				SchemaRecursionDepth: config.MaxFilterNestingDepth - 1,
 				Validators:           MovelooperValidators,
+				AnimationDuration:    600 * time.Millisecond,
 				Trace: editor.Trace{
 					Dump:     dump || dumpPath != "",
 					DumpPath: dumpPath,

@@ -227,7 +227,7 @@ func ConfigurationPreset(name string) *models.Configuration
 
 
 <a name="EditCmd"></a>
-## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L18>)
+## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L19>)
 
 ```go
 func EditCmd() *cobra.Command

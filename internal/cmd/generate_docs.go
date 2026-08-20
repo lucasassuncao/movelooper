@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/docgenerator"
@@ -30,28 +29,35 @@ func generateDocs(w io.Writer) error {
 	docsDir := "docs/movelooper"
 	attributesDir := filepath.Join(docsDir, "attributes")
 	examplesDir := filepath.Join(docsDir, "examples")
+	schemaDir := filepath.Join(docsDir, "schema")
 
-	exampleFiles, err := docgenerator.GenerateExampleDocs(examplesDir, MovelooperBlockPresets, map[string]string{
-		"configuration": "Configuration",
-		"categories":    "Category",
-	})
-	if err != nil {
-		return fmt.Errorf("failed to generate examples: %w", err)
-	}
-
-	examplePages := make(map[string]bool, len(exampleFiles))
-	for _, f := range exampleFiles {
-		examplePages[strings.ToLower(f.Name)] = true
-	}
-
+	// Reference pages are organised per config block, one directory each.
 	zero := 0
 	entries := []docgenerator.Entry{
-		{Config: models.Configuration{}, DocsDir: filepath.Join(attributesDir, "configuration")},
-		{Config: models.Category{}, DocsDir: filepath.Join(attributesDir, "categories"), SplitStructs: true, RecursionLimit: &zero},
+		{Config: models.Configuration{}, MarkdownDir: filepath.Join(attributesDir, "configuration")},
+		{Config: models.Category{}, MarkdownDir: filepath.Join(attributesDir, "categories"), SplitStructs: true, RecursionLimit: &zero},
 	}
 
-	if err := docgenerator.Generate(docsDir, entries, docgenerator.WithExamples("../../examples", examplePages)); err != nil {
+	_, err := docgenerator.Generate(entries,
+		docgenerator.WithMarkdown(attributesDir),
+		docgenerator.WithExamples(MovelooperBlockPresets, examplesDir, map[string]string{
+			"configuration": "Configuration",
+			"categories":    "Category",
+		}),
+		docgenerator.WithIndex(docsDir),
+	)
+	if err != nil {
 		return fmt.Errorf("failed to generate docs: %w", err)
+	}
+
+	// The JSON Schema describes the config file as a whole, so its root is
+	// models.Config - the two blocks above are halves of one document, and a
+	// language server needs the document.
+	if _, err := docgenerator.Generate(
+		[]docgenerator.Entry{{Config: models.Config{}}},
+		docgenerator.WithJSONSchema(schemaDir),
+	); err != nil {
+		return fmt.Errorf("failed to generate json schema: %w", err)
 	}
 
 	fmt.Fprintf(w, "Documentation generated in '%s' directory.", docsDir)

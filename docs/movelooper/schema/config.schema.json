@@ -1,0 +1,626 @@
+{
+  "$defs": {
+    "CategoryFilter": {
+      "properties": {
+        "age": {
+          "description": "Modification-time constraints.",
+          "properties": {
+            "max": {
+              "description": "Only match files newer than this duration. Min: 0s Max: 87600h",
+              "examples": [
+                "max: 720h"
+              ],
+              "format": "duration",
+              "type": "string"
+            },
+            "min": {
+              "description": "Only match files older than this duration. Min: 0s Max: 87600h",
+              "examples": [
+                "min: 24h"
+              ],
+              "format": "duration",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "all": {
+          "description": "AND logic: file must match all sub-filters simultaneously.",
+          "examples": [
+            "all:\n  - size:\n      min: 100KB\n  - age:\n      max: 168h"
+          ],
+          "items": {
+            "$ref": "#/$defs/CategoryFilter"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "any": {
+          "description": "OR logic: file must match at least one sub-filter.",
+          "examples": [
+            "any:\n  - match:\n      glob: \"invoice_*\"\n  - match:\n      glob: \"receipt_*\""
+          ],
+          "items": {
+            "$ref": "#/$defs/CategoryFilter"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "match": {
+          "description": "Name-based filter: glob, regex, or literal match (pick one).",
+          "properties": {
+            "case-sensitive": {
+              "default": "false",
+              "description": "Whether matching is case-sensitive. Applies to regex, glob, and literal.",
+              "examples": [
+                "case-sensitive: false"
+              ],
+              "type": "boolean"
+            },
+            "glob": {
+              "description": "Glob pattern matched against the filename. Mutually exclusive with regex and literal. Format: glob",
+              "examples": [
+                "glob: \"screenshot_*\""
+              ],
+              "type": "string"
+            },
+            "literal": {
+              "description": "Exact filename match (whole name must equal this string). Mutually exclusive with regex and glob.",
+              "examples": [
+                "literal: \"Anna's Archive.pdf\""
+              ],
+              "type": "string"
+            },
+            "regex": {
+              "description": "RE2 regular expression matched against the filename. Mutually exclusive with glob and literal. Format: regex",
+              "examples": [
+                "regex: \"^\\d{4}-\\d{2}-\\d{2}_.*\\.pdf$\""
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "mime": {
+          "description": "Match by the file's real MIME type (magic bytes), as a glob against the detected type. Examples: \"image/*\", \"application/pdf\". Reads the file content; combine with extensions: [all] to match by real type.",
+          "examples": [
+            "mime: \"image/*\""
+          ],
+          "type": "string"
+        },
+        "not": {
+          "description": "NOT logic: exclude files matching any of these sub-filters.",
+          "examples": [
+            "not:\n  - match:\n      glob: \"*_draft*\""
+          ],
+          "items": {
+            "$ref": "#/$defs/CategoryFilter"
+          },
+          "type": "array"
+        },
+        "size": {
+          "description": "File-size constraints.",
+          "properties": {
+            "max": {
+              "description": "Only match files no larger than this size. Min: 0B Max: 100TB",
+              "examples": [
+                "max: 50GB"
+              ],
+              "type": "string"
+            },
+            "min": {
+              "description": "Only match files at least this large. KB/MB/GB/TB are decimal; KiB/MiB/GiB/TiB are binary. Min: 0B Max: 100TB",
+              "examples": [
+                "min: 1MB"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "categories": {
+      "description": "List of file movement rules. Each entry defines a source directory, file filters, a destination, and optional hooks.",
+      "items": {
+        "properties": {
+          "destination": {
+            "description": "Destination configuration: where to place matched files, how to name them, and what to do on conflicts.",
+            "properties": {
+              "action": {
+                "default": "move",
+                "description": "File operation to perform. 'move' removes the source; 'copy' keeps it; 'symlink' links it; 'archive' packs the whole category into one compressed file (requires the archive block).",
+                "enum": [
+                  "move",
+                  "copy",
+                  "symlink",
+                  "archive"
+                ],
+                "examples": [
+                  "action: move"
+                ],
+                "type": "string"
+              },
+              "archive": {
+                "description": "Archiving options. Required when action is 'archive'. Packs all matched files of the category into one zip/tar.gz at the destination path.",
+                "properties": {
+                  "compression": {
+                    "default": "best",
+                    "description": "Compression effort: 'none', 'fast', or 'best'.",
+                    "enum": [
+                      "none",
+                      "fast",
+                      "best"
+                    ],
+                    "examples": [
+                      "compression: best"
+                    ],
+                    "type": "string"
+                  },
+                  "flatten": {
+                    "default": "false",
+                    "description": "Put every file at the archive root. Defaults to false, which preserves each file's sub-path relative to the source directory (relevant with recursive scans).",
+                    "examples": [
+                      "flatten: false"
+                    ],
+                    "type": "boolean"
+                  },
+                  "format": {
+                    "description": "Archive container/compression: 'zip' (universal) or 'tar.gz'. Required — no default.",
+                    "enum": [
+                      "zip",
+                      "tar.gz"
+                    ],
+                    "examples": [
+                      "format: zip"
+                    ],
+                    "type": "string"
+                  },
+                  "keep-source": {
+                    "default": "true",
+                    "description": "Keep the original files after archiving. Defaults to true; set false to delete sources after a successful write.",
+                    "examples": [
+                      "keep-source: true"
+                    ],
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "description": "Archive filename base (extension is added automatically). Supports category/date/system tokens only: {category}, {date}, {timestamp}, {hostname}, {username}, {os}. Empty uses the category name.",
+                    "examples": [
+                      "name: \"{category}_{date}\""
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "format"
+                ],
+                "type": "object"
+              },
+              "conflict-strategy": {
+                "default": "rename",
+                "description": "What to do when a file with the same name already exists at the destination.",
+                "enum": [
+                  "rename",
+                  "hash_check",
+                  "overwrite",
+                  "skip",
+                  "newest",
+                  "oldest",
+                  "larger",
+                  "smaller"
+                ],
+                "examples": [
+                  "conflict-strategy: rename"
+                ],
+                "type": "string"
+              },
+              "organize-by": {
+                "description": "Token pattern used to build sub-directories inside the destination path. Leave empty to place all files directly. Format: organize-by pattern",
+                "examples": [
+                  "organize-by: \"{ext}/{year}\"\n\n# Available tokens:\n# {ext}   file extension\n# {year}  4-digit year\n# {month} 2-digit month\n# {day}   2-digit day"
+                ],
+                "type": "string"
+              },
+              "path": {
+                "description": "Directory where matched files are placed. Format: directory",
+                "examples": [
+                  "path: ~/Pictures/Sorted"
+                ],
+                "type": "string"
+              },
+              "rename": {
+                "description": "Token pattern for the destination filename. It becomes the whole filename, so include {ext} to keep the extension (omit it and the file is written without one). Leave empty to keep the original name. Format: rename pattern",
+                "examples": [
+                  "rename: \"{year}-{month}-{day}_{name}.{ext}\"\n\n# Full filename — include {ext} to keep the extension.\n# {name}  filename without extension\n# {year}, {month}, {day}, {hour}, {minute}, {second}\n# {seq}   auto-incrementing counter\n# {sha256:N}  first N hex chars of SHA-256"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          },
+          "enabled": {
+            "default": "false",
+            "description": "Whether this category is active. Must be explicitly set to true; omitting this field disables the category.",
+            "examples": [
+              "enabled: true"
+            ],
+            "type": "boolean"
+          },
+          "hooks": {
+            "description": "Optional shell commands to run before and after each file is moved.",
+            "properties": {
+              "after": {
+                "description": "Hook executed after the file operation completes successfully.",
+                "properties": {
+                  "on-failure": {
+                    "default": "abort",
+                    "description": "What to do if a hook command exits non-zero: abort the file's operation, or warn and continue.",
+                    "enum": [
+                      "abort",
+                      "warn"
+                    ],
+                    "examples": [
+                      "on-failure: abort"
+                    ],
+                    "type": "string"
+                  },
+                  "run": {
+                    "description": "Shell commands executed in order.",
+                    "examples": [
+                      "run:\n  - echo \"before: $ML_SOURCE_PATH\""
+                    ],
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shell": {
+                    "description": "Shell interpreter for hook commands. Defaults to $SHELL on Unix/macOS and cmd on Windows.",
+                    "examples": [
+                      "shell: bash"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "on-failure",
+                  "run"
+                ],
+                "type": "object"
+              },
+              "before": {
+                "description": "Hook executed before the file operation. If it fails, the move is aborted (unless on-failure is 'warn').",
+                "properties": {
+                  "on-failure": {
+                    "default": "abort",
+                    "description": "What to do if a hook command exits non-zero: abort the file's operation, or warn and continue.",
+                    "enum": [
+                      "abort",
+                      "warn"
+                    ],
+                    "examples": [
+                      "on-failure: abort"
+                    ],
+                    "type": "string"
+                  },
+                  "run": {
+                    "description": "Shell commands executed in order.",
+                    "examples": [
+                      "run:\n  - echo \"before: $ML_SOURCE_PATH\""
+                    ],
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shell": {
+                    "description": "Shell interpreter for hook commands. Defaults to $SHELL on Unix/macOS and cmd on Windows.",
+                    "examples": [
+                      "shell: bash"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "on-failure",
+                  "run"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "name": {
+            "description": "Human-readable identifier for this category. Used in logs, history, and the --category filter flag.",
+            "examples": [
+              "name: screenshots"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "description": "Source directory configuration: which path to watch, which extensions to include, and how deep to scan.",
+            "properties": {
+              "exclude-paths": {
+                "description": "Absolute paths to skip during recursive walk. The destination path is always auto-excluded.",
+                "examples": [
+                  "exclude-paths:\n  - /home/user/Downloads/archives\n  - /home/user/Downloads/.Trash"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "extensions": {
+                "description": "File extensions to match (without the leading dot). Use the special value \"all\" to match every file.",
+                "examples": [
+                  "extensions:\n  - jpg\n  - jpeg\n  - png\n\n# or, to match every file:\nextensions: [all]"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "filter": {
+                "$ref": "#/$defs/CategoryFilter",
+                "description": "Optional filtering rules applied to each matched file. All populated sub-fields must match (AND logic) unless any/all are used."
+              },
+              "max-depth": {
+                "default": "0",
+                "description": "Maximum sub-directory depth when recursive is true. 0 means unlimited.",
+                "examples": [
+                  "max-depth: 3"
+                ],
+                "maximum": 256,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "path": {
+                "description": "Directory to watch for incoming files. Format: directory",
+                "examples": [
+                  "path: ~/Downloads"
+                ],
+                "type": "string"
+              },
+              "recursive": {
+                "default": "false",
+                "description": "Whether to scan sub-directories of the source path. Combine with max-depth to limit depth.",
+                "examples": [
+                  "recursive: true"
+                ],
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "extensions",
+              "path"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "destination",
+          "name",
+          "source"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "configuration": {
+      "description": "General settings for movelooper, grouped into logging, watch, history, and defaults sub-sections.",
+      "properties": {
+        "defaults": {
+          "description": "Fallback destination settings applied to any category that omits them. Per-category values always win.",
+          "properties": {
+            "action": {
+              "description": "Fallback action for categories that omit destination.action.",
+              "enum": [
+                "move",
+                "copy",
+                "symlink",
+                "archive"
+              ],
+              "examples": [
+                "action: move"
+              ],
+              "type": "string"
+            },
+            "conflict-strategy": {
+              "description": "Fallback conflict-strategy for categories that omit destination.conflict-strategy.",
+              "enum": [
+                "rename",
+                "hash_check",
+                "overwrite",
+                "skip",
+                "newest",
+                "oldest",
+                "larger",
+                "smaller"
+              ],
+              "examples": [
+                "conflict-strategy: rename"
+              ],
+              "type": "string"
+            },
+            "organize-by": {
+              "description": "Fallback organize-by template for categories that omit destination.organize-by.",
+              "examples": [
+                "organize-by: \"{ext}\""
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "history": {
+          "description": "Undo-history settings: whether tracking is on, how many batches to keep, and where to store them.",
+          "properties": {
+            "enabled": {
+              "default": "true",
+              "description": "Whether move events are recorded for undo. Set to false to skip history tracking entirely.",
+              "examples": [
+                "enabled: true"
+              ],
+              "type": "boolean"
+            },
+            "file": {
+              "default": "~/.movelooper/history/movelooper.json",
+              "description": "Path to the history file used for undo. Defaults to ~/.movelooper/history/movelooper.json when not set. Format: directory",
+              "examples": [
+                "file: ~/.movelooper/history/movelooper.json"
+              ],
+              "type": "string"
+            },
+            "limit": {
+              "default": "100",
+              "description": "Maximum number of move batches kept in the undo history. Older batches are evicted when the limit is reached.",
+              "examples": [
+                "limit: 100"
+              ],
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "logging": {
+          "description": "Log output settings: destination, severity level, format, file path, and caller info.",
+          "properties": {
+            "color": {
+              "default": "auto",
+              "description": "ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. Ignored when format is json.",
+              "enum": [
+                "auto",
+                "always",
+                "never"
+              ],
+              "examples": [
+                "color: auto"
+              ],
+              "type": "string"
+            },
+            "file": {
+              "default": "~/movelooper.log",
+              "description": "Path to the log file. Only used when output is 'file' or 'both'. Supports ~ for the home directory. Format: directory",
+              "examples": [
+                "file: ~/movelooper.log"
+              ],
+              "type": "string"
+            },
+            "format": {
+              "default": "pretty",
+              "description": "Log rendering format. 'pretty' is the human-readable console renderer; 'json' emits structured slog JSON lines for log aggregation.",
+              "enum": [
+                "pretty",
+                "json"
+              ],
+              "examples": [
+                "format: pretty"
+              ],
+              "type": "string"
+            },
+            "level": {
+              "default": "info",
+              "description": "Minimum severity level to emit. Lower levels produce more output; 'fatal' produces the least.",
+              "enum": [
+                "trace",
+                "debug",
+                "info",
+                "warn",
+                "error",
+                "fatal"
+              ],
+              "examples": [
+                "level: info"
+              ],
+              "type": "string"
+            },
+            "max-width": {
+              "default": "70",
+              "description": "Maximum width, in columns, for wrapping pretty log lines. Ignored when format is json.",
+              "examples": [
+                "max-width: 70"
+              ],
+              "maximum": 500,
+              "minimum": 20,
+              "type": "integer"
+            },
+            "output": {
+              "default": "console",
+              "description": "Where log output is written. Use 'both' to write to the console and a file simultaneously. 'log' is an alias for 'file'.",
+              "enum": [
+                "console",
+                "file",
+                "log",
+                "both"
+              ],
+              "examples": [
+                "output: console"
+              ],
+              "type": "string"
+            },
+            "show-caller": {
+              "default": "false",
+              "description": "Append the source file and line number to each log entry. Useful when debugging hooks or scanners.",
+              "examples": [
+                "show-caller: false"
+              ],
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "level",
+            "output"
+          ],
+          "type": "object"
+        },
+        "watch": {
+          "description": "Watch-mode settings.",
+          "properties": {
+            "delay": {
+              "default": "5m",
+              "description": "How long a file must go without a new create/write event before it is considered stable and moved. Accepts Go duration strings (e.g. 30s, 5m, 1h). Min: 1s Max: 168h",
+              "examples": [
+                "delay: 5m"
+              ],
+              "format": "duration",
+              "type": "string"
+            },
+            "poll-interval": {
+              "default": "5s",
+              "description": "How often watch mode re-checks pending files for stability. Keep it shorter than delay so stable files are picked up promptly. Min: 1s Max: 1h",
+              "examples": [
+                "poll-interval: 5s"
+              ],
+              "format": "duration",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "logging"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "categories",
+    "configuration"
+  ],
+  "type": "object"
+}
