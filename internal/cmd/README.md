@@ -321,7 +321,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command
 WatchCmd defines the "watch" command to monitor directories and move files in real\-time
 
 <a name="MoveOptions"></a>
-## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root_helper.go#L38-L43>)
+## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root_helper.go#L46-L51>)
 
 MoveOptions carries the CLI flags for the move command.
 

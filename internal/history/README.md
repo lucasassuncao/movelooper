@@ -31,7 +31,7 @@ import "github.com/lucasassuncao/movelooper/internal/history"
 
 
 <a name="NewBatchID"></a>
-## func [NewBatchID](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L19>)
+## func [NewBatchID](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L21>)
 
 ```go
 func NewBatchID() string
@@ -40,7 +40,7 @@ func NewBatchID() string
 NewBatchID returns a collision\-resistant batch ID for a one\-shot move operation.
 
 <a name="NewWatchBatchID"></a>
-## func [NewWatchBatchID](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L22>)
+## func [NewWatchBatchID](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L24>)
 
 ```go
 func NewWatchBatchID() string
@@ -49,7 +49,7 @@ func NewWatchBatchID() string
 NewWatchBatchID returns a collision\-resistant batch ID for a watch\-mode move operation.
 
 <a name="BatchSummary"></a>
-## type [BatchSummary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L215-L219>)
+## type [BatchSummary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L218-L222>)
 
 BatchSummary holds a brief description of a batch for listing purposes
 
@@ -62,7 +62,7 @@ type BatchSummary struct {
 ```
 
 <a name="Buffer"></a>
-## type [Buffer](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L51-L53>)
+## type [Buffer](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L53-L55>)
 
 Buffer is a Recorder that collects entries in memory. Flush writes them all to a History in one save, turning one full\-file rewrite per moved file into one rewrite per batch. Not safe for concurrent use.
 
@@ -73,7 +73,7 @@ type Buffer struct {
 ```
 
 <a name="Buffer.Add"></a>
-### func \(\*Buffer\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L56>)
+### func \(\*Buffer\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L58>)
 
 ```go
 func (b *Buffer) Add(entry Entry) error
@@ -82,7 +82,7 @@ func (b *Buffer) Add(entry Entry) error
 Add appends the entry to the in\-memory buffer. It never fails.
 
 <a name="Buffer.Flush"></a>
-### func \(\*Buffer\) [Flush](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L65>)
+### func \(\*Buffer\) [Flush](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L67>)
 
 ```go
 func (b *Buffer) Flush(h *History) error
@@ -91,7 +91,7 @@ func (b *Buffer) Flush(h *History) error
 Flush writes the buffered entries to h in a single save and empties the buffer.
 
 <a name="Buffer.Len"></a>
-### func \(\*Buffer\) [Len](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L62>)
+### func \(\*Buffer\) [Len](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L64>)
 
 ```go
 func (b *Buffer) Len() int
@@ -100,7 +100,7 @@ func (b *Buffer) Len() int
 Len returns the number of buffered entries.
 
 <a name="Entry"></a>
-## type [Entry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L33-L40>)
+## type [Entry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L35-L42>)
 
 Entry represents a single file operation
 
@@ -116,11 +116,11 @@ type Entry struct {
 ```
 
 <a name="History"></a>
-## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L80-L88>)
+## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L83-L91>)
 
 History manages the log of file operations.
 
-The mutex only guards access within one process. Two movelooper processes writing at the same time \(e.g. a watch daemon plus a one\-shot run\) are additionally serialized by an OS\-level lock on a sidecar ".lock" file \(see lock.go\): every mutating method reloads h.entries from disk while holding that lock, so a write from the other process is never silently overwritten. The save itself is also atomic \(temp file \+ rename\), so the file is never corrupted, only potentially incomplete if a process is killed mid\-write.
+The mutex only guards access within one process. Two movelooper processes writing at the same time \(e.g. a watch daemon plus a one\-shot run\) are additionally serialized by an OS\-level lock on a sidecar ".lock" file \(see internal/lockfile\): every mutating method reloads h.entries from disk while holding that lock, so a write from the other process is never silently overwritten. The save itself is also atomic \(temp file \+ rename\), so the file is never corrupted, only potentially incomplete if a process is killed mid\-write.
 
 ```go
 type History struct {
@@ -129,7 +129,7 @@ type History struct {
 ```
 
 <a name="NewHistory"></a>
-### func [NewHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L93>)
+### func [NewHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L96>)
 
 ```go
 func NewHistory(path string, limit int) (*History, error)
@@ -138,7 +138,7 @@ func NewHistory(path string, limit int) (*History, error)
 NewHistory creates a new History manager. path is the file where history is persisted; limit controls the maximum number of batches retained \(values less than 1 fall back to defaultMaxBatches\).
 
 <a name="History.Add"></a>
-### func \(\*History\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L159>)
+### func \(\*History\) [Add](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L162>)
 
 ```go
 func (h *History) Add(entry Entry) error
@@ -147,7 +147,7 @@ func (h *History) Add(entry Entry) error
 Add records a new entry: it updates the in\-memory state, prunes old batches past the limit, and rewrites the whole history file as an indented JSON array via an atomic temp\-file rename. When recording many entries in one operation, prefer AddBatch \(or a Buffer\) to avoid one full rewrite per entry.
 
 <a name="History.AddBatch"></a>
-### func \(\*History\) [AddBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L166>)
+### func \(\*History\) [AddBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L169>)
 
 ```go
 func (h *History) AddBatch(entries []Entry) error
@@ -156,7 +156,7 @@ func (h *History) AddBatch(entries []Entry) error
 AddBatch records several entries with a single save, avoiding the quadratic I/O of rewriting the whole history file once per moved file. A nil or empty slice is a no\-op.
 
 <a name="History.GetAllBatches"></a>
-### func \(\*History\) [GetAllBatches](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L222>)
+### func \(\*History\) [GetAllBatches](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L225>)
 
 ```go
 func (h *History) GetAllBatches() []BatchSummary
@@ -165,7 +165,7 @@ func (h *History) GetAllBatches() []BatchSummary
 GetAllBatches returns one summary per batch, ordered oldest → newest
 
 <a name="History.GetBatch"></a>
-### func \(\*History\) [GetBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L245>)
+### func \(\*History\) [GetBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L248>)
 
 ```go
 func (h *History) GetBatch(batchID string) []Entry
@@ -174,7 +174,7 @@ func (h *History) GetBatch(batchID string) []Entry
 GetBatch returns all entries for a given batch ID
 
 <a name="History.RemoveBatch"></a>
-### func \(\*History\) [RemoveBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L259>)
+### func \(\*History\) [RemoveBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L262>)
 
 ```go
 func (h *History) RemoveBatch(batchID string) error
@@ -183,7 +183,7 @@ func (h *History) RemoveBatch(batchID string) error
 RemoveBatch removes all entries for a given batch ID
 
 <a name="History.RemoveCategoryFromBatch"></a>
-### func \(\*History\) [RemoveCategoryFromBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L287>)
+### func \(\*History\) [RemoveCategoryFromBatch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L290>)
 
 ```go
 func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (int, error)
@@ -192,7 +192,7 @@ func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (
 RemoveCategoryFromBatch removes entries belonging to any of the given category names from the specified batch. If the batch becomes empty after removal, its reference is also gone. Entries with an empty Category field are never matched. Returns the number of entries removed.
 
 <a name="History.RemoveEntries"></a>
-### func \(\*History\) [RemoveEntries](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L323>)
+### func \(\*History\) [RemoveEntries](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L326>)
 
 ```go
 func (h *History) RemoveEntries(entries []Entry) error
@@ -201,7 +201,7 @@ func (h *History) RemoveEntries(entries []Entry) error
 RemoveEntries removes specific entries from history, matched by BatchID and Source path. Only successfully restored entries should be passed so failed restores remain in history.
 
 <a name="Recorder"></a>
-## type [Recorder](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L44-L46>)
+## type [Recorder](<https://github.com/lucasassuncao/movelooper/blob/main/internal/history/history.go#L46-L48>)
 
 Recorder records file operations for undo. \*History saves to disk on every Add; Buffer collects entries in memory for a single save per batch.
 

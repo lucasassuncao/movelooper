@@ -58,6 +58,15 @@ type MoveResult struct {
 	Skipped int           // files skipped by conflict strategy (skip / hash_check duplicate)
 	Bytes   int64         // total size of the successfully processed files
 	Details []MovedDetail // source/destination of each processed file, in order
+	// Vanished counts source files that were gone by the time they were
+	// processed — already handled by another process, not a failure.
+	Vanished int
+	// HistoryFailed counts files that were processed but whose history entry
+	// could not be recorded, so they cannot be undone.
+	HistoryFailed int
+	// Fatal is set when the batch stopped early because the destination became
+	// unusable (see ErrFatalDestination). Files after that point were not tried.
+	Fatal error
 }
 
 // MovedDetail records where a single processed file came from and went to.
@@ -68,13 +77,16 @@ type MovedDetail struct {
 
 // MoveFiles processes files matching the given extension in req.SourceDir.
 func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResult {
-	category := req.Category
-	files := req.Files
 	var result MoveResult
 	// One allocator per call seeds each destination directory once, then hands
 	// out sequence numbers in memory instead of re-scanning the directory per file.
 	seqAlloc := tokens.NewSeqAllocator()
-	for _, file := range files {
+	// consecutiveFatal counts back-to-back unrecoverable destination failures;
+	// any file that gets through resets it, so an isolated one does not stop
+	// the batch.
+	var consecutiveFatal int
+
+	for _, file := range req.Files {
 		select {
 		case <-ctx.Done():
 			return result
@@ -84,81 +96,212 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 			continue
 		}
 
-		info, err := file.Info()
-		if err != nil {
-			mctx.Logger.Error("failed to stat file", mctx.Logger.Args("file", file.Name(), "error", err.Error()))
-			continue
+		res := moveOneFile(ctx, mctx, req, file, seqAlloc)
+		if res.historyFailed {
+			result.HistoryFailed++
 		}
 
-		sourcePath := filepath.Join(req.SourceDir, file.Name())
-
-		tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath, SeqAlloc: seqAlloc}
-		destDir, destName := ResolveDestination(category, &tctx)
-
-		if err := CreateDirectory(destDir); err != nil {
-			mctx.Logger.Error("failed to create directory", mctx.Logger.Args("path", destDir, "error", err.Error()))
-			continue
-		}
-
-		destPath := filepath.Join(destDir, destName)
-
-		strategy := category.Destination.ConflictStrategy
-		if strategy == "" {
-			strategy = models.ConflictStrategyRename
-		}
-		action := category.Destination.Action
-		if action == "" {
-			action = models.ActionMove
-		}
-		resolved, skip, finalize, stratErr := applyConflictStrategy(mctx, strategy, ConflictArgs{
-			Src:      sourcePath,
-			Dst:      destPath,
-			DestDir:  destDir,
-			FileName: destName,
-			Action:   action,
-		})
-		if stratErr != nil {
-			mctx.Logger.Error("cannot process file", mctx.Logger.Args("file", sourcePath, "error", stratErr.Error()))
-			continue
-		}
-		if skip {
+		switch res.outcome {
+		case outcomeMoved:
+			consecutiveFatal = 0
+			result.Details = append(result.Details, res.detail)
+			result.Moved = append(result.Moved, file.Name())
+			result.Bytes += res.size
+		case outcomeSkipped:
+			consecutiveFatal = 0
 			result.Skipped++
-			continue
-		}
-		destPath = resolved
-
-		actionErr := performAction(ctx, mctx, action, sourcePath, destPath, finalize)
-		if actionErr != nil {
-			if errors.Is(actionErr, ErrTimestampPreserve) {
-				mctx.Logger.Warn("file processed but timestamps could not be preserved", mctx.Logger.Args("file", sourcePath))
-			} else {
-				mctx.Logger.Warn("failed to perform action on file", mctx.Logger.Args("file", sourcePath, "action", action, "destination", destPath, "conflict_strategy", strategy, "error", actionErr.Error()))
-				continue
+		case outcomeVanished:
+			result.Vanished++
+		case outcomeFatal:
+			consecutiveFatal++
+			if consecutiveFatal >= maxConsecutiveFatalErrors {
+				result.Fatal = res.err
+				return result
 			}
+		case outcomeFailed:
+			// Already logged where it happened; carry on with the next file.
 		}
-
-		if mctx.History != nil {
-			if err := mctx.History.Add(history.Entry{
-				Source:      sourcePath,
-				Destination: destPath,
-				Timestamp:   time.Now(),
-				BatchID:     req.BatchID,
-				Action:      string(action),
-				Category:    category.Name,
-			}); err != nil {
-				mctx.Logger.Warn("failed to record history; undo will not work for this file",
-					mctx.Logger.Args("file", sourcePath, "error", err.Error()))
-			}
-		}
-
-		if req.LogEachMove {
-			mctx.Logger.Info("file processed", mctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
-		}
-		result.Details = append(result.Details, MovedDetail{Source: sourcePath, Destination: destPath})
-		result.Moved = append(result.Moved, file.Name())
-		result.Bytes += info.Size()
 	}
 	return result
+}
+
+// fileOutcome is what happened to a single file inside MoveFiles.
+type fileOutcome int
+
+const (
+	outcomeMoved    fileOutcome = iota // placed at the destination
+	outcomeSkipped                     // the conflict strategy declined it
+	outcomeVanished                    // the source was already gone
+	outcomeFailed                      // failed for a reason specific to this file
+	outcomeFatal                       // the destination itself is unusable
+)
+
+// fileResult carries one file's outcome back to the MoveFiles loop.
+type fileResult struct {
+	outcome       fileOutcome
+	detail        MovedDetail
+	size          int64
+	historyFailed bool
+	err           error // the fatal error, when outcome is outcomeFatal
+}
+
+// vanished builds the result for a source file that is no longer on disk. This
+// is the expected outcome when another process moved it between the directory
+// scan and now, so it is logged at debug level and never counted as a failure.
+func vanished(mctx MoveContext, sourcePath string) fileResult {
+	mctx.Logger.Debug("file is already gone, nothing to do", mctx.Logger.Args("file", sourcePath))
+	return fileResult{outcome: outcomeVanished}
+}
+
+// moveOneFile resolves the destination for a single file, applies the conflict
+// strategy, performs the action, and records the move in history.
+func moveOneFile(ctx context.Context, mctx MoveContext, req MoveRequest, file os.DirEntry, seqAlloc *tokens.SeqAllocator) fileResult {
+	category := req.Category
+	sourcePath := filepath.Join(req.SourceDir, file.Name())
+
+	info, err := file.Info()
+	if err != nil {
+		if sourceVanished(sourcePath, err) {
+			return vanished(mctx, sourcePath)
+		}
+		mctx.Logger.Error("failed to stat file", mctx.Logger.Args("file", file.Name(), "error", err.Error()))
+		return fileResult{outcome: outcomeFailed}
+	}
+
+	tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath, SeqAlloc: seqAlloc}
+	destDir, destName := ResolveDestination(category, &tctx)
+
+	if err := CreateDirectory(destDir); err != nil {
+		mctx.Logger.Error("failed to create directory", mctx.Logger.Args("path", destDir, "error", err.Error()))
+		return destinationFailure(destDir, err)
+	}
+
+	strategy := effectiveStrategy(category)
+	action := effectiveAction(category)
+	destPath := filepath.Join(destDir, destName)
+
+	resolved, skip, finalize, stratErr := applyConflictStrategy(mctx, strategy, ConflictArgs{
+		Src:      sourcePath,
+		Dst:      destPath,
+		DestDir:  destDir,
+		FileName: destName,
+		Action:   action,
+	})
+	if stratErr != nil {
+		if sourceVanished(sourcePath, stratErr) {
+			return vanished(mctx, sourcePath)
+		}
+		mctx.Logger.Error("cannot process file", mctx.Logger.Args("file", sourcePath, "error", stratErr.Error()))
+		return fileResult{outcome: outcomeFailed}
+	}
+	if skip {
+		return fileResult{outcome: outcomeSkipped}
+	}
+	destPath = resolved
+
+	if res, done := runFileAction(ctx, mctx, actionArgs{
+		action:     action,
+		strategy:   strategy,
+		sourcePath: sourcePath,
+		destDir:    destDir,
+		destPath:   destPath,
+		finalize:   finalize,
+	}); done {
+		return res
+	}
+
+	result := fileResult{
+		outcome: outcomeMoved,
+		detail:  MovedDetail{Source: sourcePath, Destination: destPath},
+		size:    info.Size(),
+	}
+	result.historyFailed = recordMove(mctx, req, category.Name, string(action), sourcePath, destPath)
+
+	if req.LogEachMove {
+		mctx.Logger.Info("file processed", mctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
+	}
+	return result
+}
+
+// actionArgs groups everything runFileAction needs to perform one operation and
+// describe it if it goes wrong.
+type actionArgs struct {
+	action     models.Action
+	strategy   models.ConflictStrategy
+	sourcePath string
+	destDir    string
+	destPath   string
+	finalize   FinalizeFunc
+}
+
+// runFileAction performs the file operation. done is true when the caller must
+// stop and return res; when false the action succeeded and processing continues.
+// A timestamp-preservation failure counts as success: the file was placed.
+func runFileAction(ctx context.Context, mctx MoveContext, args actionArgs) (res fileResult, done bool) {
+	actionErr := performAction(ctx, mctx, args.action, args.sourcePath, args.destPath, args.finalize)
+	switch {
+	case actionErr == nil:
+		return fileResult{}, false
+	case errors.Is(actionErr, ErrTimestampPreserve):
+		mctx.Logger.Warn("file processed but timestamps could not be preserved", mctx.Logger.Args("file", args.sourcePath))
+		return fileResult{}, false
+	case sourceVanished(args.sourcePath, actionErr):
+		return vanished(mctx, args.sourcePath), true
+	default:
+		mctx.Logger.Warn("failed to perform action on file",
+			mctx.Logger.Args("file", args.sourcePath, "action", args.action, "destination", args.destPath,
+				"conflict_strategy", args.strategy, "error", actionErr.Error()))
+		return destinationFailure(args.destDir, actionErr), true
+	}
+}
+
+// destinationFailure classifies a destination write failure: unrecoverable ones
+// (a full disk, a directory we cannot write to) are reported as fatal so the
+// caller can stop repeating the same error for every remaining file.
+func destinationFailure(destDir string, err error) fileResult {
+	if isFatalDestinationError(err) {
+		return fileResult{outcome: outcomeFatal, err: fmt.Errorf("%w: %s: %w", ErrFatalDestination, destDir, err)}
+	}
+	return fileResult{outcome: outcomeFailed}
+}
+
+// recordMove adds the move to the history. It reports whether recording failed,
+// which means this file cannot be undone — loud enough to log as an error, but
+// never a reason to undo the move that already happened.
+func recordMove(mctx MoveContext, req MoveRequest, categoryName, action, sourcePath, destPath string) (failed bool) {
+	if mctx.History == nil {
+		return false
+	}
+	err := mctx.History.Add(history.Entry{
+		Source:      sourcePath,
+		Destination: destPath,
+		Timestamp:   time.Now(),
+		BatchID:     req.BatchID,
+		Action:      action,
+		Category:    categoryName,
+	})
+	if err != nil {
+		mctx.Logger.Error("failed to record history; this file cannot be undone",
+			mctx.Logger.Args("file", sourcePath, "destination", destPath, "error", err.Error()))
+		return true
+	}
+	return false
+}
+
+// effectiveStrategy returns the category's conflict strategy, defaulting to rename.
+func effectiveStrategy(category *models.Category) models.ConflictStrategy {
+	if s := category.Destination.ConflictStrategy; s != "" {
+		return s
+	}
+	return models.ConflictStrategyRename
+}
+
+// effectiveAction returns the category's action, defaulting to move.
+func effectiveAction(category *models.Category) models.Action {
+	if a := category.Destination.Action; a != "" {
+		return a
+	}
+	return models.ActionMove
 }
 
 // FileAction executes a file operation from src to dst.
@@ -242,6 +385,11 @@ func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, ar
 	}
 	resolvedPath, shouldMove, fin, resolveErr := resolver.Resolve(args)
 	if resolveErr != nil {
+		// A source that disappeared mid-run is not a conflict failure; hand the
+		// error back so the caller can count it as vanished rather than skipped.
+		if sourceVanished(args.Src, resolveErr) {
+			return "", false, nil, resolveErr
+		}
 		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", args.FileName, "error", resolveErr.Error()))
 		return "", true, nil, nil
 	}

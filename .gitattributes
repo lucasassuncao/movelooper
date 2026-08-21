@@ -1,0 +1,14 @@
+# gofmt treats a CRLF file as unformatted, so every text file must arrive with
+# LF on every platform. Without this, a Windows checkout converts the whole
+# tree to CRLF and `make lint` rejects files that are perfectly fine in the
+# repository — which is exactly what happened the first time CI ran on Windows.
+* text=auto eol=lf
+
+# Assets git must never rewrite.
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.exe binary
+*.gz  binary
+*.zip binary

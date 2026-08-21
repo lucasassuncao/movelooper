@@ -8,7 +8,7 @@
 
 Are your files a mess? **Movelooper** fixes that.\
 Tired of moving files by hand? **Movelooper** does it for you.\
-Scared of losing something? Every move is recorded and undoable.\
+Scared of losing something? Every move is recorded so you can undo it — and if the record can't be written, `movelooper` tells you instead of pretending.\
 Not sure it will work? Run `--dry-run` and see exactly what happens before touching anything.
 
 For example, your Downloads folder has 847 files... You haven't sorted them in 6 months. You know you won't do it manually.\
@@ -32,6 +32,7 @@ Movelooper can also watch your folders in real-time and move files as they arriv
 - Rename files at the destination using a rich token engine, see [Tokens](https://lucasassuncao.github.io/movelooper/docs/#/TOKENS) for all available tokens
 - Use a catch-all category with `extensions: [all]` to organize any file type by its real extension
 - Keep a history of all moves in `~/.movelooper/history/movelooper.json` for auditing and undoing
+- Know exactly what is promised and what is not, see [Guarantees and Limits](https://lucasassuncao.github.io/movelooper/docs/#/GUARANTEES)
 
 ### Automate
 

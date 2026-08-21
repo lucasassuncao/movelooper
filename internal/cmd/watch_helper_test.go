@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -101,26 +99,27 @@ func TestMatchesExtensionAndFilters(t *testing.T) {
 	})
 }
 
-// TestAcquireLockAt covers the PID-aware watch lock: a fresh lock records the
-// current PID, a lock held by a live process is rejected, and a stale lock left
-// by a dead (or unreadable) PID is reclaimed.
+// TestAcquireLockAt covers the watch lock: it is exclusive while held, it is
+// released cleanly, and a lock file left behind by a process that died is
+// acquired without complaint — the OS drops the lock with the process, so
+// there is no stale state to detect.
 func TestAcquireLockAt(t *testing.T) {
 	t.Parallel()
 
-	t.Run("creates lock with current pid and releases", func(t *testing.T) {
+	t.Run("creates the lock file and releases it", func(t *testing.T) {
 		t.Parallel()
 		path := filepath.Join(t.TempDir(), "test.lock")
 		release, err := acquireLockAt(path)
 		require.NoError(t, err)
 		assert.FileExists(t, path)
-		pid, ok := readLockPID(path)
-		require.True(t, ok)
-		assert.Equal(t, os.Getpid(), pid)
 		release()
-		assert.NoFileExists(t, path)
+
+		// The file is intentionally left on disk: it carries no state, and
+		// removing it would race with another process holding it open.
+		assert.FileExists(t, path)
 	})
 
-	t.Run("rejects a lock held by a live process", func(t *testing.T) {
+	t.Run("rejects a second holder while the lock is held", func(t *testing.T) {
 		t.Parallel()
 		path := filepath.Join(t.TempDir(), "test.lock")
 		release, err := acquireLockAt(path)
@@ -129,42 +128,30 @@ func TestAcquireLockAt(t *testing.T) {
 
 		_, err = acquireLockAt(path)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "appears to be running")
+		assert.Contains(t, err.Error(), "already running")
 	})
 
-	t.Run("reclaims a stale lock with a dead pid", func(t *testing.T) {
+	t.Run("allows a new holder after release", func(t *testing.T) {
 		t.Parallel()
 		path := filepath.Join(t.TempDir(), "test.lock")
-		require.NoError(t, os.WriteFile(path, []byte(strconv.Itoa(deadPID(t))+"\n"), 0o600))
+		release, err := acquireLockAt(path)
+		require.NoError(t, err)
+		release()
+
+		release2, err := acquireLockAt(path)
+		require.NoError(t, err)
+		release2()
+	})
+
+	// A leftover file from a killed watcher used to strand the lock forever on
+	// Windows, where the liveness probe always answered "still running".
+	t.Run("acquires a lock file left behind by a dead process", func(t *testing.T) {
+		t.Parallel()
+		path := filepath.Join(t.TempDir(), "test.lock")
+		require.NoError(t, os.WriteFile(path, []byte("4084\n"), 0o600))
 
 		release, err := acquireLockAt(path)
 		require.NoError(t, err)
 		defer release()
-
-		pid, ok := readLockPID(path)
-		require.True(t, ok)
-		assert.Equal(t, os.Getpid(), pid, "stale lock should be reclaimed with our pid")
 	})
-
-	t.Run("reclaims a lock with an unreadable pid", func(t *testing.T) {
-		t.Parallel()
-		path := filepath.Join(t.TempDir(), "test.lock")
-		require.NoError(t, os.WriteFile(path, []byte("not-a-pid"), 0o600))
-
-		release, err := acquireLockAt(path)
-		require.NoError(t, err)
-		defer release()
-		assert.FileExists(t, path)
-	})
-}
-
-// deadPID starts a short-lived process and reaps it, returning a PID that is no
-// longer running (and will not be reused for the duration of the test). It runs
-// the test binary itself with a non-matching -test.run, which exits immediately.
-func deadPID(t *testing.T) int {
-	t.Helper()
-	cmd := exec.Command(os.Args[0], "-test.run=^a_subtest_that_never_matches$")
-	require.NoError(t, cmd.Start())
-	_ = cmd.Wait()
-	return cmd.Process.Pid
 }

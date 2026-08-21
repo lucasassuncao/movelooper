@@ -8,8 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -18,6 +16,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/fileops"
 	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/history"
+	"github.com/lucasassuncao/movelooper/internal/lockfile"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/scanner"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
@@ -25,14 +24,14 @@ import (
 
 const watchLockFile = "movelooper.lock"
 
-// acquireWatchLock creates an exclusive lock file for watch mode.
-// Returns a release function that removes the file on clean shutdown.
+// acquireWatchLock takes the exclusive watch-mode lock, so two watchers never
+// run at once. Returns a release function to call on shutdown.
+//
+// The lock is an OS-level lock held for as long as this process lives, so it is
+// released automatically even on a crash or a kill -9. There is no stale lock to
+// reclaim and no PID to second-guess.
 func acquireWatchLock() (func(), error) {
-	path := watchLockPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return nil, fmt.Errorf("could not create lock directory for %s: %w", path, err)
-	}
-	return acquireLockAt(path)
+	return acquireLockAt(watchLockPath())
 }
 
 // watchLockPath returns the lock file location. It lives under ~/.movelooper
@@ -48,78 +47,18 @@ func watchLockPath() string {
 	return filepath.Join(home, ".movelooper", watchLockFile)
 }
 
-// acquireLockAt creates an exclusive lock file at path, recording the current
-// PID. If the file already exists, the recorded PID decides the outcome: when
-// that process is no longer running (a stale lock left by a killed instance) the
-// lock is reclaimed; when it is still alive the call fails so two watchers never
-// run at once. The returned function removes the lock on clean shutdown.
+// acquireLockAt takes the exclusive lock at path without blocking. When another
+// live process already holds it, the call fails so two watchers never run at
+// once. The returned function releases the lock on shutdown.
 func acquireLockAt(path string) (func(), error) {
-	release, err := createLockFile(path)
-	if err == nil {
-		return release, nil
+	lock, err := lockfile.TryAcquire(path)
+	if errors.Is(err, lockfile.ErrLocked) {
+		return nil, fmt.Errorf("another instance of movelooper watch is already running (lock file: %s)", path)
 	}
-	if !os.IsExist(err) {
-		return nil, fmt.Errorf("could not create lock file %s: %w", path, err)
-	}
-
-	if pid, ok := readLockPID(path); ok && processAlive(pid) {
-		return nil, fmt.Errorf(
-			"another instance of movelooper watch appears to be running (pid %d)\n"+
-				"lock file: %s\n"+
-				"if no instance is running, delete the file manually and retry",
-			pid, path,
-		)
-	}
-
-	// Stale lock (dead or unreadable PID): reclaim it and try once more.
-	if err := os.Remove(path); err != nil {
-		return nil, fmt.Errorf("could not remove stale lock file %s: %w", path, err)
-	}
-	release, err = createLockFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("could not reclaim stale lock file %s: %w", path, err)
-	}
-	return release, nil
-}
-
-// createLockFile creates path exclusively and writes the current PID into it.
-func createLockFile(path string) (func(), error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //#nosec G304 -- fixed filename under the user's home (or OS temp dir as fallback)
 	if err != nil {
 		return nil, err
 	}
-	_, _ = fmt.Fprintf(f, "%d\n", os.Getpid())
-	f.Close()
-	return func() { os.Remove(path) }, nil
-}
-
-// readLockPID reads the PID recorded in a lock file. ok is false when the file
-// cannot be read or does not hold a valid positive PID.
-func readLockPID(path string) (pid int, ok bool) {
-	data, err := os.ReadFile(path) //#nosec G304 -- fixed filename under the user's home (or OS temp dir as fallback)
-	if err != nil {
-		return 0, false
-	}
-	pid, err = strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil || pid <= 0 {
-		return 0, false
-	}
-	return pid, true
-}
-
-// processAlive reports whether a process with the given PID is currently running.
-func processAlive(pid int) bool {
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false // Windows: FindProcess fails when the process does not exist
-	}
-	if runtime.GOOS == "windows" {
-		_ = proc.Release()
-		return true // Windows: a successful FindProcess means the process exists
-	}
-	// Unix: FindProcess always succeeds; probe liveness with signal 0.
-	err = proc.Signal(syscall.Signal(0))
-	return err == nil || errors.Is(err, syscall.EPERM)
+	return func() { _ = lock.Release() }, nil
 }
 
 // fileInfoDirEntry adapts an os.FileInfo to the os.DirEntry interface.

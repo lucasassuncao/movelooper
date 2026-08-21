@@ -7,7 +7,11 @@ on:
     branches: [main]
 
 jobs:
-  ci:
+  # Repository hygiene, which is platform-independent and only worth doing once:
+  # formatting, generated docs, and dependency tidiness. The git-diff comparisons
+  # these rely on would only produce line-ending noise on Windows.
+  checks:
+    name: Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -50,8 +54,37 @@ jobs:
           fi
           echo "✅ Documentation is up to date."
 
+  # movelooper moves files, and the rules for doing that safely differ per
+  # platform: cross-device renames, path semantics, file locking, and symlink
+  # privileges.
+  #
+  # Lint and security run here, inside the matrix, rather than once on Linux.
+  # Go only compiles the files that match the target platform, so a Linux-only
+  # analysis never even sees lockfile_windows.go or lockfile_unix.go — the
+  # per-OS files are exactly where platform bugs hide.
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
       - name: Lint
         run: make lint
+
+      - name: Security
+        run: make security
 
       - name: Test
         run: make test-coverage
@@ -60,10 +93,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: coverage
+          name: coverage-${{ matrix.os }}
           path: .coverage/
           if-no-files-found: warn
           include-hidden-files: true
-
-      - name: Security
-        run: make security

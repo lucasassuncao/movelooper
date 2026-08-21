@@ -29,6 +29,12 @@ import "github.com/lucasassuncao/movelooper/internal/fileops"
 
 ## Variables
 
+<a name="ErrFatalDestination"></a>ErrFatalDestination marks a destination failure that will not resolve itself by moving on to the next file: the disk is full, or the process cannot write to the destination at all. Retrying every remaining file would produce the same error hundreds of times and bury the real cause, so MoveFiles stops the batch and reports it once.
+
+```go
+var ErrFatalDestination = errors.New("destination is not writable")
+```
+
 <a name="ErrTimestampPreserve"></a>ErrTimestampPreserve is returned when a cross\-device copy succeeded but the original timestamps could not be restored. The file was moved successfully.
 
 ```go
@@ -45,7 +51,7 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="MoveFileCtx"></a>
-## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L259>)
+## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L407>)
 
 ```go
 func MoveFileCtx(ctx context.Context, src, dst string) error
@@ -72,7 +78,7 @@ func ResolveDestination(category *models.Category, tctx *tokens.TokenContext) (d
 ResolveDestination resolves the destination directory \(organize\-by\) and the final filename \(rename\) for one file. It sets tctx.DestDir before resolving the rename template, which the seq tokens need to scan for existing numbers. It never creates directories or touches the destination; with tctx.DryRun set, seq/hash tokens are left as literal placeholders.
 
 <a name="UniqueDestination"></a>
-## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L370>)
+## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L518>)
 
 ```go
 func UniqueDestination(destDir, fileName string) (string, error)
@@ -111,7 +117,7 @@ type ConflictResolver interface {
 ```
 
 <a name="FileAction"></a>
-## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L165-L167>)
+## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L308-L310>)
 
 FileAction executes a file operation from src to dst.
 
@@ -162,7 +168,7 @@ type MoveRequest struct {
 ```
 
 <a name="MoveResult"></a>
-## type [MoveResult](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L56-L61>)
+## type [MoveResult](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L56-L70>)
 
 MoveResult holds the outcome of a MoveFiles call.
 
@@ -172,11 +178,20 @@ type MoveResult struct {
     Skipped int           // files skipped by conflict strategy (skip / hash_check duplicate)
     Bytes   int64         // total size of the successfully processed files
     Details []MovedDetail // source/destination of each processed file, in order
+    // Vanished counts source files that were gone by the time they were
+    // processed — already handled by another process, not a failure.
+    Vanished int
+    // HistoryFailed counts files that were processed but whose history entry
+    // could not be recorded, so they cannot be undone.
+    HistoryFailed int
+    // Fatal is set when the batch stopped early because the destination became
+    // unusable (see ErrFatalDestination). Files after that point were not tried.
+    Fatal error
 }
 ```
 
 <a name="MoveFiles"></a>
-### func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L70>)
+### func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L79>)
 
 ```go
 func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResult
@@ -185,7 +200,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 MoveFiles processes files matching the given extension in req.SourceDir.
 
 <a name="MovedDetail"></a>
-## type [MovedDetail](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L64-L67>)
+## type [MovedDetail](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L73-L76>)
 
 MovedDetail records where a single processed file came from and went to.
 

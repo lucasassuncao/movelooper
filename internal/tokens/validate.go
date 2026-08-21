@@ -128,3 +128,17 @@ func validateIntParam(tok, family string, max int) error {
 	}
 	return nil
 }
+
+// perFileTokenPattern matches the tokens whose value is derived from the
+// individual file — its name, its timestamps, its size, or its content — as
+// opposed to tokens that resolve to the same value for every file in a run
+// ({year}, {category}, {hostname}, and friends).
+var perFileTokenPattern = regexp.MustCompile(`\{(?:name|mod-|created-|size-range|mime|seq|md5|sha256)`)
+
+// VariesPerFile reports whether template contains at least one token that
+// differs from file to file. A rename template where nothing varies per file
+// resolves to the same destination name for every file it is applied to, which
+// is only safe when the conflict strategy keeps the earlier files.
+func VariesPerFile(template string) bool {
+	return perFileTokenPattern.MatchString(template)
+}

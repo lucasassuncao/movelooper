@@ -10,7 +10,7 @@ movelooper [flags]
 
 | Flag                  | Short | Description                                                          |
 |-----------------------|-------|----------------------------------------------------------------------|
-| `--dry-run`           |       | Show what would be moved without moving files                        |
+| `--dry-run`           |       | Show what would be moved without moving files, and report which destinations already exist |
 | `--show-files`        |       | List each detected file and, after moving, its destination (one block per category) |
 | `--config`            | `-c`  | Path to a custom config file                                         |
 | `--format`            |       | Log output format: `pretty` (default) or `json`. Overrides `configuration.logging.format` |
@@ -19,6 +19,10 @@ movelooper [flags]
 | `--include-disabled`  |       | Include categories with `enabled: false`                             |
 
 `--config` and `--format` are global flags: they apply to every command (`movelooper`, `watch`, `undo`, …). `--format json` emits structured slog JSON lines instead of the pretty console renderer, useful for piping to a log aggregator.
+
+A run stops early in two cases: when you interrupt it with Ctrl+C, and when the destination becomes unwritable (a full disk, or a directory the process cannot write to) for several files in a row. In both cases the history of what was already moved is written before exiting, and the batch ID is printed so you can `undo` it. Every other failure skips the file and the run continues, reporting the total at the end. See [Guarantees and Limits](/GUARANTEES.md).
+
+`--dry-run` resolves every destination without touching anything, and reports any destination that already exists together with what your `conflict-strategy` will do to it. Two tokens are the exception: `{seq}` and `{sha256:N}` are left as literal placeholders in the preview, because resolving them would mean scanning the destination and reading each file — a preview never does either.
 
 ```bash
 movelooper --category images                 # run only the "images" category
@@ -99,6 +103,16 @@ movelooper edit --config /path/to/movelooper.yaml
 ## `movelooper validate` — validate config file
 
 Loads and validates the configuration file, reporting all rule violations. Exits with a non-zero status when errors are found.
+
+Alongside errors, `validate` reports **warnings**: configurations that are perfectly valid and will run exactly as written, but that lose files in ways people rarely intend. Warnings never fail the command and never stop a run — the config stays the source of truth. They are reported here so you find out before the run instead of afterwards, from the missing files.
+
+| Warning | Why it matters |
+|---|---|
+| A `rename` template with no per-file token, plus `conflict-strategy: overwrite` | Every file resolves to the same name, so each one overwrites the previous and only the last survives |
+| `source.path` and `destination.path` are the same directory | Files are processed onto themselves |
+| `action: archive` with `keep-source: false` | The originals are deleted and archive batches cannot be undone, so the archive becomes the only copy |
+| `conflict-strategy: overwrite` with no `organize-by` and no `rename` | Everything lands in one directory under its original name, replacing existing files with matching names |
+| Two categories reading the same source with overlapping extensions | The first match wins, so the later category may never see those files |
 
 ```bash
 movelooper validate

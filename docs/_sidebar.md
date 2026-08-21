@@ -2,6 +2,7 @@
 
 - **Getting Started**
   - [Getting Started](/GETTING-STARTED.md)
+  - [Guarantees and Limits](/GUARANTEES.md)
 
 - **Guides**
   - [Cookbook](/COOKBOOK.md)

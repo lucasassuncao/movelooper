@@ -22,11 +22,12 @@ COVERAGE_OUT  := $(COVERAGE_DIR)/coverage.out
 COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
 COVERAGE_XML  := $(COVERAGE_DIR)/coverage.xml
 
-ifeq ($(OS),Windows_NT)
-    MKDIR_COVERAGE = if not exist $(COVERAGE_DIR) mkdir $(COVERAGE_DIR)
-else
-    MKDIR_COVERAGE = mkdir -p $(COVERAGE_DIR)
-endif
+# GNU make runs recipes with sh.exe whenever one is on PATH, which on Windows
+# is the normal case — make itself usually arrives with Git for Windows. So the
+# recipe shell is POSIX even when the OS is not, and cmd.exe syntax here fails
+# with "syntax error: unexpected end of file from `if' command". The rest of
+# this file already assumes a POSIX shell unconditionally (see `clean`).
+MKDIR_COVERAGE = mkdir -p $(COVERAGE_DIR)
 
 # Project variables
 BINARY_NAME := movelooper

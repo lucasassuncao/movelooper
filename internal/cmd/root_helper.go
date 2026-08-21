@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,13 +26,20 @@ type movedSet map[string]bool
 func (s movedSet) mark(dir, name string)     { s[filepath.Join(dir, name)] = true }
 func (s movedSet) has(dir, name string) bool { return s[filepath.Join(dir, name)] }
 
+// errFatalDestination marks a destination failure that will not get better by
+// trying the next file — a full disk, or a destination the process cannot write
+// to. runMove stops the whole run when it sees one, rather than repeating the
+// same error once per remaining file.
+var errFatalDestination = errors.New("destination is not writable")
+
 // runStats accumulates totals across all categories for the end-of-run summary.
 type runStats struct {
-	totalFiles   int
-	totalBytes   int64
-	skipped      int // categories that errored out
-	filesSkipped int // files skipped by a conflict strategy (skip / hash_check duplicate)
-	failed       int
+	totalFiles    int
+	totalBytes    int64
+	skipped       int // categories that errored out
+	filesSkipped  int // files skipped by a conflict strategy (skip / hash_check duplicate)
+	failed        int
+	historyFailed int // files whose history entry could not be recorded
 }
 
 // MoveOptions carries the CLI flags for the move command.
@@ -85,31 +93,67 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 		batch.recorder = histBuf
 	}
 
+	var interrupted bool
+	var fatal error
 	for _, category := range categories {
-		if err := processCategoryMove(ctx, m, category, batch); err != nil {
-			m.Logger.Error("failed to process category",
-				m.Logger.Args("category", category.Name, "error", err.Error()))
-			batch.stats.skipped++
+		// Stop starting new categories once the run was interrupted, instead of
+		// letting every remaining one fail its scan and report a bogus error.
+		if ctx.Err() != nil {
+			interrupted = true
+			break
 		}
+		err := processCategoryMove(ctx, m, category, batch)
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, errFatalDestination) {
+			fatal = err
+			break
+		}
+		m.Logger.Error("failed to process category",
+			m.Logger.Args("category", category.Name, "error", err.Error()))
+		batch.stats.skipped++
+	}
+	if ctx.Err() != nil {
+		interrupted = true
 	}
 
-	if histBuf != nil {
+	// The history flush happens here, after the loop, on every exit path —
+	// including an interrupt — so files already moved stay undoable.
+	historyFailed := stats.historyFailed > 0
+	if histBuf != nil && histBuf.Len() > 0 {
 		if err := histBuf.Flush(m.History); err != nil {
-			m.Logger.Warn("failed to record history; undo will not work for this run",
-				m.Logger.Args("error", err.Error()))
+			historyFailed = true
+			m.Logger.Error("failed to record history; this run cannot be undone",
+				m.Logger.Args("error", err.Error(), "files", histBuf.Len()))
 		}
 	}
 
-	if opts.DryRun {
+	switch {
+	case interrupted:
+		m.Logger.Warn("run interrupted",
+			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "batch_id", batch.batchID))
+	case opts.DryRun:
 		m.Logger.Info("dry-run complete, no files were moved")
-	} else {
+	default:
 		m.Logger.Info("run complete",
 			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "files_skipped", stats.filesSkipped, "categories_skipped", stats.skipped))
 	}
 
 	// Surface failures through the exit code so scripts and cron can detect them.
-	// The run is not aborted on failure, only reported here after it completes.
-	if stats.skipped > 0 || stats.failed > 0 {
+	// Except for a fatal destination error, the run is not aborted on failure,
+	// only reported here after it completes.
+	switch {
+	case fatal != nil:
+		return fatal
+	case interrupted:
+		if stats.totalFiles > 0 && !historyFailed {
+			return fmt.Errorf("run interrupted: %d file(s) were already moved — undo them with 'movelooper undo %s'", stats.totalFiles, batch.batchID)
+		}
+		return errors.New("run interrupted")
+	case historyFailed:
+		return errors.New("run completed, but the history could not be recorded — these moves cannot be undone")
+	case stats.skipped > 0 || stats.failed > 0:
 		return fmt.Errorf("run completed with failures: %d categories failed, %d files failed to move", stats.skipped, stats.failed)
 	}
 	return nil
@@ -206,9 +250,15 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 			// summary; skipped and failed files are reported separately.
 			batch.stats.totalFiles += t.moved
 			batch.stats.totalBytes += t.bytes
+			batch.stats.historyFailed += t.historyFailed
 			if batch.showFiles {
 				header := fmt.Sprintf("%s %d %s", pastVerb, t.moved, fileNoun(extension, t.moved))
 				logFileBlock(m, category.Name, header, appendMovedDetails(nil, t.details))
+			}
+			if t.fatal != nil {
+				batch.stats.failed += totalFailed
+				batch.stats.filesSkipped += totalSkipped
+				return fmt.Errorf("%w: %w", errFatalDestination, t.fatal)
 			}
 		}
 	}
@@ -284,9 +334,55 @@ func previewExtensionMove(m *models.Movelooper, category *models.Category, match
 	for _, fe := range matched {
 		batch.moved.mark(fe.Dir, fe.Entry.Name())
 	}
-	plannedArgs := appendPlannedMoves(nil, category, matched)
+	plannedArgs, conflicts := appendPlannedMoves(nil, category, matched)
 	header := fmt.Sprintf("Would %s %d %s", pendingVerb, len(matched), fileNoun(extension, len(matched)))
 	logFileBlock(m, category.Name, header, plannedArgs)
+	logPreviewConflicts(m, category, conflicts)
+}
+
+// logPreviewConflicts reports the previewed destinations that already exist, so
+// a dry-run shows what the conflict strategy is about to do to them instead of
+// only showing where each file would land. Overwrite is the one strategy that
+// destroys the existing file, so it is logged as a warning.
+func logPreviewConflicts(m *models.Movelooper, category *models.Category, conflicts []string) {
+	if len(conflicts) == 0 {
+		return
+	}
+	strategy := category.Destination.ConflictStrategy
+	if strategy == "" {
+		strategy = models.ConflictStrategyRename
+	}
+	args := make([]any, 0, len(conflicts)*2)
+	for _, path := range conflicts {
+		args = append(args, "destination", path)
+	}
+	label := pterm.Cyan(fmt.Sprintf("[%s]", category.Name))
+	header := fmt.Sprintf("%s %d destination file(s) already exist — conflict-strategy %q %s",
+		label, len(conflicts), strategy, conflictOutcomeText(strategy))
+
+	if strategy == models.ConflictStrategyOverwrite {
+		m.Logger.Warn(header, m.Logger.Args(args...))
+		return
+	}
+	m.Logger.Info(header, m.Logger.Args(args...))
+}
+
+// conflictOutcomeText describes, in the dry-run preview, what a strategy will do
+// to a destination file that already exists.
+func conflictOutcomeText(strategy models.ConflictStrategy) string {
+	switch strategy {
+	case models.ConflictStrategyOverwrite:
+		return "will replace them"
+	case models.ConflictStrategySkip:
+		return "will leave them alone and skip the incoming files"
+	case models.ConflictStrategyHashCheck:
+		return "will keep them and drop identical sources, or rename differing ones"
+	case models.ConflictStrategyNewest, models.ConflictStrategyOldest,
+		models.ConflictStrategyLarger, models.ConflictStrategySmaller:
+		return "will replace them only when the incoming file wins the comparison"
+	default: // rename
+		return "will give the incoming files a new name"
+	}
 }
 
 // logFileBlock logs a single "[category] header" entry listing all
@@ -302,8 +398,12 @@ func logFileBlock(m *models.Movelooper, categoryName, header string, args []any)
 // moveTotals aggregates the per-directory outcomes of moving one extension.
 type moveTotals struct {
 	moved, skipped, failed int
+	historyFailed          int
 	bytes                  int64
 	details                []fileops.MovedDetail
+	// fatal is set when the destination became unusable and the batch stopped
+	// early; the caller must abandon the rest of the run.
+	fatal error
 }
 
 // moveMatchedFiles moves the matched files grouped by source directory and
@@ -321,9 +421,17 @@ func moveMatchedFiles(ctx context.Context, m *models.Movelooper, category *model
 		res := moveExtensionWithResult(ctx, m, req, batch)
 		t.moved += len(res.Moved)
 		t.skipped += res.Skipped
-		t.failed += max(0, len(dirFiles)-len(res.Moved)-res.Skipped)
+		t.historyFailed += res.HistoryFailed
 		t.bytes += res.Bytes
 		t.details = append(t.details, res.Details...)
+		if res.Fatal != nil {
+			// The remaining files were never attempted, so they are not failures.
+			t.fatal = res.Fatal
+			return t
+		}
+		// Files that vanished before we reached them were already handled by
+		// someone else, so they are neither moved nor failed.
+		t.failed += max(0, len(dirFiles)-len(res.Moved)-res.Skipped-res.Vanished)
 	}
 	return t
 }
@@ -447,14 +555,24 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 
 // appendPlannedMoves resolves the destination for each matched file and appends
 // "source"/"destination" pairs to args, so all planned moves for a category can
-// be logged as a single entry in dry-run mode.
-func appendPlannedMoves(args []any, category *models.Category, matched []scanner.FileEntry) []any {
+// be logged as a single entry in dry-run mode. It also returns the planned
+// destinations that already exist on disk, which is the only way a preview can
+// tell the user that a conflict strategy is about to fire.
+func appendPlannedMoves(args []any, category *models.Category, matched []scanner.FileEntry) (planned []any, conflicts []string) {
 	for _, fe := range matched {
-		if src, dst, ok := resolvePlannedMove(category, fe); ok {
-			args = append(args, "source", src, "destination", dst)
+		src, dst, ok := resolvePlannedMove(category, fe)
+		if !ok {
+			continue
+		}
+		args = append(args, "source", src, "destination", dst)
+		// Stat only, never open: the preview must not touch anything. A rename
+		// template holding an unresolved {seq}/{sha256} placeholder simply will
+		// not match a real file, so it cannot produce a false conflict.
+		if _, err := os.Stat(dst); err == nil {
+			conflicts = append(conflicts, dst)
 		}
 	}
-	return args
+	return args, conflicts
 }
 
 // resolvePlannedMove reports where a file would land under the category's

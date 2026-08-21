@@ -17,6 +17,7 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 - [func ResolveSeqAlpha\(destDir string\) string](<#ResolveSeqAlpha>)
 - [func ResolveSeqRoman\(destDir string\) string](<#ResolveSeqRoman>)
 - [func ValidateTemplate\(template string\) error](<#ValidateTemplate>)
+- [func VariesPerFile\(template string\) bool](<#VariesPerFile>)
 - [type SeqAllocator](<#SeqAllocator>)
   - [func NewSeqAllocator\(\) \*SeqAllocator](<#NewSeqAllocator>)
 - [type TokenContext](<#TokenContext>)
@@ -84,6 +85,15 @@ func ValidateTemplate(template string) error
 ```
 
 ValidateTemplate returns an error if the template contains any unrecognised or malformed \{token\}.
+
+<a name="VariesPerFile"></a>
+## func [VariesPerFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L142>)
+
+```go
+func VariesPerFile(template string) bool
+```
+
+VariesPerFile reports whether template contains at least one token that differs from file to file. A rename template where nothing varies per file resolves to the same destination name for every file it is applied to, which is only safe when the conflict strategy keeps the earlier files.
 
 <a name="SeqAllocator"></a>
 ## type [SeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L103-L105>)

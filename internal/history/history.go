@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/lucasassuncao/movelooper/internal/lockfile"
 )
 
 const defaultMaxBatches = 100
@@ -73,8 +75,9 @@ func (b *Buffer) Flush(h *History) error {
 // The mutex only guards access within one process. Two movelooper processes
 // writing at the same time (e.g. a watch daemon plus a one-shot run) are
 // additionally serialized by an OS-level lock on a sidecar ".lock" file (see
-// lock.go): every mutating method reloads h.entries from disk while holding
-// that lock, so a write from the other process is never silently overwritten.
+// internal/lockfile): every mutating method reloads h.entries from disk while
+// holding that lock, so a write from the other process is never silently
+// overwritten.
 // The save itself is also atomic (temp file + rename), so the file is never
 // corrupted, only potentially incomplete if a process is killed mid-write.
 type History struct {
@@ -124,16 +127,16 @@ func NewHistory(path string, limit int) (*History, error) {
 // locking is skipped and fn runs against whatever h.entries already holds —
 // a best-effort fallback rather than breaking history tracking entirely.
 func (h *History) withFileLock(fn func() error) error {
-	lock, err := acquireFileLock(h.lockPath)
+	lock, err := lockfile.Acquire(h.lockPath)
 	if err != nil {
 		return fn()
 	}
 	if err := h.load(); err != nil && !os.IsNotExist(err) {
-		_ = lock.release()
+		_ = lock.Release()
 		return err
 	}
 	fnErr := fn()
-	if relErr := lock.release(); relErr != nil && fnErr == nil {
+	if relErr := lock.Release(); relErr != nil && fnErr == nil {
 		return relErr
 	}
 	return fnErr

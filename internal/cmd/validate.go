@@ -95,21 +95,63 @@ func runValidate(configPath string, format validateFormat, summaryOnly bool, str
 		violations = append(violations, strictDirViolations(doc.Raw())...)
 	}
 
+	// Warnings are reported alongside errors but never fail the command: they
+	// flag valid configurations that lose files, and the config stays the source
+	// of truth about what should happen.
+	warnings := configWarnings(doc.Raw())
+
 	switch format {
 	case formatJSON:
-		printValidateJSON(violations, summaryOnly)
+		printValidateJSON(violations, warnings, summaryOnly)
 	case formatTable:
 		printValidateTable(violations, summaryOnly)
+		printWarnings(warnings, summaryOnly)
 	case formatPlain:
 		printValidatePlain(violations, summaryOnly)
+		printWarningsPlain(warnings, summaryOnly)
 	default:
 		printValidatePretty(violations, summaryOnly)
+		printWarnings(warnings, summaryOnly)
 	}
 
 	if len(violations) > 0 {
 		return errors.New("validation failed")
 	}
 	return nil
+}
+
+// printWarnings renders data-loss warnings for the pretty and table formats.
+func printWarnings(warnings []spec.Violation, summaryOnly bool) {
+	if len(warnings) == 0 {
+		return
+	}
+	if !summaryOnly {
+		pterm.Println()
+		pterm.Bold.Println("  " + pterm.Yellow("warnings"))
+		for i, w := range warnings {
+			connector := pterm.Gray("├─")
+			if i == len(warnings)-1 {
+				connector = pterm.Gray("└─")
+			}
+			pterm.Printf("  %s %s %s\n", connector, pterm.Yellow(fmt.Sprintf("%-44s", w.Path)), w.Message)
+		}
+	}
+	pterm.Println()
+	pterm.Printf("%s warning(s) — valid configuration that can lose files\n",
+		pterm.Yellow(fmt.Sprintf("%d", len(warnings))))
+}
+
+// printWarningsPlain renders data-loss warnings for the plain format.
+func printWarningsPlain(warnings []spec.Violation, summaryOnly bool) {
+	if len(warnings) == 0 {
+		return
+	}
+	if !summaryOnly {
+		for _, w := range warnings {
+			fmt.Printf("%-48s %s\n", w.Path, w.Message)
+		}
+	}
+	fmt.Printf("%d warning(s)\n", len(warnings))
 }
 
 // strictDirViolations checks whether source.path and destination.path for each
@@ -301,10 +343,12 @@ func renderSectionTable(vs []spec.Violation, termWidth int) {
 
 // validateJSONOutput defines the structure of the JSON output for validation results.
 type validateJSONOutput struct {
-	Valid      bool                    `json:"valid"`
-	ErrorCount int                     `json:"error_count"`
-	Errors     []validateJSONViolation `json:"errors,omitempty"`
-	Summary    map[string]int          `json:"summary"`
+	Valid        bool                    `json:"valid"`
+	ErrorCount   int                     `json:"error_count"`
+	WarningCount int                     `json:"warning_count"`
+	Errors       []validateJSONViolation `json:"errors,omitempty"`
+	Warnings     []validateJSONViolation `json:"warnings,omitempty"`
+	Summary      map[string]int          `json:"summary"`
 }
 
 // validateJSONViolation defines the structure of individual violations in the JSON output.
@@ -313,8 +357,11 @@ type validateJSONViolation struct {
 	Message string `json:"message"`
 }
 
-// printValidateJSON renders violations as a JSON object with overall validity, error count, optional details, and a summary by section.
-func printValidateJSON(violations []spec.Violation, summaryOnly bool) {
+// printValidateJSON renders violations as a JSON object with overall validity,
+// error and warning counts, optional details, and a summary by section.
+// Warnings never affect "valid": they describe configurations that work exactly
+// as written but lose files.
+func printValidateJSON(violations, warnings []spec.Violation, summaryOnly bool) {
 	_, bySection := groupViolations(violations)
 
 	summary := make(map[string]int, len(bySection))
@@ -323,15 +370,20 @@ func printValidateJSON(violations []spec.Violation, summaryOnly bool) {
 	}
 
 	out := validateJSONOutput{
-		Valid:      len(violations) == 0,
-		ErrorCount: len(violations),
-		Summary:    summary,
+		Valid:        len(violations) == 0,
+		ErrorCount:   len(violations),
+		WarningCount: len(warnings),
+		Summary:      summary,
 	}
 
 	if !summaryOnly {
 		out.Errors = make([]validateJSONViolation, len(violations))
 		for i, v := range violations {
 			out.Errors[i] = validateJSONViolation{Path: v.Path, Message: v.Message}
+		}
+		out.Warnings = make([]validateJSONViolation, len(warnings))
+		for i, w := range warnings {
+			out.Warnings[i] = validateJSONViolation{Path: w.Path, Message: w.Message}
 		}
 	}
 

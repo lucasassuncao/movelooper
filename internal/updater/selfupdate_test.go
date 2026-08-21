@@ -111,18 +111,26 @@ func TestSelectAsset(t *testing.T) {
 		{
 			"scores arch match",
 			[]ghAsset{
-				{Name: "movelooper_linux_arm64"},
-				{Name: "movelooper_linux_amd64"},
+				{Name: "movelooper_linux_" + otherArch()},
+				{Name: "movelooper_linux_" + runtime.GOARCH},
 			},
-			"movelooper_linux_amd64",
+			"movelooper_linux_" + runtime.GOARCH,
 		},
 		{
+			// Both assets match the host architecture, so only the .exe bonus
+			// can break the tie — and it only applies on Windows. Anywhere else
+			// the scores are equal and the first asset wins.
 			"exe score without os name",
 			[]ghAsset{
-				{Name: "movelooper_arm64"},
-				{Name: "movelooper_amd64.exe"},
+				{Name: "movelooper_" + runtime.GOARCH},
+				{Name: "movelooper_" + runtime.GOARCH + ".exe"},
 			},
-			"movelooper_amd64.exe",
+			func() string {
+				if runtime.GOOS == "windows" {
+					return "movelooper_" + runtime.GOARCH + ".exe"
+				}
+				return "movelooper_" + runtime.GOARCH
+			}(),
 		},
 	}
 
@@ -138,6 +146,16 @@ func TestSelectAsset(t *testing.T) {
 			}
 		})
 	}
+}
+
+// otherArch returns an architecture that is deliberately not the host's, so a
+// test can prove the matching asset won on its own merit rather than by being
+// first in the list. Hard-coding "amd64" here would only pass on amd64 runners.
+func otherArch() string {
+	if runtime.GOARCH == "amd64" {
+		return "arm64"
+	}
+	return "amd64"
 }
 
 func TestIsHexSHA256(t *testing.T) {
