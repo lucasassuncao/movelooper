@@ -22,11 +22,11 @@ Practical reference for contributing to movelooper. Covers setup, daily workflow
 
 | Tool | Version | Purpose |
 |---|---|---|
-| Go | 1.26.3+ | Build and test |
+| Go | 1.27.0+ | Build and test |
 | Make | any | Task runner |
 | Git | any | Version control |
 
-All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc) are invoked via `go run` and require no global installation. They are pinned to specific versions in the `Makefile`.
+All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype) are pinned in the `Makefile` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in the `Makefile` does not invalidate an already installed binary — run `make tools-clean` first.
 
 ---
 
@@ -68,10 +68,14 @@ make test            # run tests (testdox format)
 make test-watch      # rerun tests on file changes
 make test-coverage   # tests + HTML and XML coverage reports
 make security        # gosec static analysis
-make docs            # regenerate package README files (gomarkdoc)
+make sbom            # CycloneDX SBOM of the dependency tree (syft)
+make vuln            # scan the SBOM for known vulnerabilities (grype)
+make docs            # regenerate package READMEs (gomarkdoc) + config reference (generate-docs)
 make deps            # go mod download && go mod tidy
-make clean           # remove build artifacts and test cache
-make all             # deps + fmt + docs + lint + security + test-coverage
+make tools           # install every pinned tool into ./.gobin
+make tools-clean     # remove ./.gobin so the next target reinstalls the pinned tools
+make clean           # remove build artifacts, installed tools and cache
+make all             # deps + fmt + docs + lint + security + test-coverage + sbom + vuln
 ```
 
 ### Before committing
@@ -234,7 +238,7 @@ Run `make lint` before opening a PR. The CI pipeline will fail if lint errors ar
 - [ ] Read [`DESIGN.md`](DESIGN.md) to understand where the change belongs
 - [ ] Follow the extension guides in [`DESIGN.md`](DESIGN.md) §6 for registries and the builder
 - [ ] Write tests before or alongside the implementation (TDD preferred)
-- [ ] Run `make all` (deps + fmt + docs + lint + security + test-coverage) before pushing
+- [ ] Run `make all` (deps + fmt + docs + lint + security + test-coverage + sbom + vuln) before pushing
 - [ ] Update [`DESIGN.md`](DESIGN.md) if a new pattern or architectural decision is introduced
 
 ### Where to put new code
@@ -263,6 +267,7 @@ The CI workflow (`.github/workflows/ci.yml`) runs on every push and pull request
 | Lint | `make lint` | golangci-lint passes |
 | Test | `make test-coverage` | All tests pass; coverage report uploaded as artifact |
 | Security | `make security` | gosec finds no medium+ severity issues |
+| Supply chain | `make vuln` | grype finds no medium+ severity CVEs in dependencies; SBOM uploaded as artifact |
 
 **All steps must pass before merging.** There are no exceptions.
 

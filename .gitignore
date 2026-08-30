@@ -11,7 +11,7 @@ dist/
 *.test
 
 # Output of the go coverage tool
-.coverage/
+coverage/
 
 # Dependency directories
 vendor/
@@ -58,3 +58,9 @@ Desktop.ini
 CLAUDE.md
 /memory/
 archived/
+
+# Pinned tools installed by the Makefile
+.gobin/
+
+# Generated SBOM
+sbom.json

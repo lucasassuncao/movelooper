@@ -94,6 +94,51 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}
-          path: .coverage/
+          path: coverage/
           if-no-files-found: warn
-          include-hidden-files: true
+
+  # The SBOM and the vulnerability scan describe the dependency graph, which
+  # comes from go.mod and is the same everywhere. So this stays out of the OS
+  # matrix, unlike lint and security: three runners would build the same SBOM
+  # and download the vulnerability database three times to reach one answer.
+  #
+  # It is also its own job rather than a step inside Checks, because it fails
+  # differently. A red mark here usually means a CVE was published against a
+  # dependency, not that the commit broke something - the job can go red with
+  # nothing in the repo having changed.
+  supply-chain:
+    name: Supply chain
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      # syft and grype are built from source by the Makefile, which is slow for
+      # a scan that takes seconds. The install rules have no prerequisites, so a
+      # restored .gobin is enough for make to skip the build; the key follows
+      # the Makefile because that is where the versions are pinned.
+      - name: Cache pinned tools
+        uses: actions/cache@v6
+        with:
+          path: .gobin
+          key: gobin-${{ runner.os }}-${{ hashFiles('Makefile') }}
+
+      - name: Scan dependencies
+        run: make vuln
+
+      # Uploaded even when the scan fails: the SBOM is written before grype
+      # runs, and it is what you need to triage the findings.
+      - name: Upload SBOM
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: sbom.json
+          if-no-files-found: warn

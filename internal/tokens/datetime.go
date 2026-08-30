@@ -19,7 +19,7 @@ func getBirthTime(info os.FileInfo) time.Time {
 	}
 
 	v := reflect.ValueOf(sys)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
