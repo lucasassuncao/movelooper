@@ -14,7 +14,7 @@ movelooper [flags]
 | `--show-files`        |       | List each detected file and, after moving, its destination (one block per category) |
 | `--config`            | `-c`  | Path to a custom config file                                         |
 | `--format`            |       | Log output format: `pretty` (default) or `json`. Overrides `configuration.logging.format` |
-| `--version`           |       | Print the current version                                            |
+| `--version`           | `-v`  | Print the current version                                            |
 | `--category`          |       | Comma-separated list of category names to process (default: all)     |
 | `--include-disabled`  |       | Include categories with `enabled: false`                             |
 
@@ -92,11 +92,13 @@ movelooper edit --config /path/to/movelooper.yaml
 | Flag                    | Description                                                              |
 |-------------------------|--------------------------------------------------------------------------|
 | `--theme`               | Theme name (default: `plain`) — run `--list-themes` to see options       |
-| `--list-themes`         | List available theme names and exit                                      |
+| `--list-themes`         | Browse available themes in an interactive, tabbed terminal UI            |
 | `--output`, `-o`        | Save to this file instead of the loaded config (load path is unchanged)  |
 | `--no-save-confirm`     | Skip the save confirmation dialog                                        |
 | `--no-delete-confirm`   | Skip the block-delete confirmation dialog                                |
 | `--no-validate-on-save` | Allow saving even when validators report errors (a warning is shown)     |
+| `--dump`                | Record every editor action to a JSONL trace file for bug reports (the path is printed on exit) |
+| `--dump-path`           | Write the session trace to this file instead of a temp file (implies `--dump`) |
 
 **Keybindings:** `Ctrl+S` save · `Ctrl+U` undo · `Ctrl+Y` redo · `Esc` quit
 
@@ -126,9 +128,9 @@ movelooper validate --config /path/to/movelooper.yaml
 |-------------|-------|-------------------------------------------------------------------------------------|
 | `--format`  | `-f`  | Output format: `pretty` (default), `plain`, `table`, `json`                        |
 | `--summary` |       | Show only total error counts, not individual violations                             |
+| `--strict`  |       | Also verify that `source.path` and `destination.path` directories exist on disk    |
 
 > On `validate`, `--format` controls the **validation report** rendering (`pretty`/`plain`/`table`/`json`), not the log format; its local `-f` shadows the global logging `--format` here.
-| `--strict`  |       | Also verify that `source.path` and `destination.path` directories exist on disk    |
 
 ## `movelooper config` — show resolved config path
 

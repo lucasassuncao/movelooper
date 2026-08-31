@@ -4,62 +4,126 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
-🌀 **Movelooper** is a modern CLI tool that automatically organizes and moves your files based on configurable categories.
+🌀 **Movelooper** is a modern CLI tool that automatically organizes your files, using a declarative rules engine where configurable categories describe what goes where and Movelooper does it.
 
-Are your files a mess? **Movelooper** fixes that.\
-Tired of moving files by hand? **Movelooper** does it for you.\
-Scared of losing something? Every move is recorded and undoable.\
-Not sure it will work? Run `--dry-run` and see exactly what happens before touching anything.
+## Given this `movelooper.yaml` file
 
-For example, your Downloads folder has 847 files... You haven't sorted them in 6 months. You know you won't do it manually.\
-You want to organize them by file type, date, and size, but you also want to rename them in a consistent way.\
-You want to avoid duplicates and conflicts and do it quickly and safely.
+```yaml
+categories:
+  - name: images
+    enabled: true
+    source:
+      path: ./Downloads
+      extensions: [jpg, png]
+    destination:
+      path: ./Pictures
+      organize-by: "{mod-year}/{mod-month}"   # subfolders by modification date
+      conflict-strategy: hash_check           # identical file already there? drop the duplicate
 
-That's why you use `movelooper`.
+  - name: documents
+    enabled: true
+    source:
+      path: ./Downloads
+      extensions: [pdf]
+      filter:
+        not:
+          - match:
+              glob: "draft_*"                 # leave drafts alone
+    destination:
+      path: ./Documents
+      rename: "{mod-date}_{name}.{ext}"       # report.pdf -> 2026-08-31_report.pdf
+      conflict-strategy: rename
+```
 
-Write one YAML config file, run `movelooper`, and it will automatically move and organize your files into the right folders.\
-Movelooper can also watch your folders in real-time and move files as they arrive, so you never have to worry about clutter again.
+Note: That file is `examples/demo/movelooper.yaml`, the exact config running in the recording below.
 
-## Features
+## Demo
 
-### Organize
+<!-- markdownlint-disable MD033 -->
+<p align="left">
+  <img src="../examples/demo/demo.gif" alt="movelooper sorting a Downloads folder: the files before, the run with --show-files, and the resulting tree" width="100%">
+</p>
+<!-- markdownlint-enable MD033 -->
 
-- Move files from source to destination based on categories defined in a YAML config file
-- Select actions per category: move, copy, symlink, or archive (.zip or .tar.gz), see [Actions](/ACTIONS.md) for all available actions
-- Filter files by extension, regex, glob, age, size, and real content type (magic bytes), see [Filters](/FILTERS.md) for all available filters
-- Configure conflict strategies per category: rename, overwrite, skip, hash_check, and more, see [Conflict Strategies](/CONFLICTS.md) for all available strategies
-- Organize files into subdirectories using template tokens: `{ext}`, `{mod-year}`, `{mod-month}`, `{size-range}`, see [Tokens](/TOKENS.md) for all available tokens
-- Rename files at the destination using a rich token engine, see [Tokens](/TOKENS.md) for all available tokens
-- Use a catch-all category with `extensions: [all]` to organize any file type by its real extension
-- Keep a history of all moves in `~/.movelooper/history/movelooper.json` for auditing and undoing
+## This is what it does
 
-### Automate
+```text
+BEFORE                          AFTER
 
-- Use `--dry-run` to preview what would happen without moving any files
-- Use Watch mode to automatically move files as they arrive in the source folder, see [Watch Mode](/WATCH.md) for reference
-- Use Undo command to roll back any batch of moves, or preview what would be undone with `undo --dry-run`
-- Use Hooks to trigger scripts or webhooks after each category, for example to notify, log, or validate the move, see [Hooks](/HOOKS.md) for reference
+Downloads/                      Downloads/
+├── vacation.jpg                ├── draft_notes.pdf
+├── screenshot.png              └── setup.exe
+├── invoice_2026-03.pdf
+├── report.pdf                  Pictures/2026/08/
+├── draft_notes.pdf             ├── vacation.jpg
+└── setup.exe                   └── screenshot.png
 
-### Configure
+                                Documents/
+                                ├── 2026-08-31_invoice_2026-03.pdf
+                                └── 2026-08-31_report.pdf
+```
 
-- Split config across multiple YAML files and import them using `import:` statements
-- Use the `edit` command to open a rich interactive TUI editor for your config file, with validation on save
-- Self-update with `self-update`
+`draft_notes.pdf` stayed because a filter excluded it. `setup.exe` stayed because no category claimed it. A file no rule matches is a file movelooper never touches.
 
-## How It Works
+Run `movelooper --dry-run` first and you get every destination resolved and printed, with nothing moved. Run `movelooper undo` afterwards and the whole batch goes back.
 
-`movelooper` reads your configuration file (defaults to `movelooper.yaml` or `conf/movelooper.yaml`),\
-it scans all extensions listed per category, and processes matching files from the source to the destination\
-following the rules defined in the config. It keeps a history of all moves in `~/.movelooper/history/movelooper.json` so you can undo any batch any time.
+## Install
 
-## Getting Started
+Download the binary for your platform from the [releases page](https://github.com/lucasassuncao/movelooper/releases) and put it on your `PATH`. There is nothing else to install: no runtime, no dependencies. Linux, macOS and Windows are built and tested on every change.
 
-Follow the [Getting Started](/GETTING-STARTED.md) guide to install and set up `movelooper`.
+```bash
+movelooper --version
+movelooper self-update      # later, to upgrade in place
+```
 
-## Documentation
+## Quick start
 
-See the [Documentation](/COMMANDS.md) for detailed information on how to use `movelooper`, including configuration options, commands, and examples.
+```bash
+movelooper edit             # build the config in an interactive TUI
+movelooper validate         # check it before it ever touches a file
+movelooper --dry-run        # see exactly what would happen
+movelooper                  # do it
+movelooper undo             # change your mind
+```
 
-## Contributing
+With no config anywhere, `movelooper edit` starts a new one at `~/.movelooper/conf/movelooper.yaml`. The editor lists every available field with its allowed values, so the config is discoverable without reading the reference. See [Getting Started](/GETTING-STARTED.md) for the guided version.
 
-See [CONTRIBUTING.md](https://github.com/lucasassuncao/movelooper/blob/main/CONTRIBUTING.md) for guidelines on reporting issues and submitting pull requests.
+## What it can do
+
+**Rules**
+
+- Filter by extension, literal, regex, glob, age, size, and real content type (magic bytes), composed with `any`, `all`, and `not`. See [Filters](/FILTERS.md).
+- Choose the action per category: `move`, `copy`, `symlink`, or `archive` into a `.zip`/`.tar.gz`. See [Actions](/ACTIONS.md).
+- Decide what happens when the destination is occupied: `rename`, `overwrite`, `skip`, `hash_check`, `newest`, `oldest`, `larger`, `smaller`. See [Conflict Strategies](/CONFLICTS.md).
+- Build destination subfolders and filenames from tokens: dates, extension, size range, category, counters, content hashes. See [Tokens](/TOKENS.md).
+- Catch everything a rule missed with `extensions: [all]`, organized by its real extension.
+
+**Running**
+
+- Organize on demand, over any folder you point at: Downloads, a scanner's output, a photo dump, whatever another process writes into.
+- Or run `watch` in the background and let files be organized as they arrive, once they stop changing. See [Watch Mode](/WATCH.md).
+- Trigger scripts or webhooks around each category with [Hooks](/HOOKS.md).
+
+**Config**
+
+- One YAML file, or many: split it up and pull the pieces in with `import:`.
+- `movelooper edit` for the guided TUI, `movelooper validate` for CI and cron.
+- `validate` also warns about configs that are valid but lose files in ways people rarely intend, before the run instead of afterwards from the missing files.
+
+## Safety
+
+**Movelooper never destroys the last copy of a file.** Bytes are only removed where they demonstrably exist somewhere else: `hash_check` drops a source whose twin is already at the destination, and `archive` only deletes originals when you set `keep-source: false` and they are inside the archive. There is no delete rule, and nothing is destroyed to make room.
+
+Every completed move is recorded in `~/.movelooper/history/movelooper.json`, and `undo` replays any batch backwards. If the history cannot be written, movelooper says so and exits non-zero instead of reporting a success you cannot reverse. An interrupted run still records what it moved.
+
+The full contract, including what is deliberately *not* promised, is in [Guarantees and Limits](/GUARANTEES.md).
+
+## Where to go next
+
+- [Getting Started](/GETTING-STARTED.md): install and build your first config
+- [Configuration](/CONFIGURATION.md): the `configuration:` block, logging, watch, history, defaults, imports
+- [Categories](/CATEGORIES.md): the `categories:` block, source, destination, hooks
+- [Commands and Flags](/COMMANDS.md): every command and flag
+- [Cookbook](/COOKBOOK.md): ready-made recipes
+- [FAQ](/FAQ.md): common questions
+- [Troubleshooting](/TROUBLESHOOTING.md): when something does not behave

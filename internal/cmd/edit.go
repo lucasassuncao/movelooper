@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -71,6 +73,16 @@ produce a new config from an existing template).`,
 				return err
 			}
 			output = savePath
+
+			saveTarget := loadPath
+			if output != "" {
+				saveTarget = output
+			}
+			if _, statErr := os.Stat(saveTarget); errors.Is(statErr, fs.ErrNotExist) {
+				if err := ensureConfigDir(saveTarget); err != nil {
+					return err
+				}
+			}
 
 			movelooperHints, err := buildMovelooperHints()
 			if err != nil {
@@ -144,9 +156,27 @@ func resolveEditPaths(configFlag, output string) (loadPath, savePath string, err
 	if resolved, resolveErr := config.ResolveConfigPath(""); resolveErr == nil {
 		return resolved, "", nil
 	}
+	// No config exists yet. Point at the first path ResolveConfigPath searches so
+	// that a first run of "movelooper edit" creates the file where every later run
+	// will look for it. The executable directory stays as a fallback for the rare
+	// case where the home directory cannot be determined.
+	if home, homeErr := os.UserHomeDir(); homeErr == nil {
+		return filepath.Join(home, ".movelooper", "conf", "movelooper.yaml"), "", nil
+	}
 	ex, err := os.Executable()
 	if err != nil {
 		return "", "", fmt.Errorf("could not determine executable path: %w", err)
 	}
 	return filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml"), "", nil
+}
+
+// ensureConfigDir creates the parent directory of path when it is missing. The
+// editor saves atomically, writing a temp file beside the target, so a missing
+// parent turns a first-run save into an error instead of a new config file.
+func ensureConfigDir(path string) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("creating config directory %s: %w", dir, err)
+	}
+	return nil
 }

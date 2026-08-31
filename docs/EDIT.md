@@ -40,7 +40,9 @@ Shows the fields of the selected block. Each field has a type-appropriate contro
 
 ## Creating a new config file
 
-Use `--output` to write to a different file than the one loaded:
+With no config in any of the search locations, `movelooper edit` opens an empty one at `~/.movelooper/conf/movelooper.yaml` and creates the directory on save, so a fresh install needs nothing but this command.
+
+Use `--output` to write somewhere else instead:
 
 ```bash
 movelooper edit --output ~/projects/app/movelooper.yaml
@@ -66,11 +68,13 @@ The default theme is `plain`.
 | Flag | Description |
 |---|---|
 | `--theme` | Theme name (default: `plain`) |
-| `--list-themes` | List available themes and exit |
+| `--list-themes` | Browse available themes in an interactive, tabbed terminal UI |
 | `--output`, `-o` | Write to this file instead of the loaded config |
 | `--no-save-confirm` | Skip the save confirmation dialog |
 | `--no-delete-confirm` | Skip the block-delete confirmation dialog |
 | `--no-validate-on-save` | Allow saving with validation errors |
+| `--dump` | Record every editor action to a JSONL trace file for bug reports (the path is printed on exit) |
+| `--dump-path` | Write the session trace to this file instead of a temp file (implies `--dump`) |
 | `--config` | Load this config file (default: standard lookup) |
 
 See [Commands](/COMMANDS.md) for the full flag reference for all commands.

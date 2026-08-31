@@ -18,7 +18,7 @@ movelooper --version
 
 ## 2. Create a config file
 
-movelooper looks for its config at `movelooper.yaml` in the current directory, or at `conf/movelooper.yaml`. You can also point to any file with `--config`.
+movelooper looks for its config at `~/.movelooper/conf/movelooper.yaml`, then at `movelooper.yaml` and `conf/movelooper.yaml` next to the executable. You can also point to any file with `--config`.
 
 The fastest way to create one is to open the interactive editor:
 
@@ -26,7 +26,7 @@ The fastest way to create one is to open the interactive editor:
 movelooper edit
 ```
 
-The editor validates on save, so you can iterate quickly without leaving the terminal. Alternatively, write the file by hand — the rest of this guide shows exactly what to put in it.
+With no config anywhere, `movelooper edit` starts an empty one at `~/.movelooper/conf/movelooper.yaml` (the first path in the search order) and creates the directory for you on save. The editor validates on save, so you can iterate quickly without leaving the terminal. Alternatively, write the file by hand: the rest of this guide shows exactly what to put in it.
 
 ---
 
@@ -160,7 +160,7 @@ Use `rename` to apply a template to the filename:
 ```yaml
 destination:
   path: ~/Videos/sorted
-  rename: "{year}-{month}-{day}_{name}"   # clip.mp4 → 2025-04-16_clip.mp4
+  rename: "{year}-{month}-{day}_{name}.{ext}"   # clip.mp4 → 2025-04-16_clip.mp4
 ```
 
 ### Filter by name, age, or size

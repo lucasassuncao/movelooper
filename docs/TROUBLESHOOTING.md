@@ -87,8 +87,9 @@ Hooks (`before`/`after`) run only on the one-shot `movelooper` command. In watch
 movelooper looks for its config in this order:
 
 1. Path passed via `--config /path/to/file.yaml`
-2. `./movelooper.yaml` (current directory)
-3. `./conf/movelooper.yaml` (current directory)
+2. `~/.movelooper/conf/movelooper.yaml`
+3. `movelooper.yaml` next to the movelooper executable
+4. `conf/movelooper.yaml` next to the movelooper executable
 
 To see exactly which file would be loaded:
 
@@ -96,14 +97,14 @@ To see exactly which file would be loaded:
 movelooper config
 ```
 
-If you always run movelooper from a different directory than your config, use `--config` with an absolute path:
+The search never looks at the current directory: paths 3 and 4 are relative to the binary, not to where you run it from. If your config lives anywhere else, use `--config` with an absolute path:
 
 ```bash
 movelooper --config /home/youruser/movelooper.yaml
 movelooper watch --config /home/youruser/movelooper.yaml
 ```
 
-This is especially important for scheduled tasks (cron, systemd, Task Scheduler), where the working directory is not your home folder.
+This is especially important for scheduled tasks (cron, systemd, Task Scheduler), which often run the binary through a symlink or a copy in a different directory.
 
 ---
 

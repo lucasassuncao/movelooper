@@ -195,6 +195,8 @@ jobs:
           [ -f docs/pages/commands.md ] && mv docs/pages/commands.md docs/pages/COMMANDS.md || true
           cp -r docs/movelooper docs/pages/
           cp -r docs/dev docs/pages/
+          mkdir -p docs/pages/examples/demo
+          cp examples/demo/demo.gif docs/pages/examples/demo/
 
       - name: Delete stale artifacts
         env:
