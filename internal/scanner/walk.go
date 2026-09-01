@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -19,24 +20,38 @@ type FileEntry struct {
 	Entry os.DirEntry
 }
 
+// SkippedDir records a sub-directory the walk could not read. It is reported
+// rather than returned as an error: one unreadable folder should cost the files
+// inside it, not the whole category.
+type SkippedDir struct {
+	Path string
+	Err  error
+}
+
 // WalkSource returns all regular files under source.Path that pass the
 // exclusion and depth rules. autoExclude lists destination paths that are
 // automatically excluded to prevent infinite loops when the destination is
 // inside the source tree. When source.Recursive is false only the top-level
 // directory is read.
-func WalkSource(ctx context.Context, source models.CategorySource, autoExclude []string) ([]FileEntry, error) {
+//
+// Only a failure to read source.Path itself is an error. Sub-directories that
+// cannot be read are skipped and returned in skipped, so a single folder the
+// process has no permission on does not abandon the files it could reach.
+func WalkSource(ctx context.Context, source models.CategorySource, autoExclude []string) (files []FileEntry, skipped []SkippedDir, err error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if source.Recursive && source.MaxDepth < 0 {
-		return nil, fmt.Errorf("max-depth must be >= 0 (0 = unlimited), got %d", source.MaxDepth)
+		return nil, nil, fmt.Errorf("max-depth must be >= 0 (0 = unlimited), got %d", source.MaxDepth)
 	}
 	if !source.Recursive {
-		return walkFlat(ctx, source.Path)
+		entries, err := walkFlat(ctx, source.Path)
+		return entries, nil, err
 	}
 	var results []FileEntry
-	err := walkRecursive(ctx, source.Path, 0, source, autoExclude, &results)
-	return results, err
+	var skips []SkippedDir
+	err = walkRecursive(ctx, source.Path, 0, source, autoExclude, &results, &skips)
+	return results, skips, err
 }
 
 // walkFlat reads a single directory and returns FileEntry for every regular file.
@@ -66,6 +81,7 @@ func walkRecursive(
 	source models.CategorySource,
 	autoExclude []string,
 	results *[]FileEntry,
+	skipped *[]SkippedDir,
 ) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -95,8 +111,13 @@ func walkRecursive(
 		if isExcluded(childDir, autoExclude) || isExcluded(childDir, source.ExcludePaths) {
 			continue // skip before incurring the ReadDir syscall inside the recursive call
 		}
-		if err := walkRecursive(ctx, childDir, childDepth, source, autoExclude, results); err != nil {
-			return err
+		if err := walkRecursive(ctx, childDir, childDepth, source, autoExclude, results, skipped); err != nil {
+			// A cancelled context stops the whole walk; anything else is this one
+			// directory's problem and the rest of the tree still gets scanned.
+			if ctx.Err() != nil {
+				return err
+			}
+			*skipped = append(*skipped, SkippedDir{Path: childDir, Err: err})
 		}
 	}
 	return nil
@@ -104,16 +125,37 @@ func walkRecursive(
 
 // isExcluded reports whether dir is equal to or a subdirectory of any path in list.
 func isExcluded(dir string, list []string) bool {
-	cleanDir := filepath.Clean(dir)
+	cleanDir := normalizePath(dir)
 	for _, p := range list {
-		cleanP := filepath.Clean(p)
+		cleanP := normalizePath(p)
 		if cleanDir == cleanP {
 			return true
 		}
 		rel, err := filepath.Rel(cleanP, cleanDir)
-		if err == nil && !strings.HasPrefix(rel, "..") {
+		if err == nil && !escapesParent(rel) {
 			return true
 		}
 	}
 	return false
+}
+
+// escapesParent reports whether a relative path leaves the directory it was
+// computed from. Testing only for a ".." prefix would also catch a directory
+// genuinely named "..cache", which is inside the parent, not outside it.
+func escapesParent(rel string) bool {
+	return rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// normalizePath cleans p and, on Windows, lowercases it, so paths are compared
+// the way the filesystem treats them. An exclude-path written with different
+// casing than the directory on disk must still exclude it there. Lowercasing
+// covers filepath.Rel too, which compares its elements exactly on every
+// platform. Everywhere else the comparison stays exact, since two names
+// differing only in case are two different directories.
+func normalizePath(p string) string {
+	p = filepath.Clean(p)
+	if runtime.GOOS == "windows" {
+		return strings.ToLower(p)
+	}
+	return p
 }

@@ -23,6 +23,8 @@ Each entry in the `categories` list defines a rule: which files to match and whe
 | `max-depth` | int | no | `0` | Max recursion depth; `0` = unlimited (only used with `recursive: true`) |
 | `exclude-paths` | []string | no | `[]` | Absolute paths to skip during recursive walk. The destination is always auto-excluded |
 
+A sub-directory the process cannot read is skipped with a warning naming it, and the rest of the tree is still scanned. Only the source `path` itself failing stops the category.
+
 ---
 
 ## `destination`

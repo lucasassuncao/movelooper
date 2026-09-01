@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -187,7 +189,7 @@ func TestWalkSource(t *testing.T) {
 				excludes = tt.excludes(root)
 			}
 
-			entries, err := scanner.WalkSource(context.Background(), src(path, opts...), excludes)
+			entries, _, err := scanner.WalkSource(context.Background(), src(path, opts...), excludes)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -251,4 +253,81 @@ func src(path string, opts ...func(*models.CategorySource)) models.CategorySourc
 func touch(t *testing.T, path string) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(path, []byte{}, 0o644))
+}
+
+// TestWalkSourceSkipsUnreadableDir is a regression test: a sub-directory the
+// process cannot read used to abort the whole walk, so one protected folder
+// cost the category every file in it, including the ones already found.
+func TestWalkSourceSkipsUnreadableDir(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	touch(t, filepath.Join(root, "top.txt"))
+	readable := mkdirAll(t, root, "readable")
+	touch(t, filepath.Join(readable, "inside.txt"))
+	locked := mkdirAll(t, root, "locked")
+	touch(t, filepath.Join(locked, "hidden.txt"))
+
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Skipf("cannot make a directory unreadable here: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	if _, err := os.ReadDir(locked); err == nil {
+		t.Skip("this platform or user reads a 0000 directory anyway")
+	}
+
+	entries, skipped, err := scanner.WalkSource(context.Background(), src(root, withRecursive), nil)
+	require.NoError(t, err, "one unreadable sub-directory is not a scan failure")
+	assert.ElementsMatch(t, []string{"top.txt", "inside.txt"}, entryNames(entries),
+		"every file outside the unreadable directory must still be found")
+	require.Len(t, skipped, 1, "the unreadable directory must be reported, not swallowed")
+	assert.Equal(t, locked, skipped[0].Path)
+	assert.Error(t, skipped[0].Err)
+}
+
+// TestWalkSourceUnreadableRootIsAnError keeps the other half: the source
+// directory itself failing is still a failure for the category.
+func TestWalkSourceUnreadableRootIsAnError(t *testing.T) {
+	t.Parallel()
+	missing := filepath.Join(t.TempDir(), "gone")
+	_, _, err := scanner.WalkSource(context.Background(), src(missing, withRecursive), nil)
+	assert.Error(t, err)
+}
+
+// TestWalkSourceExcludeSiblingPrefix is a regression test for the exclusion
+// check: it compared the relative path with a ".." prefix, so a directory whose
+// name merely starts with ".." read as being outside the excluded tree.
+func TestWalkSourceExcludeSiblingPrefix(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	excluded := mkdirAll(t, root, "arch")
+	touch(t, filepath.Join(excluded, "in-excluded.txt"))
+	inside := mkdirAll(t, root, filepath.Join("arch", "..cache"))
+	touch(t, filepath.Join(inside, "also-excluded.txt"))
+	sibling := mkdirAll(t, root, "archives")
+	touch(t, filepath.Join(sibling, "kept.txt"))
+
+	entries, _, err := scanner.WalkSource(context.Background(),
+		src(root, withRecursive, withExclude(excluded)), nil)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"kept.txt"}, entryNames(entries),
+		"a sibling sharing a name prefix is not excluded, but a sub-directory named \"..cache\" is")
+}
+
+// TestWalkSourceExcludeIsCaseInsensitiveOnWindows covers exclude-paths written
+// with different casing than the directory on disk. Windows treats those as the
+// same directory, so the exclusion has to as well.
+func TestWalkSourceExcludeIsCaseInsensitiveOnWindows(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "windows" {
+		t.Skip("only Windows compares paths case-insensitively")
+	}
+	root := t.TempDir()
+	excluded := mkdirAll(t, root, "Archive")
+	touch(t, filepath.Join(excluded, "skipped.txt"))
+	touch(t, filepath.Join(root, "kept.txt"))
+
+	entries, _, err := scanner.WalkSource(context.Background(),
+		src(root, withRecursive, withExclude(strings.ToLower(excluded))), nil)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"kept.txt"}, entryNames(entries))
 }

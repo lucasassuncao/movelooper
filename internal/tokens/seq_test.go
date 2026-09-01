@@ -10,10 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// leadingSeqTemplate and trailingSeqTemplate are the two shapes a {seq} rename
+// takes; the seed scan reads the destination through whichever one is in use.
+const (
+	leadingSeqTemplate  = "{seq}_{name}.{ext}"
+	trailingSeqTemplate = "{name}_{seq}.{ext}"
+	alphaSeqTemplate    = "{seq-alpha}_{name}.{ext}"
+	romanSeqTemplate    = "{seq-roman}_{name}.{ext}"
+)
+
+// seqLoc returns the position of the {seq} token in template.
+func seqLoc(t *testing.T, template string) []int {
+	t.Helper()
+	loc := seqToken.FindStringIndex(template)
+	require.NotNil(t, loc)
+	return loc
+}
+
 // testResolveSeq defines a structure for test cases of the leading-number seq
-// resolution (resolveSeqAt with seqLeading), containing the name of the test
-// case, a list of existing file names, a flag for non-existent directory, and
-// the expected next sequence number.
+// resolution, containing the name of the test case, a list of existing file
+// names, a flag for non-existent directory, and the expected next sequence
+// number.
 type testResolveSeq struct {
 	name     string
 	existing []string
@@ -48,7 +65,7 @@ func TestResolveSeq(t *testing.T) {
 					require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
 				}
 			}
-			assert.Equal(t, tt.want, resolveSeqAt(dir, seqLeading))
+			assert.Equal(t, tt.want, resolveSeqNum(dir, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
 		})
 	}
 }
@@ -74,32 +91,75 @@ func TestResolveSeqTrailing(t *testing.T) {
 			for _, name := range tt.existing {
 				require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
 			}
-			assert.Equal(t, tt.want, resolveSeqAt(dir, seqTrailing))
+			assert.Equal(t, tt.want, resolveSeqNum(dir, trailingSeqTemplate, seqLoc(t, trailingSeqTemplate)))
 		})
 	}
 }
 
-// TestSeqTokenPosition verifies the template-position detection that decides
-// whether {seq} scans leading or trailing numbers.
-func TestSeqTokenPosition(t *testing.T) {
+// TestSeqScanPattern verifies the matcher built from the template: the literal
+// text touching the token is required, and the token's position decides which
+// anchors apply.
+func TestSeqScanPattern(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		template string
-		want     seqPos
+		want     string
 	}{
-		{"{seq}_{name}", seqLeading},
-		{"{seq}", seqLeading},
-		{"{name}_{seq}", seqTrailing},
-		{"{name}_{seq}_{ext}", seqLeading}, // token in the middle defaults to leading
+		{"{seq}_{name}.{ext}", `^(\d+)_`},
+		{"{seq}", `^(\d+)$`},
+		{"{name}_{seq}.{ext}", `_(\d+)\.`},
+		{"{name}_{seq}", `_(\d+)$`},
+		{"IMG_{seq}.{ext}", `^IMG_(\d+)\.`},
 	}
 	for _, c := range cases {
 		t.Run(c.template, func(t *testing.T) {
 			t.Parallel()
-			loc := seqToken.FindStringIndex(c.template)
-			require.NotNil(t, loc)
-			assert.Equal(t, c.want, seqTokenPosition(c.template, loc))
+			re := seqScanPattern(c.template, seqLoc(t, c.template), numValuePattern)
+			require.NotNil(t, re)
+			assert.Equal(t, c.want, re.String())
 		})
 	}
+}
+
+// TestSeqSeedIgnoresForeignNames is the regression test for sequence seeds read
+// off filenames the template never produced. Every filename is a run of letters
+// and plenty are valid roman numerals, so without the template's shape the
+// first file of a batch was labelled from whatever happened to sit in the
+// destination: "vacation.jpg" made {seq-alpha} start at "vacatioo".
+func TestSeqSeedIgnoresForeignNames(t *testing.T) {
+	t.Parallel()
+
+	t.Run("alpha ignores ordinary filenames", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		for _, f := range []string{"vacation.jpg", "report.pdf"} {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644))
+		}
+		assert.Equal(t, "a", ResolveSeqAlpha(dir, alphaSeqTemplate))
+	})
+
+	t.Run("roman ignores words spelled with roman letters", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		for _, f := range []string{"mix.png", "civic.jpg", "dim.txt"} {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644))
+		}
+		assert.Equal(t, "i", ResolveSeqRoman(dir, romanSeqTemplate))
+	})
+
+	t.Run("numeric ignores a number that is not where the template puts it", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "report_2026.pdf"), []byte("x"), 0o644))
+		assert.Equal(t, 1, resolveSeqNum(dir, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
+	})
+
+	t.Run("numeric still resumes from a name the template did produce", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "0007_report.pdf"), []byte("x"), 0o644))
+		assert.Equal(t, 8, resolveSeqNum(dir, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
+	})
 }
 
 // TestSeqAllocator verifies the per-batch counter seeds from existing files once
@@ -112,28 +172,28 @@ func TestSeqAllocator(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "0002_seed.jpg"), []byte("x"), 0o644))
 		a := NewSeqAllocator()
-		assert.Equal(t, 3, a.nextNum(dir, seqLeading))
-		assert.Equal(t, 4, a.nextNum(dir, seqLeading))
-		assert.Equal(t, 5, a.nextNum(dir, seqLeading))
+		assert.Equal(t, 3, a.nextNum(dir, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
+		assert.Equal(t, 4, a.nextNum(dir, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
+		assert.Equal(t, 5, a.nextNum(dir, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
 	})
 
 	t.Run("separate directories keep independent counters", func(t *testing.T) {
 		t.Parallel()
 		a := NewSeqAllocator()
 		d1, d2 := t.TempDir(), t.TempDir()
-		assert.Equal(t, 1, a.nextNum(d1, seqLeading))
-		assert.Equal(t, 1, a.nextNum(d2, seqLeading))
-		assert.Equal(t, 2, a.nextNum(d1, seqLeading))
+		assert.Equal(t, 1, a.nextNum(d1, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
+		assert.Equal(t, 1, a.nextNum(d2, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
+		assert.Equal(t, 2, a.nextNum(d1, leadingSeqTemplate, seqLoc(t, leadingSeqTemplate)))
 	})
 
 	t.Run("alpha and roman seed then increment", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		a := NewSeqAllocator()
-		assert.Equal(t, "a", intToAlpha(a.nextAlpha(dir)))
-		assert.Equal(t, "b", intToAlpha(a.nextAlpha(dir)))
-		assert.Equal(t, "i", intToRoman(a.nextRoman(dir)))
-		assert.Equal(t, "ii", intToRoman(a.nextRoman(dir)))
+		assert.Equal(t, "a", intToAlpha(a.nextAlpha(dir, alphaSeqTemplate)))
+		assert.Equal(t, "b", intToAlpha(a.nextAlpha(dir, alphaSeqTemplate)))
+		assert.Equal(t, "i", intToRoman(a.nextRoman(dir, romanSeqTemplate)))
+		assert.Equal(t, "ii", intToRoman(a.nextRoman(dir, romanSeqTemplate)))
 	})
 }
 
@@ -190,7 +250,7 @@ func TestResolveSeqAlpha(t *testing.T) {
 					require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644))
 				}
 			}
-			assert.Equal(t, tt.want, ResolveSeqAlpha(dir))
+			assert.Equal(t, tt.want, ResolveSeqAlpha(dir, alphaSeqTemplate))
 		})
 	}
 }
@@ -248,7 +308,35 @@ func TestResolveSeqRoman(t *testing.T) {
 					require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644))
 				}
 			}
-			assert.Equal(t, tt.want, ResolveSeqRoman(dir))
+			assert.Equal(t, tt.want, ResolveSeqRoman(dir, romanSeqTemplate))
 		})
 	}
+}
+
+// TestPreProcessSeqScansOnce is the regression test for the allocator being
+// bypassed: preProcessSeq used to compute the seed by scanning the directory
+// and then overwrite it with the allocator's value, paying for a full scan on
+// every file. A file appearing mid-batch proves whether the scan still happens:
+// with the allocator, the counter keeps counting from its seed and never sees it.
+func TestPreProcessSeqScansOnce(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	alloc := NewSeqAllocator()
+
+	assert.Equal(t, "1_{name}.{ext}", preProcessSeq(leadingSeqTemplate, dir, alloc))
+
+	// Something else drops a high-numbered file into the destination.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "0900_other.jpg"), []byte("x"), 0o644))
+
+	assert.Equal(t, "2_{name}.{ext}", preProcessSeq(leadingSeqTemplate, dir, alloc),
+		"the allocator must keep counting in memory, not re-scan the directory")
+}
+
+// TestPreProcessSeqWithoutAllocatorReadsDisk keeps the other half honest: with no
+// allocator (the single-file path) the seed does come from the directory.
+func TestPreProcessSeqWithoutAllocatorReadsDisk(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "0004_x.jpg"), []byte("x"), 0o644))
+	assert.Equal(t, "5_{name}.{ext}", preProcessSeq(leadingSeqTemplate, dir, nil))
 }

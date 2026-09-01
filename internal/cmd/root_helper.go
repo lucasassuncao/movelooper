@@ -199,10 +199,11 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	}
 
 	autoExclude := []string{category.Destination.Path}
-	allEntries, err := scanner.WalkSource(ctx, category.Source, autoExclude)
+	allEntries, skipped, err := scanner.WalkSource(ctx, category.Source, autoExclude)
 	if err != nil {
 		return fmt.Errorf("scan %q: %w", category.Source.Path, err)
 	}
+	logSkippedDirs(m, category.Name, skipped)
 
 	// Group entries by extension in one pass to avoid O(n × extensions) re-scans.
 	byExt := make(map[string][]scanner.FileEntry, len(category.Source.Extensions))
@@ -299,6 +300,16 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		}
 	}
 	return nil
+}
+
+// logSkippedDirs reports the sub-directories the scan could not read. They are
+// warnings, not failures: the rest of the tree was still scanned, but the files
+// inside them were never seen, and a silent skip would look like an empty folder.
+func logSkippedDirs(m *models.Movelooper, categoryName string, skipped []scanner.SkippedDir) {
+	for _, s := range skipped {
+		m.Logger.Warn("skipping directory that could not be read",
+			m.Logger.Args("category", categoryName, "path", s.Path, "error", s.Err.Error()))
+	}
 }
 
 // matchExtensionFiles returns the candidates that pass the category filters
@@ -565,10 +576,11 @@ func appendPlannedMoves(args []any, category *models.Category, matched []scanner
 			continue
 		}
 		args = append(args, "source", src, "destination", dst)
-		// Stat only, never open: the preview must not touch anything. A rename
-		// template holding an unresolved {seq}/{sha256} placeholder simply will
-		// not match a real file, so it cannot produce a false conflict.
-		if _, err := os.Stat(dst); err == nil {
+		// Lstat only, never open: the preview must not touch anything, and it
+		// reports the same conflicts the run will see, dangling symlinks included.
+		// A rename template holding an unresolved {seq}/{sha256} placeholder simply
+		// will not match a real file, so it cannot produce a false conflict.
+		if _, err := os.Lstat(dst); err == nil {
 			conflicts = append(conflicts, dst)
 		}
 	}

@@ -101,4 +101,6 @@ destination:
 
 ---
 
-> For `action: archive`, only `rename`, `overwrite`, and `skip` apply. See [Actions](/ACTIONS.md) for details.
+> For `action: archive`, only `rename`, `overwrite`, and `skip` apply. The other strategies compare the incoming file against the one at the destination, and an archive has no incoming counterpart to compare, so they fall back to `rename` and say so in the log. See [Actions](/ACTIONS.md) for details.
+
+> A symbolic link at the destination occupies that name like any other file, including a link whose target no longer exists. The strategy runs against it, and nothing is ever written through a link to the file it points at.

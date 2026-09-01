@@ -37,13 +37,16 @@ func LoadConfig(k *koanf.Koanf) models.Configuration {
 		Defaults: loadDefaults(k),
 	}
 
-	if cfg.Watch.Delay == 0 {
+	// Absent and negative are both replaced by the default. Negative matters on
+	// its own: validate rejects it, but watch does not run validate, and a
+	// hand-edited poll-interval reached time.NewTicker and panicked the process.
+	if cfg.Watch.Delay <= 0 {
 		cfg.Watch.Delay = defaultWatchDelay
 	}
-	if cfg.Watch.PollInterval == 0 {
+	if cfg.Watch.PollInterval <= 0 {
 		cfg.Watch.PollInterval = defaultPollInterval
 	}
-	if cfg.History.Limit == 0 {
+	if cfg.History.Limit <= 0 {
 		cfg.History.Limit = defaultHistoryLimit
 	}
 

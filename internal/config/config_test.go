@@ -475,6 +475,25 @@ configuration:
 			assert.Equal(t, defaultWatchDelay, cfg.Watch.Delay)
 		},
 	},
+	{
+		// Regression: a negative duration is not zero, so it used to survive
+		// LoadConfig and reach time.NewTicker, which panics on anything that is
+		// not positive. validate rejects these, but watch does not run validate.
+		name: "negative durations and limits fall back to the defaults",
+		yaml: `
+configuration:
+  watch:
+    delay: -1m
+    poll-interval: -5s
+  history:
+    limit: -3
+`,
+		check: func(t *testing.T, cfg models.Configuration) {
+			assert.Equal(t, defaultWatchDelay, cfg.Watch.Delay)
+			assert.Equal(t, defaultPollInterval, cfg.Watch.PollInterval)
+			assert.Equal(t, defaultHistoryLimit, cfg.History.Limit)
+		},
+	},
 }
 
 // TestLoadConfig tests the LoadConfig function to ensure it correctly applies

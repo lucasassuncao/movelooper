@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/archive"
@@ -82,6 +84,7 @@ func archiveEntries(category *models.Category, files []scanner.FileEntry) []arch
 	flatten := category.Destination.Archive.Flatten
 	root := category.Source.Path
 	entries := make([]archive.Entry, 0, len(files))
+	used := make(map[string]bool, len(files))
 	for _, fe := range files {
 		src := filepath.Join(fe.Dir, fe.Entry.Name())
 		name := fe.Entry.Name()
@@ -90,15 +93,36 @@ func archiveEntries(category *models.Category, files []scanner.FileEntry) []arch
 				name = rel
 			}
 		}
-		entries = append(entries, archive.Entry{Source: src, Name: filepath.ToSlash(name)})
+		entries = append(entries, archive.Entry{Source: src, Name: uniqueEntryName(filepath.ToSlash(name), used)})
 	}
 	return entries
+}
+
+// uniqueEntryName keeps every file distinguishable inside the archive. Flatten
+// drops the directory part, so two files named the same in different
+// sub-directories would otherwise share one entry name and an extractor would
+// keep only one of them, with keep-source: false after both originals were
+// already deleted. Collisions get "(n)" before the extension, as a move would.
+func uniqueEntryName(name string, used map[string]bool) string {
+	if !used[name] {
+		used[name] = true
+		return name
+	}
+	ext := path.Ext(name)
+	base := strings.TrimSuffix(name, ext)
+	for n := 1; ; n++ {
+		candidate := fmt.Sprintf("%s(%d)%s", base, n, ext)
+		if !used[candidate] {
+			used[candidate] = true
+			return candidate
+		}
+	}
 }
 
 // archiveConflictPath applies the conflict strategy to an already-existing
 // archive path. Returns the path to write, or "" when the strategy says skip.
 func archiveConflictPath(m *models.Movelooper, cs models.ConflictStrategy, destPath string) (string, error) {
-	if _, err := os.Stat(destPath); err != nil {
+	if _, err := os.Lstat(destPath); os.IsNotExist(err) {
 		return destPath, nil // does not exist yet
 	}
 	switch cs {
@@ -108,6 +132,14 @@ func archiveConflictPath(m *models.Movelooper, cs models.ConflictStrategy, destP
 	case models.ConflictStrategyOverwrite:
 		return destPath, nil
 	default: // rename (and default)
+		// The remaining strategies compare an incoming file against the one at
+		// the destination. An archive has no incoming counterpart to compare, so
+		// they cannot apply here. Renaming keeps both, but say so instead of
+		// silently doing something other than what the category asked for.
+		if cs != "" && cs != models.ConflictStrategyRename {
+			m.Logger.Warn("conflict-strategy does not apply to an archive; renaming the new archive instead",
+				m.Logger.Args("conflict_strategy", string(cs), "path", destPath))
+		}
 		dir := filepath.Dir(destPath)
 		name := filepath.Base(destPath)
 		unique, err := fileops.UniqueDestination(dir, name)

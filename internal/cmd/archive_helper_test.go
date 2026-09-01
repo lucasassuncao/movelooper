@@ -106,3 +106,62 @@ func TestArchiveCategory_WriteFailureReturnsError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Empty(t, path)
 }
+
+// TestArchiveEntries_FlattenKeepsCollidingNames is a regression test: with
+// flatten, two files sharing a base name in different sub-directories were
+// given the same entry name. Extracting the archive kept one of them, and with
+// keep-source: false both originals had already been deleted.
+func TestArchiveEntries_FlattenKeepsCollidingNames(t *testing.T) {
+	root := t.TempDir()
+	subA := filepath.Join(root, "a")
+	subB := filepath.Join(root, "b")
+	require.NoError(t, os.MkdirAll(subA, 0o750))
+	require.NoError(t, os.MkdirAll(subB, 0o750))
+	files := append(fileEntriesFrom(t, subA, "notes.pdf"), fileEntriesFrom(t, subB, "notes.pdf")...)
+
+	cat := archiveTestCategory(root, t.TempDir(), &models.ArchiveConfig{Format: "zip", Flatten: true})
+	entries := archiveEntries(cat, files)
+
+	require.Len(t, entries, 2)
+	assert.Equal(t, []string{"notes.pdf", "notes(1).pdf"}, []string{entries[0].Name, entries[1].Name})
+	assert.NotEqual(t, entries[0].Source, entries[1].Source, "both originals are still archived")
+}
+
+// TestArchiveEntries_WithoutFlattenKeepsRelativePaths confirms the de-duplication
+// does not touch the normal case, where the sub-directory already separates them.
+func TestArchiveEntries_WithoutFlattenKeepsRelativePaths(t *testing.T) {
+	root := t.TempDir()
+	subA := filepath.Join(root, "a")
+	subB := filepath.Join(root, "b")
+	require.NoError(t, os.MkdirAll(subA, 0o750))
+	require.NoError(t, os.MkdirAll(subB, 0o750))
+	files := append(fileEntriesFrom(t, subA, "notes.pdf"), fileEntriesFrom(t, subB, "notes.pdf")...)
+
+	cat := archiveTestCategory(root, t.TempDir(), &models.ArchiveConfig{Format: "zip"})
+	entries := archiveEntries(cat, files)
+
+	assert.Equal(t, []string{"a/notes.pdf", "b/notes.pdf"}, []string{entries[0].Name, entries[1].Name})
+}
+
+// TestArchiveConflictPath_ComparisonStrategiesSaySo covers the strategies that
+// cannot apply to an archive: renaming is the outcome, but silently, it looked
+// like the category's own setting had been honoured.
+func TestArchiveConflictPath_ComparisonStrategiesSaySo(t *testing.T) {
+	dst := t.TempDir()
+	existing := filepath.Join(dst, "images.zip")
+	require.NoError(t, os.WriteFile(existing, []byte("old"), 0o600))
+
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+
+	path, err := archiveConflictPath(m, models.ConflictStrategyNewest, existing)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(dst, "images(1).zip"), path)
+	assert.Contains(t, buf.String(), "does not apply to an archive")
+
+	buf.Reset()
+	path, err = archiveConflictPath(m, models.ConflictStrategyRename, existing)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(dst, "images(1).zip"), path)
+	assert.NotContains(t, buf.String(), "does not apply", "rename is what it says it is")
+}

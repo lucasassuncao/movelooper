@@ -601,3 +601,100 @@ func newTestMoveContext() MoveContext {
 		Logger: newTestLogger(),
 	}
 }
+
+// requireSymlinks skips the test when the platform or account cannot create
+// symbolic links (Windows without Developer Mode or administrator rights).
+func requireSymlinks(t *testing.T, dir string) {
+	t.Helper()
+	probe := filepath.Join(dir, ".symlink-probe")
+	if err := os.Symlink(filepath.Join(dir, "target"), probe); err != nil {
+		t.Skipf("symlinks not available here: %v", err)
+	}
+	_ = os.Remove(probe)
+}
+
+// TestDanglingSymlinkAtDestination is a regression test for a destination name
+// held by a symlink whose target is gone. os.Stat follows the link and reports
+// the name free, so the conflict strategy never ran and the action landed on
+// whatever the link pointed at, outside the destination directory entirely.
+func TestDanglingSymlinkAtDestination(t *testing.T) {
+	t.Parallel()
+
+	// setup returns (sourcePath, destPath, linkTarget) with a dangling link at dst.
+	setup := func(t *testing.T) (string, string, string) {
+		t.Helper()
+		dir := t.TempDir()
+		requireSymlinks(t, dir)
+		destDir := filepath.Join(dir, "dst")
+		require.NoError(t, os.MkdirAll(destDir, 0o750))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "elsewhere"), 0o750))
+
+		target := filepath.Join(dir, "elsewhere", "victim.txt")
+		dst := filepath.Join(destDir, "a.txt")
+		require.NoError(t, os.Symlink(target, dst))
+
+		src := filepath.Join(dir, "a.txt")
+		require.NoError(t, os.WriteFile(src, []byte("payload"), 0o600))
+		return src, dst, target
+	}
+
+	t.Run("counts as a conflict instead of a free name", func(t *testing.T) {
+		t.Parallel()
+		src, dst, _ := setup(t)
+		_, skip, _, err := applyConflictStrategy(newTestMoveContext(), models.ConflictStrategySkip, ConflictArgs{
+			Src: src, Dst: dst, DestDir: filepath.Dir(dst), FileName: "a.txt", Action: models.ActionMove,
+		})
+		require.NoError(t, err)
+		assert.True(t, skip, "the strategy must see the name as taken and skip the file")
+	})
+
+	t.Run("rename does not hand back the taken name", func(t *testing.T) {
+		t.Parallel()
+		_, dst, _ := setup(t)
+		unique, err := getUniqueDestinationPath(filepath.Dir(dst), "a.txt")
+		require.NoError(t, err)
+		assert.NotEqual(t, dst, unique, "the link occupies that name")
+		assert.Equal(t, filepath.Join(filepath.Dir(dst), "a(1).txt"), unique)
+	})
+
+	t.Run("copy replaces the link instead of writing through it", func(t *testing.T) {
+		t.Parallel()
+		src, dst, target := setup(t)
+		require.NoError(t, copyFile(context.Background(), src, dst))
+
+		assert.NoFileExists(t, target, "the copy must not escape the destination directory")
+		info, err := os.Lstat(dst)
+		require.NoError(t, err)
+		assert.Zero(t, info.Mode()&os.ModeSymlink, "the destination must be a real file now")
+		data, err := os.ReadFile(dst)
+		require.NoError(t, err)
+		assert.Equal(t, "payload", string(data))
+	})
+
+	t.Run("hash_check keeps both instead of failing on a link with no content", func(t *testing.T) {
+		t.Parallel()
+		src, dst, _ := setup(t)
+		resolved, shouldMove, _, err := (&hashCheckResolver{}).Resolve(ConflictArgs{
+			Src: src, Dst: dst, DestDir: filepath.Dir(dst), FileName: "a.txt", Action: models.ActionMove,
+		})
+		require.NoError(t, err)
+		assert.True(t, shouldMove)
+		assert.Equal(t, filepath.Join(filepath.Dir(dst), "a(1).txt"), resolved)
+		assert.FileExists(t, src, "a file with nothing to compare against is not a duplicate")
+	})
+
+	t.Run("newest replaces the link", func(t *testing.T) {
+		t.Parallel()
+		src, dst, _ := setup(t)
+		resolved, shouldMove, finalize, err := newestResolver.Resolve(ConflictArgs{
+			Src: src, Dst: dst, DestDir: filepath.Dir(dst), FileName: "a.txt", Action: models.ActionMove,
+		})
+		require.NoError(t, err)
+		require.True(t, shouldMove, "there is nothing at the destination to lose the comparison to")
+		assert.Equal(t, dst, resolved)
+		require.NotNil(t, finalize)
+		require.NoError(t, finalize(false))
+		_, err = os.Lstat(dst)
+		assert.True(t, os.IsNotExist(err), "the link was set aside and discarded")
+	})
+}

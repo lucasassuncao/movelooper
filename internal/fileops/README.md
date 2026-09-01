@@ -51,7 +51,7 @@ func CreateDirectory(dir string) error
 CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
 
 <a name="MoveFileCtx"></a>
-## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L407>)
+## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L411>)
 
 ```go
 func MoveFileCtx(ctx context.Context, src, dst string) error
@@ -78,7 +78,7 @@ func ResolveDestination(category *models.Category, tctx *tokens.TokenContext) (d
 ResolveDestination resolves the destination directory \(organize\-by\) and the final filename \(rename\) for one file. It sets tctx.DestDir before resolving the rename template, which the seq tokens need to scan for existing numbers. It never creates directories or touches the destination; with tctx.DryRun set, seq/hash tokens are left as literal placeholders.
 
 <a name="UniqueDestination"></a>
-## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L518>)
+## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L531>)
 
 ```go
 func UniqueDestination(destDir, fileName string) (string, error)

@@ -233,7 +233,8 @@ func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *file
 		src := cat.Source
 		src.Recursive = false
 		autoExclude := []string{cat.Destination.Path}
-		entries, err := scanner.WalkSource(ctx, src, autoExclude)
+		// The scan is flat here, so there are no sub-directories to skip.
+		entries, _, err := scanner.WalkSource(ctx, src, autoExclude)
 		if err != nil {
 			m.Logger.Warn("failed to scan directory during initial scan", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
 			continue

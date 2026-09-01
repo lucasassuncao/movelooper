@@ -3,7 +3,6 @@ package tokens
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,61 +33,105 @@ func hasSeqToken(template string) bool {
 		seqRomanToken.MatchString(template)
 }
 
-var (
-	leadingNumber  = regexp.MustCompile(`^(\d+)`)
-	trailingNumber = regexp.MustCompile(`(\d+)$`)
-	seqToken       = regexp.MustCompile(`\{seq(?::(\d+))?\}`)
-)
+var seqToken = regexp.MustCompile(`\{seq(?::(\d+))?\}`)
 
-// seqPos indicates where a {seq} token sits in the rename template, which
-// controls where resolveSeqAt looks for an existing number in candidate files:
-// a number at the start of the name (e.g. "001_photo") or at the end ("photo_001").
-type seqPos int
-
+// The value each sequence kind can take, used as the capture group inside the
+// matcher built from the rename template. Alpha and roman are case-insensitive
+// so a label written in caps still counts.
 const (
-	seqLeading seqPos = iota
-	seqTrailing
+	numValuePattern   = `\d+`
+	alphaValuePattern = `(?i:[a-z]+)`
+	romanValuePattern = `(?i:m{0,4}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))`
 )
 
-// seqTokenPosition reports whether the token spanning loc sits at the very end of
-// template (seqTrailing) or anywhere else (seqLeading). A token that starts at
-// index 0 — including a bare "{seq}" that is both first and last — is treated as
-// leading, which scans correctly since the number then spans the whole base name.
-func seqTokenPosition(template string, loc []int) seqPos {
-	if loc[0] == 0 {
-		return seqLeading
+// seqScanPattern builds the matcher that finds the sequence values already in
+// the destination directory. It comes from the rename template, so only files
+// that template could have produced are counted: the token becomes the capture
+// group, and the literal text touching it on either side has to be there too.
+//
+// That literal is what makes the scan mean anything. Matching the value pattern
+// alone reads every ordinary filename as a label: "vacation.jpg" is a run of
+// lowercase letters, so {seq-alpha} continued from "vacation" instead of "a",
+// and "mix.png" is a valid roman numeral, so {seq-roman} continued from 1009.
+func seqScanPattern(template string, loc []int, value string) *regexp.Regexp {
+	before, after := template[:loc[0]], template[loc[1]:]
+	var b strings.Builder
+	// Anchor whenever the literal reaches the edge of the template: with no
+	// earlier token in the way, the text before the sequence is the whole start
+	// of the name, and the same for the end.
+	if !strings.Contains(before, "}") {
+		b.WriteString(`^`)
 	}
-	if loc[1] == len(template) {
-		return seqTrailing
+	b.WriteString(regexp.QuoteMeta(literalBefore(before)))
+	b.WriteString(`(` + value + `)`)
+	b.WriteString(regexp.QuoteMeta(literalAfter(after)))
+	if !strings.Contains(after, "{") {
+		b.WriteString(`$`)
 	}
-	return seqLeading
+	re, err := regexp.Compile(b.String())
+	if err != nil {
+		return nil
+	}
+	return re
 }
 
-// resolveSeqAt scans destDir for files carrying a decimal number at the position
-// indicated by pos — leading or trailing, ignoring the file extension — finds the
-// maximum, and returns max+1. Returns 1 when no candidate carries a number.
-func resolveSeqAt(destDir string, pos seqPos) int {
+// literalBefore returns the literal text between the previous token and the one
+// being resolved. Only the immediate neighbour is used: tokens resolved earlier
+// in the pipeline (a hash, for instance) hold this file's own value, which no
+// other file in the directory carries.
+func literalBefore(s string) string {
+	if i := strings.LastIndex(s, "}"); i >= 0 {
+		return s[i+1:]
+	}
+	return s
+}
+
+// literalAfter returns the literal text between the token being resolved and
+// the next one.
+func literalAfter(s string) string {
+	if i := strings.Index(s, "{"); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// scanMaxSeq returns one past the highest value re captures among the files in
+// destDir, or 1 when nothing matches, including an empty or unreadable
+// directory. toInt converts a captured label to its ordinal.
+func scanMaxSeq(destDir string, re *regexp.Regexp, toInt func(string) int) int {
+	if re == nil {
+		return 1
+	}
 	entries, err := os.ReadDir(destDir)
 	if err != nil {
 		return 1
 	}
-	re := leadingNumber
-	if pos == seqTrailing {
-		re = trailingNumber
-	}
-	max := 0
+	best := 0
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		base := strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
-		if m := re.FindStringSubmatch(base); m != nil {
-			if n, err := strconv.Atoi(m[1]); err == nil && n > max {
-				max = n
-			}
+		m := re.FindStringSubmatch(e.Name())
+		if m == nil || m[1] == "" {
+			continue
+		}
+		if n := toInt(m[1]); n > best {
+			best = n
 		}
 	}
-	return max + 1
+	return best + 1
+}
+
+// resolveSeqNum seeds {seq} from the numbers already carried by files matching
+// the template's shape, and returns the next one.
+func resolveSeqNum(destDir, template string, loc []int) int {
+	return scanMaxSeq(destDir, seqScanPattern(template, loc, numValuePattern), func(s string) int {
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return 0
+		}
+		return n
+	})
 }
 
 // SeqAllocator hands out sequence numbers per destination directory without
@@ -126,30 +169,30 @@ func (a *SeqAllocator) state(destDir string) *seqState {
 	return s
 }
 
-func (a *SeqAllocator) nextNum(destDir string, pos seqPos) int {
+func (a *SeqAllocator) nextNum(destDir, template string, loc []int) int {
 	s := a.state(destDir)
 	if s.num == 0 {
-		s.num = resolveSeqAt(destDir, pos)
+		s.num = resolveSeqNum(destDir, template, loc)
 	}
 	n := s.num
 	s.num++
 	return n
 }
 
-func (a *SeqAllocator) nextAlpha(destDir string) int {
+func (a *SeqAllocator) nextAlpha(destDir, template string) int {
 	s := a.state(destDir)
 	if s.alpha == 0 {
-		s.alpha = resolveSeqAlphaInt(destDir)
+		s.alpha = resolveSeqAlphaInt(destDir, template)
 	}
 	n := s.alpha
 	s.alpha++
 	return n
 }
 
-func (a *SeqAllocator) nextRoman(destDir string) int {
+func (a *SeqAllocator) nextRoman(destDir, template string) int {
 	s := a.state(destDir)
 	if s.roman == 0 {
-		s.roman = resolveSeqRomanInt(destDir)
+		s.roman = resolveSeqRomanInt(destDir, template)
 	}
 	n := s.roman
 	s.roman++
@@ -161,10 +204,14 @@ func preProcessSeq(template, destDir string, alloc *SeqAllocator) string {
 	if loc == nil {
 		return template
 	}
-	pos := seqTokenPosition(template, loc)
-	next := resolveSeqAt(destDir, pos)
+	// The allocator seeds itself from the directory on its first call and counts
+	// in memory after that. Scanning here as well would throw that scan away and
+	// pay for it once per file, which is the cost the allocator exists to avoid.
+	var next int
 	if alloc != nil {
-		next = alloc.nextNum(destDir, pos)
+		next = alloc.nextNum(destDir, template, loc)
+	} else {
+		next = resolveSeqNum(destDir, template, loc)
 	}
 	return seqToken.ReplaceAllStringFunc(template, func(tok string) string {
 		m := seqToken.FindStringSubmatch(tok)
@@ -176,36 +223,25 @@ func preProcessSeq(template, destDir string, alloc *SeqAllocator) string {
 	})
 }
 
-var (
-	leadingAlpha  = regexp.MustCompile(`^([a-z]+)`)
-	seqAlphaToken = regexp.MustCompile(`\{seq-alpha\}`)
-)
+var seqAlphaToken = regexp.MustCompile(`\{seq-alpha\}`)
 
-// ResolveSeqAlpha scans destDir for files with leading lowercase alpha prefixes
-// and returns the next label in Excel-style sequence (a, b, ..., z, aa, ab, ...).
-func ResolveSeqAlpha(destDir string) string {
-	return intToAlpha(resolveSeqAlphaInt(destDir))
+// ResolveSeqAlpha returns the next Excel-style label (a, b, ..., z, aa, ab, ...)
+// for destDir, reading the labels already there through the shape of template.
+func ResolveSeqAlpha(destDir, template string) string {
+	return intToAlpha(resolveSeqAlphaInt(destDir, template))
 }
 
 // resolveSeqAlphaInt is the 1-based integer behind ResolveSeqAlpha, returning 1
-// (which maps to "a") when the directory is empty or unreadable.
-func resolveSeqAlphaInt(destDir string) int {
-	entries, err := os.ReadDir(destDir)
-	if err != nil {
+// (which maps to "a") when the directory holds no label of this shape, or is
+// empty or unreadable.
+func resolveSeqAlphaInt(destDir, template string) int {
+	loc := seqAlphaToken.FindStringIndex(template)
+	if loc == nil {
 		return 1
 	}
-	max := 0
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		if m := leadingAlpha.FindStringSubmatch(strings.ToLower(e.Name())); m != nil {
-			if n := alphaToInt(m[1]); n > max {
-				max = n
-			}
-		}
-	}
-	return max + 1
+	return scanMaxSeq(destDir, seqScanPattern(template, loc, alphaValuePattern), func(s string) int {
+		return alphaToInt(strings.ToLower(s))
+	})
 }
 
 // alphaToInt converts an Excel-style column label to a 1-based integer ("a"=1, "z"=26, "aa"=27).
@@ -236,45 +272,34 @@ func preProcessSeqAlpha(template, destDir string, alloc *SeqAllocator) string {
 	if !seqAlphaToken.MatchString(template) {
 		return template
 	}
-	label := ResolveSeqAlpha(destDir)
+	label := ""
 	if alloc != nil {
-		label = intToAlpha(alloc.nextAlpha(destDir))
+		label = intToAlpha(alloc.nextAlpha(destDir, template))
+	} else {
+		label = ResolveSeqAlpha(destDir, template)
 	}
 	return seqAlphaToken.ReplaceAllString(template, label)
 }
 
-// leadingRoman matches a non-empty roman numeral at the start of a filename (lowercase).
-var (
-	leadingRoman  = regexp.MustCompile(`^(m{0,4}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))(?:[^a-z]|$)`)
-	seqRomanToken = regexp.MustCompile(`\{seq-roman\}`)
-)
+var seqRomanToken = regexp.MustCompile(`\{seq-roman\}`)
 
-// ResolveSeqRoman scans destDir for files with leading roman numeral prefixes
-// and returns the next roman numeral in sequence.
-func ResolveSeqRoman(destDir string) string {
-	return intToRoman(resolveSeqRomanInt(destDir))
+// ResolveSeqRoman returns the next roman numeral for destDir, reading the
+// numerals already there through the shape of template.
+func ResolveSeqRoman(destDir, template string) string {
+	return intToRoman(resolveSeqRomanInt(destDir, template))
 }
 
 // resolveSeqRomanInt is the 1-based integer behind ResolveSeqRoman, returning 1
-// (which maps to "i") when the directory is empty or unreadable.
-func resolveSeqRomanInt(destDir string) int {
-	entries, err := os.ReadDir(destDir)
-	if err != nil {
+// (which maps to "i") when the directory holds no numeral of this shape, or is
+// empty or unreadable.
+func resolveSeqRomanInt(destDir, template string) int {
+	loc := seqRomanToken.FindStringIndex(template)
+	if loc == nil {
 		return 1
 	}
-	max := 0
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := strings.ToLower(e.Name())
-		if m := leadingRoman.FindStringSubmatch(name); m != nil && m[1] != "" {
-			if n := romanToInt(m[1]); n > max {
-				max = n
-			}
-		}
-	}
-	return max + 1
+	return scanMaxSeq(destDir, seqScanPattern(template, loc, romanValuePattern), func(s string) int {
+		return romanToInt(strings.ToLower(s))
+	})
 }
 
 func romanToInt(s string) int {
@@ -315,9 +340,11 @@ func preProcessSeqRoman(template, destDir string, alloc *SeqAllocator) string {
 	if !seqRomanToken.MatchString(template) {
 		return template
 	}
-	label := ResolveSeqRoman(destDir)
+	label := ""
 	if alloc != nil {
-		label = intToRoman(alloc.nextRoman(destDir))
+		label = intToRoman(alloc.nextRoman(destDir, template))
+	} else {
+		label = ResolveSeqRoman(destDir, template)
 	}
 	return seqRomanToken.ReplaceAllString(template, label)
 }

@@ -60,6 +60,18 @@ func swapAside(dst string) (FinalizeFunc, error) {
 	}, nil
 }
 
+// danglingSymlink reports whether path is a symlink whose target no longer
+// exists. Such a destination occupies the name while holding no content, so the
+// strategies that compare the two files have nothing on one side.
+func danglingSymlink(path string) bool {
+	fi, err := os.Lstat(path)
+	if err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		return false
+	}
+	_, err = os.Stat(path)
+	return os.IsNotExist(err)
+}
+
 // uniqueBackupPath returns a path next to dst that does not yet exist.
 func uniqueBackupPath(dst string) (string, error) {
 	for i := 0; i < 10000; i++ {
@@ -180,6 +192,16 @@ func (r *comparatorResolver) Resolve(args ConflictArgs) (string, bool, FinalizeF
 	if err != nil {
 		return "", false, nil, err
 	}
+	// A dangling link holds the name but has no content or metadata to compare
+	// against, so the incoming file wins by default. swapAside sets the link
+	// aside first, exactly as it would a real file.
+	if danglingSymlink(args.Dst) {
+		finalize, err := swapAside(args.Dst)
+		if err != nil {
+			return "", false, nil, fmt.Errorf("%s: failed to set aside destination: %w", r.name, err)
+		}
+		return args.Dst, true, finalize, nil
+	}
 	dstInfo, err := os.Stat(args.Dst)
 	if err != nil {
 		return "", false, nil, err
@@ -229,6 +251,15 @@ func consumesSource(action models.Action) bool {
 }
 
 func (r *hashCheckResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
+	// Nothing to hash on the other side, so the source cannot be a duplicate:
+	// keep both by giving the incoming file a free name.
+	if danglingSymlink(args.Dst) {
+		path, err := getUniqueDestinationPath(args.DestDir, args.FileName)
+		if err != nil {
+			return "", false, nil, err
+		}
+		return path, true, nil, nil
+	}
 	match, err := compareFileHashes(args.Src, args.Dst)
 	if err != nil {
 		return "", false, nil, err

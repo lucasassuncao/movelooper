@@ -368,7 +368,11 @@ func dispatchAction(ctx context.Context, action models.Action, src, dst string) 
 // conflict according to strategy. Returns a non-nil error only for unknown strategies;
 // resolver failures are logged internally and surfaced as skip=true, err=nil.
 func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, args ConflictArgs) (resolved string, skip bool, finalize FinalizeFunc, err error) {
-	if _, statErr := os.Stat(args.Dst); statErr != nil {
+	// Lstat, never Stat: Stat follows a symlink, so a link whose target is gone
+	// reports "does not exist" and the configured strategy would never run, even
+	// though the name is taken. The action would then land on whatever the link
+	// points at, outside the destination directory.
+	if _, statErr := os.Lstat(args.Dst); statErr != nil {
 		if !os.IsNotExist(statErr) {
 			// Anything other than "does not exist" (e.g. permission denied) means we
 			// cannot tell whether a conflict exists, so skip rather than risk an
@@ -477,6 +481,15 @@ func copyFile(ctx context.Context, src, dst string) (retErr error) {
 	}
 	defer in.Close()
 
+	// A symlink at the destination is replaced, never written through: opening it
+	// with O_CREATE would follow the link and write to its target, which can be
+	// anywhere on the filesystem. Removing the link destroys no content.
+	if fi, err := os.Lstat(dst); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		if err := os.Remove(dst); err != nil {
+			return fmt.Errorf("could not replace the symlink at the destination: %w", err)
+		}
+	}
+
 	out, err := os.OpenFile(filepath.Clean(dst), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode()) //#nosec G304 -- path comes from directory walk, validated by caller
 	if err != nil {
 		return err
@@ -526,7 +539,9 @@ func getUniqueDestinationPath(destDir, fileName string) (string, error) {
 
 	destPath := filepath.Join(destDir, fileName)
 	for counter := 1; counter <= maxConflictAttempts; counter++ {
-		if _, err := os.Stat(destPath); err != nil {
+		// Lstat so a dangling symlink counts as a taken name (Stat would report
+		// it free and the write would follow the link out of destDir).
+		if _, err := os.Lstat(destPath); os.IsNotExist(err) {
 			return destPath, nil
 		}
 		newName := fmt.Sprintf("%s(%d)%s", nameOnly, counter, ext)

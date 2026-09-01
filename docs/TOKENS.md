@@ -156,7 +156,9 @@ destination:
 
 ## Sequence (`rename` only)
 
-Sequence tokens auto-increment based on files already present in the destination directory. The counter seeds from the highest existing number found, so adding files to a non-empty directory never collides.
+Sequence tokens auto-increment based on files already present in the destination directory. The counter seeds from the highest existing value found, so adding files to a non-empty directory never collides.
+
+Only files your rename template could have produced are counted. With `rename: "{seq-alpha}_{name}.{ext}"`, a destination holding `a_report.pdf` continues at `b`, while `vacation.jpg` is ignored: the sequence has to sit where the template puts it, followed by the same separator. A destination full of unrelated files therefore starts at `a` (or `1`, or `i`) as it should.
 
 | Token | Expands to | Example |
 |---|---|---|

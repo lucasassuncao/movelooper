@@ -14,8 +14,8 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 - [func ResolveArchiveName\(template, category string, now time.Time\) string](<#ResolveArchiveName>)
 - [func ResolveGroupBy\(template string, ctx \*TokenContext\) string](<#ResolveGroupBy>)
 - [func ResolveRename\(template string, ctx \*TokenContext\) string](<#ResolveRename>)
-- [func ResolveSeqAlpha\(destDir string\) string](<#ResolveSeqAlpha>)
-- [func ResolveSeqRoman\(destDir string\) string](<#ResolveSeqRoman>)
+- [func ResolveSeqAlpha\(destDir, template string\) string](<#ResolveSeqAlpha>)
+- [func ResolveSeqRoman\(destDir, template string\) string](<#ResolveSeqRoman>)
 - [func ValidateTemplate\(template string\) error](<#ValidateTemplate>)
 - [func VariesPerFile\(template string\) bool](<#VariesPerFile>)
 - [type SeqAllocator](<#SeqAllocator>)
@@ -60,22 +60,22 @@ func ResolveRename(template string, ctx *TokenContext) string
 ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy, plus \{seq\}, \{seq:N\}, \{seq\-alpha\}, \{seq\-roman\}, \{md5\}, \{md5:N\}, and \{sha256:N\}. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
 
 <a name="ResolveSeqAlpha"></a>
-## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L186>)
+## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L230>)
 
 ```go
-func ResolveSeqAlpha(destDir string) string
+func ResolveSeqAlpha(destDir, template string) string
 ```
 
-ResolveSeqAlpha scans destDir for files with leading lowercase alpha prefixes and returns the next label in Excel\-style sequence \(a, b, ..., z, aa, ab, ...\).
+ResolveSeqAlpha returns the next Excel\-style label \(a, b, ..., z, aa, ab, ...\) for destDir, reading the labels already there through the shape of template.
 
 <a name="ResolveSeqRoman"></a>
-## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L254>)
+## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L288>)
 
 ```go
-func ResolveSeqRoman(destDir string) string
+func ResolveSeqRoman(destDir, template string) string
 ```
 
-ResolveSeqRoman scans destDir for files with leading roman numeral prefixes and returns the next roman numeral in sequence.
+ResolveSeqRoman returns the next roman numeral for destDir, reading the numerals already there through the shape of template.
 
 <a name="ValidateTemplate"></a>
 ## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L85>)
@@ -96,7 +96,7 @@ func VariesPerFile(template string) bool
 VariesPerFile reports whether template contains at least one token that differs from file to file. A rename template where nothing varies per file resolves to the same destination name for every file it is applied to, which is only safe when the conflict strategy keeps the earlier files.
 
 <a name="SeqAllocator"></a>
-## type [SeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L103-L105>)
+## type [SeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L146-L148>)
 
 SeqAllocator hands out sequence numbers per destination directory without re\-scanning the directory for every file. The first request for a directory seeds the counter from the existing files \(the same scan ResolveSeq\* perform\); subsequent requests increment in memory. This turns an O\(files\) directory scan per moved file into a single scan per directory for a whole batch.
 
@@ -109,7 +109,7 @@ type SeqAllocator struct {
 ```
 
 <a name="NewSeqAllocator"></a>
-### func [NewSeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L115>)
+### func [NewSeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L158>)
 
 ```go
 func NewSeqAllocator() *SeqAllocator
