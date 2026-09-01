@@ -88,6 +88,10 @@ type History struct {
 	path       string
 	lockPath   string
 	maxBatches int
+	// OnLockError, when set, is called with the reason the file lock could not
+	// be taken, once per mutating call that had to fall back to running
+	// unlocked. Optional: a nil hook keeps the fallback quiet.
+	OnLockError func(error)
 }
 
 // NewHistory creates a new History manager. path is the file where history is
@@ -124,11 +128,19 @@ func NewHistory(path string, limit int) (*History, error) {
 // h.entries and calls h.save()). Must be called with h.mu already held.
 //
 // If the lock file itself cannot be opened (e.g. a read-only filesystem),
-// locking is skipped and fn runs against whatever h.entries already holds —
-// a best-effort fallback rather than breaking history tracking entirely.
+// locking is skipped rather than breaking history tracking entirely. The reload
+// still happens on that path: without it this process would save a snapshot
+// taken before the other process wrote, silently dropping its entries. The
+// fallback is reported through OnLockError, so a degraded run is never silent.
 func (h *History) withFileLock(fn func() error) error {
 	lock, err := lockfile.Acquire(h.lockPath)
 	if err != nil {
+		if h.OnLockError != nil {
+			h.OnLockError(err)
+		}
+		if lerr := h.load(); lerr != nil && !os.IsNotExist(lerr) {
+			return lerr
+		}
 		return fn()
 	}
 	if err := h.load(); err != nil && !os.IsNotExist(err) {
@@ -364,10 +376,47 @@ func (h *History) save() error {
 		return err
 	}
 	tmp := h.path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil { //#nosec G304 -- path is set by the application at startup from config, not from user input
+	if err := writeFileSync(tmp, data); err != nil {
 		return err
 	}
-	return os.Rename(tmp, h.path)
+	if err := os.Rename(tmp, h.path); err != nil {
+		return err
+	}
+	syncDir(filepath.Dir(h.path))
+	return nil
+}
+
+// writeFileSync writes data to path and flushes it to the storage device before
+// returning. The flush is what makes the temp-file-plus-rename actually atomic
+// across a crash: without it the rename can reach the disk while the bytes it
+// points at are still in the page cache, leaving a history file that exists but
+// is empty, leaving every move in it silently unundoable.
+func writeFileSync(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) //#nosec G304 -- path is set by the application at startup from config, not from user input
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+// syncDir flushes the directory entry so the rename itself survives a crash,
+// not just the file contents. Best effort: Windows cannot sync a directory
+// handle, and the rename is atomic there regardless.
+func syncDir(dir string) {
+	d, err := os.Open(dir) //#nosec G304 -- path is set by the application at startup from config, not from user input
+	if err != nil {
+		return
+	}
+	_ = d.Sync()
+	_ = d.Close()
 }
 
 // load reads the history file into h.entries. It supports two formats:

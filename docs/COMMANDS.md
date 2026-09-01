@@ -70,10 +70,11 @@ movelooper undo --dry-run --format json              # preview the restore as JS
 | `--list`      | `-l`  | List all recorded batches                                          |
 | `--dry-run`   |       | Preview which files would be restored without moving any files     |
 | `--category`  |       | Comma-separated list of category names to undo (default: all)      |
+| `--force`     |       | Remove a copied file at the destination even when the original is gone or the copy was modified |
 
 The global `--format json` also applies here: undo's restore/dry-run logs (`file(s) restored`, `[dry-run] would restore file(s)`) are emitted as structured JSON lines.
 
-> **Note:** Undoing a `copy` batch removes the copied file at the destination. Undoing a `symlink` batch removes the symbolic link. The source file is never touched in either case.
+> **Note:** Undoing a `copy` batch removes the copied file at the destination. Undoing a `symlink` batch removes the symbolic link. The source file is never touched in either case. The copy is kept, with a warning, when deleting it would lose data: the original is no longer at the source, or the copy was modified after it was made. Use `--force` to delete it anyway. See [Undo](/UNDO.md).
 >
 > When using `--category`, only entries from the specified categories are reverted. If the batch becomes empty after the partial undo, it is removed from history entirely. Entries recorded before category tracking was added (older history) are skipped with a warning.
 

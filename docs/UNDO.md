@@ -61,10 +61,26 @@ Only entries from the specified categories are reverted. If the batch becomes em
 |---|---|
 | `move` | Moves the file back to its original source path |
 | `copy` | Removes the copied file at the destination. The original is never touched |
+| `copy`, when the original is gone or the copy was edited | Keeps the copy and warns. See below |
 | `symlink` | Removes the symbolic link at the destination. The source file is never touched |
 | `archive` | **Cannot be undone.** Archive batches do not appear in undo history |
 
 If the source file no longer exists at undo time, movelooper logs a warning and skips it. The rest of the batch is still restored.
+
+## When undo refuses to delete a copy
+
+Undoing a `copy` deletes the file at the destination, which reverses the run only while the original is still where it came from. Two cases turn that deletion into a real loss, and movelooper holds back on both:
+
+- **The original is gone.** Someone deleted or moved it after the run, so the copy at the destination is the last one left.
+- **The copy was modified after it was made.** Removing it would discard edits that exist nowhere else.
+
+In both cases the file is kept, a warning names it, and the entry stays in history so you can act on it later.
+
+```bash
+movelooper undo batch_a1b2c3d4e5f6a7b8 --force
+```
+
+`--force` removes those copies anyway. It changes nothing else: the guards on `move` undo, which never overwrite a source path that something else now occupies, always apply.
 
 ---
 

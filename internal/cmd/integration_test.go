@@ -74,7 +74,7 @@ func TestIntegration_MoveThenUndo(t *testing.T) {
 
 	// --- undo ---
 	entries := m.History.GetBatch(batches[0].BatchID)
-	restored := restoreEntries(context.Background(), m, entries)
+	restored := restoreEntries(context.Background(), m, entries, false)
 	require.Len(t, restored, 2)
 
 	assert.FileExists(t, filepath.Join(srcDir, "a.jpg"))

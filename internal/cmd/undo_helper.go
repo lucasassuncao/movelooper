@@ -31,7 +31,7 @@ func printBatchList(m *models.Movelooper) error {
 	return w.Flush()
 }
 
-func undoBatch(ctx context.Context, m *models.Movelooper, batchID string, dryRun bool, categoryNames []string) error {
+func undoBatch(ctx context.Context, m *models.Movelooper, batchID string, dryRun, force bool, categoryNames []string) error {
 	allEntries := m.History.GetBatch(batchID)
 	if len(allEntries) == 0 {
 		return fmt.Errorf("batch %q not found in history", batchID)
@@ -48,14 +48,14 @@ func undoBatch(ctx context.Context, m *models.Movelooper, batchID string, dryRun
 	}
 
 	if dryRun {
-		return dryRunUndoBatch(m, batchID, entries)
+		return dryRunUndoBatch(m, batchID, entries, force)
 	}
 
 	if cancelled := confirmUndo(m, batchID, entries); cancelled {
 		return nil
 	}
 
-	restored := restoreEntries(ctx, m, entries)
+	restored := restoreEntries(ctx, m, entries, force)
 
 	if len(restored) > 0 {
 		if err := m.History.RemoveEntries(restored); err != nil {
@@ -92,7 +92,7 @@ func filterEntriesByCategory(m *models.Movelooper, batchID string, all []history
 }
 
 // dryRunUndoBatch logs what would be restored without performing any file operations.
-func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Entry) error {
+func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Entry, force bool) error {
 	m.Logger.Info("[dry-run] would restore batch", m.Logger.Args("batch_id", batchID, "files", len(entries)))
 	var restoreArgs, removeArgs []any
 	for i := len(entries) - 1; i >= 0; i-- {
@@ -108,6 +108,10 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 		switch entry.Action {
 		case "copy", "symlink":
 			// Undo removes the destination; the source still existing is expected.
+			if risk := copyUndoRisk(entry); risk != "" && !force {
+				m.Logger.Warn("[dry-run] would keep the copy, "+risk, m.Logger.Args("path", entry.Destination))
+				continue
+			}
 			removeArgs = append(removeArgs, "path", entry.Destination)
 		default:
 			if _, err := os.Stat(entry.Source); err == nil {
@@ -149,10 +153,27 @@ func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) 
 	return false
 }
 
+// copyUndoRisk reports why removing the copy at the destination would destroy
+// bytes that exist nowhere else, or "" when the removal is safe. Undoing a copy
+// deletes the destination outright, so it is only safe while the original is
+// still at the source and the copy has not been touched since it was made.
+func copyUndoRisk(entry history.Entry) string {
+	if _, err := os.Stat(entry.Source); os.IsNotExist(err) {
+		return "the original is gone and this is the last copy of it"
+	}
+	// A copy carries the source's timestamps over (see fileops.copyFile), so a
+	// destination newer than the run that created it was edited afterwards.
+	if info, err := os.Stat(entry.Destination); err == nil && info.ModTime().After(entry.Timestamp) {
+		return "it was modified after it was copied"
+	}
+	return ""
+}
+
 // restoreEntries moves files back to their source locations in reverse order.
 // Returns the entries that were successfully restored so callers can remove
 // only those from history, leaving failed restores available for retry.
-func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history.Entry) []history.Entry {
+// force removes a copy the guards in copyUndoRisk would otherwise preserve.
+func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history.Entry, force bool) []history.Entry {
 	restored := make([]history.Entry, 0, len(entries))
 	failCount := 0
 
@@ -171,6 +192,18 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 			m.Logger.Warn("file not found at destination, skipping", m.Logger.Args("path", entry.Destination))
 			failCount++
 			continue
+		}
+
+		// Undoing a copy deletes the destination, which is a real deletion and
+		// not a reversal when the original is gone or the copy has since been
+		// edited. Removing a symlink destroys no bytes, so it is not guarded.
+		if entry.Action == string(models.ActionCopy) && !force {
+			if risk := copyUndoRisk(entry); risk != "" {
+				m.Logger.Warn("keeping the copy, "+risk+"; re-run with --force to remove it anyway",
+					m.Logger.Args("path", entry.Destination))
+				failCount++
+				continue
+			}
 		}
 
 		// The source checks only apply to move undo, which puts the file back at

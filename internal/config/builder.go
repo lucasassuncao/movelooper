@@ -108,6 +108,13 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 		if hist, err := history.NewHistory(histPath, m.Config.History.Limit); err != nil {
 			m.Logger.Warn("failed to initialize history tracking", m.Logger.Args("error", err.Error()))
 		} else {
+			// Without the lock, a run overlapping another movelooper process can
+			// lose that process's history entries. It stays a warning rather than
+			// a failure, but the user has to hear about it.
+			hist.OnLockError = func(err error) {
+				m.Logger.Warn("history could not be locked; entries from a run happening at the same time may be lost",
+					m.Logger.Args("error", err.Error()))
+			}
 			m.History = hist
 		}
 	}

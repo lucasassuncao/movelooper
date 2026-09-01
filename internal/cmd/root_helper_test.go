@@ -213,7 +213,7 @@ func TestRestoreEntries_ConsolidatesRestoredBlock(t *testing.T) {
 	entries := m.History.GetBatch(batches[0].BatchID)
 
 	buf.Reset()
-	restored := restoreEntries(context.Background(), m, entries)
+	restored := restoreEntries(context.Background(), m, entries, false)
 	require.Len(t, restored, 2)
 
 	out := buf.String()

@@ -20,6 +20,8 @@ The corollary matters just as much: because a run never argues with your config,
 
 **A file is never processed twice in one run.** Categories are matched in order and the first match claims the file.
 
+**Undo never turns into a deletion.** Undoing a `copy` removes the file at the destination, which only reverses the run while the original is still at the source. When the original is gone, or the copy was modified after it was made, the file is kept and a warning names it. `undo --force` removes it anyway, on your say-so.
+
 **No partial file is left behind.** A copy that fails partway is removed. A destination displaced by `overwrite` or a comparison strategy is set aside first and restored if the operation fails.
 
 **The same behaviour on Linux, macOS, and Windows.** All three are tested on every change. Where a platform genuinely cannot do something — `action: symlink` needs administrator rights or Developer Mode on Windows — movelooper fails with a clear message instead of half-doing it.

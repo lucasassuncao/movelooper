@@ -602,3 +602,35 @@ func TestAddBatch_PrunesPastLimit(t *testing.T) {
 	assert.Equal(t, "batch_2", summaries[0].BatchID)
 	assert.Equal(t, "batch_3", summaries[1].BatchID)
 }
+
+// TestWithFileLock_FallbackReloadsAndReports covers the degraded path: when the
+// lock cannot be taken, the write must still merge what is on disk instead of
+// overwriting a concurrent process's entries, and the caller must be told.
+func TestWithFileLock_FallbackReloadsAndReports(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history.json")
+
+	h, err := NewHistory(path, 10)
+	require.NoError(t, err)
+
+	// Point the lock at a path under a regular file, so acquiring it fails on
+	// every platform without needing special permissions.
+	blocker := filepath.Join(dir, "not-a-dir")
+	require.NoError(t, os.WriteFile(blocker, []byte("x"), 0o600))
+	h.lockPath = filepath.Join(blocker, "history.json.lock")
+
+	var lockErr error
+	h.OnLockError = func(err error) { lockErr = err }
+
+	// Another process wrote this entry after h was created.
+	other := []Entry{{Source: "/other", Destination: "/dst/other", BatchID: "batch_other", Timestamp: time.Now()}}
+	data, err := json.Marshal(other)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+
+	require.NoError(t, h.AddBatch([]Entry{{Source: "/mine", Destination: "/dst/mine", BatchID: "batch_mine", Timestamp: time.Now()}}))
+
+	assert.Error(t, lockErr, "the lock failure must be reported")
+	assert.Len(t, h.GetBatch("batch_other"), 1, "the other process's entry must survive")
+	assert.Len(t, h.GetBatch("batch_mine"), 1)
+}
