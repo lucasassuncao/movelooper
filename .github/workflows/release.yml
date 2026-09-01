@@ -35,6 +35,13 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
+      # .goreleaser.yaml attaches completions/* to the release and treats a
+      # missing directory as an error, so they are generated before the release
+      # runs. `make release` does this through a prerequisite; the action calls
+      # goreleaser directly and has to do it as its own step.
+      - name: Generate shell completions
+        run: make completions
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:

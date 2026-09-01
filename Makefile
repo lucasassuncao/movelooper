@@ -1,4 +1,4 @@
-.PHONY: help build build-all release tag install fmt lint test test-coverage test-watch security sbom vuln deps docs all run tools tools-clean clean
+.PHONY: help build build-all release tag install fmt lint test test-coverage test-watch security sbom vuln deps docs completions all run tools tools-clean clean
 
 # Tool versions
 GOLANGCI_LINT_VERSION := v2.13.2
@@ -98,6 +98,16 @@ else
 MKDIR_COVERAGE =
 endif
 
+# Shell completion scripts, generated from the binary itself and attached to
+# each release. Same shell portability problem as MKDIR_COVERAGE above.
+COMPLETIONS_DIR := completions
+
+ifeq ($(wildcard $(COMPLETIONS_DIR)),)
+MKDIR_COMPLETIONS = mkdir $(COMPLETIONS_DIR)
+else
+MKDIR_COMPLETIONS =
+endif
+
 # Project variables
 BINARY_NAME := movelooper
 BUILD_DIR   := bin
@@ -119,7 +129,7 @@ build-all: $(GORELEASER) ## Build binaries for all platforms
 	@echo "Building for all platforms..."
 	@$(GORELEASER) build --skip=validate --snapshot --clean
 
-release: $(GORELEASER) ## Create a release with goreleaser
+release: $(GORELEASER) completions ## Create a release with goreleaser
 	@echo "Creating release..."
 	@$(GORELEASER) release --timeout 360s
 
@@ -178,6 +188,18 @@ docs: $(GOMARKDOC) ## Generate package docs (gomarkdoc) and config reference (ge
 	@go run $(MAIN_PATH) generate-docs
 	@echo ""
 
+# Cobra generates these from the command tree, so they are always in sync with
+# the real flags. They are release inputs, not tracked files: `release` depends
+# on this target because .goreleaser.yaml attaches $(COMPLETIONS_DIR)/* to the
+# release, and globbing a missing directory is a hard error there.
+completions: ## Generate shell completion scripts into ./completions
+	@$(MKDIR_COMPLETIONS)
+	@go run $(MAIN_PATH) completion bash > $(COMPLETIONS_DIR)/movelooper_completion.bash
+	@go run $(MAIN_PATH) completion zsh > $(COMPLETIONS_DIR)/movelooper_completion.zsh
+	@go run $(MAIN_PATH) completion fish > $(COMPLETIONS_DIR)/movelooper_completion.fish
+	@go run $(MAIN_PATH) completion powershell > $(COMPLETIONS_DIR)/movelooper_completion.ps1
+	@echo "Completion scripts written to $(COMPLETIONS_DIR)/"
+
 # Local, deterministic checks first, so a failure points at the code. The
 # supply-chain scan goes last because it is the only step that needs the
 # network: grype refreshes its vulnerability database, and a hiccup there
@@ -190,11 +212,11 @@ run: ## Run the application
 tools: $(TOOLS) ## Install every pinned tool into ./.gobin
 	@echo "Tools installed in $(GOBIN_DIR)"
 
-tools-clean: ## Remove ./.gobin so the next target reinstalls the pinned tools
+clean-tools: ## Remove ./.gobin so the next target reinstalls the pinned tools
 	@echo "Removing $(GOBIN_DIR)..."
 	@rm -rf $(GOBIN_DIR)
 
-clean: tools-clean ## Remove build artifacts, installed tools and cache
+clean: clean-tools ## Remove build artifacts, installed tools and cache
 	@echo "Removing $(BUILD_DIR)..."
 	@rm -rf $(BUILD_DIR)
 	@echo ""
@@ -203,6 +225,9 @@ clean: tools-clean ## Remove build artifacts, installed tools and cache
 	@echo ""
 	@echo "Removing $(COVERAGE_DIR)..."
 	@rm -rf $(COVERAGE_DIR)
+	@echo ""
+	@echo "Removing $(COMPLETIONS_DIR)..."
+	@rm -rf $(COMPLETIONS_DIR)
 	@echo ""
 	@echo "Removing $(SBOM_FILE)..."
 	@rm -rf $(SBOM_FILE)

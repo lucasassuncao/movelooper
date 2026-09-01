@@ -76,6 +76,8 @@ movelooper --version
 movelooper self-update      # later, to upgrade in place
 ```
 
+Shell completions for bash, zsh, fish and PowerShell are attached to every release, and `movelooper completion <shell>` prints them on demand. See [Commands](https://lucasassuncao.github.io/movelooper/docs/#/COMMANDS) for where each shell expects the file.
+
 ## Quick start
 
 ```bash
@@ -125,3 +127,7 @@ See the [Documentation](https://lucasassuncao.github.io/movelooper/docs/) for th
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting issues and submitting pull requests.
+
+## License
+
+Released under the [MIT License](LICENSE).

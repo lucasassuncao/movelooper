@@ -161,4 +161,30 @@ movelooper self-update --repo lucasassuncao/movelooper
 | `--prerelease` | Include prereleases (rc/beta/alpha) in `--list`, or as the latest target   |
 | `--limit`      | Maximum number of releases to show with `--list` (default `20`, max `100`)  |
 
+## `movelooper completion` — shell completion scripts
+
+Prints the completion script for a shell to stdout. Once it is installed, TAB expands commands and flags, and `--category` suggests the category names found in your own config.
+
+```bash
+movelooper completion bash
+movelooper completion zsh
+movelooper completion fish
+movelooper completion powershell
+```
+
+The suggestions are not baked into the script: it calls movelooper back at completion time, so a category added to `movelooper.yaml` is suggested immediately, with nothing to regenerate.
+
+Where each shell expects the file:
+
+| Shell        | Install                                                                       |
+|--------------|-------------------------------------------------------------------------------|
+| `bash`       | `movelooper completion bash \| sudo tee /etc/bash_completion.d/movelooper`      |
+| `zsh`        | `movelooper completion zsh > "${fpath[1]}/_movelooper"`                         |
+| `fish`       | `movelooper completion fish > ~/.config/fish/completions/movelooper.fish`       |
+| `powershell` | `movelooper completion powershell \| Out-String \| Invoke-Expression`           |
+
+For a one-off session, `source <(movelooper completion bash)` works too. To make the PowerShell line permanent, add it to your `$PROFILE`. On zsh, completion must be initialized first (`autoload -U compinit; compinit` in `~/.zshrc`).
+
+The same four scripts are attached to every GitHub release as `movelooper_completion.bash`, `.zsh`, `.fish` and `.ps1`, so you can install them without running the binary first.
+
 ---

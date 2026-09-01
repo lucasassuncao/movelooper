@@ -321,7 +321,10 @@ var archAliases = map[string][]string{
 
 // selectAsset picks the best asset for the current platform.
 func selectAsset(assets []ghAsset) *ghAsset {
-	skip := []string{".sha256", ".sha512", ".sig", ".asc", "checksums", ".txt"}
+	// Anything that is published alongside the binary but is not the binary:
+	// checksum manifests, signatures, and the shell completion scripts the
+	// release attaches (movelooper_completion.bash, .zsh, .fish, .ps1).
+	skip := []string{".sha256", ".sha512", ".sig", ".asc", "checksums", ".txt", "completion"}
 
 	osPatterns := osAliases[runtime.GOOS]
 	archPatterns := archAliases[runtime.GOARCH]

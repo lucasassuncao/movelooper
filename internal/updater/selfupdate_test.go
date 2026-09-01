@@ -88,6 +88,16 @@ func TestSelectAsset(t *testing.T) {
 			"",
 		},
 		{
+			"skips completion scripts",
+			[]ghAsset{
+				{Name: "movelooper_completion.bash"},
+				{Name: "movelooper_completion.zsh"},
+				{Name: "movelooper_completion.fish"},
+				{Name: "movelooper_completion.ps1"},
+			},
+			"",
+		},
+		{
 			"prefers current os over other os",
 			[]ghAsset{
 				{Name: "movelooper_linux_amd64"},

@@ -14,6 +14,8 @@ Verify the installation:
 movelooper --version
 ```
 
+Optionally, enable shell completion so TAB expands commands and suggests your own category names. `movelooper completion bash|zsh|fish|powershell` prints the script; [Commands](/COMMANDS.md) shows where each shell expects it.
+
 ---
 
 ## 2. Create a config file
