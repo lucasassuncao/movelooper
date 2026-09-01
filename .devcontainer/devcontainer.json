@@ -36,7 +36,7 @@
     },
     "ghcr.io/devcontainers/features/go:1": {
       "golangciLintVersion": "latest",
-      "version": "1.26.4"
+      "version": "1.27.0"
     },
     "ghcr.io/devcontainers/features/powershell:2.0.2": {
       "version": "latest"
