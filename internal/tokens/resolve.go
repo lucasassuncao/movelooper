@@ -35,7 +35,7 @@ func buildStaticPairs(ctx *TokenContext) []string {
 		"{name-alpha}", nameAlpha(name),
 		"{name-ascii}", nameASCII(name),
 		"{name-initials}", nameInitials(name),
-		"{name-reverse}", nameReverse(name),
+		"{name-reverse}", reverseString(name),
 		// modification date
 		"{mod-year}", modTime.Format("2006"),
 		"{mod-month}", modTime.Format("01"),
@@ -146,17 +146,15 @@ func ResolveRename(template string, ctx *TokenContext) string {
 	// (which does not exist yet), keeping the preview strictly non-mutating.
 	if !ctx.DryRun {
 		template = preProcessHash(template, ctx.SourcePath)
+		// The lock only serialises the directory scan the seq tokens perform, so
+		// it is taken only when there is one to do. Holding it until ResolveRename
+		// returns costs nothing: what follows is pure string work.
 		if ctx.DestDir != "" && hasSeqToken(template) {
-			unlock := acquireSeqLock(ctx.DestDir)
-			template = preProcessSeqAlpha(template, ctx.DestDir, ctx.SeqAlloc)
-			template = preProcessSeqRoman(template, ctx.DestDir, ctx.SeqAlloc)
-			template = preProcessSeq(template, ctx.DestDir, ctx.SeqAlloc)
-			unlock()
-		} else {
-			template = preProcessSeqAlpha(template, ctx.DestDir, ctx.SeqAlloc)
-			template = preProcessSeqRoman(template, ctx.DestDir, ctx.SeqAlloc)
-			template = preProcessSeq(template, ctx.DestDir, ctx.SeqAlloc)
+			defer acquireSeqLock(ctx.DestDir)()
 		}
+		template = preProcessSeqAlpha(template, ctx.DestDir, ctx.SeqAlloc)
+		template = preProcessSeqRoman(template, ctx.DestDir, ctx.SeqAlloc)
+		template = preProcessSeq(template, ctx.DestDir, ctx.SeqAlloc)
 	}
 
 	resolved := ResolveGroupBy(template, ctx)

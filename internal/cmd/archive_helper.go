@@ -47,7 +47,7 @@ func archiveCategory(ctx context.Context, m *models.Movelooper, category *models
 		return "", nil
 	}
 
-	if err := fileops.CreateDirectory(category.Destination.Path); err != nil {
+	if err := os.MkdirAll(category.Destination.Path, 0o750); err != nil {
 		return "", fmt.Errorf("create destination directory %q: %w", category.Destination.Path, err)
 	}
 	destPath, err := archiveConflictPath(m, category.Destination.ConflictStrategy, destPath)

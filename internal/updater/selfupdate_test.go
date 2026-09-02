@@ -64,7 +64,7 @@ func TestNormalizeVersion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, normalizeVersion(tt.input))
+			assert.Equal(t, tt.want, NormalizeVersion(tt.input))
 		})
 	}
 }
@@ -239,12 +239,9 @@ func TestFindChecksumInManifest(t *testing.T) {
 }
 
 func TestFetchLatestRelease(t *testing.T) {
-	var capturedAuth string
-
 	tests := []struct {
 		name    string
 		server  func() *httptest.Server
-		token   string
 		wantErr string
 		check   func(t *testing.T, rel *ghRelease)
 	}{
@@ -272,20 +269,6 @@ func TestFetchLatestRelease(t *testing.T) {
 			wantErr: "500",
 		},
 		{
-			name: "sends bearer token",
-			server: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					capturedAuth = r.Header.Get("Authorization")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(ghRelease{TagName: "v1.0.0"})
-				}))
-			},
-			token: "mytoken",
-			check: func(t *testing.T, _ *ghRelease) {
-				assert.Equal(t, "Bearer mytoken", capturedAuth)
-			},
-		},
-		{
 			name: "invalid json returns decode error",
 			server: func() *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -303,7 +286,7 @@ func TestFetchLatestRelease(t *testing.T) {
 			defer srv.Close()
 
 			withTestServer(t, srv, func() {
-				rel, err := fetchLatestRelease("owner/repo", tt.token)
+				rel, err := fetchLatestRelease("owner/repo")
 				if tt.wantErr != "" {
 					require.Error(t, err)
 					assert.Contains(t, err.Error(), tt.wantErr)
@@ -319,14 +302,12 @@ func TestFetchLatestRelease(t *testing.T) {
 }
 
 func TestDownload(t *testing.T) {
-	var capturedAuth string
 	content := []byte("fake binary content")
 
 	tests := []struct {
 		name         string
 		server       func() *httptest.Server
 		destFn       func(dir string) string
-		token        string
 		expectedSize int64
 		wantErr      string
 		check        func(t *testing.T, dest string)
@@ -371,22 +352,6 @@ func TestDownload(t *testing.T) {
 			wantErr:      "creating temp binary",
 		},
 		{
-			name: "sends bearer token",
-			server: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					capturedAuth = r.Header.Get("Authorization")
-					w.WriteHeader(http.StatusOK)
-					_, _ = w.Write([]byte("data"))
-				}))
-			},
-			destFn:       func(dir string) string { return filepath.Join(dir, "binary") },
-			expectedSize: int64(len([]byte("data"))),
-			token:        "tok123",
-			check: func(t *testing.T, _ string) {
-				assert.Equal(t, "Bearer tok123", capturedAuth)
-			},
-		},
-		{
 			name: "truncated download returns error",
 			server: func() *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -406,7 +371,7 @@ func TestDownload(t *testing.T) {
 			defer srv.Close()
 
 			dest := tt.destFn(t.TempDir())
-			err := download(srv.URL, dest, tt.token, tt.expectedSize)
+			err := download(srv.URL, dest, tt.expectedSize)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -485,7 +450,7 @@ func TestSelfUpdate(t *testing.T) {
 				srv := serveFakeRelease(t, http.StatusOK, tt.release)
 				defer srv.Close()
 				withTestServer(t, srv, func() {
-					err := SelfUpdate(tt.repo, "", tt.currentVersion, "", false)
+					err := SelfUpdate(tt.repo, tt.currentVersion, "", false)
 					if tt.wantErr != "" {
 						require.Error(t, err)
 						assert.Contains(t, err.Error(), tt.wantErr)
@@ -495,7 +460,7 @@ func TestSelfUpdate(t *testing.T) {
 				})
 				return
 			}
-			err := SelfUpdate(tt.repo, "", tt.currentVersion, "", false)
+			err := SelfUpdate(tt.repo, tt.currentVersion, "", false)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -534,7 +499,7 @@ func TestSelfUpdate_DownloadsAndReplacesBinary(t *testing.T) {
 	t.Cleanup(func() { osExecutable = origExecutable })
 
 	withTestServer(t, srv, func() {
-		require.NoError(t, SelfUpdate("owner/repo", "", "v1.0.0", "", false))
+		require.NoError(t, SelfUpdate("owner/repo", "v1.0.0", "", false))
 	})
 
 	got, err := os.ReadFile(fakeBin)
@@ -584,7 +549,7 @@ func TestSelfUpdate_VerifiesMatchingChecksum(t *testing.T) {
 	t.Cleanup(func() { osExecutable = origExecutable })
 
 	withTestServer(t, srv, func() {
-		require.NoError(t, SelfUpdate("owner/repo", "", "v1.0.0", "", false))
+		require.NoError(t, SelfUpdate("owner/repo", "v1.0.0", "", false))
 	})
 
 	got, err := os.ReadFile(fakeBin)
@@ -631,7 +596,7 @@ func TestSelfUpdate_ChecksumMismatchAbortsInstall(t *testing.T) {
 	t.Cleanup(func() { osExecutable = origExecutable })
 
 	withTestServer(t, srv, func() {
-		err := SelfUpdate("owner/repo", "", "v1.0.0", "", false)
+		err := SelfUpdate("owner/repo", "v1.0.0", "", false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "checksum mismatch")
 	})

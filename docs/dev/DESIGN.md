@@ -49,7 +49,6 @@ Koanf is used only during startup. Once `AppBuilder.Build()` returns, the koanf 
 | `internal/archive` | Packs sets of files into zip or tar.gz archives. Config-agnostic: takes explicit (source, entry-name) pairs. |
 | `internal/content` | Detects a file's real MIME type from magic bytes, independent of extension. Wraps `gabriel-vasile/mimetype`. |
 | `internal/logger` | `Logger` interface (thin wrapper over `*pterm.Logger`). Lets non-`cmd` packages accept a logger without importing pterm directly. |
-| `internal/terminal` | Terminal width detection for log formatting. |
 | `internal/updater` | Self-update logic (GitHub releases). |
 
 **Dependency rule:** `logger`, `content`, and `history` are leaf packages — they import nothing internal. `tokens` imports `content`. `models` imports `history`, `logger`, and `tokens` (to type `Movelooper` fields and validate template patterns). `fileops`, `filters`, `hooks`, and `scanner` import `models` and other leaves as needed. `config` imports `filters`, `tokens`, `history`, and `models`. `cmd` imports all of the above. The graph is strictly acyclic — no upward imports.

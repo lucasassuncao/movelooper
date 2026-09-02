@@ -15,27 +15,17 @@ const defaultPollInterval = 5 * time.Second
 // fully populated Configuration. It must be called after InitConfig has
 // successfully loaded the file.
 func LoadConfig(k *koanf.Koanf) models.Configuration {
-	cfg := models.Configuration{
-		Logging: models.Logging{
-			Output:     k.String("configuration.logging.output"),
-			File:       k.String("configuration.logging.file"),
-			Level:      k.String("configuration.logging.level"),
-			ShowCaller: k.Bool("configuration.logging.show-caller"),
-			Format:     k.String("configuration.logging.format"),
-			Color:      k.String("configuration.logging.color"),
-			MaxWidth:   k.Int("configuration.logging.max-width"),
-		},
-		Watch: models.Watch{
-			Delay:        k.Duration("configuration.watch.delay"),
-			PollInterval: k.Duration("configuration.watch.poll-interval"),
-		},
-		History: models.History{
-			Limit:   k.Int("configuration.history.limit"),
-			File:    k.String("configuration.history.file"),
-			Enabled: historyEnabled(k),
-		},
-		Defaults: loadDefaults(k),
-	}
+	var cfg models.Configuration
+	// The mapstructure tags on models.Configuration carry the key names, and
+	// koanf's decoder turns a duration string ("5m") into a time.Duration. The
+	// error is deliberately dropped: decoding is per field, so a malformed entry
+	// leaves that one field zeroed without touching the rest, and the fallbacks
+	// below already treat a zero as "not set".
+	_ = k.UnmarshalWithConf("configuration", &cfg, koanf.UnmarshalConf{Tag: "mapstructure"})
+
+	// The unmarshal cannot tell an absent history.enabled from an explicit false,
+	// and an absent one means true.
+	cfg.History.Enabled = historyEnabled(k)
 
 	// Absent and negative are both replaced by the default. Negative matters on
 	// its own: validate rejects it, but watch does not run validate, and a
@@ -60,17 +50,4 @@ func historyEnabled(k *koanf.Koanf) bool {
 		return true
 	}
 	return k.Bool("configuration.history.enabled")
-}
-
-// loadDefaults reads the optional defaults sub-section, returning nil when it
-// is absent so categories fall back to their own built-in defaults.
-func loadDefaults(k *koanf.Koanf) *models.Defaults {
-	if !k.Exists("configuration.defaults") {
-		return nil
-	}
-	return &models.Defaults{
-		ConflictStrategy: models.ConflictStrategy(k.String("configuration.defaults.conflict-strategy")),
-		Action:           models.Action(k.String("configuration.defaults.action")),
-		OrganizeBy:       k.String("configuration.defaults.organize-by"),
-	}
 }

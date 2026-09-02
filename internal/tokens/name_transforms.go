@@ -10,17 +10,12 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-var (
-	nonAlphanumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
-	multiHyphen     = regexp.MustCompile(`-{2,}`)
-	multiUnderscore = regexp.MustCompile(`_{2,}`)
-)
+var nonAlphanumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
 func nameSlug(name string) string {
 	s := nameASCII(name)
 	s = strings.ToLower(s)
 	s = nonAlphanumeric.ReplaceAllString(s, "-")
-	s = multiHyphen.ReplaceAllString(s, "-")
 	return strings.Trim(s, "-")
 }
 
@@ -28,7 +23,6 @@ func nameSnake(name string) string {
 	s := nameASCII(name)
 	s = strings.ToLower(s)
 	s = nonAlphanumeric.ReplaceAllString(s, "_")
-	s = multiUnderscore.ReplaceAllString(s, "_")
 	return strings.Trim(s, "_")
 }
 
@@ -69,5 +63,3 @@ func reverseString(s string) string {
 	}
 	return string(rr)
 }
-
-func nameReverse(name string) string { return reverseString(name) }

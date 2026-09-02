@@ -66,7 +66,6 @@ var knownTokens = map[string]bool{
 }
 
 var tokenPattern = regexp.MustCompile(`\{[^}]+\}`)
-var paramPattern = regexp.MustCompile(`^\d+$`)
 
 // renameOnlyPattern matches the sequence and hash tokens that ResolveRename
 // resolves but ResolveGroupBy does not, so they would leak literally into
@@ -119,10 +118,10 @@ func validateIntParam(tok, family string, max int) error {
 	if param == "" {
 		return fmt.Errorf("token %q: missing N value", tok)
 	}
-	if !paramPattern.MatchString(param) {
+	n, err := strconv.Atoi(param)
+	if err != nil {
 		return fmt.Errorf("token %q: N must be a positive integer", tok)
 	}
-	n, _ := strconv.Atoi(param)
 	if n < 1 || n > max {
 		return fmt.Errorf("token %q: N must be between 1 and %d", tok, max)
 	}

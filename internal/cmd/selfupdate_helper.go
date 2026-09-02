@@ -15,7 +15,7 @@ func runSelfUpdateList(repo string, includePrerelease bool, limit int, currentVe
 		return fmt.Errorf("--repo is required (e.g. --repo lucasassuncao/movelooper)")
 	}
 
-	releases, err := updater.ListReleases(repo, "", includePrerelease, limit)
+	releases, err := updater.ListReleases(repo, includePrerelease, limit)
 	if err != nil {
 		return err
 	}
@@ -24,7 +24,7 @@ func runSelfUpdateList(repo string, includePrerelease bool, limit int, currentVe
 		return nil
 	}
 
-	current := normalizeUpdateTag(currentVersion)
+	current := updater.NormalizeVersion(currentVersion)
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	for i, r := range releases {
 		tags := make([]string, 0, 3)
@@ -34,12 +34,12 @@ func runSelfUpdateList(repo string, includePrerelease bool, limit int, currentVe
 		if r.Prerelease {
 			tags = append(tags, "prerelease")
 		}
-		if normalizeUpdateTag(r.Tag) == current {
+		if updater.NormalizeVersion(r.Tag) == current {
 			tags = append(tags, "installed")
 		}
 		label := ""
 		if len(tags) > 0 {
-			label = "(" + joinUpdateTags(tags) + ")"
+			label = "(" + strings.Join(tags, ", ") + ")"
 		}
 		published := ""
 		if !r.PublishedAt.IsZero() {
@@ -48,15 +48,4 @@ func runSelfUpdateList(repo string, includePrerelease bool, limit int, currentVe
 		fmt.Fprintf(tw, "  %s\t%s\t%s\n", r.Tag, label, published)
 	}
 	return tw.Flush()
-}
-
-func normalizeUpdateTag(v string) string {
-	if len(v) > 0 && (v[0] == 'v' || v[0] == 'V') {
-		return strings.Clone(v[1:])
-	}
-	return v
-}
-
-func joinUpdateTags(s []string) string {
-	return strings.Join(s, ", ")
 }

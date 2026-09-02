@@ -42,7 +42,7 @@ and --prerelease to include rc/beta/alpha releases.`,
 			if list {
 				return runSelfUpdateList(repo, prerelease, limit, currentVersion)
 			}
-			return updater.SelfUpdate(repo, "", currentVersion, version, prerelease)
+			return updater.SelfUpdate(repo, currentVersion, version, prerelease)
 		},
 	}
 

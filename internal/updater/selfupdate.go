@@ -49,7 +49,7 @@ type Release struct {
 // only affects the empty-version path: when true, the most recent release wins
 // even if it is a prerelease; otherwise the latest stable is used. When version
 // is non-empty, includePrerelease is ignored — the explicit tag is honored.
-func SelfUpdate(repo, token, currentVersion, version string, includePrerelease bool) error {
+func SelfUpdate(repo, currentVersion, version string, includePrerelease bool) error {
 	if repo == "" {
 		return fmt.Errorf("--repo is required (e.g. --repo lucasassuncao/movelooper)")
 	}
@@ -57,13 +57,13 @@ func SelfUpdate(repo, token, currentVersion, version string, includePrerelease b
 	// Clean up any leftover .old binary from a previous update.
 	CleanOldBinary()
 
-	rel, err := resolveRelease(repo, token, version, includePrerelease)
+	rel, err := resolveRelease(repo, version, includePrerelease)
 	if err != nil {
 		return err
 	}
 
 	// Normalise both versions to a bare "X.Y.Z" form before comparing.
-	if normalizeVersion(currentVersion) == normalizeVersion(rel.TagName) {
+	if NormalizeVersion(currentVersion) == NormalizeVersion(rel.TagName) {
 		fmt.Printf("Already on %s.\n", rel.TagName)
 		return nil
 	}
@@ -86,11 +86,11 @@ func SelfUpdate(repo, token, currentVersion, version string, includePrerelease b
 
 	fmt.Printf("Downloading new binary...\n")
 	tmpPath := exePath + ".new"
-	if err := download(asset.BrowserDownloadURL, tmpPath, token, asset.Size); err != nil {
+	if err := download(asset.BrowserDownloadURL, tmpPath, asset.Size); err != nil {
 		return err
 	}
 
-	if err := verifyDownloadedAsset(rel.Assets, asset, tmpPath, token); err != nil {
+	if err := verifyDownloadedAsset(rel.Assets, asset, tmpPath); err != nil {
 		_ = os.Remove(tmpPath)
 		return err
 	}
@@ -125,7 +125,7 @@ func SelfUpdate(repo, token, currentVersion, version string, includePrerelease b
 // ListReleases returns up to `limit` recent releases for the repo, newest first.
 // Drafts are always excluded. When includePrerelease is false, prereleases are
 // also excluded. limit <= 0 defaults to 20; the GitHub per-page cap is 100.
-func ListReleases(repo, token string, includePrerelease bool, limit int) ([]Release, error) {
+func ListReleases(repo string, includePrerelease bool, limit int) ([]Release, error) {
 	if repo == "" {
 		return nil, fmt.Errorf("repo is required (e.g. lucasassuncao/movelooper)")
 	}
@@ -142,7 +142,7 @@ func ListReleases(repo, token string, includePrerelease bool, limit int) ([]Rele
 		perPage = 100
 	}
 
-	raw, err := fetchReleases(repo, token, perPage)
+	raw, err := fetchReleases(repo, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -168,15 +168,15 @@ func ListReleases(repo, token string, includePrerelease bool, limit int) ([]Rele
 }
 
 // resolveRelease maps the (version, includePrerelease) inputs to a concrete release.
-func resolveRelease(repo, token, version string, includePrerelease bool) (*ghRelease, error) {
+func resolveRelease(repo, version string, includePrerelease bool) (*ghRelease, error) {
 	if version != "" {
 		fmt.Printf("Fetching release %s from %s...\n", version, repo)
-		rel, err := fetchReleaseByTag(repo, token, version)
+		rel, err := fetchReleaseByTag(repo, version)
 		if err == nil {
 			return rel, nil
 		}
 		if !strings.HasPrefix(version, "v") {
-			if alt, altErr := fetchReleaseByTag(repo, token, "v"+version); altErr == nil {
+			if alt, altErr := fetchReleaseByTag(repo, "v"+version); altErr == nil {
 				return alt, nil
 			}
 		}
@@ -185,7 +185,7 @@ func resolveRelease(repo, token, version string, includePrerelease bool) (*ghRel
 
 	if includePrerelease {
 		fmt.Printf("Checking most recent release of %s (including prereleases)...\n", repo)
-		all, err := fetchReleases(repo, token, 10)
+		all, err := fetchReleases(repo, 10)
 		if err != nil {
 			return nil, err
 		}
@@ -198,7 +198,7 @@ func resolveRelease(repo, token, version string, includePrerelease bool) (*ghRel
 	}
 
 	fmt.Printf("Checking latest release of %s...\n", repo)
-	return fetchLatestRelease(repo, token)
+	return fetchLatestRelease(repo)
 }
 
 // CleanOldBinary removes a <exe>.old file left by a previous self-update.
@@ -216,9 +216,13 @@ func CleanOldBinary() {
 	}
 }
 
-// normalizeVersion strips a leading "v" so that "v1.2.3" and "1.2.3" compare equal.
-func normalizeVersion(v string) string {
-	return strings.TrimPrefix(v, "v")
+// NormalizeVersion strips a leading "v" so that "v1.2.3" and "1.2.3" compare
+// equal. Shared with the self-update command, which labels the installed tag.
+func NormalizeVersion(v string) string {
+	if len(v) > 0 && (v[0] == 'v' || v[0] == 'V') {
+		return v[1:]
+	}
+	return v
 }
 
 type ghRelease struct {
@@ -235,7 +239,7 @@ type ghAsset struct {
 	Size               int64  `json:"size"`
 }
 
-func newGitHubRequest(method, rawURL, token string) (*http.Request, error) {
+func newGitHubRequest(method, rawURL string) (*http.Request, error) {
 	req, err := http.NewRequest(method, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -243,41 +247,38 @@ func newGitHubRequest(method, rawURL, token string) (*http.Request, error) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	req.Header.Set("User-Agent", "github.com/lucasassuncao/movelooper")
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
 	return req, nil
 }
 
-func fetchLatestRelease(repo, token string) (*ghRelease, error) {
+func fetchLatestRelease(repo string) (*ghRelease, error) {
 	u := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
 	var rel ghRelease
-	if err := getJSON(u, token, &rel); err != nil {
+	if err := getJSON(u, &rel); err != nil {
 		return nil, err
 	}
 	return &rel, nil
 }
 
-func fetchReleaseByTag(repo, token, tag string) (*ghRelease, error) {
+func fetchReleaseByTag(repo, tag string) (*ghRelease, error) {
 	u := fmt.Sprintf("https://api.github.com/repos/%s/releases/tags/%s", repo, url.PathEscape(tag))
 	var rel ghRelease
-	if err := getJSON(u, token, &rel); err != nil {
+	if err := getJSON(u, &rel); err != nil {
 		return nil, err
 	}
 	return &rel, nil
 }
 
-func fetchReleases(repo, token string, perPage int) ([]ghRelease, error) {
+func fetchReleases(repo string, perPage int) ([]ghRelease, error) {
 	u := fmt.Sprintf("https://api.github.com/repos/%s/releases?per_page=%d", repo, perPage)
 	var rels []ghRelease
-	if err := getJSON(u, token, &rels); err != nil {
+	if err := getJSON(u, &rels); err != nil {
 		return nil, err
 	}
 	return rels, nil
 }
 
-func getJSON(rawURL, token string, out any) error {
-	req, err := newGitHubRequest(http.MethodGet, rawURL, token)
+func getJSON(rawURL string, out any) error {
+	req, err := newGitHubRequest(http.MethodGet, rawURL)
 	if err != nil {
 		return err
 	}
@@ -380,8 +381,8 @@ var checksumManifestPatterns = []string{"checksum", "sha256sums", ".sha256"}
 // alongside the release, if one can be found. It is a no-op (nil error) when no
 // checksum data is available, since not every release publishes one; a mismatch
 // against a checksum that was found is always an error.
-func verifyDownloadedAsset(assets []ghAsset, asset *ghAsset, downloadedPath, token string) error {
-	expected, err := findAssetChecksum(assets, asset, token)
+func verifyDownloadedAsset(assets []ghAsset, asset *ghAsset, downloadedPath string) error {
+	expected, err := findAssetChecksum(assets, asset)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not fetch checksum manifest: %v\n", err)
 		return nil
@@ -404,7 +405,7 @@ func verifyDownloadedAsset(assets []ghAsset, asset *ghAsset, downloadedPath, tok
 // findAssetChecksum locates the checksum manifest among assets and returns the
 // expected SHA-256 hex digest for asset. Returns "" (no error) when no manifest
 // is found; an error only for a manifest that was found but could not be read.
-func findAssetChecksum(assets []ghAsset, asset *ghAsset, token string) (string, error) {
+func findAssetChecksum(assets []ghAsset, asset *ghAsset) (string, error) {
 	for i := range assets {
 		lower := strings.ToLower(assets[i].Name)
 		matched := false
@@ -417,7 +418,7 @@ func findAssetChecksum(assets []ghAsset, asset *ghAsset, token string) (string, 
 		if !matched {
 			continue
 		}
-		body, err := fetchAssetBody(assets[i].BrowserDownloadURL, token)
+		body, err := fetchAssetBody(assets[i].BrowserDownloadURL)
 		if err != nil {
 			return "", err
 		}
@@ -457,25 +458,18 @@ func isHexSHA256(s string) bool {
 	if len(s) != sha256.Size*2 {
 		return false
 	}
-	for _, r := range s {
-		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
-			return false
-		}
-	}
-	return true
+	_, err := hex.DecodeString(s)
+	return err == nil
 }
 
 // fetchAssetBody downloads a small release asset (a checksum manifest) fully
 // into memory. Capped at 1 MiB, far more than any plain-text manifest needs.
-func fetchAssetBody(rawURL, token string) ([]byte, error) {
+func fetchAssetBody(rawURL string) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "github.com/lucasassuncao/movelooper")
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
 	resp, err := apiClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching checksum manifest: %w", err)
@@ -507,15 +501,12 @@ const maxDownloadOverhead = 1 << 20 // 1 MiB
 // download fetches url into destPath. expectedSize is the asset size reported by
 // the release metadata; the response body is capped at expectedSize +
 // maxDownloadOverhead to prevent a misconfigured or hostile server from filling the disk.
-func download(rawURL, destPath, token string, expectedSize int64) (retErr error) {
+func download(rawURL, destPath string, expectedSize int64) (retErr error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("User-Agent", "github.com/lucasassuncao/movelooper")
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
 
 	resp, err := downloadClient.Do(req)
 	if err != nil {

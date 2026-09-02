@@ -494,6 +494,28 @@ configuration:
 			assert.Equal(t, defaultHistoryLimit, cfg.History.Limit)
 		},
 	},
+	{
+		// LoadConfig drops the unmarshal error on purpose. Decoding is per field,
+		// so a value koanf cannot read must cost only its own field: the ones
+		// around it still load and the bad one falls back like an absent value.
+		name: "malformed duration costs only its own field",
+		yaml: `
+configuration:
+  logging:
+    output: console
+    level: debug
+  watch:
+    delay: abacaxi
+  history:
+    limit: 7
+`,
+		check: func(t *testing.T, cfg models.Configuration) {
+			assert.Equal(t, "console", cfg.Logging.Output)
+			assert.Equal(t, "debug", cfg.Logging.Level)
+			assert.Equal(t, 7, cfg.History.Limit)
+			assert.Equal(t, defaultWatchDelay, cfg.Watch.Delay)
+		},
+	},
 }
 
 // TestLoadConfig tests the LoadConfig function to ensure it correctly applies

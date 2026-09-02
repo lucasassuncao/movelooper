@@ -253,7 +253,7 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 func restoreEntry(ctx context.Context, m *models.Movelooper, entry history.Entry) error {
 	switch entry.Action {
 	case "copy", "symlink":
-		if err := undoCopyOrSymlink(entry.Destination); err != nil {
+		if err := os.Remove(entry.Destination); err != nil {
 			m.Logger.Error("failed to remove file", m.Logger.Args("path", entry.Destination, "error", err.Error()))
 			return err
 		}
@@ -264,9 +264,4 @@ func restoreEntry(ctx context.Context, m *models.Movelooper, entry history.Entry
 		}
 	}
 	return nil
-}
-
-// undoCopyOrSymlink removes the destination file or symlink created by a copy or symlink action.
-func undoCopyOrSymlink(dst string) error {
-	return os.Remove(dst)
 }

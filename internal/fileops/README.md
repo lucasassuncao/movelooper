@@ -11,7 +11,6 @@ import "github.com/lucasassuncao/movelooper/internal/fileops"
 ## Index
 
 - [Variables](<#variables>)
-- [func CreateDirectory\(dir string\) error](<#CreateDirectory>)
 - [func MoveFileCtx\(ctx context.Context, src, dst string\) error](<#MoveFileCtx>)
 - [func ResolveDestDir\(category \*models.Category, tctx \*tokens.TokenContext\) string](<#ResolveDestDir>)
 - [func ResolveDestination\(category \*models.Category, tctx \*tokens.TokenContext\) \(destDir, destName string\)](<#ResolveDestination>)
@@ -41,17 +40,8 @@ var ErrFatalDestination = errors.New("destination is not writable")
 var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
 ```
 
-<a name="CreateDirectory"></a>
-## func [CreateDirectory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L38>)
-
-```go
-func CreateDirectory(dir string) error
-```
-
-CreateDirectory creates dir and all necessary parents with full permissions. It is idempotent: no error is returned when dir already exists.
-
 <a name="MoveFileCtx"></a>
-## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L411>)
+## func [MoveFileCtx](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L405>)
 
 ```go
 func MoveFileCtx(ctx context.Context, src, dst string) error
@@ -78,7 +68,7 @@ func ResolveDestination(category *models.Category, tctx *tokens.TokenContext) (d
 ResolveDestination resolves the destination directory \(organize\-by\) and the final filename \(rename\) for one file. It sets tctx.DestDir before resolving the rename template, which the seq tokens need to scan for existing numbers. It never creates directories or touches the destination; with tctx.DryRun set, seq/hash tokens are left as literal placeholders.
 
 <a name="UniqueDestination"></a>
-## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L531>)
+## func [UniqueDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L525>)
 
 ```go
 func UniqueDestination(destDir, fileName string) (string, error)
@@ -117,7 +107,7 @@ type ConflictResolver interface {
 ```
 
 <a name="FileAction"></a>
-## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L308-L310>)
+## type [FileAction](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L302-L304>)
 
 FileAction executes a file operation from src to dst.
 
@@ -149,7 +139,7 @@ type MoveContext struct {
 ```
 
 <a name="MoveRequest"></a>
-## type [MoveRequest](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L43-L53>)
+## type [MoveRequest](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L37-L47>)
 
 MoveRequest holds the operation\-specific parameters for a MoveFiles call.
 
@@ -168,7 +158,7 @@ type MoveRequest struct {
 ```
 
 <a name="MoveResult"></a>
-## type [MoveResult](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L56-L70>)
+## type [MoveResult](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L50-L64>)
 
 MoveResult holds the outcome of a MoveFiles call.
 
@@ -191,7 +181,7 @@ type MoveResult struct {
 ```
 
 <a name="MoveFiles"></a>
-### func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L79>)
+### func [MoveFiles](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L73>)
 
 ```go
 func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResult
@@ -200,7 +190,7 @@ func MoveFiles(ctx context.Context, mctx MoveContext, req MoveRequest) MoveResul
 MoveFiles processes files matching the given extension in req.SourceDir.
 
 <a name="MovedDetail"></a>
-## type [MovedDetail](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L73-L76>)
+## type [MovedDetail](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/fileops.go#L67-L70>)
 
 MovedDetail records where a single processed file came from and went to.
 

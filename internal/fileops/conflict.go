@@ -98,7 +98,7 @@ var conflictResolvers = map[models.ConflictStrategy]ConflictResolver{
 type renameResolver struct{}
 
 func (r *renameResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
-	path, err := getUniqueDestinationPath(args.DestDir, args.FileName)
+	path, err := UniqueDestination(args.DestDir, args.FileName)
 	if err != nil {
 		return "", false, nil, err
 	}
@@ -254,7 +254,7 @@ func (r *hashCheckResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFu
 	// Nothing to hash on the other side, so the source cannot be a duplicate:
 	// keep both by giving the incoming file a free name.
 	if danglingSymlink(args.Dst) {
-		path, err := getUniqueDestinationPath(args.DestDir, args.FileName)
+		path, err := UniqueDestination(args.DestDir, args.FileName)
 		if err != nil {
 			return "", false, nil, err
 		}
@@ -272,7 +272,7 @@ func (r *hashCheckResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFu
 		}
 		return "", false, nil, nil
 	}
-	path, err := getUniqueDestinationPath(args.DestDir, args.FileName)
+	path, err := UniqueDestination(args.DestDir, args.FileName)
 	if err != nil {
 		return "", false, nil, err
 	}

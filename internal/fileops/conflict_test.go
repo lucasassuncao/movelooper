@@ -73,35 +73,35 @@ func TestHashCheck_CopyAndSymlinkPreserveSource(t *testing.T) {
 	}
 }
 
-// testGetUniqueDestinationPath defines the structure for test cases of the getUniqueDestinationPath function,
+// testUniqueDestination defines the structure for test cases of the UniqueDestination function,
 // containing existing files, input filename, and expected output filename.
-type testGetUniqueDestinationPath struct {
+type testUniqueDestination struct {
 	name     string
 	existing []string
 	input    string
 	want     string
 }
 
-// testGetUniqueDestinationPathTestCases defines a set of test cases for the getUniqueDestinationPath function,
+// testUniqueDestinationTestCases defines a set of test cases for the UniqueDestination function,
 // covering no conflict, one conflict, and multiple sequential conflicts.
-var testGetUniqueDestinationPathTestCases = []testGetUniqueDestinationPath{
+var testUniqueDestinationTestCases = []testUniqueDestination{
 	{"no conflict", nil, "file.txt", "file.txt"},
 	{"one conflict", []string{"file.txt"}, "file.txt", "file(1).txt"},
 	{"multiple conflicts", []string{"file.txt", "file(1).txt", "file(2).txt"}, "file.txt", "file(3).txt"},
 }
 
-// TestGetUniqueDestinationPath tests the getUniqueDestinationPath function to ensure it correctly
+// TestUniqueDestination tests the UniqueDestination function to ensure it correctly
 // generates unique filenames when conflicts exist.
-func TestGetUniqueDestinationPath(t *testing.T) {
+func TestUniqueDestination(t *testing.T) {
 	t.Parallel()
-	for _, tt := range testGetUniqueDestinationPathTestCases {
+	for _, tt := range testUniqueDestinationTestCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			dir := t.TempDir()
 			for _, f := range tt.existing {
 				writeFile(t, filepath.Join(dir, f), []byte("x"))
 			}
-			got, err := getUniqueDestinationPath(dir, tt.input)
+			got, err := UniqueDestination(dir, tt.input)
 			require.NoError(t, err)
 			assert.Equal(t, filepath.Join(dir, tt.want), got)
 		})

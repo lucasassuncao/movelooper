@@ -14,41 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testCreateDirectory defines the structure for test cases of the CreateDirectory function,
-// containing a path builder and an error expectation flag.
-type testCreateDirectory struct {
-	name    string
-	path    func(base string) string
-	wantErr bool
-}
-
-// testCreateDirectoryTestCases defines a set of test cases for the CreateDirectory function,
-// covering nested directory creation and idempotent behavior on existing directories.
-var testCreateDirectoryTestCases = []testCreateDirectory{
-	{"creates nested dir", func(base string) string { return filepath.Join(base, "sub", "dir") }, false},
-	{"idempotent on existing", func(base string) string { return base }, false},
-}
-
-// TestCreateDirectory tests the CreateDirectory function to ensure it correctly creates directories.
-func TestCreateDirectory(t *testing.T) {
-	t.Parallel()
-	for _, tt := range testCreateDirectoryTestCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			dir := tt.path(t.TempDir())
-			err := CreateDirectory(dir)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			info, err := os.Stat(dir)
-			require.NoError(t, err)
-			assert.True(t, info.IsDir())
-		})
-	}
-}
-
 // testCopyFile defines the structure for test cases of the copyFile function,
 // containing file content and a check function for assertions on the copied file.
 type testCopyFile struct {
@@ -651,7 +616,7 @@ func TestDanglingSymlinkAtDestination(t *testing.T) {
 	t.Run("rename does not hand back the taken name", func(t *testing.T) {
 		t.Parallel()
 		_, dst, _ := setup(t)
-		unique, err := getUniqueDestinationPath(filepath.Dir(dst), "a.txt")
+		unique, err := UniqueDestination(filepath.Dir(dst), "a.txt")
 		require.NoError(t, err)
 		assert.NotEqual(t, dst, unique, "the link occupies that name")
 		assert.Equal(t, filepath.Join(filepath.Dir(dst), "a(1).txt"), unique)

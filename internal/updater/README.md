@@ -13,9 +13,10 @@ Package updater implements the self\-update mechanism for movelooper.
 ## Index
 
 - [func CleanOldBinary\(\)](<#CleanOldBinary>)
-- [func SelfUpdate\(repo, token, currentVersion, version string, includePrerelease bool\) error](<#SelfUpdate>)
+- [func NormalizeVersion\(v string\) string](<#NormalizeVersion>)
+- [func SelfUpdate\(repo, currentVersion, version string, includePrerelease bool\) error](<#SelfUpdate>)
 - [type Release](<#Release>)
-  - [func ListReleases\(repo, token string, includePrerelease bool, limit int\) \(\[\]Release, error\)](<#ListReleases>)
+  - [func ListReleases\(repo string, includePrerelease bool, limit int\) \(\[\]Release, error\)](<#ListReleases>)
 
 
 <a name="CleanOldBinary"></a>
@@ -27,11 +28,20 @@ func CleanOldBinary()
 
 CleanOldBinary removes a \<exe\>.old file left by a previous self\-update. Call this from main\(\) at startup.
 
+<a name="NormalizeVersion"></a>
+## func [NormalizeVersion](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L221>)
+
+```go
+func NormalizeVersion(v string) string
+```
+
+NormalizeVersion strips a leading "v" so that "v1.2.3" and "1.2.3" compare equal. Shared with the self\-update command, which labels the installed tag.
+
 <a name="SelfUpdate"></a>
 ## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L52>)
 
 ```go
-func SelfUpdate(repo, token, currentVersion, version string, includePrerelease bool) error
+func SelfUpdate(repo, currentVersion, version string, includePrerelease bool) error
 ```
 
 SelfUpdate downloads a release of movelooper from GitHub and replaces the current binary. The old binary is kept as \<name\>.old until the next run, when it is cleaned up automatically.
@@ -57,7 +67,7 @@ type Release struct {
 ### func [ListReleases](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L128>)
 
 ```go
-func ListReleases(repo, token string, includePrerelease bool, limit int) ([]Release, error)
+func ListReleases(repo string, includePrerelease bool, limit int) ([]Release, error)
 ```
 
 ListReleases returns up to \`limit\` recent releases for the repo, newest first. Drafts are always excluded. When includePrerelease is false, prereleases are also excluded. limit \<= 0 defaults to 20; the GitHub per\-page cap is 100.

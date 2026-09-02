@@ -45,10 +45,10 @@ var testNameTransformTestCases = []testNameTransform{
 	{nameInitials, "initials mixed sep", "my-vacation_photos", "mvp"},
 	{nameInitials, "initials single word", "report", "r"},
 	{nameInitials, "initials empty", "", ""},
-	// nameReverse
-	{nameReverse, "reverse", "photo", "otohp"},
-	{nameReverse, "reverse unicode", "café", "éfac"},
-	{nameReverse, "reverse empty", "", ""},
+	// reverseString
+	{reverseString, "reverse", "photo", "otohp"},
+	{reverseString, "reverse unicode", "café", "éfac"},
+	{reverseString, "reverse empty", "", ""},
 }
 
 // TestNameTransforms tests all name transform functions with various inputs to ensure correct output.

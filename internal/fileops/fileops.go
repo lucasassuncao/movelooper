@@ -33,12 +33,6 @@ type MoveContext struct {
 	History history.Recorder
 }
 
-// CreateDirectory creates dir and all necessary parents with full permissions.
-// It is idempotent: no error is returned when dir already exists.
-func CreateDirectory(dir string) error {
-	return os.MkdirAll(dir, 0o750)
-}
-
 // MoveRequest holds the operation-specific parameters for a MoveFiles call.
 type MoveRequest struct {
 	Category  *models.Category
@@ -171,7 +165,7 @@ func moveOneFile(ctx context.Context, mctx MoveContext, req MoveRequest, file os
 	tctx := tokens.TokenContext{Info: info, CategoryName: category.Name, Now: time.Now(), SourcePath: sourcePath, SeqAlloc: seqAlloc}
 	destDir, destName := ResolveDestination(category, &tctx)
 
-	if err := CreateDirectory(destDir); err != nil {
+	if err := os.MkdirAll(destDir, 0o750); err != nil {
 		mctx.Logger.Error("failed to create directory", mctx.Logger.Args("path", destDir, "error", err.Error()))
 		return destinationFailure(destDir, err)
 	}
@@ -529,11 +523,6 @@ const maxConflictAttempts = 1000
 // UniqueDestination returns a path in destDir for fileName that does not collide
 // with an existing file, appending (n) before the extension when needed.
 func UniqueDestination(destDir, fileName string) (string, error) {
-	return getUniqueDestinationPath(destDir, fileName)
-}
-
-// getUniqueDestinationPath ensures no file is overwritten by appending (n) if needed.
-func getUniqueDestinationPath(destDir, fileName string) (string, error) {
 	ext := filepath.Ext(fileName)
 	nameOnly := strings.TrimSuffix(fileName, ext)
 

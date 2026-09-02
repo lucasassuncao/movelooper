@@ -190,20 +190,18 @@ func (m batchPicker) viewPreview() string {
 	return sb.String()
 }
 
-func runeLen(s string) int { return len([]rune(s)) }
-
 func buildPreviewTable(entries []history.Entry, height int) table.Model {
 	if height > len(entries) {
 		height = len(entries)
 	}
 
-	filenameW := runeLen("FILENAME")
-	restoreW := runeLen("RESTORE TO")
+	filenameW := len([]rune("FILENAME"))
+	restoreW := len([]rune("RESTORE TO"))
 	for _, e := range entries {
-		if w := runeLen(filepath.Base(e.Destination)); w > filenameW {
+		if w := len([]rune(filepath.Base(e.Destination))); w > filenameW {
 			filenameW = w
 		}
-		if w := runeLen(filepath.Dir(e.Source)); w > restoreW {
+		if w := len([]rune(filepath.Dir(e.Source))); w > restoreW {
 			restoreW = w
 		}
 	}

@@ -24,7 +24,7 @@ import "github.com/lucasassuncao/movelooper/internal/tokens"
 
 
 <a name="RenameOnlyToken"></a>
-## func [RenameOnlyToken](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L79>)
+## func [RenameOnlyToken](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L78>)
 
 ```go
 func RenameOnlyToken(template string) string
@@ -33,7 +33,7 @@ func RenameOnlyToken(template string) string
 RenameOnlyToken returns the first rename\-only token \(sequence or hash family\) found in template, or "" if there is none. These tokens are resolved only by ResolveRename, never by ResolveGroupBy, so callers reject them in organize\-by.
 
 <a name="ResolveArchiveName"></a>
-## func [ResolveArchiveName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L174>)
+## func [ResolveArchiveName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L172>)
 
 ```go
 func ResolveArchiveName(template, category string, now time.Time) string
@@ -78,7 +78,7 @@ func ResolveSeqRoman(destDir, template string) string
 ResolveSeqRoman returns the next roman numeral for destDir, reading the numerals already there through the shape of template.
 
 <a name="ValidateTemplate"></a>
-## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L85>)
+## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L84>)
 
 ```go
 func ValidateTemplate(template string) error
@@ -87,7 +87,7 @@ func ValidateTemplate(template string) error
 ValidateTemplate returns an error if the template contains any unrecognised or malformed \{token\}.
 
 <a name="VariesPerFile"></a>
-## func [VariesPerFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L142>)
+## func [VariesPerFile](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L141>)
 
 ```go
 func VariesPerFile(template string) bool

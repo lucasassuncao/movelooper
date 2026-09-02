@@ -24,16 +24,6 @@ import (
 
 const watchLockFile = "movelooper.lock"
 
-// acquireWatchLock takes the exclusive watch-mode lock, so two watchers never
-// run at once. Returns a release function to call on shutdown.
-//
-// The lock is an OS-level lock held for as long as this process lives, so it is
-// released automatically even on a crash or a kill -9. There is no stale lock to
-// reclaim and no PID to second-guess.
-func acquireWatchLock() (func(), error) {
-	return acquireLockAt(watchLockPath())
-}
-
 // watchLockPath returns the lock file location. It lives under ~/.movelooper
 // (per-user, like logs and history) rather than the OS temp dir, which is
 // shared between users on Unix and would let one user's watcher block
@@ -109,7 +99,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	}
 	m.Categories = filtered
 
-	release, err := acquireWatchLock()
+	release, err := acquireLockAt(watchLockPath())
 	if err != nil {
 		return err
 	}
