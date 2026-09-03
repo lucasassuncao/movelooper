@@ -8,6 +8,7 @@
   - [Cookbook](/COOKBOOK.md)
   - [Troubleshooting](/TROUBLESHOOTING.md)
   - [Watch Mode](/WATCH.md)
+  - [Flow Diagrams](/FLOWS.md)
   - [Editor (TUI)](/EDIT.md)
   - [FAQ](/FAQ.md)
 

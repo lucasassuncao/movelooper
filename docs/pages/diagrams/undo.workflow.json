@@ -1,0 +1,56 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "movelooper — undo a batch",
+    "output": "undo.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": { "entries": { "external": { "label": "Command" }, "backend": { "label": "Engine step" }, "security": { "label": "Guard" }, "database": { "label": "On-disk state" }, "frontend": { "label": "Terminal output" } } },
+    "views": [
+      { "id": "main-path", "label": "Main path", "focus": ["undo", "batch", "entries", "confirm", "moveback", "result"], "note": "The common case: files that were moved go back to their source path." },
+      { "id": "selection", "label": "Selecting a batch", "focus": ["undo", "batch", "entries"], "note": "No argument takes the most recent batch, and --category narrows it." },
+      { "id": "copies", "label": "Copies and symlinks", "focus": ["confirm", "remove", "guard"], "note": "Undoing a copy is a deletion, so it is held back when bytes would be lost." },
+      { "id": "archive", "label": "Archive batches", "focus": ["entries", "skip"], "note": "An archive batch is recorded as non-undoable and is skipped entry by entry." }
+    ]
+  },
+  "lanes": [
+    { "id": "history", "label": "History" },
+    { "id": "moves", "label": "Moved files" },
+    { "id": "cmd", "label": "Command" },
+    { "id": "copies", "label": "Copies and symlinks" }
+  ],
+  "phases": [
+    { "id": "pick", "label": "Select", "fromCol": 0, "toCol": 1 },
+    { "id": "check", "label": "Check", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "restore", "label": "Restore", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["undo", "batch", "entries", "confirm", "moveback", "result"],
+  "nodes": [
+    { "id": "undo", "lane": "cmd", "col": 0, "type": "external", "label": "movelooper undo", "sublabel": "batch id or last", "width": 158, "height": 44 },
+    { "id": "confirm", "lane": "cmd", "col": 2, "type": "security", "label": "Confirm", "sublabel": "or --dry-run", "width": 158, "height": 44 },
+    { "id": "result", "lane": "cmd", "col": 5, "type": "frontend", "label": "Result", "sublabel": "restored · failed", "width": 158, "height": 44 },
+    { "id": "batch", "lane": "history", "col": 1, "type": "database", "label": "Read batch", "sublabel": "movelooper.json", "width": 158, "height": 44 },
+    { "id": "entries", "lane": "history", "col": 2, "type": "backend", "label": "Select entries", "sublabel": "--category", "width": 158, "height": 44 },
+    { "id": "skip", "lane": "history", "col": 3, "type": "security", "label": "Archive entry", "sublabel": "not undoable", "width": 158, "height": 44 },
+    { "id": "moveback", "lane": "moves", "col": 4, "type": "backend", "label": "Move back", "sublabel": "dest to source", "width": 158, "height": 44 },
+    { "id": "remove", "lane": "copies", "col": 4, "type": "backend", "label": "Delete copy", "sublabel": "at destination", "width": 158, "height": 44 },
+    { "id": "guard", "lane": "copies", "col": 5, "type": "security", "label": "Guard", "sublabel": "unless --force", "width": 158, "height": 44 }
+  ],
+  "edges": [
+    { "id": "undo-batch", "from": "undo", "to": "batch", "label": "most recent", "variant": "emphasis" },
+    { "id": "batch-entries", "from": "batch", "to": "entries", "label": "batch entries", "variant": "emphasis" },
+    { "id": "entries-skip", "from": "entries", "to": "skip", "label": "archive batch", "variant": "dashed", "role": "branch" },
+    { "id": "entries-confirm", "from": "entries", "to": "confirm", "label": "reverse order", "variant": "emphasis" },
+    { "id": "confirm-moveback", "from": "confirm", "to": "moveback", "label": "action: move", "variant": "emphasis" },
+    { "id": "confirm-remove", "from": "confirm", "to": "remove", "label": "copy / symlink", "variant": "dashed", "role": "branch" },
+    { "id": "moveback-result", "from": "moveback", "to": "result", "label": "back at source" },
+    { "id": "remove-guard", "from": "remove", "to": "guard", "label": "risky?", "variant": "dashed" },
+    { "id": "guard-result", "from": "guard", "to": "result", "label": "kept and reported", "variant": "dashed", "role": "return" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Selecting", "items": ["No argument undoes the most recent batch, --list shows them all", "--category undoes only some categories of a batch", "--dry-run prints the plan and touches nothing"] },
+    { "dot": "emerald", "title": "Restoring", "items": ["Entries are replayed in reverse order, last file first", "A move goes back to its source path, which must still be free", "Undoing a copy or a symlink deletes the destination instead"] },
+    { "dot": "rose", "title": "Held back", "items": ["A copy is kept when the original is gone or it was edited since", "--force removes those copies anyway", "Archive batches are never undone, the package is left in place"] }
+  ]
+}

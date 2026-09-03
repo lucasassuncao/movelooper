@@ -1,0 +1,57 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "movelooper — one-shot run",
+    "output": "one-shot-run.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": { "entries": { "external": { "label": "Command" }, "backend": { "label": "Engine step" }, "security": { "label": "User hook" }, "database": { "label": "On-disk state" }, "frontend": { "label": "Terminal output" } } },
+    "views": [
+      { "id": "main-path", "label": "Main path", "focus": ["run", "config", "categories", "scan", "filters", "destination", "action"], "note": "From the command to the action applied on one file." },
+      { "id": "category-cycle", "label": "Category loop", "focus": ["categories", "scan", "filters"], "note": "Every enabled category is scanned and filtered on its own before anything moves." },
+      { "id": "archive-branch", "label": "Archive branch", "focus": ["filters", "archive"], "note": "action: archive packs the whole category instead of acting file by file." },
+      { "id": "history", "label": "History", "focus": ["action", "history"], "note": "Entries are buffered in memory and written to disk once, at the end of the run." }
+    ]
+  },
+  "lanes": [
+    { "id": "cli", "label": "Command and config" },
+    { "id": "category", "label": "Per category" },
+    { "id": "file", "label": "Per file" },
+    { "id": "state", "label": "State" }
+  ],
+  "phases": [
+    { "id": "prep", "label": "Setup", "fromCol": 0, "toCol": 1 },
+    { "id": "cat", "label": "Per category", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "file", "label": "Per file", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["run", "config", "categories", "scan", "filters", "destination", "action"],
+  "nodes": [
+    { "id": "run", "lane": "cli", "col": 0, "type": "external", "label": "movelooper", "sublabel": "one-shot run", "width": 160, "height": 44 },
+    { "id": "config", "lane": "cli", "col": 1, "type": "backend", "label": "Load config", "sublabel": "koanf + import", "width": 160, "height": 44 },
+    { "id": "categories", "lane": "cli", "col": 2, "type": "backend", "label": "Select categories", "sublabel": "--category", "width": 160, "height": 44 },
+    { "id": "summary", "lane": "cli", "col": 5, "type": "frontend", "label": "Run summary", "sublabel": "moved · failed", "width": 160, "height": 44 },
+    { "id": "scan", "lane": "category", "col": 2, "type": "backend", "label": "Walk source", "sublabel": "recursive", "width": 160, "height": 44 },
+    { "id": "archive", "lane": "category", "col": 4, "type": "backend", "label": "Archive action", "sublabel": "zip · tar.gz", "width": 160, "height": 44 },
+    { "id": "filters", "lane": "file", "col": 3, "type": "backend", "label": "Match filters", "sublabel": "ext · age · size", "width": 160, "height": 44 },
+    { "id": "destination", "lane": "file", "col": 4, "type": "backend", "label": "Resolve path", "sublabel": "organize-by", "width": 160, "height": 44 },
+    { "id": "action", "lane": "file", "col": 5, "type": "backend", "label": "Apply action", "sublabel": "conflict + action", "width": 160, "height": 44 },
+    { "id": "history", "lane": "state", "col": 5, "type": "database", "label": "History", "sublabel": "one per file", "width": 160, "height": 44 }
+  ],
+  "edges": [
+    { "id": "run-config", "from": "run", "to": "config" },
+    { "id": "config-categories", "from": "config", "to": "categories" },
+    { "id": "categories-scan", "from": "categories", "to": "scan", "label": "enabled only", "variant": "emphasis" },
+    { "id": "scan-filters", "from": "scan", "to": "filters", "label": "per extension", "variant": "emphasis" },
+    { "id": "filters-destination", "from": "filters", "to": "destination", "label": "matched", "variant": "emphasis" },
+    { "id": "destination-action", "from": "destination", "to": "action", "label": "resolved path", "variant": "emphasis" },
+    { "id": "filters-archive", "from": "filters", "to": "archive", "label": "action: archive", "variant": "dashed", "role": "branch" },
+    { "id": "action-history", "from": "action", "to": "history", "label": "one entry" },
+    { "id": "action-summary", "from": "action", "to": "summary", "label": "run done", "variant": "dashed", "role": "return" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Order", "items": ["The config is loaded once, before any category runs", "Hooks run per category, before the scan and after it", "History is buffered in memory and written to disk once, at the end"] },
+    { "dot": "emerald", "title": "Per file", "items": ["Filters combine name, age and size, nested with any / all / not", "The path comes from organize-by and rename tokens", "One of 8 conflict strategies decides a name collision, then move, copy or symlink runs"] },
+    { "dot": "rose", "title": "Branches", "items": ["--dry-run plans without touching a file", "action: archive packs the whole category and is not undoable", "SIGINT stops before the next category and still writes history"] }
+  ]
+}

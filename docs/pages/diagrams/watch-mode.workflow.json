@@ -1,0 +1,55 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "movelooper — watch mode",
+    "output": "watch-mode.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": { "entries": { "external": { "label": "Command" }, "backend": { "label": "Engine step" }, "messagebus": { "label": "Event" }, "database": { "label": "In-memory state" } } },
+    "views": [
+      { "id": "main-path", "label": "Main path", "focus": ["watch", "register", "event", "tracker", "due", "match", "move"], "note": "From a filesystem event to a file that finally moves." },
+      { "id": "startup", "label": "Startup", "focus": ["watch", "register", "initial"], "note": "The lock, the registered source directories and the seed scan." },
+      { "id": "debounce", "label": "Debounce", "focus": ["event", "tracker", "tick", "due"], "note": "Two goroutines: events refresh timestamps, the ticker pops what went quiet." }
+    ]
+  },
+  "lanes": [
+    { "id": "setup", "label": "Startup" },
+    { "id": "events", "label": "Event loop" },
+    { "id": "ticker", "label": "Ticker loop" },
+    { "id": "file", "label": "Per file" }
+  ],
+  "phases": [
+    { "id": "start", "label": "Start", "fromCol": 0, "toCol": 1 },
+    { "id": "watchp", "label": "Watch and debounce", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "movep", "label": "Move", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["watch", "register", "event", "tracker", "due", "match", "move"],
+  "nodes": [
+    { "id": "watch", "lane": "setup", "col": 0, "type": "external", "label": "movelooper watch", "sublabel": "daemon", "width": 140, "height": 44 },
+    { "id": "register", "lane": "setup", "col": 1, "type": "backend", "label": "Lock and watch", "sublabel": "PID lock", "width": 140, "height": 44 },
+    { "id": "initial", "lane": "setup", "col": 2, "type": "backend", "label": "Initial scan", "sublabel": "existing files", "width": 140, "height": 44 },
+    { "id": "event", "lane": "events", "col": 2, "type": "messagebus", "label": "Create / Write", "sublabel": "fsnotify", "width": 140, "height": 44 },
+    { "id": "tracker", "lane": "events", "col": 3, "type": "database", "label": "Pending heap", "sublabel": "last event", "width": 140, "height": 44 },
+    { "id": "tick", "lane": "ticker", "col": 3, "type": "messagebus", "label": "Poll tick", "sublabel": "poll-interval", "width": 140, "height": 44 },
+    { "id": "due", "lane": "ticker", "col": 4, "type": "backend", "label": "Stable files", "sublabel": "watch.delay", "width": 140, "height": 44 },
+    { "id": "match", "lane": "file", "col": 4, "type": "backend", "label": "Match category", "sublabel": "ext · filters", "width": 140, "height": 44 },
+    { "id": "move", "lane": "file", "col": 5, "type": "backend", "label": "Move file", "sublabel": "conflict + action", "width": 140, "height": 44 }
+  ],
+  "edges": [
+    { "id": "watch-register", "from": "watch", "to": "register" },
+    { "id": "register-initial", "from": "register", "to": "initial", "label": "seed tracker", "variant": "dashed" },
+    { "id": "register-event", "from": "register", "to": "event", "label": "source dirs", "variant": "emphasis" },
+    { "id": "initial-tracker", "from": "initial", "to": "tracker", "label": "already there", "variant": "dashed" },
+    { "id": "event-tracker", "from": "event", "to": "tracker", "label": "touch timestamp", "variant": "emphasis" },
+    { "id": "tick-due", "from": "tick", "to": "due", "label": "every tick", "variant": "dashed" },
+    { "id": "tracker-due", "from": "tracker", "to": "due", "label": "quiet long enough", "variant": "emphasis" },
+    { "id": "due-match", "from": "due", "to": "match", "label": "one file", "variant": "emphasis" },
+    { "id": "match-move", "from": "match", "to": "move", "label": "matched", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Startup", "items": ["A PID lock file keeps a second watcher from starting", "Only the category source directories are registered, watch is not recursive", "The initial scan seeds the heap with files that were already there"] },
+    { "dot": "emerald", "title": "Debounce", "items": ["Every Create or Write event refreshes the timestamp of that file", "The ticker pops only files idle for watch.delay, so partial writes are not moved", "A failed move is retried, then dropped until a new event re-tracks it"] },
+    { "dot": "rose", "title": "Not the same as a run", "items": ["Hooks never run in watch mode, and a warning says so at startup", "action: archive categories are skipped, archiving is a batch operation", "Moves are recorded under a watch batch id and stay undoable"] }
+  ]
+}
