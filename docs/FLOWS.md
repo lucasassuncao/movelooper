@@ -13,7 +13,7 @@ Every diagram was generated from a typed JSON source, checked against the code i
 Hooks are deliberately left out of the diagram: they are user shell commands, not engine steps, and drawing them broke the line of the flow. A `before` hook runs ahead of the scan and an `after` hook once the category is done, with `ML_FILES_MOVED` in its environment. See [Hooks](/HOOKS.md).
 
 <!-- markdownlint-disable MD033 -->
-<iframe src="../diagrams/one-shot-run.html" title="movelooper one-shot run flow" width="100%" height="940" style="border:1px solid #30363d;border-radius:8px" loading="lazy"></iframe>
+<iframe src="../diagrams/one-shot-run.html" title="movelooper one-shot run flow" width="100%" height="1000" style="border:1px solid #30363d;border-radius:8px" loading="lazy"></iframe>
 <!-- markdownlint-enable MD033 -->
 
 <!-- markdownlint-disable MD033 -->
@@ -29,7 +29,7 @@ Related: [Categories](/CATEGORIES.md) · [Filters](/FILTERS.md) · [Actions](/AC
 `movelooper watch`. A PID lock keeps a single watcher, fsnotify events refresh a per-file timestamp, and a ticker moves only the files that have gone quiet for `watch.delay`. Hooks are skipped here by design, and `action: archive` categories are not watched.
 
 <!-- markdownlint-disable MD033 -->
-<iframe src="../diagrams/watch-mode.html" title="movelooper watch mode flow" width="100%" height="940" style="border:1px solid #30363d;border-radius:8px" loading="lazy"></iframe>
+<iframe src="../diagrams/watch-mode.html" title="movelooper watch mode flow" width="100%" height="1000" style="border:1px solid #30363d;border-radius:8px" loading="lazy"></iframe>
 <!-- markdownlint-enable MD033 -->
 
 <!-- markdownlint-disable MD033 -->
@@ -45,7 +45,7 @@ Related: [Watch Mode](/WATCH.md) · [Configuration](/CONFIGURATION.md)
 `movelooper undo`. The batch is read from history and replayed in reverse. A moved file goes back to its source path; undoing a copy or a symlink deletes the destination instead, which is why a copy is held back when the original is gone or the copy was edited since.
 
 <!-- markdownlint-disable MD033 -->
-<iframe src="../diagrams/undo.html" title="movelooper undo flow" width="100%" height="940" style="border:1px solid #30363d;border-radius:8px" loading="lazy"></iframe>
+<iframe src="../diagrams/undo.html" title="movelooper undo flow" width="100%" height="1000" style="border:1px solid #30363d;border-radius:8px" loading="lazy"></iframe>
 <!-- markdownlint-enable MD033 -->
 
 <!-- markdownlint-disable MD033 -->
