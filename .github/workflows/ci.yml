@@ -131,6 +131,13 @@ jobs:
           path: .gobin
           key: gobin-${{ runner.os }}-${{ hashFiles('Makefile') }}
 
+      # govulncheck is the gate that matters for a Go binary: it only reports
+      # advisories reachable from this module's code. It runs before the SBOM
+      # scan so its answer is in the log even when grype fails the job on an
+      # advisory nothing here can execute.
+      - name: Check reachable vulnerabilities
+        run: make govulncheck
+
       - name: Scan dependencies
         run: make vuln
 

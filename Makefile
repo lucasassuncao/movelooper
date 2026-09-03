@@ -1,4 +1,4 @@
-.PHONY: help build build-all release tag install fmt lint test test-coverage test-watch security sbom vuln deps docs completions all run tools tools-clean clean
+.PHONY: help build build-all release tag install fmt lint test test-coverage test-watch security govulncheck sbom vuln deps docs completions all run tools tools-clean clean
 
 # Tool versions
 GOLANGCI_LINT_VERSION := v2.13.2
@@ -9,6 +9,7 @@ GOSEC_VERSION         := v2.29.0
 GOCOBERTURA_VERSION   := latest
 SYFT_VERSION          := v1.51.1
 GRYPE_VERSION         := v0.118.0
+GOVULNCHECK_VERSION   := v1.7.0
 
 # Tools are installed into ./.gobin (gitignored) rather than taken from PATH,
 # so every target runs the version pinned above and never whatever happens to
@@ -31,8 +32,9 @@ GOSEC       := $(GOBIN_DIR)/gosec$(EXE)
 GOCOBERTURA := $(GOBIN_DIR)/gocover-cobertura$(EXE)
 SYFT        := $(GOBIN_DIR)/syft$(EXE)
 GRYPE       := $(GOBIN_DIR)/grype$(EXE)
+GOVULNCHECK := $(GOBIN_DIR)/govulncheck$(EXE)
 
-TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(SYFT) $(GRYPE)
+TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(SYFT) $(GRYPE) $(GOVULNCHECK)
 
 # `go install` takes its destination from GOBIN in the environment and has no
 # flag for it, so the tool rules - and only those - export it. A file-wide
@@ -71,6 +73,10 @@ $(SYFT):
 $(GRYPE):
 	@echo "Installing grype $(GRYPE_VERSION)..."
 	@go install github.com/anchore/grype/cmd/grype@$(GRYPE_VERSION)
+
+$(GOVULNCHECK):
+	@echo "Installing govulncheck $(GOVULNCHECK_VERSION)..."
+	@go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 
 # Coverage
 COVERAGE_DIR  := coverage
@@ -167,6 +173,14 @@ test-coverage: $(GOTESTSUM) $(GOCOBERTURA) ## Run tests with coverage (HTML + Co
 security: $(GOSEC) ## Run security analysis with gosec
 	@$(GOSEC) -stdout -severity medium ./...
 
+# gosec reads this repository's code; govulncheck reads the dependency tree the
+# way the compiler does, so it only reports advisories whose vulnerable symbol
+# is actually reachable from this module. That is the difference between "a CVE
+# exists somewhere in go.sum" and "this binary can execute it".
+govulncheck: $(GOVULNCHECK) ## Report vulnerabilities reachable from this code
+	@echo "Checking for reachable vulnerabilities..."
+	@$(GOVULNCHECK) ./...
+
 sbom: $(SYFT) ## Generate a CycloneDX SBOM of the dependency tree
 	@echo "Generating SBOM..."
 	@$(SYFT) . --source-name $(BINARY_NAME) --exclude './.gobin/**' --exclude './$(BUILD_DIR)/**' --exclude './dist/**' -o cyclonedx-json=$(SBOM_FILE)
@@ -201,10 +215,12 @@ completions: ## Generate shell completion scripts into ./completions
 	@echo "Completion scripts written to $(COMPLETIONS_DIR)/"
 
 # Local, deterministic checks first, so a failure points at the code. The
-# supply-chain scan goes last because it is the only step that needs the
-# network: grype refreshes its vulnerability database, and a hiccup there
-# should not mask a lint or test failure.
-all: deps fmt docs lint security test-coverage sbom vuln
+# supply-chain scans go last because they are the only steps that need the
+# network: govulncheck and grype both fetch a vulnerability database, and a
+# hiccup there should not mask a lint or test failure. govulncheck runs before
+# grype so the reachability answer is printed even when grype fails the build
+# on an advisory this binary never executes.
+all: deps fmt docs lint security test-coverage govulncheck sbom vuln
 
 run: ## Run the application
 	@go run $(MAIN_PATH)
