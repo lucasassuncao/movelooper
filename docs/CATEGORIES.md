@@ -4,11 +4,11 @@ Each entry in the `categories` list defines a rule: which files to match and whe
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `name` | string | yes | — | Label used in logs and undo history. Must be unique. |
+| `name` | string | yes | - | Label used in logs and undo history. Must be unique. |
 | `enabled` | bool | no | `false` | Must be explicitly `true`; omitting the field disables the category |
-| `source` | object | yes | — | Where to scan for files |
-| `destination` | object | yes | — | Where to place files and how |
-| `hooks` | object | no | — | Shell commands to run before/after processing |
+| `source` | object | yes | - | Where to scan for files |
+| `destination` | object | yes | - | Where to place files and how |
+| `hooks` | object | no | - | Shell commands to run before/after processing |
 
 ---
 
@@ -16,9 +16,9 @@ Each entry in the `categories` list defines a rule: which files to match and whe
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `path` | string | yes | — | Directory to scan |
-| `extensions` | []string | yes | — | Extensions to match (without dot). Use `["all"]` to match any file |
-| `filter` | object | no | — | Additional filters (see [Filters](/FILTERS.md)) |
+| `path` | string | yes | - | Directory to scan |
+| `extensions` | []string | yes | - | Extensions to match (without dot). Use `["all"]` to match any file |
+| `filter` | object | no | - | Additional filters (see [Filters](/FILTERS.md)) |
 | `recursive` | bool | no | `false` | Scan subdirectories recursively |
 | `max-depth` | int | no | `0` | Max recursion depth; `0` = unlimited (only used with `recursive: true`) |
 | `exclude-paths` | []string | no | `[]` | Absolute paths to skip during recursive walk. The destination is always auto-excluded |
@@ -31,12 +31,12 @@ A sub-directory the process cannot read is skipped with a warning naming it, and
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `path` | string | yes | — | Root directory where matched files are placed |
+| `path` | string | yes | - | Root directory where matched files are placed |
 | `action` | string | no | `move` | File operation: `move`, `copy`, `symlink`, or `archive` (see [Actions](/ACTIONS.md)) |
-| `organize-by` | string | no | — | Token template for sub-directories under `path` (see [Tokens](/TOKENS.md)) |
-| `rename` | string | no | — | Token template for the destination filename (see [Tokens](/TOKENS.md)). Empty = keep original |
+| `organize-by` | string | no | - | Token template for sub-directories under `path` (see [Tokens](/TOKENS.md)) |
+| `rename` | string | no | - | Token template for the destination filename (see [Tokens](/TOKENS.md)). Empty = keep original |
 | `conflict-strategy` | string | no | `rename` | What to do when a file already exists at the destination (see [Conflict Strategies](/CONFLICTS.md)) |
-| `archive` | object | no* | — | Required when `action: archive` |
+| `archive` | object | no* | - | Required when `action: archive` |
 
 See [Actions](/ACTIONS.md) for the full reference on `move`, `copy`, `symlink`, and `archive` (including the `archive:` block fields).
 

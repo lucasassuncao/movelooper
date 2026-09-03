@@ -1,12 +1,12 @@
 # Filters
 
-Filters let you narrow which files a category processes. A file must pass every filter defined on a source — the top-level fields are implicitly ANDed. For more complex logic, use `any`, `all`, and `not`.
+Filters let you narrow which files a category processes. A file must pass every filter defined on a source: the top-level fields are implicitly ANDed. For more complex logic, use `any`, `all`, and `not`.
 
 ---
 
 ## Filter types
 
-### `match` — filename pattern
+### `match`: filename pattern
 
 Constrains by filename. Pick exactly one of `glob`, `regex`, or `literal`.
 
@@ -14,8 +14,8 @@ Constrains by filename. Pick exactly one of `glob`, `regex`, or `literal`.
 filter:
   match:
     glob: "invoice_*"          # glob pattern
-    # regex: "^invoice_\\d{4}" # RE2 regex — mutually exclusive with glob
-    # literal: "summary.pdf"   # exact filename — mutually exclusive with glob/regex
+    # regex: "^invoice_\\d{4}" # RE2 regex, mutually exclusive with glob
+    # literal: "summary.pdf"   # exact filename, mutually exclusive with glob/regex
     case-sensitive: false       # default; set true for case-sensitive matching
 ```
 
@@ -26,7 +26,7 @@ filter:
 | `literal` | Exact filename match (whole name must equal this string) |
 | `case-sensitive` | Applies to all three match types; default `false` |
 
-### `age` — modification time
+### `age`: modification time
 
 Constrains by how old the file is relative to the current time. Accepts Go duration strings: `10m`, `24h`, `168h` (7 days), `720h` (30 days).
 
@@ -42,7 +42,7 @@ filter:
 | `min` | File must be **older** than this duration |
 | `max` | File must be **newer** than this duration |
 
-### `size` — file size
+### `size`: file size
 
 Constrains by file size. Decimal units: `KB`, `MB`, `GB`, `TB`. Binary units: `KiB`, `MiB`, `GiB`, `TiB`.
 
@@ -65,11 +65,11 @@ Decimal units (`KB`, `MB`, `GB`, `TB`) are powers of 1000; binary units (`KiB`, 
 | `KB` / `MB` / `GB` / `TB` | Powers of 1000 | `10MB` = 10 000 000 bytes |
 | `KiB` / `MiB` / `GiB` / `TiB` | Powers of 1024 | `10MiB` = 10 485 760 bytes |
 
-The two families are not interchangeable — `10MiB` is ~4.9% larger than `10MB`. Rule of thumb: `MB` matches what disk vendors and network tools report; `MiB` matches what Windows Explorer shows as "MB".
+The two families are not interchangeable: `10MiB` is ~4.9% larger than `10MB`. Rule of thumb: `MB` matches what disk vendors and network tools report; `MiB` matches what Windows Explorer shows as "MB".
 
 > **Note:** Earlier versions of movelooper treated `KB`/`MB`/`GB`/`TB` as binary. If your config predates this change, switch to `KiB`/`MiB`/`GiB`/`TiB` to keep the exact same thresholds.
 
-### `mime` — real content type
+### `mime`: real content type
 
 Matches against the file's detected MIME type (read from magic bytes, not the extension). The value is a glob pattern matched against the full MIME string.
 
@@ -96,7 +96,7 @@ source:
 
 Use `any`, `all`, and `not` to combine multiple filters. Each takes a list of filters that follow the same structure (including nested `any`/`all`/`not`).
 
-### `any` — OR
+### `any`: OR
 
 The file must match **at least one** of the listed filters.
 
@@ -109,7 +109,7 @@ filter:
         glob: "receipt_*"
 ```
 
-### `all` — AND
+### `all`: AND
 
 The file must match **all** listed filters simultaneously. Equivalent to listing them at the top level, but explicit.
 
@@ -122,7 +122,7 @@ filter:
         max: 168h     # modified within the last 7 days
 ```
 
-### `not` — exclude
+### `not`: exclude
 
 The file is excluded if it matches **any** of the listed filters.
 

@@ -1,4 +1,4 @@
-# movelooper demo — recorded with VHS (https://github.com/charmbracelet/vhs)
+# movelooper demo, recorded with VHS (https://github.com/charmbracelet/vhs)
 #
 # Prerequisites:
 #   go install github.com/charmbracelet/vhs@latest

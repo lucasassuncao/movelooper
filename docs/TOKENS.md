@@ -2,8 +2,8 @@
 
 Tokens are placeholders like `{year}` that expand to file or run metadata. They are used in two destination fields:
 
-- `organize-by` — builds sub-directories inside the destination path
-- `rename` — produces the full destination filename (include `{ext}` to keep the extension)
+- `organize-by`, builds sub-directories inside the destination path
+- `rename`, produces the full destination filename (include `{ext}` to keep the extension)
 
 A subset of tokens is also available in `archive.name`.
 
@@ -13,20 +13,20 @@ A subset of tokens is also available in `archive.name`.
 
 | Token | `organize-by` | `rename` | `archive.name` |
 |---|:---:|:---:|:---:|
-| `{name}`, `{ext}`, `{ext-upper}`, `{ext-lower}`, `{ext-reverse}` | ✓ | ✓ | — |
-| `{name-slug}`, `{name-snake}`, `{name-upper}`, `{name-lower}` | ✓ | ✓ | — |
-| `{name-alpha}`, `{name-ascii}`, `{name-initials}`, `{name-reverse}` | ✓ | ✓ | — |
-| `{name-trunc:N}` | ✓ | ✓ | — |
-| `{mod-year}`, `{mod-month}`, `{mod-day}`, `{mod-date}`, `{mod-weekday}` | ✓ | ✓ | — |
-| `{created-year}`, `{created-month}`, `{created-day}`, `{created-date}` | ✓ | ✓ | — |
+| `{name}`, `{ext}`, `{ext-upper}`, `{ext-lower}`, `{ext-reverse}` | ✓ | ✓ | - |
+| `{name-slug}`, `{name-snake}`, `{name-upper}`, `{name-lower}` | ✓ | ✓ | - |
+| `{name-alpha}`, `{name-ascii}`, `{name-initials}`, `{name-reverse}` | ✓ | ✓ | - |
+| `{name-trunc:N}` | ✓ | ✓ | - |
+| `{mod-year}`, `{mod-month}`, `{mod-day}`, `{mod-date}`, `{mod-weekday}` | ✓ | ✓ | - |
+| `{created-year}`, `{created-month}`, `{created-day}`, `{created-date}` | ✓ | ✓ | - |
 | `{year}`, `{month}`, `{day}`, `{date}`, `{weekday}` | ✓ | ✓ | ✓ |
 | `{hour}`, `{minute}`, `{second}`, `{timestamp}` | ✓ | ✓ | ✓ |
-| `{size-range}` | ✓ | ✓ | — |
+| `{size-range}` | ✓ | ✓ | - |
 | `{category}` | ✓ | ✓ | ✓ |
 | `{hostname}`, `{username}`, `{os}` | ✓ | ✓ | ✓ |
-| `{mime}`, `{mime-type}`, `{mime-ext}` | ✓ | — | — |
-| `{seq}`, `{seq:N}`, `{seq-alpha}`, `{seq-roman}` | — | ✓ | — |
-| `{md5}`, `{md5:N}`, `{sha256:N}` | — | ✓ | — |
+| `{mime}`, `{mime-type}`, `{mime-ext}` | ✓ | - | - |
+| `{seq}`, `{seq:N}`, `{seq-alpha}`, `{seq-roman}` | - | ✓ | - |
+| `{md5}`, `{md5:N}`, `{sha256:N}` | - | ✓ | - |
 
 ---
 

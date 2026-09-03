@@ -2,7 +2,7 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "movelooper — undo a batch",
+    "title": "movelooper: undo a batch",
     "output": "undo.html",
     "locale": "en",
     "quality_profile": "showcase",

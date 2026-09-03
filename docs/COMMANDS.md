@@ -1,6 +1,6 @@
 # Commands and Flags
 
-## `movelooper` — move files once
+## `movelooper`: move files once
 
 Scans all enabled categories and moves matching files from source to destination. If a category defines `hooks`, the `before` hook runs before files are processed and the `after` hook runs when processing is complete.
 
@@ -22,7 +22,7 @@ movelooper [flags]
 
 A run stops early in two cases: when you interrupt it with Ctrl+C, and when the destination becomes unwritable (a full disk, or a directory the process cannot write to) for several files in a row. In both cases the history of what was already moved is written before exiting, and the batch ID is printed so you can `undo` it. Every other failure skips the file and the run continues, reporting the total at the end. See [Guarantees and Limits](/GUARANTEES.md).
 
-`--dry-run` resolves every destination without touching anything, and reports any destination that already exists together with what your `conflict-strategy` will do to it. Two tokens are the exception: `{seq}` and `{sha256:N}` are left as literal placeholders in the preview, because resolving them would mean scanning the destination and reading each file — a preview never does either.
+`--dry-run` resolves every destination without touching anything, and reports any destination that already exists together with what your `conflict-strategy` will do to it. Two tokens are the exception: `{seq}` and `{sha256:N}` are left as literal placeholders in the preview, because resolving them would mean scanning the destination and reading each file, a preview never does either.
 
 ```bash
 movelooper --category images                 # run only the "images" category
@@ -35,7 +35,7 @@ movelooper watch --format json               # structured logs in watch mode
 
 With `action: archive`, a category is packed into a single `.zip`/`.tar.gz` at the destination instead of moving files individually. `--dry-run` lists what would be archived. Archive is not processed in `watch` mode (a warning is printed at startup) and archive batches cannot be undone.
 
-## `movelooper watch` — real-time monitoring
+## `movelooper watch`: real-time monitoring
 
 Monitors all source directories and moves files as they appear, after they stabilize (controlled by `watch.delay`). Hooks are executed per category on each triggered move, same as in the default move command.
 
@@ -51,7 +51,7 @@ movelooper watch --category images                 # watch only the "images" cat
 | `--category`          | Comma-separated list of category names to monitor (default: all)          |
 | `--include-disabled`  | Include categories with `enabled: false`                                  |
 
-## `movelooper undo` — revert a batch
+## `movelooper undo`: revert a batch
 
 ```bash
 movelooper undo                                      # open interactive batch picker
@@ -78,7 +78,7 @@ The global `--format json` also applies here: undo's restore/dry-run logs (`file
 >
 > When using `--category`, only entries from the specified categories are reverted. If the batch becomes empty after the partial undo, it is removed from history entirely. Entries recorded before category tracking was added (older history) are skipped with a warning.
 
-## `movelooper edit` — interactive config editor
+## `movelooper edit`: interactive config editor
 
 Opens the configuration file in an interactive two-panel TUI editor. The left panel lists top-level configuration keys; pressing Enter opens the block editor where sub-fields can be toggled and edited. The editor validates the file on save.
 
@@ -92,7 +92,7 @@ movelooper edit --config /path/to/movelooper.yaml
 
 | Flag                    | Description                                                              |
 |-------------------------|--------------------------------------------------------------------------|
-| `--theme`               | Theme name (default: `plain`) — run `--list-themes` to see options       |
+| `--theme`               | Theme name (default: `plain`), run `--list-themes` to see options       |
 | `--list-themes`         | Browse available themes in an interactive, tabbed terminal UI            |
 | `--output`, `-o`        | Save to this file instead of the loaded config (load path is unchanged)  |
 | `--no-save-confirm`     | Skip the save confirmation dialog                                        |
@@ -103,11 +103,11 @@ movelooper edit --config /path/to/movelooper.yaml
 
 **Keybindings:** `Ctrl+S` save · `Ctrl+U` undo · `Ctrl+Y` redo · `Esc` quit
 
-## `movelooper validate` — validate config file
+## `movelooper validate`: validate config file
 
 Loads and validates the configuration file, reporting all rule violations. Exits with a non-zero status when errors are found.
 
-Alongside errors, `validate` reports **warnings**: configurations that are perfectly valid and will run exactly as written, but that lose files in ways people rarely intend. Warnings never fail the command and never stop a run — the config stays the source of truth. They are reported here so you find out before the run instead of afterwards, from the missing files.
+Alongside errors, `validate` reports **warnings**: configurations that are perfectly valid and will run exactly as written, but that lose files in ways people rarely intend. Warnings never fail the command and never stop a run, the config stays the source of truth. They are reported here so you find out before the run instead of afterwards, from the missing files.
 
 | Warning | Why it matters |
 |---|---|
@@ -133,7 +133,7 @@ movelooper validate --config /path/to/movelooper.yaml
 
 > On `validate`, `--format` controls the **validation report** rendering (`pretty`/`plain`/`table`/`json`), not the log format; its local `-f` shadows the global logging `--format` here.
 
-## `movelooper config` — show resolved config path
+## `movelooper config`: show resolved config path
 
 Prints the absolute path of the configuration file that would be loaded, after applying default search locations and the `--config` override.
 
@@ -142,7 +142,7 @@ movelooper config
 movelooper config --config /path/to/movelooper.yaml
 ```
 
-## `movelooper self-update` — update the binary
+## `movelooper self-update`: update the binary
 
 Downloads a release from GitHub and replaces the current binary. The old binary is saved with a `.old` suffix (e.g. `movelooper.exe.old` on Windows) and cleaned up on the next run.
 
@@ -162,7 +162,7 @@ movelooper self-update --repo lucasassuncao/movelooper
 | `--prerelease` | Include prereleases (rc/beta/alpha) in `--list`, or as the latest target   |
 | `--limit`      | Maximum number of releases to show with `--list` (default `20`, max `100`)  |
 
-## `movelooper completion` — shell completion scripts
+## `movelooper completion`: shell completion scripts
 
 Prints the completion script for a shell to stdout. Once it is installed, TAB expands commands and flags, and `--category` suggests the category names found in your own config.
 

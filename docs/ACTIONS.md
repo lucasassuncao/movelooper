@@ -18,7 +18,7 @@ Default action. The file is moved from source to destination and removed from th
 ```yaml
 destination:
   path: ~/sorted
-  action: move  # optional — this is the default
+  action: move  # optional, this is the default
 ```
 
 ## `copy`
@@ -59,7 +59,7 @@ Packs all files matched by the category into a single `.zip` or `.tar.gz` archiv
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `format` | string | yes | — | `zip` or `tar.gz` |
+| `format` | string | yes | - | `zip` or `tar.gz` |
 | `name` | string | no | category name | Archive filename base (extension added automatically). Supports: `{category}`, `{date}`, `{timestamp}`, `{hostname}`, `{username}`, `{os}` |
 | `compression` | string | no | `best` | `none`, `fast`, or `best` |
 | `keep-source` | bool | no | `true` | Keep originals; `false` deletes sources after a successful write |

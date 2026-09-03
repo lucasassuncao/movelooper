@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="movelooper — a modern CLI tool that automatically organizes and moves your files based on configurable categories." />
+  <meta name="description" content="movelooper, a modern CLI tool that automatically organizes and moves your files based on configurable categories." />
   <title>movelooper</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
@@ -96,7 +96,7 @@
           <div class="card-body">
             <i class="bi bi-binoculars fs-2 text-primary mb-3 d-block"></i>
             <h5 class="card-title">Dry-run everywhere</h5>
-            <p class="card-text text-secondary"><code>--dry-run</code> on move and undo — preview before committing.</p>
+            <p class="card-text text-secondary"><code>--dry-run</code> on move and undo, preview before committing.</p>
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@
           <div class="card-body">
             <i class="bi bi-shield-check fs-2 text-primary mb-3 d-block"></i>
             <h5 class="card-title">Conflict strategies</h5>
-            <p class="card-text text-secondary"><code>rename</code>, <code>overwrite</code>, <code>skip</code>, or <code>hash_check</code> — per category.</p>
+            <p class="card-text text-secondary"><code>rename</code>, <code>overwrite</code>, <code>skip</code>, or <code>hash_check</code> per category.</p>
           </div>
         </div>
       </div>
@@ -126,7 +126,7 @@
           <div class="card-body">
             <i class="bi bi-asterisk fs-2 text-primary mb-3 d-block"></i>
             <h5 class="card-title">Wildcard extension</h5>
-            <p class="card-text text-secondary"><code>extensions: [all]</code> matches any file type — combine with <code>organize-by: "{ext}"</code> for a catch-all sorter.</p>
+            <p class="card-text text-secondary"><code>extensions: [all]</code> matches any file type, combine with <code>organize-by: "{ext}"</code> for a catch-all sorter.</p>
           </div>
         </div>
       </div>
@@ -146,7 +146,7 @@
           <div class="card-body">
             <i class="bi bi-tags fs-2 text-primary mb-3 d-block"></i>
             <h5 class="card-title">Rich rename tokens</h5>
-            <p class="card-text text-secondary">Name transforms, system info, timestamps, hashes, and sequences — e.g. <code>{mod-date}_{name-slug}.{ext}</code>.</p>
+            <p class="card-text text-secondary">Name transforms, system info, timestamps, hashes, and sequences, e.g. <code>{mod-date}_{name-slug}.{ext}</code>.</p>
           </div>
         </div>
       </div>
@@ -156,7 +156,7 @@
           <div class="card-body">
             <i class="bi bi-arrow-left-right fs-2 text-primary mb-3 d-block"></i>
             <h5 class="card-title">Action control</h5>
-            <p class="card-text text-secondary"><code>move</code>, <code>copy</code>, or <code>symlink</code> per category — back up or link files without touching the originals.</p>
+            <p class="card-text text-secondary"><code>move</code>, <code>copy</code>, or <code>symlink</code> per category, to back up or link files without touching the originals.</p>
           </div>
         </div>
       </div>
@@ -166,7 +166,7 @@
           <div class="card-body">
             <i class="bi bi-fingerprint fs-2 text-primary mb-3 d-block"></i>
             <h5 class="card-title">Detects real file types</h5>
-            <p class="card-text text-secondary">Match and organize by content (magic bytes), not just the extension — a <code>.jpg</code> that is really a PNG is sorted correctly with <code>filter.mime</code> and <code>{mime-type}</code>.</p>
+            <p class="card-text text-secondary">Match and organize by content (magic bytes), not just the extension: a <code>.jpg</code> that is really a PNG is sorted correctly with <code>filter.mime</code> and <code>{mime-type}</code>.</p>
           </div>
         </div>
       </div>
@@ -373,7 +373,7 @@ movelooper watch                     <span class="cmt"># real-time monitoring</s
       </div>
 
       <div class="tab-pane fade" id="tab-ex-imports" role="tabpanel">
-        <p class="mb-2 fw-semibold">movelooper.yaml <span class="fw-normal text-secondary">— main file</span></p>
+        <p class="mb-2 fw-semibold">movelooper.yaml <span class="fw-normal text-secondary">(main file)</span></p>
         <div class="code-block position-relative mb-4">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">configuration</span>:
@@ -387,7 +387,7 @@ movelooper watch                     <span class="cmt"># real-time monitoring</s
   - <span class="str">categories/wallhaven.yaml</span></pre>
         </div>
 
-        <p class="mb-2 fw-semibold">categories/wallhaven.yaml <span class="fw-normal text-secondary">— imported file</span></p>
+        <p class="mb-2 fw-semibold">categories/wallhaven.yaml <span class="fw-normal text-secondary">(imported file)</span></p>
         <div class="code-block position-relative">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <pre><span class="key">categories</span>:

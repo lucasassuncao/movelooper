@@ -1,6 +1,6 @@
 # Cookbook
 
-Ready-to-use configurations for common scenarios. Each recipe is a complete, working config — copy, adjust the paths, then run `movelooper --dry-run` to preview before committing.
+Ready-to-use configurations for common scenarios. Each recipe is a complete, working config. Copy it, adjust the paths, then run `movelooper --dry-run` to preview before committing.
 
 ---
 
@@ -78,7 +78,7 @@ categories:
       conflict-strategy: skip    # keep only one copy per installer name
 ```
 
-> **See also:** [Filters](/FILTERS.md) — `age`, `size`, `match`, and boolean composition · [Conflict Strategies](/CONFLICTS.md) — `rename`, `skip`, and more.
+> **See also:** [Filters](/FILTERS.md): `age`, `size`, `match`, and boolean composition · [Conflict Strategies](/CONFLICTS.md): `rename`, `skip`, and more.
 
 ---
 
@@ -117,7 +117,7 @@ To also rename files with the modification date as prefix:
       conflict-strategy: hash_check
 ```
 
-> **See also:** [Tokens](/TOKENS.md) — `{mod-year}`, `{mod-date}`, `{name}`, `{ext}`, and all other template tokens · [Conflict Strategies](/CONFLICTS.md) — `hash_check`, `rename`, `skip`, and more.
+> **See also:** [Tokens](/TOKENS.md): `{mod-year}`, `{mod-date}`, `{name}`, `{ext}`, and all other template tokens · [Conflict Strategies](/CONFLICTS.md): `hash_check`, `rename`, `skip`, and more.
 
 ---
 
@@ -146,7 +146,7 @@ categories:
 
 > **Note:** Undoing a `copy` batch removes the copy at the destination. The original is never touched.
 
-> **See also:** [Actions](/ACTIONS.md) — copy, move, symlink, archive · [Undo](/UNDO.md) — batch IDs, limitations per action type.
+> **See also:** [Actions](/ACTIONS.md): copy, move, symlink, archive · [Undo](/UNDO.md): batch IDs, limitations per action type.
 
 ---
 
@@ -175,7 +175,7 @@ categories:
       conflict-strategy: rename
 ```
 
-For even smarter sorting — organize by the **real** file type (not just the extension), add `filter.mime`:
+For even smarter sorting, organize by the **real** file type (not just the extension), add `filter.mime`:
 
 ```yaml
     source:
@@ -188,7 +188,7 @@ For even smarter sorting — organize by the **real** file type (not just the ex
           - "image/*"       # only real images, regardless of extension
 ```
 
-> **See also:** [Tokens](/TOKENS.md) — `{ext}` and all organize-by tokens. [Filters](/FILTERS.md) — `mime`, `age`, and filter composition.
+> **See also:** [Tokens](/TOKENS.md): `{ext}` and all organize-by tokens. [Filters](/FILTERS.md): `mime`, `age`, and filter composition.
 
 ---
 
@@ -218,7 +218,7 @@ categories:
       conflict-strategy: hash_check
 ```
 
-> **See also:** [Filters](/FILTERS.md) — `match.regex`, `match.glob`, and boolean composition.
+> **See also:** [Filters](/FILTERS.md): `match.regex`, `match.glob`, and boolean composition.
 
 ---
 
@@ -227,7 +227,7 @@ categories:
 When your config grows large, split categories into separate files. The main file holds global settings; each imported file holds one or more categories.
 
 ```yaml
-# movelooper.yaml — main file
+# movelooper.yaml, main file
 configuration:
   logging:
     output: console
@@ -260,7 +260,7 @@ categories:
 
 Run `movelooper edit` to open the merged config in the interactive TUI editor.
 
-> **See also:** [Configuration](/CONFIGURATION.md) — `import:` key and all global settings.
+> **See also:** [Configuration](/CONFIGURATION.md): `import:` key and all global settings.
 
 ---
 
@@ -311,7 +311,7 @@ categories:
 
 > Hooks run only on the one-shot `movelooper` command, not in `watch` mode.
 
-> **See also:** [Hooks](/HOOKS.md) — fields, `on-failure`, all `ML_*` environment variables, and more examples.
+> **See also:** [Hooks](/HOOKS.md): fields, `on-failure`, all `ML_*` environment variables, and more examples.
 
 ---
 

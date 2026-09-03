@@ -48,7 +48,7 @@ See [Undo](/UNDO.md) for the full reference.
 
 Both. At startup watch performs an initial scan of each source directory and queues the files already there; after that it reacts to files as they arrive. In every case a file is only moved once it has gone `watch.delay` without a new write, so a file still being downloaded is left alone.
 
-The initial scan is not recursive, matching watch mode itself — see [Guarantees and Limits](/GUARANTEES.md#watch-mode-limits).
+The initial scan is not recursive, matching watch mode itself. See [Guarantees and Limits](/GUARANTEES.md#watch-mode-limits).
 
 ## How do I schedule movelooper to run automatically?
 

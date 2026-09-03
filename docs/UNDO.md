@@ -1,6 +1,6 @@
 # Undo
 
-Every run of `movelooper` records a batch in the history file. `movelooper undo` lets you restore files from any recorded batch — interactively or by batch ID.
+Every run of `movelooper` records a batch in the history file. `movelooper undo` lets you restore files from any recorded batch, interactively or by batch ID.
 
 ---
 

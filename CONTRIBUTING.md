@@ -10,7 +10,7 @@ Open a GitHub issue and include:
 
 - **What you expected** to happen
 - **What actually happened** (paste the full error output or log)
-- **Steps to reproduce** — the minimal config and command that triggers the issue
+- **Steps to reproduce**: the minimal config and command that triggers the issue
 - **Environment:** OS, architecture, and movelooper version (`movelooper --version`)
 
 For security vulnerabilities, do **not** open a public issue. Email the maintainer directly.

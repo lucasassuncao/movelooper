@@ -32,7 +32,7 @@ Both `before` and `after` are optional and independent.
 
 ### Lifecycle
 
-- `before` runs before any files are processed. If it fails with `on-failure: abort`, the entire category is skipped — no files are moved.
+- `before` runs before any files are processed. If it fails with `on-failure: abort`, the entire category is skipped, no files are moved.
 - `after` runs after all files have been processed. If it fails, the files are already moved; only the hook result is affected.
 - Each command in `run` is a separate shell invocation. A non-zero exit from any command triggers `on-failure`.
 
@@ -57,18 +57,18 @@ Both `before` and `after` are optional and independent.
 | `ML_FILES_MOVED` | Number of files successfully processed |
 | `ML_FILES_SKIPPED` | Number of files skipped (e.g. `conflict-strategy: skip`) |
 | `ML_FILES_FAILED` | Number of files that failed to process |
-| `ML_BATCH_ID` | Batch ID — pass to `movelooper undo <id>` to revert this specific batch |
+| `ML_BATCH_ID` | Batch ID, pass to `movelooper undo <id>` to revert this specific batch |
 | `ML_ARCHIVE_PATH` | Path to the created archive (only when `action: archive`) |
 
 ---
 
 ## Platform notes
 
-**Windows — PowerShell Core (`pwsh`):** invoked with `-NonInteractive -NoProfile` automatically. Use `$env:ML_*` syntax.
+**Windows, PowerShell Core (`pwsh`):** invoked with `-NonInteractive -NoProfile` automatically. Use `$env:ML_*` syntax.
 
-**Windows — `cmd`:** use `%ML_CATEGORY%` syntax. Multi-line scripts are not supported; use `pwsh` instead.
+**Windows, `cmd`:** use `%ML_CATEGORY%` syntax. Multi-line scripts are not supported; use `pwsh` instead.
 
-**Linux / macOS — `bash` / `zsh`:** use `$ML_*` syntax. Multi-line scripts with YAML block scalars (`|`) work naturally.
+**Linux / macOS, `bash` / `zsh`:** use `$ML_*` syntax. Multi-line scripts with YAML block scalars (`|`) work naturally.
 
 ---
 
@@ -154,7 +154,7 @@ hooks:
     run:
       - |
         if ! /usr/local/bin/validate-files.sh "$ML_DEST_PATH"; then
-          echo "Validation failed — undoing batch $ML_BATCH_ID"
+          echo "Validation failed, undoing batch $ML_BATCH_ID"
           movelooper undo "$ML_BATCH_ID"
         fi
 ```

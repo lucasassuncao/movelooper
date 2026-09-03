@@ -275,13 +275,13 @@ How each strategy resolves a naming collision when the destination file already 
 flowchart TD
     Collision([destination exists]) --> Strategy{conflict-strategy}
 
-    Strategy -- skip --> SkipFile([skip — leave source untouched])
+    Strategy -- skip --> SkipFile([skip, leave source untouched])
 
     Strategy -- rename --> Rename[Append counter suffix\nfile.txt → file 1 .txt]
     Rename --> Proceed([proceed with new name])
 
     Strategy -- overwrite --> Overwrite[Replace destination\nswap-aside on Windows for rollback]
-    Overwrite --> Proceed2([proceed — original name])
+    Overwrite --> Proceed2([proceed, original name])
 
     Strategy -- hash_check --> Hash[Compare SHA-256 of source\nand destination]
     Hash --> HashMatch{Identical\ncontent?}
@@ -291,24 +291,24 @@ flowchart TD
     Rename2 --> Proceed3([proceed with new name])
 
     Strategy -- newest --> NewestCmp{Source ModTime\n> dest ModTime?}
-    NewestCmp -- no --> SkipFile3([skip — destination is newer])
+    NewestCmp -- no --> SkipFile3([skip, destination is newer])
     NewestCmp -- yes --> SwapNewest[Swap destination aside]
-    SwapNewest --> Proceed4([proceed — original name])
+    SwapNewest --> Proceed4([proceed, original name])
 
     Strategy -- oldest --> OldestCmp{Source ModTime\n< dest ModTime?}
-    OldestCmp -- no --> SkipFile4([skip — destination is older])
+    OldestCmp -- no --> SkipFile4([skip, destination is older])
     OldestCmp -- yes --> SwapOldest[Swap destination aside]
-    SwapOldest --> Proceed5([proceed — original name])
+    SwapOldest --> Proceed5([proceed, original name])
 
     Strategy -- larger --> LargerCmp{Source size\n> dest size?}
-    LargerCmp -- no --> SkipFile5([skip — destination is larger])
+    LargerCmp -- no --> SkipFile5([skip, destination is larger])
     LargerCmp -- yes --> SwapLarger[Swap destination aside]
-    SwapLarger --> Proceed6([proceed — original name])
+    SwapLarger --> Proceed6([proceed, original name])
 
     Strategy -- smaller --> SmallerCmp{Source size\n< dest size?}
-    SmallerCmp -- no --> SkipFile6([skip — destination is smaller])
+    SmallerCmp -- no --> SkipFile6([skip, destination is smaller])
     SmallerCmp -- yes --> SwapSmaller[Swap destination aside]
-    SwapSmaller --> Proceed7([proceed — original name])
+    SwapSmaller --> Proceed7([proceed, original name])
 ```
 
 > **Swap-aside**: for strategies that replace the destination (`overwrite`, `newest`, `oldest`, `larger`, `smaller`), the existing file is renamed to a temporary backup before the action runs. If the action fails, the backup is restored atomically.

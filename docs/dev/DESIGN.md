@@ -1,6 +1,6 @@
 # Design & Architecture Guide
 
-This document explains the architectural decisions behind movelooper — why the code is structured the way it is, which patterns are used and where, and what the rules are for extending each subsystem. It is intended for contributors who want to understand the project before making changes.
+This document explains the architectural decisions behind movelooper, why the code is structured the way it is, which patterns are used and where, and what the rules are for extending each subsystem. It is intended for contributors who want to understand the project before making changes.
 
 ---
 
@@ -9,7 +9,7 @@ This document explains the architectural decisions behind movelooper — why the
 1. [High-level architecture](#1-high-level-architecture)
 2. [Package responsibilities](#2-package-responsibilities)
 3. [Design patterns](#3-design-patterns)
-4. [Data flow — move operation](#4-data-flow--move-operation)
+4. [Data flow, move operation](#4-data-flow-move-operation)
 5. [Configuration lifecycle](#5-configuration-lifecycle)
 6. [Extending the system](#6-extending-the-system)
 7. [Key decisions and trade-offs](#7-key-decisions-and-trade-offs)
@@ -51,7 +51,7 @@ Koanf is used only during startup. Once `AppBuilder.Build()` returns, the koanf 
 | `internal/logger` | `Logger` interface (thin wrapper over `*pterm.Logger`). Lets non-`cmd` packages accept a logger without importing pterm directly. |
 | `internal/updater` | Self-update logic (GitHub releases). |
 
-**Dependency rule:** `logger`, `content`, and `history` are leaf packages — they import nothing internal. `tokens` imports `content`. `models` imports `history`, `logger`, and `tokens` (to type `Movelooper` fields and validate template patterns). `fileops`, `filters`, `hooks`, and `scanner` import `models` and other leaves as needed. `config` imports `filters`, `tokens`, `history`, and `models`. `cmd` imports all of the above. The graph is strictly acyclic — no upward imports.
+**Dependency rule:** `logger`, `content`, and `history` are leaf packages: they import nothing internal. `tokens` imports `content`. `models` imports `history`, `logger`, and `tokens` (to type `Movelooper` fields and validate template patterns). `fileops`, `filters`, `hooks`, and `scanner` import `models` and other leaves as needed. `config` imports `filters`, `tokens`, `history`, and `models`. `cmd` imports all of the above. The graph is strictly acyclic, with no upward imports.
 
 ---
 
@@ -78,13 +78,13 @@ logWriterFactory(output string) writerBuilder
 ```
 ConflictResolver interface { Resolve(...) / SkipMessage() string }
   renameResolver, overwriteResolver, skipResolver, hashCheckResolver,
-  comparatorResolver  (newest / oldest / larger / smaller — one type,
+  comparatorResolver  (newest / oldest / larger / smaller, one type,
                        parameterised by a comparison predicate + skip message)
 
 conflictResolvers map[string]ConflictResolver
 ```
 
-`SkipMessage()` is part of the interface so each resolver owns its own log message. `applyConflictStrategy` in `fileops.go` does not need to know strategy names to produce log output — adding a new resolver requires only one implementation and one map entry (or, for a value comparison, a new `comparatorResolver` entry).
+`SkipMessage()` is part of the interface so each resolver owns its own log message. `applyConflictStrategy` in `fileops.go` does not need to know strategy names to produce log output. Adding a new resolver requires only one implementation and one map entry (or, for a value comparison, a new `comparatorResolver` entry).
 
 **File actions** (`internal/fileops/fileops.go`)
 
@@ -133,7 +133,7 @@ type MoveContext struct {
 }
 ```
 
-It is intentionally narrow — callers supply only what file operations need, not the full `Movelooper` object. This prevents file operation functions from depending on application-level state and makes them easier to test in isolation.
+It is intentionally narrow: callers supply only what file operations need, not the full `Movelooper` object. This prevents file operation functions from depending on application-level state and makes them easier to test in isolation.
 
 `MoveFiles` also accepts a `context.Context` as its first argument. The context is checked at the start of each file iteration, allowing the caller to cancel a long-running batch (e.g. on SIGINT in watch mode).
 
@@ -145,7 +145,7 @@ It is intentionally narrow — callers supply only what file operations need, no
 
 ---
 
-## 4. Data flow — move operation
+## 4. Data flow, move operation
 
 ```
 runMove(ctx, m, ...)
@@ -227,7 +227,7 @@ After `AppBuilder.Build()` returns, koanf is discarded. No other part of the app
    func (r *newestOrRenameResolver) SkipMessage() string { return "" }
    ```
 2. Register it in `conflictResolvers`.
-3. No other files change — `applyConflictStrategy` calls `resolver.SkipMessage()` generically.
+3. No other files change, `applyConflictStrategy` calls `resolver.SkipMessage()` generically.
 
 ### Add a new log output mode (e.g. `syslog`)
 
@@ -239,7 +239,7 @@ After `AppBuilder.Build()` returns, koanf is discarded. No other part of the app
 
 1. In `internal/tokens/resolve.go`, add the token to `buildStaticPairs`.
 2. Add the token name to `knownTokens` in `internal/tokens/validate.go`.
-3. No other files change — `ResolveGroupBy` and `ResolveRename` use `buildStaticPairs` generically.
+3. No other files change, `ResolveGroupBy` and `ResolveRename` use `buildStaticPairs` generically.
 
 ### Add a new AppBuilder step
 
@@ -256,7 +256,7 @@ Koanf is used only to load and validate the YAML file. Once `AppBuilder.Build()`
 
 ### `models` depends on `logger`, `history`, and `tokens`
 
-`models` imports three internal packages: `logger` and `history` to type the fields of `Movelooper`, and `tokens` to implement the format-validator functions in `formats.go`. This is intentional — the alternative would be to use raw `interface{}` or duplicate the validator logic. The dependency is one-directional: `logger`, `history`, and `tokens` do not import `models`, so there are no cycles.
+`models` imports three internal packages: `logger` and `history` to type the fields of `Movelooper`, and `tokens` to implement the format-validator functions in `formats.go`. This is intentional, the alternative would be to use raw `interface{}` or duplicate the validator logic. The dependency is one-directional: `logger`, `history`, and `tokens` do not import `models`, so there are no cycles.
 
 ### History is always written per-file, not per-batch
 
@@ -268,7 +268,7 @@ Koanf is used only to load and validate the YAML file. Once `AppBuilder.Build()`
 
 ### Conflict resolution and file actions are open/closed
 
-Both `ConflictResolver` and `FileAction` follow the Open/Closed Principle: adding a new strategy requires only a new struct and one map entry. The dispatch functions (`applyConflictStrategy`, `dispatchAction`) never need to be modified. `SkipMessage()` is part of the `ConflictResolver` interface for the same reason — each resolver owns its log message so the dispatcher stays ignorant of strategy names.
+Both `ConflictResolver` and `FileAction` follow the Open/Closed Principle: adding a new strategy requires only a new struct and one map entry. The dispatch functions (`applyConflictStrategy`, `dispatchAction`) never need to be modified. `SkipMessage()` is part of the `ConflictResolver` interface for the same reason, each resolver owns its log message so the dispatcher stays ignorant of strategy names.
 
 ### `AppBuilder` error accumulation
 

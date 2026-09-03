@@ -10,7 +10,7 @@ Global settings grouped into four sub-sections: `logging`, `watch`, `history`, a
 |---|---|---|---|---|
 | `output` | string | no | `console` | Where to write logs: `console`, `file`, or `both` |
 | `level` | string | no | `info` | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal` |
-| `file` | string | no | — | Path to the log file (required when `output` is `file` or `both`) |
+| `file` | string | no | - | Path to the log file (required when `output` is `file` or `both`) |
 | `show-caller` | bool | no | `false` | Include the source location in log lines |
 | `format` | string | no | `pretty` | `pretty` for the human console renderer; `json` for structured slog lines |
 | `color` | string | no | `auto` | ANSI color for `pretty`: `auto` (console only), `always`, `never`. Ignored for `json` |
@@ -41,9 +41,9 @@ Fallback destination settings applied to any category that omits them. Per-categ
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `conflict-strategy` | string | no | — | Fallback for `destination.conflict-strategy` (same 8 allowed values) |
-| `action` | string | no | — | Fallback for `destination.action`: `move`, `copy`, `symlink` |
-| `organize-by` | string | no | — | Fallback for `destination.organize-by` template |
+| `conflict-strategy` | string | no | - | Fallback for `destination.conflict-strategy` (same 8 allowed values) |
+| `action` | string | no | - | Fallback for `destination.action`: `move`, `copy`, `symlink` |
+| `organize-by` | string | no | - | Fallback for `destination.organize-by` template |
 
 ---
 
@@ -51,7 +51,7 @@ Fallback destination settings applied to any category that omits them. Per-categ
 
 Split `categories` across multiple YAML files using the top-level `import:` key. Import paths are relative to the file that declares them. Circular imports are detected and reported as an error.
 
-**`movelooper.yaml`** — main file:
+**`movelooper.yaml`**, main file:
 
 ```yaml
 configuration:
@@ -69,7 +69,7 @@ import:
   - categories/wallhaven.yaml
 ```
 
-**`categories/wallhaven.yaml`** — imported file (only `categories:`):
+**`categories/wallhaven.yaml`**, imported file (only `categories:`):
 
 ```yaml
 categories:

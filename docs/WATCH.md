@@ -1,6 +1,6 @@
 # Watch Mode
 
-Watch mode monitors source directories in real-time and moves files as they stabilize — that is, after no new writes for `watch.delay`. It is the "set and forget" alternative to running `movelooper` manually.
+Watch mode monitors source directories in real-time and moves files as they stabilize, that is, after no new writes for `watch.delay`. It is the "set and forget" alternative to running `movelooper` manually.
 
 ```bash
 movelooper watch
@@ -41,7 +41,7 @@ configuration:
 
 - **Large downloads (videos, ISOs):** increase `delay` to `10m` or `15m` to avoid moving files that are still writing.
 - **Fast workflows (screenshots, exports):** decrease to `30s` or `1m` if you want near-instant moves.
-- **Network shares:** increase `delay` significantly — remote writes can stall without triggering new events.
+- **Network shares:** increase `delay` significantly, remote writes can stall without triggering new events.
 
 ---
 
@@ -55,7 +55,7 @@ configuration:
 
 ## Running automatically
 
-### Linux — systemd user service
+### Linux, systemd user service
 
 Create `~/.config/systemd/user/movelooper.service`:
 
@@ -86,7 +86,7 @@ Check logs:
 journalctl --user -u movelooper -f
 ```
 
-### macOS — launchd
+### macOS, launchd
 
 Create `~/Library/LaunchAgents/com.movelooper.watch.plist`:
 
@@ -117,7 +117,7 @@ Create `~/Library/LaunchAgents/com.movelooper.watch.plist`:
 launchctl load ~/Library/LaunchAgents/com.movelooper.watch.plist
 ```
 
-### Windows — Task Scheduler
+### Windows, Task Scheduler
 
 ```powershell
 $action  = New-ScheduledTaskAction -Execute "movelooper.exe" `
@@ -126,4 +126,4 @@ $trigger = New-ScheduledTaskTrigger -AtLogOn
 Register-ScheduledTask -TaskName "movelooper" -Action $action -Trigger $trigger -RunLevel Highest
 ```
 
-> Always use **absolute paths** in scheduled tasks — the working directory is not your home folder when the task runs.
+> Always use **absolute paths** in scheduled tasks, the working directory is not your home folder when the task runs.

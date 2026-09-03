@@ -26,7 +26,7 @@ Practical reference for contributing to movelooper. Covers setup, daily workflow
 | Make | any | Task runner |
 | Git | any | Version control |
 
-All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype) are pinned in the `Makefile` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in the `Makefile` does not invalidate an already installed binary — run `make tools-clean` first.
+All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype) are pinned in the `Makefile` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in the `Makefile` does not invalidate an already installed binary, run `make tools-clean` first.
 
 ---
 
@@ -86,7 +86,7 @@ Run at minimum:
 make fmt && make test
 ```
 
-CI enforces formatting, dependency tidiness, tests, lint, security, and generated docs — all of these must pass on `main`.
+CI enforces formatting, dependency tidiness, tests, lint, security, and generated docs, all of these must pass on `main`.
 
 ### Commit messages
 
@@ -117,7 +117,7 @@ go test ./internal/fileops/... -run TestMoveFiles -v   # single package, filtere
 
 ### Test organisation
 
-- Tests live in the **same package** as the code they test (e.g. `package fileops`, not `package fileops_test`). This allows testing unexported functions directly, which is intentional — internal invariants are worth testing.
+- Tests live in the **same package** as the code they test (e.g. `package fileops`, not `package fileops_test`). This allows testing unexported functions directly, which is intentional, internal invariants are worth testing.
 - Each package has one or more `*_test.go` files. Extra test files (e.g. `fileops_extra_test.go`, `filters_extra_test.go`) group related tests that would make the main test file too long.
 - The `internal/cmd/integration_test.go` file contains end-to-end tests that exercise the full command flow against real temporary directories.
 
@@ -161,7 +161,7 @@ assert.Equal(t, want, got)    // collect all assertion failures, then report
 
 **Silent logger in tests.** Use the `newTestLogger()` helper (defined in `internal/fileops/fileops_test.go`) when a function requires a `*pterm.Logger`. It disables all output so test logs stay clean.
 
-**No mocks.** Tests hit real files and real functions. External state (filesystem, OS executable path) is controlled via `t.TempDir()` and carefully crafted inputs. This is intentional — mocks can mask real integration bugs.
+**No mocks.** Tests hit real files and real functions. External state (filesystem, OS executable path) is controlled via `t.TempDir()` and carefully crafted inputs. This is intentional, mocks can mask real integration bugs.
 
 ---
 
@@ -212,7 +212,7 @@ See [`DESIGN.md`](DESIGN.md) §6 for step-by-step extension guides.
 
 ### Security-sensitive patterns
 
-- File paths that come from user config or directory walks are passed to `filepath.Clean` or opened with `#nosec G304` annotations where gosec would otherwise flag them. Do not remove these annotations blindly — they exist because the path source is documented.
+- File paths that come from user config or directory walks are passed to `filepath.Clean` or opened with `#nosec G304` annotations where gosec would otherwise flag them. Do not remove these annotations blindly, they exist because the path source is documented.
 - History and log files are created with mode `0600` (owner read/write only).
 - Directories are created with mode `0750`.
 
@@ -220,12 +220,12 @@ See [`DESIGN.md`](DESIGN.md) §6 for step-by-step extension guides.
 
 golangci-lint is configured in `.golangci.yaml`. Active linters include:
 
-- `staticcheck`, `gocritic` — correctness and idiom checks
-- `gocognit`, `gocyclo`, `nestif` — complexity limits (cognitive complexity ≤ 35)
-- `dupl` — duplicate code detection
-- `misspell` — spelling in comments and strings
-- `lll` — line length ≤ 300 characters
-- `unparam` — unused function parameters
+- `staticcheck`, `gocritic`, correctness and idiom checks
+- `gocognit`, `gocyclo`, `nestif`, complexity limits (cognitive complexity ≤ 35)
+- `dupl`, duplicate code detection
+- `misspell`, spelling in comments and strings
+- `lll`, line length ≤ 300 characters
+- `unparam`, unused function parameters
 
 Run `make lint` before opening a PR. The CI pipeline will fail if lint errors are present.
 
@@ -306,7 +306,7 @@ Pre-release versions (`-alpha`, `-beta`, `-rc.1`) are marked as pre-release on G
 
 ## 9. Serving the docs site locally
 
-The landing page is plain HTML and works directly from the filesystem. The docs section (docsify) does not — it uses `fetch()` to load `.md` files at runtime, which browsers block on `file://` origins. A local HTTP server is required.
+The landing page is plain HTML and works directly from the filesystem. The docs section (docsify) does not, it uses `fetch()` to load `.md` files at runtime, which browsers block on `file://` origins. A local HTTP server is required.
 
 Install [Caddy](https://caddyserver.com/docs/install). On Windows with Chocolatey:
 
@@ -327,7 +327,7 @@ caddy file-server --root docs --listen :8080
 | `http://localhost:8080/pages/` | Landing page |
 | `http://localhost:8080/pages/docs/` | Docs (docsify) |
 
-Caddy serves `docs/` as the HTTP root. The docsify entry point at `docs/pages/docs/index.html` is configured with `basePath: '../../'`, which resolves to the server root — so all markdown files are reachable directly at their `docs/`-relative paths.
+Caddy serves `docs/` as the HTTP root. The docsify entry point at `docs/pages/docs/index.html` is configured with `basePath: '../../'`, which resolves to the server root, so all markdown files are reachable directly at their `docs/`-relative paths.
 
 To avoid typing the flags every time, create a `Caddyfile` at the repo root:
 

@@ -2,7 +2,7 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "movelooper — one-shot run",
+    "title": "movelooper: one-shot run",
     "output": "one-shot-run.html",
     "locale": "en",
     "quality_profile": "showcase",

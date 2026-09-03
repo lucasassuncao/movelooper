@@ -10,10 +10,10 @@ movelooper edit
 
 ## Layout
 
-**Left panel — block list**\
+**Left panel: block list**\
 Lists the top-level blocks in your config: `configuration`, and each of your categories. Navigate with **↑ / ↓**, open a block with **Enter**.
 
-**Right panel — field editor**\
+**Right panel: field editor**\
 Shows the fields of the selected block. Each field has a type-appropriate control: text inputs for strings, toggles for booleans, dropdowns for enums. Nested objects expand inline.
 
 ---

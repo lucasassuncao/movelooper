@@ -61,7 +61,7 @@ jobs:
   #
   # Lint and security run here, inside the matrix, rather than once on Linux.
   # Go only compiles the files that match the target platform, so a Linux-only
-  # analysis never even sees lockfile_windows.go or lockfile_unix.go — the
+  # analysis never even sees lockfile_windows.go or lockfile_unix.go, since the
   # per-OS files are exactly where platform bugs hide.
   test:
     name: Test (${{ matrix.os }})

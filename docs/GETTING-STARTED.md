@@ -44,7 +44,7 @@ configuration:   # global settings: logging, watch delay, history
   watch:
     delay: 5m
 
-categories:      # list of rules — one category per set of files to organize
+categories:      # list of rules, one category per set of files to organize
   - name: images
     enabled: true
     source: ...
@@ -271,13 +271,13 @@ Each imported file is a standalone YAML file with a `categories:` block. moveloo
 
 ## Where to go next
 
-- [Configuration](/CONFIGURATION.md) — `configuration:` block fields: logging, watch, history, defaults, imports
-- [Categories](/CATEGORIES.md) — `categories:` block fields: source, destination, hooks
-- [Actions](/ACTIONS.md) — move, copy, symlink, archive
-- [Conflict Strategies](/CONFLICTS.md) — rename, overwrite, skip, hash_check, and more
-- [Undo](/UNDO.md) — batch IDs, history file, limitations per action type
-- [Commands and Flags](/COMMANDS.md) — all CLI commands and flags
-- [Tokens](/TOKENS.md) — full token reference for `organize-by` and `rename`
-- [Filters](/FILTERS.md) — filter types and boolean composition
-- [FAQ](/FAQ.md) — common questions
-- [Attribute reference](/movelooper/attributes/configuration/configuration.md) — browsable field docs
+- [Configuration](/CONFIGURATION.md): `configuration:` block fields: logging, watch, history, defaults, imports
+- [Categories](/CATEGORIES.md): `categories:` block fields: source, destination, hooks
+- [Actions](/ACTIONS.md): move, copy, symlink, archive
+- [Conflict Strategies](/CONFLICTS.md): rename, overwrite, skip, hash_check, and more
+- [Undo](/UNDO.md): batch IDs, history file, limitations per action type
+- [Commands and Flags](/COMMANDS.md): all CLI commands and flags
+- [Tokens](/TOKENS.md): full token reference for `organize-by` and `rename`
+- [Filters](/FILTERS.md): filter types and boolean composition
+- [FAQ](/FAQ.md): common questions
+- [Attribute reference](/movelooper/attributes/configuration/configuration.md): browsable field docs

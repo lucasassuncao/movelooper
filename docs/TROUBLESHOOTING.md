@@ -32,7 +32,7 @@ Extensions in the config are matched without the leading dot. `jpg` matches `pho
 
 **4. Check `filter.age.min`.**
 
-If your config has `filter.age.min: 10m`, files modified less than 10 minutes ago are skipped. This is intentional — it avoids moving files that are still downloading. Wait and retry, or lower the value for testing.
+If your config has `filter.age.min: 10m`, files modified less than 10 minutes ago are skipped. This is intentional, it avoids moving files that are still downloading. Wait and retry, or lower the value for testing.
 
 **5. Check that `source.path` exists and is correct.**
 
@@ -74,7 +74,7 @@ configuration:
 
 **3. Does the category use `action: archive`?**
 
-Archive categories are skipped in watch mode — movelooper prints a warning at startup for each one. Use the one-shot `movelooper` command for archive categories.
+Archive categories are skipped in watch mode, movelooper prints a warning at startup for each one. Use the one-shot `movelooper` command for archive categories.
 
 **4. Do the categories have hooks?**
 
@@ -112,7 +112,7 @@ This is especially important for scheduled tasks (cron, systemd, Task Scheduler)
 
 **Undoing a `copy` batch removes the copy, it does not restore anything.**
 
-When `action: copy` is used, the source file was never moved — it is still in the original location. Undoing a copy batch removes the copy that was created at the destination.
+When `action: copy` is used, the source file was never moved, it is still in the original location. Undoing a copy batch removes the copy that was created at the destination.
 
 **Undoing a `symlink` batch removes the symlink, not the target.**
 
