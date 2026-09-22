@@ -9,15 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lucasassuncao/yedit/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // metadataProvider is implemented by every config struct that describes itself
-// to the `edit` TUI.
+// to the `edit` TUI and to docgen.
 type metadataProvider interface {
-	Metadata() map[string]*metadata.Node
+	Metadata() map[string]any
 }
 
 // metadataTypes lists every provider in this package. TestMetadataCoverage

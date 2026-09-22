@@ -3,9 +3,6 @@ package models
 import (
 	"regexp"
 	"time"
-
-	"github.com/lucasassuncao/yedit/metadata"
-	"github.com/lucasassuncao/yedit/spec"
 )
 
 // ConflictStrategy defines what happens when a destination file already exists.
@@ -140,266 +137,259 @@ type CategoryHook struct {
 	Run       []string `yaml:"run"             mapstructure:"run"`
 }
 
-func (Category) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"name": {FieldMeta: spec.FieldMeta{
+func (Category) Metadata() map[string]any {
+	return map[string]any{
+		"name": meta{
 			Description: "Human-readable identifier for this category. Used in logs, history, and the --category filter flag.",
 			Required:    true,
 			Example:     "name: screenshots",
-		}},
-		"enabled": {FieldMeta: spec.FieldMeta{
+		},
+		"enabled": meta{
 			Description: "Whether this category is active. Must be explicitly set to true; omitting this field disables the category.",
 			Default:     "false",
 			Example:     "enabled: true",
-		}},
-		"source": {FieldMeta: spec.FieldMeta{
+		},
+		"source": meta{
 			Description: "Source directory configuration: which path to watch, which extensions to include, and how deep to scan.",
 			Required:    true,
-		}},
-		"destination": {FieldMeta: spec.FieldMeta{
+		},
+		"destination": meta{
 			Description: "Destination configuration: where to place matched files, how to name them, and what to do on conflicts.",
 			Required:    true,
-		}},
-		"hooks": {FieldMeta: spec.FieldMeta{
+		},
+		"hooks": meta{
 			Description: "Optional shell commands to run before and after each file is moved.",
-		}},
+		},
 	}
 }
 
-func (CategorySource) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"path": {FieldMeta: spec.FieldMeta{
+func (CategorySource) Metadata() map[string]any {
+	return map[string]any{
+		"path": meta{
 			Description: "Directory to watch for incoming files.",
 			Required:    true,
-			Formats:     []spec.Format{spec.FormatDirectoryPath},
+			Formats:     []string{"directory"},
 			Example:     "path: ~/Downloads",
-		}},
-		"extensions": {FieldMeta: spec.FieldMeta{
+		},
+		"extensions": meta{
 			Description: "File extensions to match (without the leading dot). Use the special value \"all\" to match every file.",
 			Required:    true,
 			MinCount:    1,
 			Unique:      true,
 			Example:     "extensions:\n  - jpg\n  - jpeg\n  - png\n\n# or, to match every file:\nextensions: [all]",
-		}},
-		"recursive": {FieldMeta: spec.FieldMeta{
+		},
+		"recursive": meta{
 			Description: "Whether to scan sub-directories of the source path. Combine with max-depth to limit depth.",
 			Default:     "false",
 			Example:     "recursive: true",
-		}},
-		"max-depth": {FieldMeta: spec.FieldMeta{
+		},
+		"max-depth": meta{
 			Description: "Maximum sub-directory depth when recursive is true. 0 means unlimited.",
 			Default:     "0",
 			Min:         "0",
 			Max:         "256",
 			Example:     "max-depth: 3",
-		}},
-		"exclude-paths": {FieldMeta: spec.FieldMeta{
+		},
+		"exclude-paths": meta{
 			Description: "Absolute paths to skip during recursive walk. The destination path is always auto-excluded.",
 			Example:     "exclude-paths:\n  - /home/user/Downloads/archives\n  - /home/user/Downloads/.Trash",
-		}},
-		"filter": {
-			FieldMeta: spec.FieldMeta{
-				Description: "Optional filtering rules applied to each matched file. All populated sub-fields must match (AND logic) unless any/all are used.",
-			},
+		},
+		"filter": meta{
+			Description: "Optional filtering rules applied to each matched file. All populated sub-fields must match (AND logic) unless any/all are used.",
 		},
 	}
 }
 
-func (CategoryDestination) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"path": {FieldMeta: spec.FieldMeta{
+func (CategoryDestination) Metadata() map[string]any {
+	return map[string]any{
+		"path": meta{
 			Description: "Directory where matched files are placed.",
 			Required:    true,
-			Formats:     []spec.Format{spec.FormatDirectoryPath},
+			Formats:     []string{"directory"},
 			Example:     "path: ~/Pictures/Sorted",
-		}},
-		"organize-by": {FieldMeta: spec.FieldMeta{
+		},
+		"organize-by": meta{
 			Description: "Token pattern used to build sub-directories inside the destination path. Leave empty to place all files directly.",
-			Formats:     []spec.Format{FormatOrganizeByPattern},
+			Formats:     []string{FormatOrganizeByPattern.Label()},
 			Example:     "organize-by: \"{ext}/{year}\"\n\n# Available tokens:\n# {ext}   file extension\n# {year}  4-digit year\n# {month} 2-digit month\n# {day}   2-digit day",
-		}},
-		"conflict-strategy": {FieldMeta: spec.FieldMeta{
+		},
+		"conflict-strategy": meta{
 			Description: "What to do when a file with the same name already exists at the destination.",
 			OneOf:       []string{"rename", "hash_check", "overwrite", "skip", "newest", "oldest", "larger", "smaller"},
 			Default:     "rename",
 			Example:     "conflict-strategy: rename",
-		}},
-		"action": {FieldMeta: spec.FieldMeta{
+		},
+		"action": meta{
 			Description: "File operation to perform. 'move' removes the source; 'copy' keeps it; 'symlink' links it; 'archive' packs the whole category into one compressed file (requires the archive block).",
 			OneOf:       []string{"move", "copy", "symlink", "archive"},
 			Default:     "move",
 			Example:     "action: move",
-		}},
-		"archive": {FieldMeta: spec.FieldMeta{
+		},
+		"archive": meta{
 			Description: "Archiving options. Required when action is 'archive'. Packs all matched files of the category into one zip/tar.gz at the destination path.",
-		}},
-		"rename": {FieldMeta: spec.FieldMeta{
+		},
+		"rename": meta{
 			Description: "Token pattern for the destination filename. It becomes the whole filename, so include {ext} to keep the extension (omit it and the file is written without one). Leave empty to keep the original name.",
-			Formats:     []spec.Format{FormatRenamePattern},
+			Formats:     []string{FormatRenamePattern.Label()},
 			Example:     "rename: \"{year}-{month}-{day}_{name}.{ext}\"\n\n# Full filename — include {ext} to keep the extension.\n# {name}  filename without extension\n# {year}, {month}, {day}, {hour}, {minute}, {second}\n# {seq}   auto-incrementing counter\n# {sha256:N}  first N hex chars of SHA-256",
-		}},
+		},
 	}
 }
 
-func (ArchiveConfig) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"format": {FieldMeta: spec.FieldMeta{
+func (ArchiveConfig) Metadata() map[string]any {
+	return map[string]any{
+		"format": meta{
 			Description: "Archive container/compression: 'zip' (universal) or 'tar.gz'. Required — no default.",
 			Required:    true,
 			OneOf:       []string{"zip", "tar.gz"},
 			Example:     "format: zip",
-		}},
-		"name": {FieldMeta: spec.FieldMeta{
+		},
+		"name": meta{
 			Description: "Archive filename base (extension is added automatically). Supports category/date/system tokens only: {category}, {date}, {timestamp}, {hostname}, {username}, {os}. Empty uses the category name.",
 			Example:     "name: \"{category}_{date}\"",
-		}},
-		"compression": {FieldMeta: spec.FieldMeta{
+		},
+		"compression": meta{
 			Description: "Compression effort: 'none', 'fast', or 'best'.",
 			OneOf:       []string{"none", "fast", "best"},
 			Default:     "best",
 			Example:     "compression: best",
-		}},
-		"keep-source": {FieldMeta: spec.FieldMeta{
+		},
+		"keep-source": meta{
 			Description: "Keep the original files after archiving. Defaults to true; set false to delete sources after a successful write.",
 			Default:     "true",
 			Example:     "keep-source: true",
-		}},
-		"flatten": {FieldMeta: spec.FieldMeta{
+		},
+		"flatten": meta{
 			Description: "Put every file at the archive root. Defaults to false, which preserves each file's sub-path relative to the source directory (relevant with recursive scans).",
 			Default:     "false",
 			Example:     "flatten: false",
-		}},
+		},
 	}
 }
 
-func (CategoryFilter) Metadata() map[string]*metadata.Node {
-	anyNode := &metadata.Node{FieldMeta: spec.FieldMeta{
-		Description: "OR logic: file must match at least one sub-filter.",
-		MinCount:    1,
-		Example:     "any:\n  - match:\n      glob: \"invoice_*\"\n  - match:\n      glob: \"receipt_*\"",
-	}}
-	allNode := &metadata.Node{FieldMeta: spec.FieldMeta{
-		Description: "AND logic: file must match all sub-filters simultaneously.",
-		MinCount:    1,
-		Example:     "all:\n  - size:\n      min: 100KB\n  - age:\n      max: 168h",
-	}}
-	notNode := &metadata.Node{FieldMeta: spec.FieldMeta{
-		Description: "NOT logic: exclude files matching any of these sub-filters.",
-		Example:     "not:\n  - match:\n      glob: \"*_draft*\"",
-	}}
-	children := map[string]*metadata.Node{
-		"match": {FieldMeta: spec.FieldMeta{
+// CategoryFilter is recursive: any/all/not are filters again. Composition
+// supplies that, so the declaration names the field and stops.
+func (CategoryFilter) Metadata() map[string]any {
+	return map[string]any{
+		"match": meta{
 			Description: "Name-based filter: glob, regex, or literal match (pick one).",
-		}},
-		"age": {FieldMeta: spec.FieldMeta{
+		},
+		"age": meta{
 			Description: "Modification-time constraints.",
-		}},
-		"size": {FieldMeta: spec.FieldMeta{
+		},
+		"size": meta{
 			Description: "File-size constraints.",
-		}},
-		"mime": {FieldMeta: spec.FieldMeta{
+		},
+		"mime": meta{
 			Description: "Match by the file's real MIME type (magic bytes), as a glob against the detected type. Examples: \"image/*\", \"application/pdf\". Reads the file content; combine with extensions: [all] to match by real type.",
 			Example:     "mime: \"image/*\"",
-		}},
-		"any": anyNode,
-		"all": allNode,
-		"not": notNode,
+		},
+		"any": meta{
+			Description: "OR logic: file must match at least one sub-filter.",
+			MinCount:    1,
+			Example:     "any:\n  - match:\n      glob: \"invoice_*\"\n  - match:\n      glob: \"receipt_*\"",
+		},
+		"all": meta{
+			Description: "AND logic: file must match all sub-filters simultaneously.",
+			MinCount:    1,
+			Example:     "all:\n  - size:\n      min: 100KB\n  - age:\n      max: 168h",
+		},
+		"not": meta{
+			Description: "NOT logic: exclude files matching any of these sub-filters.",
+			Example:     "not:\n  - match:\n      glob: \"*_draft*\"",
+		},
 	}
-	anyNode.Children = children
-	allNode.Children = children
-	notNode.Children = children
-	return children
 }
 
-func (MatchFilter) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"literal": {FieldMeta: spec.FieldMeta{
+func (MatchFilter) Metadata() map[string]any {
+	return map[string]any{
+		"literal": meta{
 			Description: "Exact filename match (whole name must equal this string). Mutually exclusive with regex and glob.",
 			Example:     "literal: \"Anna's Archive.pdf\"",
-		}},
-		"regex": {FieldMeta: spec.FieldMeta{
+		},
+		"regex": meta{
 			Description: "RE2 regular expression matched against the filename. Mutually exclusive with glob and literal.",
-			Formats:     []spec.Format{FormatRegex},
+			Formats:     []string{FormatRegex.Label()},
 			Example:     "regex: \"^\\d{4}-\\d{2}-\\d{2}_.*\\.pdf$\"",
-		}},
-		"glob": {FieldMeta: spec.FieldMeta{
+		},
+		"glob": meta{
 			Description: "Glob pattern matched against the filename. Mutually exclusive with regex and literal.",
-			Formats:     []spec.Format{FormatGlob},
+			Formats:     []string{FormatGlob.Label()},
 			Example:     "glob: \"screenshot_*\"",
-		}},
-		"case-sensitive": {FieldMeta: spec.FieldMeta{
+		},
+		"case-sensitive": meta{
 			Description: "Whether matching is case-sensitive. Applies to regex, glob, and literal.",
 			Default:     "false",
 			Example:     "case-sensitive: false",
-		}},
+		},
 	}
 }
 
-func (AgeFilter) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"min": {FieldMeta: spec.FieldMeta{
+func (AgeFilter) Metadata() map[string]any {
+	return map[string]any{
+		"min": meta{
 			Description: "Only match files older than this duration.",
 			Min:         "0s",
 			Max:         "87600h",
-			Formats:     []spec.Format{spec.FormatDuration},
+			Formats:     []string{"duration"},
 			Example:     "min: 24h",
-		}},
-		"max": {FieldMeta: spec.FieldMeta{
+		},
+		"max": meta{
 			Description: "Only match files newer than this duration.",
 			Min:         "0s",
 			Max:         "87600h",
-			Formats:     []spec.Format{spec.FormatDuration},
+			Formats:     []string{"duration"},
 			Example:     "max: 720h",
-		}},
+		},
 	}
 }
 
-func (SizeFilter) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"min": {FieldMeta: spec.FieldMeta{
+func (SizeFilter) Metadata() map[string]any {
+	return map[string]any{
+		"min": meta{
 			Description: "Only match files at least this large. KB/MB/GB/TB are decimal; KiB/MiB/GiB/TiB are binary.",
 			Min:         "0B",
 			Max:         "100TB",
 			Example:     "min: 1MB",
-		}},
-		"max": {FieldMeta: spec.FieldMeta{
+		},
+		"max": meta{
 			Description: "Only match files no larger than this size.",
 			Min:         "0B",
 			Max:         "100TB",
 			Example:     "max: 50GB",
-		}},
+		},
 	}
 }
 
-func (CategoryHooks) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"before": {FieldMeta: spec.FieldMeta{
+func (CategoryHooks) Metadata() map[string]any {
+	return map[string]any{
+		"before": meta{
 			Description: "Hook executed before the file operation. If it fails, the move is aborted (unless on-failure is 'warn').",
-		}},
-		"after": {FieldMeta: spec.FieldMeta{
+		},
+		"after": meta{
 			Description: "Hook executed after the file operation completes successfully.",
-		}},
+		},
 	}
 }
 
-func (CategoryHook) Metadata() map[string]*metadata.Node {
-	return map[string]*metadata.Node{
-		"shell": {FieldMeta: spec.FieldMeta{
+func (CategoryHook) Metadata() map[string]any {
+	return map[string]any{
+		"shell": meta{
 			Description: "Shell interpreter for hook commands. Defaults to $SHELL on Unix/macOS and cmd on Windows.",
 			Example:     "shell: bash",
-		}},
-		"on-failure": {FieldMeta: spec.FieldMeta{
+		},
+		"on-failure": meta{
 			Description: "What to do if a hook command exits non-zero: abort the file's operation, or warn and continue.",
 			Required:    true,
 			OneOf:       []string{"abort", "warn"},
 			Default:     "abort",
 			Example:     "on-failure: abort",
-		}},
-		"run": {FieldMeta: spec.FieldMeta{
+		},
+		"run": meta{
 			Description: "Shell commands executed in order.",
 			Required:    true,
 			MinCount:    1,
 			Example:     "run:\n  - echo \"before: $ML_SOURCE_PATH\"",
-		}},
+		},
 	}
 }

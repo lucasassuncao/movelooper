@@ -13,42 +13,42 @@ import "github.com/lucasassuncao/movelooper/internal/models"
 - [Variables](<#variables>)
 - [type Action](<#Action>)
 - [type AgeFilter](<#AgeFilter>)
-  - [func \(AgeFilter\) Metadata\(\) map\[string\]\*metadata.Node](<#AgeFilter.Metadata>)
+  - [func \(AgeFilter\) Metadata\(\) map\[string\]any](<#AgeFilter.Metadata>)
 - [type ArchiveConfig](<#ArchiveConfig>)
   - [func \(a \*ArchiveConfig\) KeepsSource\(\) bool](<#ArchiveConfig.KeepsSource>)
-  - [func \(ArchiveConfig\) Metadata\(\) map\[string\]\*metadata.Node](<#ArchiveConfig.Metadata>)
+  - [func \(ArchiveConfig\) Metadata\(\) map\[string\]any](<#ArchiveConfig.Metadata>)
 - [type Category](<#Category>)
   - [func \(c \*Category\) IsEnabled\(\) bool](<#Category.IsEnabled>)
-  - [func \(Category\) Metadata\(\) map\[string\]\*metadata.Node](<#Category.Metadata>)
+  - [func \(Category\) Metadata\(\) map\[string\]any](<#Category.Metadata>)
 - [type CategoryDestination](<#CategoryDestination>)
-  - [func \(CategoryDestination\) Metadata\(\) map\[string\]\*metadata.Node](<#CategoryDestination.Metadata>)
+  - [func \(CategoryDestination\) Metadata\(\) map\[string\]any](<#CategoryDestination.Metadata>)
 - [type CategoryFilter](<#CategoryFilter>)
   - [func \(f CategoryFilter\) IsZero\(\) bool](<#CategoryFilter.IsZero>)
-  - [func \(CategoryFilter\) Metadata\(\) map\[string\]\*metadata.Node](<#CategoryFilter.Metadata>)
+  - [func \(CategoryFilter\) Metadata\(\) map\[string\]any](<#CategoryFilter.Metadata>)
 - [type CategoryHook](<#CategoryHook>)
-  - [func \(CategoryHook\) Metadata\(\) map\[string\]\*metadata.Node](<#CategoryHook.Metadata>)
+  - [func \(CategoryHook\) Metadata\(\) map\[string\]any](<#CategoryHook.Metadata>)
 - [type CategoryHooks](<#CategoryHooks>)
-  - [func \(CategoryHooks\) Metadata\(\) map\[string\]\*metadata.Node](<#CategoryHooks.Metadata>)
+  - [func \(CategoryHooks\) Metadata\(\) map\[string\]any](<#CategoryHooks.Metadata>)
 - [type CategorySource](<#CategorySource>)
-  - [func \(CategorySource\) Metadata\(\) map\[string\]\*metadata.Node](<#CategorySource.Metadata>)
+  - [func \(CategorySource\) Metadata\(\) map\[string\]any](<#CategorySource.Metadata>)
 - [type Config](<#Config>)
-  - [func \(Config\) Metadata\(\) map\[string\]\*metadata.Node](<#Config.Metadata>)
+  - [func \(Config\) Metadata\(\) map\[string\]any](<#Config.Metadata>)
 - [type Configuration](<#Configuration>)
-  - [func \(Configuration\) Metadata\(\) map\[string\]\*metadata.Node](<#Configuration.Metadata>)
+  - [func \(Configuration\) Metadata\(\) map\[string\]any](<#Configuration.Metadata>)
 - [type ConflictStrategy](<#ConflictStrategy>)
 - [type Defaults](<#Defaults>)
-  - [func \(Defaults\) Metadata\(\) map\[string\]\*metadata.Node](<#Defaults.Metadata>)
+  - [func \(Defaults\) Metadata\(\) map\[string\]any](<#Defaults.Metadata>)
 - [type History](<#History>)
-  - [func \(History\) Metadata\(\) map\[string\]\*metadata.Node](<#History.Metadata>)
+  - [func \(History\) Metadata\(\) map\[string\]any](<#History.Metadata>)
 - [type Logging](<#Logging>)
-  - [func \(Logging\) Metadata\(\) map\[string\]\*metadata.Node](<#Logging.Metadata>)
+  - [func \(Logging\) Metadata\(\) map\[string\]any](<#Logging.Metadata>)
 - [type MatchFilter](<#MatchFilter>)
-  - [func \(MatchFilter\) Metadata\(\) map\[string\]\*metadata.Node](<#MatchFilter.Metadata>)
+  - [func \(MatchFilter\) Metadata\(\) map\[string\]any](<#MatchFilter.Metadata>)
 - [type Movelooper](<#Movelooper>)
 - [type SizeFilter](<#SizeFilter>)
-  - [func \(SizeFilter\) Metadata\(\) map\[string\]\*metadata.Node](<#SizeFilter.Metadata>)
+  - [func \(SizeFilter\) Metadata\(\) map\[string\]any](<#SizeFilter.Metadata>)
 - [type Watch](<#Watch>)
-  - [func \(Watch\) Metadata\(\) map\[string\]\*metadata.Node](<#Watch.Metadata>)
+  - [func \(Watch\) Metadata\(\) map\[string\]any](<#Watch.Metadata>)
 
 
 ## Variables
@@ -84,7 +84,7 @@ var (
 ```
 
 <a name="Action"></a>
-## type [Action](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L26>)
+## type [Action](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L23>)
 
 Action defines the file operation to perform when moving a category.
 
@@ -104,7 +104,7 @@ const (
 ```
 
 <a name="AgeFilter"></a>
-## type [AgeFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L117-L120>)
+## type [AgeFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L114-L117>)
 
 AgeFilter constrains by modification time.
 
@@ -116,16 +116,16 @@ type AgeFilter struct {
 ```
 
 <a name="AgeFilter.Metadata"></a>
-### func \(AgeFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L338>)
+### func \(AgeFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L328>)
 
 ```go
-func (AgeFilter) Metadata() map[string]*metadata.Node
+func (AgeFilter) Metadata() map[string]any
 ```
 
 
 
 <a name="ArchiveConfig"></a>
-## type [ArchiveConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L72-L81>)
+## type [ArchiveConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L69-L78>)
 
 ArchiveConfig configures action: archive — how a category's files are packed into a single compressed archive at the destination.
 
@@ -143,7 +143,7 @@ type ArchiveConfig struct {
 ```
 
 <a name="ArchiveConfig.KeepsSource"></a>
-### func \(\*ArchiveConfig\) [KeepsSource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L84>)
+### func \(\*ArchiveConfig\) [KeepsSource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L81>)
 
 ```go
 func (a *ArchiveConfig) KeepsSource() bool
@@ -152,16 +152,16 @@ func (a *ArchiveConfig) KeepsSource() bool
 KeepsSource reports whether original files are retained \(the default\).
 
 <a name="ArchiveConfig.Metadata"></a>
-### func \(ArchiveConfig\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L244>)
+### func \(ArchiveConfig\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L239>)
 
 ```go
-func (ArchiveConfig) Metadata() map[string]*metadata.Node
+func (ArchiveConfig) Metadata() map[string]any
 ```
 
 
 
 <a name="Category"></a>
-## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L36-L42>)
+## type [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L33-L39>)
 
 Category represents a file category with its properties
 
@@ -176,7 +176,7 @@ type Category struct {
 ```
 
 <a name="Category.IsEnabled"></a>
-### func \(\*Category\) [IsEnabled](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L46>)
+### func \(\*Category\) [IsEnabled](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L43>)
 
 ```go
 func (c *Category) IsEnabled() bool
@@ -185,16 +185,16 @@ func (c *Category) IsEnabled() bool
 IsEnabled reports whether the category is active. A category must have enabled: true set explicitly; omitting the field disables it.
 
 <a name="Category.Metadata"></a>
-### func \(Category\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L143>)
+### func \(Category\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L140>)
 
 ```go
-func (Category) Metadata() map[string]*metadata.Node
+func (Category) Metadata() map[string]any
 ```
 
 
 
 <a name="CategoryDestination"></a>
-## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L61-L68>)
+## type [CategoryDestination](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L58-L65>)
 
 CategoryDestination holds the destination path and placement rules for a category
 
@@ -210,16 +210,16 @@ type CategoryDestination struct {
 ```
 
 <a name="CategoryDestination.Metadata"></a>
-### func \(CategoryDestination\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L208>)
+### func \(CategoryDestination\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L203>)
 
 ```go
-func (CategoryDestination) Metadata() map[string]*metadata.Node
+func (CategoryDestination) Metadata() map[string]any
 ```
 
 
 
 <a name="CategoryFilter"></a>
-## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L91-L99>)
+## type [CategoryFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L88-L96>)
 
 CategoryFilter holds the optional filtering rules applied to files before they are moved. At the top level it behaves as an implicit AND: all populated sub\-fields must pass. Use any/all/not for explicit boolean composition.
 
@@ -236,7 +236,7 @@ type CategoryFilter struct {
 ```
 
 <a name="CategoryFilter.IsZero"></a>
-### func \(CategoryFilter\) [IsZero](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L102>)
+### func \(CategoryFilter\) [IsZero](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L99>)
 
 ```go
 func (f CategoryFilter) IsZero() bool
@@ -245,16 +245,16 @@ func (f CategoryFilter) IsZero() bool
 IsZero lets yaml.v3 omit an empty CategoryFilter when the parent field has omitempty.
 
 <a name="CategoryFilter.Metadata"></a>
-### func \(CategoryFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L275>)
+### func \(CategoryFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L272>)
 
 ```go
-func (CategoryFilter) Metadata() map[string]*metadata.Node
+func (CategoryFilter) Metadata() map[string]any
 ```
 
-
+CategoryFilter is recursive: any/all/not are filters again. Composition supplies that, so the declaration names the field and stops.
 
 <a name="CategoryHook"></a>
-## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L137-L141>)
+## type [CategoryHook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L134-L138>)
 
 CategoryHook defines a list of shell commands to run at a lifecycle point.
 
@@ -267,16 +267,16 @@ type CategoryHook struct {
 ```
 
 <a name="CategoryHook.Metadata"></a>
-### func \(CategoryHook\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L385>)
+### func \(CategoryHook\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L375>)
 
 ```go
-func (CategoryHook) Metadata() map[string]*metadata.Node
+func (CategoryHook) Metadata() map[string]any
 ```
 
 
 
 <a name="CategoryHooks"></a>
-## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L131-L134>)
+## type [CategoryHooks](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L128-L131>)
 
 CategoryHooks holds optional before/after hooks for a category.
 
@@ -288,16 +288,16 @@ type CategoryHooks struct {
 ```
 
 <a name="CategoryHooks.Metadata"></a>
-### func \(CategoryHooks\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L374>)
+### func \(CategoryHooks\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L364>)
 
 ```go
-func (CategoryHooks) Metadata() map[string]*metadata.Node
+func (CategoryHooks) Metadata() map[string]any
 ```
 
 
 
 <a name="CategorySource"></a>
-## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L51-L58>)
+## type [CategorySource](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L48-L55>)
 
 CategorySource holds the source path, extensions, and filters for a category
 
@@ -313,16 +313,16 @@ type CategorySource struct {
 ```
 
 <a name="CategorySource.Metadata"></a>
-### func \(CategorySource\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L169>)
+### func \(CategorySource\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L166>)
 
 ```go
-func (CategorySource) Metadata() map[string]*metadata.Node
+func (CategorySource) Metadata() map[string]any
 ```
 
 
 
 <a name="Config"></a>
-## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L11-L14>)
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L8-L11>)
 
 Config represents the complete structure of the movelooper.yaml file
 
@@ -334,16 +334,16 @@ type Config struct {
 ```
 
 <a name="Config.Metadata"></a>
-### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L56>)
+### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L53>)
 
 ```go
-func (Config) Metadata() map[string]*metadata.Node
+func (Config) Metadata() map[string]any
 ```
 
 
 
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L18-L23>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L15-L20>)
 
 Configuration holds the general settings for Movelooper, grouped into logging, watch, history, and defaults sub\-sections.
 
@@ -357,16 +357,16 @@ type Configuration struct {
 ```
 
 <a name="Configuration.Metadata"></a>
-### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L69>)
+### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L66>)
 
 ```go
-func (Configuration) Metadata() map[string]*metadata.Node
+func (Configuration) Metadata() map[string]any
 ```
 
 
 
 <a name="ConflictStrategy"></a>
-## type [ConflictStrategy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L12>)
+## type [ConflictStrategy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L9>)
 
 ConflictStrategy defines what happens when a destination file already exists.
 
@@ -390,7 +390,7 @@ const (
 ```
 
 <a name="Defaults"></a>
-## type [Defaults](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L50-L54>)
+## type [Defaults](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L47-L51>)
 
 Defaults holds fallback values applied to any category that omits them.
 
@@ -403,16 +403,16 @@ type Defaults struct {
 ```
 
 <a name="Defaults.Metadata"></a>
-### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L180>)
+### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L177>)
 
 ```go
-func (Defaults) Metadata() map[string]*metadata.Node
+func (Defaults) Metadata() map[string]any
 ```
 
 
 
 <a name="History"></a>
-## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L43-L47>)
+## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L40-L44>)
 
 History holds the undo\-history settings.
 
@@ -425,16 +425,16 @@ type History struct {
 ```
 
 <a name="History.Metadata"></a>
-### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L157>)
+### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L154>)
 
 ```go
-func (History) Metadata() map[string]*metadata.Node
+func (History) Metadata() map[string]any
 ```
 
 
 
 <a name="Logging"></a>
-## type [Logging](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L26-L34>)
+## type [Logging](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L23-L31>)
 
 Logging holds the log output settings.
 
@@ -451,16 +451,16 @@ type Logging struct {
 ```
 
 <a name="Logging.Metadata"></a>
-### func \(Logging\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L87>)
+### func \(Logging\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L84>)
 
 ```go
-func (Logging) Metadata() map[string]*metadata.Node
+func (Logging) Metadata() map[string]any
 ```
 
 
 
 <a name="MatchFilter"></a>
-## type [MatchFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L108-L114>)
+## type [MatchFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L105-L111>)
 
 MatchFilter constrains by filename: one of literal, regex, or glob \(mutually exclusive\).
 
@@ -475,10 +475,10 @@ type MatchFilter struct {
 ```
 
 <a name="MatchFilter.Metadata"></a>
-### func \(MatchFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L314>)
+### func \(MatchFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L304>)
 
 ```go
-func (MatchFilter) Metadata() map[string]*metadata.Node
+func (MatchFilter) Metadata() map[string]any
 ```
 
 
@@ -499,7 +499,7 @@ type Movelooper struct {
 ```
 
 <a name="SizeFilter"></a>
-## type [SizeFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L123-L128>)
+## type [SizeFilter](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L120-L125>)
 
 SizeFilter constrains by file size.
 
@@ -513,16 +513,16 @@ type SizeFilter struct {
 ```
 
 <a name="SizeFilter.Metadata"></a>
-### func \(SizeFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L357>)
+### func \(SizeFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L347>)
 
 ```go
-func (SizeFilter) Metadata() map[string]*metadata.Node
+func (SizeFilter) Metadata() map[string]any
 ```
 
 
 
 <a name="Watch"></a>
-## type [Watch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L37-L40>)
+## type [Watch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L34-L37>)
 
 Watch holds the watch\-mode settings.
 
@@ -534,10 +534,10 @@ type Watch struct {
 ```
 
 <a name="Watch.Metadata"></a>
-### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L136>)
+### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L133>)
 
 ```go
-func (Watch) Metadata() map[string]*metadata.Node
+func (Watch) Metadata() map[string]any
 ```
 
 
