@@ -21,7 +21,7 @@ The batch ID is printed at the end of each run and in `undo --list`.
 movelooper undo
 ```
 
-Opens a picker listing all recorded batches. Use **↑ / ↓** to select, **Enter** to confirm, **Esc** to cancel.
+Opens a picker listing all recorded batches. Use **↑ / ↓** to select, **Enter** to confirm, **p** to preview the batch's files (**p** or **Esc** returns to the list), and **q** to cancel.
 
 ## List recorded batches
 

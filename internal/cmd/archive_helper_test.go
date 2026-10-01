@@ -47,12 +47,6 @@ func fileEntriesFrom(t *testing.T, dir string, names ...string) []scanner.FileEn
 	return out
 }
 
-func TestNewArchiveProgress_NilForNonPretty(t *testing.T) {
-	var buf bytes.Buffer
-	m := newBufMovelooper(t, &buf, nil)
-	assert.Nil(t, newArchiveProgress(m), "no progress bar for the structured (non-tty) logger")
-}
-
 func TestArchiveCategory_WritesZipAndKeepsSourceByDefault(t *testing.T) {
 	src := t.TempDir()
 	dst := t.TempDir()

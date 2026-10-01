@@ -103,12 +103,7 @@ func ResolveGroupBy(template string, ctx *TokenContext) string {
 	return filepath.FromSlash(ctx.staticReplacer().Replace(template))
 }
 
-// preProcessMime resolves the {mime}, {mime-type}, and {mime-ext} tokens by
-// detecting the file's real type. It is a no-op unless the template references a
-// mime token, so files are only read when MIME is actually used. Detection
-// errors fall back to application/octet-stream. Unlike seq/hash, MIME resolves
-// in dry-run too: it is read-only and the preview value is showing the real
-// destination.
+// preProcessMime resolves the MIME tokens for the real file type when used.
 func preProcessMime(template, sourcePath string) string {
 	if !strings.Contains(template, "{mime") {
 		return template
@@ -131,11 +126,7 @@ func preProcessMime(template, sourcePath string) string {
 	).Replace(template)
 }
 
-// ResolveRename applies a rename template to produce a destination filename.
-// It supports the same tokens as ResolveGroupBy, plus {seq}, {seq:N}, {seq-alpha},
-// {seq-roman}, {md5}, {md5:N}, and {sha256:N}.
-// When template is empty, the original filename is returned unchanged.
-// Path separators are stripped from the result so the output is always a plain filename.
+// ResolveRename renders a destination filename from the rename template.
 func ResolveRename(template string, ctx *TokenContext) string {
 	if template == "" {
 		return ctx.Info.Name()
@@ -157,27 +148,23 @@ func ResolveRename(template string, ctx *TokenContext) string {
 		template = preProcessSeq(template, ctx.DestDir, ctx.SeqAlloc)
 	}
 
-	resolved := ResolveGroupBy(template, ctx)
-	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "_")
-	resolved = strings.ReplaceAll(resolved, "/", "_")
-	return resolved
+	return replaceSeparators(ResolveGroupBy(template, ctx))
 }
 
-// ResolveArchiveName resolves an archive filename template using only tokens
-// that do not depend on a specific file: category, run date/time, and system
-// context. It cannot use file tokens ({name}, {ext}, {mod-*}), sequence, or hash
-// tokens, which need a concrete file or destination directory. Unknown tokens are
-// left as-is; path separators in the result are replaced with underscores so the
-// output is always a plain filename. An empty template returns the category name.
+// ResolveArchiveName resolves archive names from category and runtime tokens.
 func ResolveArchiveName(template, category string, now time.Time) string {
 	if template == "" {
 		return category
 	}
 	initSystemContext()
-	resolved := strings.NewReplacer(archiveNamePairs(category, now)...).Replace(template)
-	resolved = strings.ReplaceAll(resolved, string(os.PathSeparator), "_")
-	resolved = strings.ReplaceAll(resolved, "/", "_")
-	return resolved
+	return replaceSeparators(strings.NewReplacer(archiveNamePairs(category, now)...).Replace(template))
+}
+
+// replaceSeparators turns every path separator in s into "_" so the result is
+// always a plain filename.
+func replaceSeparators(s string) string {
+	s = strings.ReplaceAll(s, string(os.PathSeparator), "_")
+	return strings.ReplaceAll(s, "/", "_")
 }
 
 func archiveNamePairs(category string, now time.Time) []string {

@@ -9,15 +9,8 @@ import (
 	"sync"
 )
 
-// seqDirLocks serialises the per-directory scan that computes the next sequence
-// number, so two resolutions for the same dir do not read the directory at once.
-//
-// NOTE: the lock is released as soon as the number is computed, before the file
-// is written to disk, so on its own it does not guarantee unique numbers under
-// concurrent moves. That is acceptable today because the move pipeline is
-// single-threaded (the one-shot run processes categories serially and watch runs
-// on a single ticker goroutine). Revisit and hold the lock across the whole
-// resolve-and-move sequence if moves are ever parallelised.
+// seqDirLocks serialises per-directory sequence scans so concurrent resolutions
+// do not read the same directory at once.
 var seqDirLocks sync.Map
 
 func acquireSeqLock(destDir string) func() {
@@ -44,15 +37,9 @@ const (
 	romanValuePattern = `(?i:m{0,4}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))`
 )
 
-// seqScanPattern builds the matcher that finds the sequence values already in
-// the destination directory. It comes from the rename template, so only files
-// that template could have produced are counted: the token becomes the capture
-// group, and the literal text touching it on either side has to be there too.
-//
-// That literal is what makes the scan mean anything. Matching the value pattern
-// alone reads every ordinary filename as a label: "vacation.jpg" is a run of
-// lowercase letters, so {seq-alpha} continued from "vacation" instead of "a",
-// and "mix.png" is a valid roman numeral, so {seq-roman} continued from 1009.
+// seqScanPattern matches only filenames that the template could have generated.
+// Literal text around the token prevents ordinary filenames from being treated as
+// sequence values by accident.
 func seqScanPattern(template string, loc []int, value string) *regexp.Regexp {
 	before, after := template[:loc[0]], template[loc[1]:]
 	var b strings.Builder
@@ -95,9 +82,7 @@ func literalAfter(s string) string {
 	return s
 }
 
-// scanMaxSeq returns one past the highest value re captures among the files in
-// destDir, or 1 when nothing matches, including an empty or unreadable
-// directory. toInt converts a captured label to its ordinal.
+// scanMaxSeq returns the next sequence value after the highest match in destDir.
 func scanMaxSeq(destDir string, re *regexp.Regexp, toInt func(string) int) int {
 	if re == nil {
 		return 1
@@ -134,22 +119,13 @@ func resolveSeqNum(destDir, template string, loc []int) int {
 	})
 }
 
-// SeqAllocator hands out sequence numbers per destination directory without
-// re-scanning the directory for every file. The first request for a directory
-// seeds the counter from the existing files (the same scan ResolveSeq* perform);
-// subsequent requests increment in memory. This turns an O(files) directory scan
-// per moved file into a single scan per directory for a whole batch.
-//
-// Not safe for concurrent use: the move pipeline is single-threaded (see the
-// seqDirLocks note). A failed or skipped move leaves a gap in the numbering,
-// which is harmless — sequence numbers are not guaranteed to be contiguous.
+// SeqAllocator caches the next sequence value per destination directory to avoid
+// rescanning on every file. It is intentionally single-threaded.
 type SeqAllocator struct {
 	dirs map[string]*seqState
 }
 
-// seqState holds the next value of each sequence kind for one destination
-// directory. A field of 0 means "not yet seeded", which is unambiguous because
-// every seed (resolveSeq*) returns at least 1.
+// seqState holds the next value for each sequence kind in one destination directory.
 type seqState struct {
 	num, alpha, roman int
 }
@@ -204,9 +180,7 @@ func preProcessSeq(template, destDir string, alloc *SeqAllocator) string {
 	if loc == nil {
 		return template
 	}
-	// The allocator seeds itself from the directory on its first call and counts
-	// in memory after that. Scanning here as well would throw that scan away and
-	// pay for it once per file, which is the cost the allocator exists to avoid.
+	// The allocator seeds once per directory and then counts in memory.
 	var next int
 	if alloc != nil {
 		next = alloc.nextNum(destDir, template, loc)
@@ -225,15 +199,12 @@ func preProcessSeq(template, destDir string, alloc *SeqAllocator) string {
 
 var seqAlphaToken = regexp.MustCompile(`\{seq-alpha\}`)
 
-// ResolveSeqAlpha returns the next Excel-style label (a, b, ..., z, aa, ab, ...)
-// for destDir, reading the labels already there through the shape of template.
+// ResolveSeqAlpha returns the next Excel-style label for the destination directory.
 func ResolveSeqAlpha(destDir, template string) string {
 	return intToAlpha(resolveSeqAlphaInt(destDir, template))
 }
 
-// resolveSeqAlphaInt is the 1-based integer behind ResolveSeqAlpha, returning 1
-// (which maps to "a") when the directory holds no label of this shape, or is
-// empty or unreadable.
+// resolveSeqAlphaInt is the numeric value behind ResolveSeqAlpha.
 func resolveSeqAlphaInt(destDir, template string) int {
 	loc := seqAlphaToken.FindStringIndex(template)
 	if loc == nil {
@@ -261,11 +232,7 @@ func intToAlpha(n int) string {
 		b.WriteByte(byte('a' + n%26))
 		n /= 26
 	}
-	rr := []rune(b.String())
-	for i, j := 0, len(rr)-1; i < j; i, j = i+1, j-1 {
-		rr[i], rr[j] = rr[j], rr[i]
-	}
-	return string(rr)
+	return reverseString(b.String())
 }
 
 func preProcessSeqAlpha(template, destDir string, alloc *SeqAllocator) string {
@@ -283,15 +250,12 @@ func preProcessSeqAlpha(template, destDir string, alloc *SeqAllocator) string {
 
 var seqRomanToken = regexp.MustCompile(`\{seq-roman\}`)
 
-// ResolveSeqRoman returns the next roman numeral for destDir, reading the
-// numerals already there through the shape of template.
+// ResolveSeqRoman returns the next Roman numeral for the destination directory.
 func ResolveSeqRoman(destDir, template string) string {
 	return intToRoman(resolveSeqRomanInt(destDir, template))
 }
 
-// resolveSeqRomanInt is the 1-based integer behind ResolveSeqRoman, returning 1
-// (which maps to "i") when the directory holds no numeral of this shape, or is
-// empty or unreadable.
+// resolveSeqRomanInt is the numeric value behind ResolveSeqRoman.
 func resolveSeqRomanInt(destDir, template string) int {
 	loc := seqRomanToken.FindStringIndex(template)
 	if loc == nil {

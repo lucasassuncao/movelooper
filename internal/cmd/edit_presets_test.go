@@ -14,7 +14,7 @@ import (
 )
 
 // TestDocPresets_AreValidConfigs guards every whole-document preset: each must
-// parse and pass category validation, so a malformed template (e.g. an archive
+// parse and pass category validation, so a malformed preset (e.g. an archive
 // preset missing its archive block) is caught here rather than by the user.
 func TestDocPresets_AreValidConfigs(t *testing.T) {
 	t.Parallel()

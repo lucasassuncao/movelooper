@@ -1,4 +1,4 @@
-.PHONY: help build build-all release tag install fmt lint test test-coverage test-watch security govulncheck sbom vuln deps docs completions all run tools tools-clean clean
+.PHONY: help build build-all release tag install fmt lint test test-coverage test-watch security govulncheck sbom vuln deps docs completions all run tools clean-tools clean
 
 # Tool versions
 GOLANGCI_LINT_VERSION := v2.13.2
@@ -95,24 +95,22 @@ COVERAGE_XML  := $(COVERAGE_DIR)/coverage.xml
 # and every run after that fails outright, because cmd's mkdir treats an
 # existing directory as an error rather than as nothing to do.
 #
-# Asking make instead of the shell settles it. wildcard is expanded at parse
-# time, so the "already there" case runs no command at all, and creating one
-# level with a bare mkdir is the same command under every shell.
-ifeq ($(wildcard $(COVERAGE_DIR)),)
-MKDIR_COVERAGE = mkdir $(COVERAGE_DIR)
-else
-MKDIR_COVERAGE =
-endif
+# A directory target, not $(wildcard) in an ifeq: wildcard expands at parse
+# time, so `make clean test-coverage` drops the mkdir and then deletes the
+# directory. A target is checked when make reaches it.
+$(COVERAGE_DIR):
+	@mkdir $(COVERAGE_DIR)
 
 # Shell completion scripts, generated from the binary itself and attached to
-# each release. Same shell portability problem as MKDIR_COVERAGE above.
+# each release. Same shell portability problem as above.
 COMPLETIONS_DIR := completions
 
-ifeq ($(wildcard $(COMPLETIONS_DIR)),)
-MKDIR_COMPLETIONS = mkdir $(COMPLETIONS_DIR)
-else
-MKDIR_COMPLETIONS =
-endif
+# Spelled absolute so the target does not collide with the phony "completions"
+# rule below, which would redefine it.
+COMPLETIONS_PATH := $(CURDIR)/$(COMPLETIONS_DIR)
+
+$(COMPLETIONS_PATH):
+	@mkdir $(COMPLETIONS_DIR)
 
 # Project variables
 BINARY_NAME := movelooper
@@ -162,8 +160,8 @@ test: $(GOTESTSUM) ## Run tests with gotestsum (testdox format)
 test-watch: $(GOTESTSUM) ## Run tests in watch mode (reruns on file changes)
 	@$(GOTESTSUM) --format testdox --watch -- -race ./...
 
-test-coverage: $(GOTESTSUM) $(GOCOBERTURA) ## Run tests with coverage (HTML + Cobertura XML)
-	@$(MKDIR_COVERAGE)
+# Order-only (after the |): writing a report changes the directory's timestamp.
+test-coverage: $(GOTESTSUM) $(GOCOBERTURA) | $(COVERAGE_DIR) ## Run tests with coverage (HTML + Cobertura XML)
 	@$(GOTESTSUM) --format testdox -- -race -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
 	@go tool cover -func=$(COVERAGE_OUT) | tail -1
 	@go tool cover -html=$(COVERAGE_OUT) -o $(COVERAGE_HTML)
@@ -206,8 +204,7 @@ docs: $(GOMARKDOC) ## Generate package docs (gomarkdoc) and config reference (ge
 # the real flags. They are release inputs, not tracked files: `release` depends
 # on this target because .goreleaser.yaml attaches $(COMPLETIONS_DIR)/* to the
 # release, and globbing a missing directory is a hard error there.
-completions: ## Generate shell completion scripts into ./completions
-	@$(MKDIR_COMPLETIONS)
+completions: | $(COMPLETIONS_PATH) ## Generate shell completion scripts into ./completions
 	@go run $(MAIN_PATH) completion bash > $(COMPLETIONS_DIR)/movelooper_completion.bash
 	@go run $(MAIN_PATH) completion zsh > $(COMPLETIONS_DIR)/movelooper_completion.zsh
 	@go run $(MAIN_PATH) completion fish > $(COMPLETIONS_DIR)/movelooper_completion.fish

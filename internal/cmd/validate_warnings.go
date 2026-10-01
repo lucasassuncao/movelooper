@@ -3,11 +3,9 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/config"
-	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/lucasassuncao/yedit/spec"
@@ -20,7 +18,7 @@ import (
 // These are warnings on purpose, and only the validate command emits them. The
 // config file is the source of truth: a run never second-guesses what was
 // declared, never prompts, and never refuses. The place to find out that a rule
-// eats data is here, before the run — not afterwards, from the missing files.
+// eats data is here, before the run, not afterwards from the missing files.
 func configWarnings(rawYAML []byte) []spec.Violation {
 	var doc map[string]any
 	if err := yaml.Unmarshal(rawYAML, &doc); err != nil {
@@ -40,7 +38,14 @@ func configWarnings(rawYAML []byte) []spec.Violation {
 		}
 		out = append(out, categoryWarnings(fmt.Sprintf("categories[%d]", i), cat, defaults)...)
 	}
-	return append(out, overlappingSourceWarnings(cats)...)
+	// Every check in this file describes a configuration that is valid as
+	// written, so the severity is stamped once here instead of being repeated
+	// at each construction site, where one omission would silently promote a
+	// warning into a build-failing error.
+	for i := range out {
+		out[i].Severity = spec.SeverityWarning
+	}
+	return out
 }
 
 // categoryWarnings runs the per-category data-loss checks.
@@ -101,77 +106,6 @@ func categoryWarnings(prefix string, cat, defaults map[string]any) []spec.Violat
 	return out
 }
 
-// overlappingSourceWarnings reports category pairs that read the same source
-// directory and compete for the same extensions. The first matching category
-// wins and the later one silently gets nothing, which is defined behaviour but
-// almost never what was intended.
-func overlappingSourceWarnings(cats []any) []spec.Violation {
-	type entry struct {
-		index int
-		name  string
-		path  string
-		exts  map[string]bool
-	}
-	entries := make([]entry, 0, len(cats))
-	for i, item := range cats {
-		cat, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		src := mapAt(cat, "source")
-		path := strAt(src, "path")
-		if path == "" {
-			continue
-		}
-		exts := make(map[string]bool)
-		for _, e := range sliceAt(src, "extensions") {
-			if s, ok := e.(string); ok {
-				exts[strings.ToLower(s)] = true
-			}
-		}
-		entries = append(entries, entry{index: i, name: strAt(cat, "name"), path: path, exts: exts})
-	}
-
-	var out []spec.Violation
-	for a := 0; a < len(entries); a++ {
-		for b := a + 1; b < len(entries); b++ {
-			if !samePath(entries[a].path, entries[b].path) {
-				continue
-			}
-			shared := sharedExtensions(entries[a].exts, entries[b].exts)
-			if len(shared) == 0 {
-				continue
-			}
-			out = append(out, spec.Violation{
-				Path: fmt.Sprintf("categories[%d].source", entries[b].index),
-				Message: fmt.Sprintf("competes with category %q for %s in %s — the first matching category wins, so this one may never see those files",
-					entries[a].name, strings.Join(shared, ", "), entries[b].path),
-			})
-		}
-	}
-	return out
-}
-
-// sharedExtensions returns the extensions claimed by both categories, sorted for
-// a stable message. The "all" sentinel matches everything, so it overlaps with
-// any non-empty extension list.
-func sharedExtensions(a, b map[string]bool) []string {
-	if a[filters.ExtAll] && len(b) > 0 {
-		return []string{"all extensions"}
-	}
-	if b[filters.ExtAll] && len(a) > 0 {
-		return []string{"all extensions"}
-	}
-	var shared []string
-	for ext := range a {
-		if b[ext] {
-			shared = append(shared, "."+ext)
-		}
-	}
-	sort.Strings(shared)
-	return shared
-}
-
 // effectiveValue resolves a setting through the category value, then the
 // configuration.defaults value, then the built-in default.
 func effectiveValue(categoryValue, defaultValue, builtIn string) string {
@@ -216,12 +150,4 @@ func boolAt(m map[string]any, key string) (value, present bool) {
 	}
 	b, ok := m[key].(bool)
 	return b, ok
-}
-
-func sliceAt(m map[string]any, key string) []any {
-	if m == nil {
-		return nil
-	}
-	s, _ := m[key].([]any)
-	return s
 }

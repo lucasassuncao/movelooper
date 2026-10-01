@@ -48,10 +48,8 @@ func WalkSource(ctx context.Context, source models.CategorySource, autoExclude [
 		entries, err := walkFlat(ctx, source.Path)
 		return entries, nil, err
 	}
-	var results []FileEntry
-	var skips []SkippedDir
-	err = walkRecursive(ctx, source.Path, 0, source, autoExclude, &results, &skips)
-	return results, skips, err
+	err = walkRecursive(ctx, source.Path, 0, source, autoExclude, &files, &skipped)
+	return files, skipped, err
 }
 
 // walkFlat reads a single directory and returns FileEntry for every regular file.

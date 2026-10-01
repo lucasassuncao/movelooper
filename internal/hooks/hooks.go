@@ -66,15 +66,11 @@ func defaultShell(override string) (shell string, args []string) {
 		return override, []string{"-c"}
 	}
 
-	if runtime.GOOS == "windows" {
-		if sh := os.Getenv("SHELL"); sh != "" {
-			return sh, []string{"-c"}
-		}
-		return "cmd", []string{"/C"}
-	}
-
 	if sh := os.Getenv("SHELL"); sh != "" {
 		return sh, []string{"-c"}
+	}
+	if runtime.GOOS == "windows" {
+		return "cmd", []string{"/C"}
 	}
 	return "sh", []string{"-c"}
 }

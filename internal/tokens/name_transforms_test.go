@@ -61,36 +61,3 @@ func TestNameTransforms(t *testing.T) {
 		})
 	}
 }
-
-// testPreProcessNameTrunc defines the structure for test cases of the preProcessNameTrunc function,
-// containing the template string, the file name, and the expected output.
-type testPreProcessNameTrunc struct {
-	template string
-	name     string
-	want     string
-}
-
-// testPreProcessNameTruncTestCases defines a set of test cases for the preProcessNameTrunc function,
-// including truncation by rune count (not bytes) and passthrough when no token is present.
-var testPreProcessNameTruncTestCases = []testPreProcessNameTrunc{
-	{"{name-trunc:4}", "very-long-name", "very"},
-	{"{name-trunc:8}", "very-long-name", "very-lon"},
-	{"{name-trunc:20}", "short", "short"},
-	{"{name-trunc:1}", "abc", "a"},
-	{"prefix_{name-trunc:3}.txt", "report", "prefix_rep.txt"},
-	{"no-token", "anything", "no-token"},
-	// counts runes not bytes
-	{"{name-trunc:3}", "café", "caf"},
-	{"{name-trunc:2}", "日本語", "日本"},
-}
-
-// TestPreProcessNameTrunc tests the preProcessNameTrunc function to ensure it correctly truncates names by rune count.
-func TestPreProcessNameTrunc(t *testing.T) {
-	t.Parallel()
-	for _, tt := range testPreProcessNameTruncTestCases {
-		t.Run(tt.template+"/"+tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, preProcessNameTrunc(tt.template, tt.name))
-		})
-	}
-}

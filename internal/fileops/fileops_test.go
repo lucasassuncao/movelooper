@@ -555,6 +555,41 @@ func TestDispatchAction(t *testing.T) {
 	}
 }
 
+// testUniqueDestination defines the structure for test cases of the UniqueDestination function,
+// containing existing files, input filename, and expected output filename.
+type testUniqueDestination struct {
+	name     string
+	existing []string
+	input    string
+	want     string
+}
+
+// testUniqueDestinationTestCases defines a set of test cases for the UniqueDestination function,
+// covering no conflict, one conflict, and multiple sequential conflicts.
+var testUniqueDestinationTestCases = []testUniqueDestination{
+	{"no conflict", nil, "file.txt", "file.txt"},
+	{"one conflict", []string{"file.txt"}, "file.txt", "file(1).txt"},
+	{"multiple conflicts", []string{"file.txt", "file(1).txt", "file(2).txt"}, "file.txt", "file(3).txt"},
+}
+
+// TestUniqueDestination tests the UniqueDestination function to ensure it correctly
+// generates unique filenames when conflicts exist.
+func TestUniqueDestination(t *testing.T) {
+	t.Parallel()
+	for _, tt := range testUniqueDestinationTestCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			for _, f := range tt.existing {
+				writeFile(t, filepath.Join(dir, f), []byte("x"))
+			}
+			got, err := UniqueDestination(dir, tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, filepath.Join(dir, tt.want), got)
+		})
+	}
+}
+
 func newTestLogger() *pterm.Logger {
 	l := pterm.DefaultLogger
 	l.Level = pterm.LogLevelDisabled

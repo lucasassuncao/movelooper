@@ -1,6 +1,6 @@
 # Interactive Config Editor
 
-`movelooper edit` opens a two-panel TUI editor for your configuration file. It is the fastest way to create or modify a config without leaving the terminal, with validation on every save.
+`movelooper edit` opens a TUI editor for your configuration file. It is the fastest way to create or modify a config without leaving the terminal, with validation on every save.
 
 ```bash
 movelooper edit
@@ -10,31 +10,66 @@ movelooper edit
 
 ## Layout
 
-**Left panel: block list**\
-Lists the top-level blocks in your config: `configuration`, and each of your categories. Navigate with **↑ / ↓**, open a block with **Enter**.
+**Block list**\
+The first screen. The left pane lists the top-level blocks of your config, grouped as `ADDED` (in the file), `AVAILABLE` (declared by the schema but not in the file yet), `UNKNOWN` (in the file but not in the schema) and `PASSTHROUGH` (kept as written, such as `import`). The right pane shows the whole file as highlighted YAML and follows the selection. Below it, the **Hint/Example** pane describes the selected block.
 
-**Right panel: field editor**\
-Shows the fields of the selected block. Each field has a type-appropriate control: text inputs for strings, toggles for booleans, dropdowns for enums. Nested objects expand inline.
+**Block editor**\
+**Enter** on a block opens it. The left pane is the block's field tree; the right pane previews the block's YAML, and becomes an editable YAML buffer when focused. The **Hint/Example** pane describes the selected field. A list or map field opens its own editor one level down, and the header shows the path as a breadcrumb (`categories › images › source › filter`).
+
+The **Hint/Example** pane only informs, so **Tab** never stops on it. **h** shows or hides it, and **Ctrl+H** focuses it to scroll a long hint.
 
 ---
 
 ## Keybindings
 
+The legend at the bottom always lists the keys of the screen in front, and **?** opens the full list.
+
+**Block list**
+
 | Key | Action |
 |---|---|
-| **↑ / ↓** | Move between items |
-| **Enter** | Open a block / confirm a value |
-| **Esc** | Go back / cancel |
-| **Tab** | Next field |
-| **Ctrl+S** | Save |
-| **Ctrl+U** | Undo last edit |
-| **Ctrl+Y** | Redo |
+| **↑ / ↓** | Move between blocks |
+| **Enter / →** | Open the block, or add it when it is not in the file yet |
+| **Tab** | Switch between the block list and the file preview |
+| **/** | Filter the list |
+| **p** | Pick a whole-document preset |
+| **h** | Show or hide the Hint/Example pane |
+| **Ctrl+H** | Focus the Hint/Example pane to scroll it |
+| **Ctrl+D** | Delete the selected block |
+| **Ctrl+S** | Save the file |
+| **Ctrl+U / Ctrl+Y** | Undo / redo the last document change |
+| **Ctrl+R** | Reload the file from disk |
+| **Ctrl+L** | Validate without saving |
+| **q** | Quit (asks first when there are unsaved changes) |
+
+In the file preview, **↑ / ↓** scroll, and **Tab** or **Esc** go back to the list.
+
+**Block editor**
+
+| Key | Action |
+|---|---|
+| **↑ / ↓** | Move between fields |
+| **→ / ←** | Expand / collapse a field |
+| **Enter** | Add the field, or open a nested list or map |
+| **Tab** | Switch between the field tree and the YAML buffer |
+| **p** | Pick a preset for this block, when it has any |
+| **h** | Show or hide the Hint/Example pane |
+| **Ctrl+H** | Focus the Hint/Example pane to scroll it |
+| **Ctrl+D** | Remove the field (or delete the entry, in a list) |
+| **Ctrl+U / Ctrl+Y** | Undo / redo the last edit |
+| **Ctrl+S** | Apply the block to the document and return to the list |
+| **Ctrl+L** | Validate without saving |
+| **Esc** | Go up one level; from the top, back to the list (asks first when the block has unapplied changes) |
+
+**Ctrl+C** quits from any screen.
 
 ---
 
 ## Saving and validation
 
-**Ctrl+S** validates the entire config before writing. If there are errors, the editor shows them inline and refuses to save. Use `--no-validate-on-save` to override (a warning is shown, the file is still written).
+**Ctrl+S** in the block editor only applies the block to the document; the file is written by **Ctrl+S** in the block list. That save validates the entire config first: if there are errors, a dialog lists them and nothing is written. Use `--no-validate-on-save` to save anyway; you are then asked to confirm, with the errors listed as warnings.
+
+If the file changed on disk since it was opened, saving always asks before overwriting it, even with `--no-save-confirm`.
 
 ---
 
@@ -68,7 +103,7 @@ The default theme is `plain`.
 | Flag | Description |
 |---|---|
 | `--theme` | Theme name (default: `plain`) |
-| `--list-themes` | Browse available themes in an interactive, tabbed terminal UI |
+| `--list-themes` | Browse every available theme and its category in a scrollable table (`q` quits) |
 | `--output`, `-o` | Write to this file instead of the loaded config |
 | `--no-save-confirm` | Skip the save confirmation dialog |
 | `--no-delete-confirm` | Skip the block-delete confirmation dialog |

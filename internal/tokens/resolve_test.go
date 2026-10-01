@@ -181,3 +181,57 @@ func TestResolveGroupBy(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveGroupBy_Mime(t *testing.T) {
+	dir := t.TempDir()
+	png := filepath.Join(dir, "photo.jpg")
+	require.NoError(t, os.WriteFile(png, []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, 0o644))
+	info, err := os.Stat(png)
+	require.NoError(t, err)
+
+	ctx := &TokenContext{Info: info, Now: time.Now(), SourcePath: png}
+	assert.Equal(t, filepath.FromSlash("image/png"), ResolveGroupBy("{mime-type}/{mime-ext}", ctx))
+}
+
+func TestResolveArchiveName(t *testing.T) {
+	now := time.Date(2026, 7, 1, 9, 30, 15, 0, time.UTC)
+
+	assert.Equal(t, "photos", ResolveArchiveName("", "photos", now), "empty template falls back to category")
+	assert.Equal(t, "photos_2026-07-01", ResolveArchiveName("{category}_{date}", "photos", now))
+	assert.Equal(t, "20260701-093015", ResolveArchiveName("{timestamp}", "x", now))
+	// path separators in the resolved name are neutralised to keep a plain filename
+	assert.Equal(t, "a_b", ResolveArchiveName("a/b", "x", now))
+}
+
+// testPreProcessNameTrunc defines the structure for test cases of the preProcessNameTrunc function,
+// containing the template string, the file name, and the expected output.
+type testPreProcessNameTrunc struct {
+	template string
+	name     string
+	want     string
+}
+
+// testPreProcessNameTruncTestCases defines a set of test cases for the preProcessNameTrunc function,
+// including truncation by rune count (not bytes) and passthrough when no token is present.
+var testPreProcessNameTruncTestCases = []testPreProcessNameTrunc{
+	{"{name-trunc:4}", "very-long-name", "very"},
+	{"{name-trunc:8}", "very-long-name", "very-lon"},
+	{"{name-trunc:20}", "short", "short"},
+	{"{name-trunc:1}", "abc", "a"},
+	{"prefix_{name-trunc:3}.txt", "report", "prefix_rep.txt"},
+	{"no-token", "anything", "no-token"},
+	// counts runes not bytes
+	{"{name-trunc:3}", "café", "caf"},
+	{"{name-trunc:2}", "日本語", "日本"},
+}
+
+// TestPreProcessNameTrunc tests the preProcessNameTrunc function to ensure it correctly truncates names by rune count.
+func TestPreProcessNameTrunc(t *testing.T) {
+	t.Parallel()
+	for _, tt := range testPreProcessNameTruncTestCases {
+		t.Run(tt.template+"/"+tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, preProcessNameTrunc(tt.template, tt.name))
+		})
+	}
+}

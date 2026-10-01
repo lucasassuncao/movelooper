@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/lucasassuncao/bezel/theme"
+	"github.com/lucasassuncao/bezel/themebrowser"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/editor"
-	"github.com/lucasassuncao/yedit/theme"
-	"github.com/lucasassuncao/yedit/themebrowser"
 	"github.com/spf13/cobra"
 )
 
@@ -35,18 +35,19 @@ func EditCmd() *cobra.Command {
 		Long: `Open the movelooper configuration file in an interactive two-panel TUI editor.
 
 The left panel lists top-level configuration keys; pressing Enter opens the
-block editor where sub-fields can be toggled and edited. Ctrl+S writes the
-file; Ctrl+U undoes the last change; Ctrl+Y redoes it; Esc quits.
+block editor where sub-fields can be toggled and edited. Tab changes pane;
+Ctrl+S writes the file; Ctrl+U undoes the last change; Ctrl+Y redoes it;
+Esc goes back; q quits. Press ? in the editor for every key.
 
 Use --output to write to a different file than the one loaded (e.g. to
-produce a new config from an existing template).`,
+produce a new config from an existing one).`,
 		Example: `  # Edit the default configuration file
   movelooper edit
 
   # Edit with the Grape theme
   movelooper edit --theme grape
 
-  # Browse available themes in an interactive, tabbed terminal UI
+  # Browse the available themes in a scrollable table
   movelooper edit --list-themes
 
   # Load from --config but save to a new file
@@ -62,9 +63,9 @@ produce a new config from an existing template).`,
 				return themebrowser.BrowseInTerminal()
 			}
 
-			selectedTheme, ok := theme.All()[themeName]
-			if !ok {
-				return fmt.Errorf("unknown theme %q — run 'movelooper edit --list-themes' to see available themes", themeName)
+			selectedTheme, err := theme.Lookup(themeName)
+			if err != nil {
+				return fmt.Errorf("%w: run 'movelooper edit --list-themes' to see available themes", err)
 			}
 
 			configFlag, _ := cmd.Root().PersistentFlags().GetString("config")
@@ -130,7 +131,7 @@ produce a new config from an existing template).`,
 
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Save to this file instead of the loaded config (load path is unchanged)")
 	cmd.Flags().StringVar(&themeName, "theme", "plain", "Theme name (run --list-themes to see options)")
-	cmd.Flags().BoolVar(&listThemes, "list-themes", false, "Browse available themes in an interactive, tabbed terminal UI")
+	cmd.Flags().BoolVar(&listThemes, "list-themes", false, "Browse the available themes in a scrollable table (q quits)")
 	cmd.Flags().BoolVar(&noSaveConfirm, "no-save-confirm", false, "Skip the 'Save changes?' confirmation dialog")
 	cmd.Flags().BoolVar(&noDeleteConfirm, "no-delete-confirm", false, "Skip the 'Remove block?' confirmation dialog")
 	cmd.Flags().BoolVar(&noValidateOnSave, "no-validate-on-save", false, "Allow saving even when validators report errors (a warning is shown)")
@@ -140,12 +141,8 @@ produce a new config from an existing template).`,
 	return cmd
 }
 
-// resolveEditPaths decides which file the editor loads and where it saves.
-// --config wins; with only --output, that file is both loaded and saved.
-// Otherwise the config is resolved through the same search paths every other
-// command uses (config.ResolveConfigPath), so editing and running always
-// target the same file; only when no config exists anywhere does edit fall
-// back to creating one next to the binary.
+// resolveEditPaths picks the config to open and the optional save target; when
+// no config exists, it creates the default path used by future runs.
 func resolveEditPaths(configFlag, output string) (loadPath, savePath string, err error) {
 	if configFlag != "" {
 		return configFlag, output, nil
@@ -156,10 +153,8 @@ func resolveEditPaths(configFlag, output string) (loadPath, savePath string, err
 	if resolved, resolveErr := config.ResolveConfigPath(""); resolveErr == nil {
 		return resolved, "", nil
 	}
-	// No config exists yet. Point at the first path ResolveConfigPath searches so
-	// that a first run of "movelooper edit" creates the file where every later run
-	// will look for it. The executable directory stays as a fallback for the rare
-	// case where the home directory cannot be determined.
+	// If no config exists, use the default home path so the first edit creates
+	// the file that later runs will look for; the executable dir is a fallback.
 	if home, homeErr := os.UserHomeDir(); homeErr == nil {
 		return filepath.Join(home, ".movelooper", "conf", "movelooper.yaml"), "", nil
 	}
@@ -170,9 +165,7 @@ func resolveEditPaths(configFlag, output string) (loadPath, savePath string, err
 	return filepath.Join(filepath.Dir(ex), "conf", "movelooper.yaml"), "", nil
 }
 
-// ensureConfigDir creates the parent directory of path when it is missing. The
-// editor saves atomically, writing a temp file beside the target, so a missing
-// parent turns a first-run save into an error instead of a new config file.
+// ensureConfigDir creates the parent directory before the editor saves a config.
 func ensureConfigDir(path string) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o750); err != nil {

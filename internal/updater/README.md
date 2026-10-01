@@ -20,7 +20,7 @@ Package updater implements the self\-update mechanism for movelooper.
 
 
 <a name="CleanOldBinary"></a>
-## func [CleanOldBinary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L206>)
+## func [CleanOldBinary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L194>)
 
 ```go
 func CleanOldBinary()
@@ -29,7 +29,7 @@ func CleanOldBinary()
 CleanOldBinary removes a \<exe\>.old file left by a previous self\-update. Call this from main\(\) at startup.
 
 <a name="NormalizeVersion"></a>
-## func [NormalizeVersion](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L221>)
+## func [NormalizeVersion](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L209>)
 
 ```go
 func NormalizeVersion(v string) string
@@ -38,17 +38,13 @@ func NormalizeVersion(v string) string
 NormalizeVersion strips a leading "v" so that "v1.2.3" and "1.2.3" compare equal. Shared with the self\-update command, which labels the installed tag.
 
 <a name="SelfUpdate"></a>
-## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L52>)
+## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L42>)
 
 ```go
 func SelfUpdate(repo, currentVersion, version string, includePrerelease bool) error
 ```
 
-SelfUpdate downloads a release of movelooper from GitHub and replaces the current binary. The old binary is kept as \<name\>.old until the next run, when it is cleaned up automatically.
-
-repo must be in "owner/repo" format, e.g. "lucasassuncao/movelooper". currentVersion is the running binary's version \(e.g. "1.0.0" or "v1.0.0"\); the update is skipped when it matches the resolved release tag.
-
-version selects the release to install: empty means "latest". includePrerelease only affects the empty\-version path: when true, the most recent release wins even if it is a prerelease; otherwise the latest stable is used. When version is non\-empty, includePrerelease is ignored — the explicit tag is honored.
+SelfUpdate replaces the running binary with the selected GitHub release and keeps the previous binary as \<name\>.old for cleanup on the next run.
 
 <a name="Release"></a>
 ## type [Release](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L34-L38>)
@@ -64,7 +60,7 @@ type Release struct {
 ```
 
 <a name="ListReleases"></a>
-### func [ListReleases](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L128>)
+### func [ListReleases](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L118>)
 
 ```go
 func ListReleases(repo string, includePrerelease bool, limit int) ([]Release, error)

@@ -195,19 +195,14 @@ func (r *comparatorResolver) Resolve(args ConflictArgs) (string, bool, FinalizeF
 	// A dangling link holds the name but has no content or metadata to compare
 	// against, so the incoming file wins by default. swapAside sets the link
 	// aside first, exactly as it would a real file.
-	if danglingSymlink(args.Dst) {
-		finalize, err := swapAside(args.Dst)
+	if !danglingSymlink(args.Dst) {
+		dstInfo, err := os.Stat(args.Dst)
 		if err != nil {
-			return "", false, nil, fmt.Errorf("%s: failed to set aside destination: %w", r.name, err)
+			return "", false, nil, err
 		}
-		return args.Dst, true, finalize, nil
-	}
-	dstInfo, err := os.Stat(args.Dst)
-	if err != nil {
-		return "", false, nil, err
-	}
-	if !r.shouldReplace(srcInfo, dstInfo) {
-		return "", false, nil, nil
+		if !r.shouldReplace(srcInfo, dstInfo) {
+			return "", false, nil, nil
+		}
 	}
 	finalize, err := swapAside(args.Dst)
 	if err != nil {
@@ -254,29 +249,21 @@ func (r *hashCheckResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFu
 	// Nothing to hash on the other side, so the source cannot be a duplicate:
 	// keep both by giving the incoming file a free name.
 	if danglingSymlink(args.Dst) {
-		path, err := UniqueDestination(args.DestDir, args.FileName)
-		if err != nil {
-			return "", false, nil, err
-		}
-		return path, true, nil, nil
+		return (&renameResolver{}).Resolve(args)
 	}
 	match, err := compareFileHashes(args.Src, args.Dst)
 	if err != nil {
 		return "", false, nil, err
 	}
-	if match {
-		if consumesSource(args.Action) {
-			if err := os.Remove(args.Src); err != nil && !os.IsNotExist(err) {
-				return "", false, nil, fmt.Errorf("failed to remove duplicate source file: %w", err)
-			}
+	if !match {
+		return (&renameResolver{}).Resolve(args)
+	}
+	if consumesSource(args.Action) {
+		if err := os.Remove(args.Src); err != nil && !os.IsNotExist(err) {
+			return "", false, nil, fmt.Errorf("failed to remove duplicate source file: %w", err)
 		}
-		return "", false, nil, nil
 	}
-	path, err := UniqueDestination(args.DestDir, args.FileName)
-	if err != nil {
-		return "", false, nil, err
-	}
-	return path, true, nil, nil
+	return "", false, nil, nil
 }
 
 func (r *hashCheckResolver) SkipMessage(args ConflictArgs) string {

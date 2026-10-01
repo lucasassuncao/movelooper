@@ -59,7 +59,7 @@ var MovelooperBlockPresets = presets.Combine(
 )
 ```
 
-<a name="MovelooperDocPresets"></a>MovelooperDocPresets is a whole\-document preset source for the root template picker \(ctrl\+p\). Each entry combines the base configuration with one of the available category presets.
+<a name="MovelooperDocPresets"></a>MovelooperDocPresets is a whole\-document preset source for the root preset picker \(p\). Each entry combines the base configuration with one of the available category presets.
 
 ```go
 var MovelooperDocPresets presets.Source = buildDocPresets()
@@ -236,17 +236,13 @@ func EditCmd() *cobra.Command
 EditCmd returns the "edit" command, which opens an interactive TUI editor for the movelooper configuration file.
 
 <a name="FilterCategories"></a>
-## func [FilterCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/category_filter.go#L37>)
+## func [FilterCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/category_filter.go#L30>)
 
 ```go
 func FilterCategories(all []*models.Category, names []string, includeDisabled bool, log logger.Logger) ([]*models.Category, error)
 ```
 
-FilterCategories returns the subset of all that should be processed.
-
-When names is empty, all categories are returned. Without includeDisabled, categories with enabled: false are silently excluded \(same behavior as today\). With includeDisabled, all categories are returned regardless of their enabled field.
-
-When names is non\-empty, each name is validated against the config. An unknown name returns an error. A disabled category without includeDisabled is skipped with a warning that suggests the flag.
+FilterCategories returns the categories to process; it keeps enabled ones by default, includes disabled ones when requested, and errors on unknown names.
 
 <a name="ListOfCategoriesPresets"></a>
 ## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1104>)
@@ -303,7 +299,7 @@ func UndoCmd(m *models.Movelooper) *cobra.Command
 UndoCmd reverts a batch of file moves
 
 <a name="ValidateCmd"></a>
-## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L38>)
+## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L36>)
 
 ```go
 func ValidateCmd() *cobra.Command
@@ -321,7 +317,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command
 WatchCmd defines the "watch" command to monitor directories and move files in real\-time
 
 <a name="MoveOptions"></a>
-## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root_helper.go#L46-L51>)
+## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root_helper.go#L47-L52>)
 
 MoveOptions carries the CLI flags for the move command.
 

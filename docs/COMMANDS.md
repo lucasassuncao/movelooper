@@ -93,7 +93,7 @@ movelooper edit --config /path/to/movelooper.yaml
 | Flag                    | Description                                                              |
 |-------------------------|--------------------------------------------------------------------------|
 | `--theme`               | Theme name (default: `plain`), run `--list-themes` to see options       |
-| `--list-themes`         | Browse available themes in an interactive, tabbed terminal UI            |
+| `--list-themes`         | Browse every available theme and its category in a scrollable table (`q` quits) |
 | `--output`, `-o`        | Save to this file instead of the loaded config (load path is unchanged)  |
 | `--no-save-confirm`     | Skip the save confirmation dialog                                        |
 | `--no-delete-confirm`   | Skip the block-delete confirmation dialog                                |
@@ -101,7 +101,7 @@ movelooper edit --config /path/to/movelooper.yaml
 | `--dump`                | Record every editor action to a JSONL trace file for bug reports (the path is printed on exit) |
 | `--dump-path`           | Write the session trace to this file instead of a temp file (implies `--dump`) |
 
-**Keybindings:** `Ctrl+S` save · `Ctrl+U` undo · `Ctrl+Y` redo · `Esc` quit
+**Keybindings:** `Tab` change pane · `Ctrl+S` save · `Ctrl+U` undo · `Ctrl+Y` redo · `?` all keys · `Esc` back · `q` quit. See [the editor guide](EDIT.md#keybindings) for every key per screen.
 
 ## `movelooper validate`: validate config file
 
@@ -115,13 +115,18 @@ Alongside errors, `validate` reports **warnings**: configurations that are perfe
 | `source.path` and `destination.path` are the same directory | Files are processed onto themselves |
 | `action: archive` with `keep-source: false` | The originals are deleted and archive batches cannot be undone, so the archive becomes the only copy |
 | `conflict-strategy: overwrite` with no `organize-by` and no `rename` | Everything lands in one directory under its original name, replacing existing files with matching names |
-| Two categories reading the same source with overlapping extensions | The first match wins, so the later category may never see those files |
+
+Every warning is about **losing files**. Configurations that merely compete for
+the same input, such as two categories reading one directory with overlapping
+extensions, are not reported: that is defined behaviour (the first match wins)
+and no file is destroyed by it.
 
 ```bash
 movelooper validate
 movelooper validate --format table
 movelooper validate --format json --summary
 movelooper validate --strict
+movelooper validate --theme mario
 movelooper validate --config /path/to/movelooper.yaml
 ```
 
@@ -130,8 +135,29 @@ movelooper validate --config /path/to/movelooper.yaml
 | `--format`  | `-f`  | Output format: `pretty` (default), `plain`, `table`, `json`                        |
 | `--summary` |       | Show only total error counts, not individual violations                             |
 | `--strict`  |       | Also verify that `source.path` and `destination.path` directories exist on disk    |
+| `--theme`   |       | Theme for the `pretty` and `table` formats; same names as `movelooper edit --theme` |
 
 > On `validate`, `--format` controls the **validation report** rendering (`pretty`/`plain`/`table`/`json`), not the log format; its local `-f` shadows the global logging `--format` here.
+
+### JSON output
+
+`--format json` writes the shape defined by yedit's `report` package, so the
+same parser works for any yedit-based tool:
+
+```json
+{
+  "valid": false,
+  "error_count": 2,
+  "warning_count": 1,
+  "errors":   [{"path": "categories[0].name", "message": "is required"}],
+  "warnings": [{"path": "categories[0].destination.path", "message": "source and destination are the same directory ..."}],
+  "summary":  {"categories": 2}
+}
+```
+
+`valid` and the exit status come from `error_count` alone. **Warnings never fail
+the command**, so a config that is valid but lossy reports `"valid": true` and
+exits `0` while still printing its warnings.
 
 ## `movelooper config`: show resolved config path
 

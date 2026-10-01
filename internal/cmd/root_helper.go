@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -166,21 +167,17 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 	if action == "" {
 		action = models.ActionMove
 	}
-	dry := "false"
-	if dryRun {
-		dry = "true"
-	}
 	env := map[string]string{
 		"ML_CATEGORY":    category.Name,
 		"ML_SOURCE_PATH": category.Source.Path,
 		"ML_DEST_PATH":   category.Destination.Path,
-		"ML_DRY_RUN":     dry,
+		"ML_DRY_RUN":     strconv.FormatBool(dryRun),
 		"ML_ACTION":      string(action),
 	}
 	if after != nil {
-		env["ML_FILES_MOVED"] = fmt.Sprintf("%d", after.moved)
-		env["ML_FILES_SKIPPED"] = fmt.Sprintf("%d", after.skipped)
-		env["ML_FILES_FAILED"] = fmt.Sprintf("%d", after.failed)
+		env["ML_FILES_MOVED"] = strconv.Itoa(after.moved)
+		env["ML_FILES_SKIPPED"] = strconv.Itoa(after.skipped)
+		env["ML_FILES_FAILED"] = strconv.Itoa(after.failed)
 		env["ML_BATCH_ID"] = after.batchID
 		if after.archivePath != "" {
 			env["ML_ARCHIVE_PATH"] = after.archivePath

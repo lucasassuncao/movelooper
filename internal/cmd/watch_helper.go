@@ -158,10 +158,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
 	seen := make(map[string]bool, len(m.Categories))
 	for _, cat := range m.Categories {
-		if !cat.IsEnabled() {
-			continue
-		}
-		if seen[cat.Source.Path] {
+		if !cat.IsEnabled() || seen[cat.Source.Path] {
 			continue
 		}
 		m.Logger.Info("monitoring directory", m.Logger.Args("path", cat.Source.Path))
@@ -180,7 +177,7 @@ func runEventLoop(ctx context.Context, m *models.Movelooper, watcher *fsnotify.W
 			if !ok {
 				return
 			}
-			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
 				if !tracker.touch(event.Name, time.Now()) {
 					m.Logger.Info("detected new file", m.Logger.Args("path", event.Name))
 				}
@@ -366,12 +363,9 @@ func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Ca
 		SourceDir:   filepath.Dir(path),
 		LogEachMove: true,
 	})
-	if len(result.Moved) == 0 {
-		if result.Skipped > 0 {
-			// Skipped by the conflict strategy — a deliberate outcome, already
-			// logged by the resolver, not a failure to retry.
-			return nil
-		}
+	// Skipped by the conflict strategy — a deliberate outcome, already
+	// logged by the resolver, not a failure to retry.
+	if len(result.Moved) == 0 && result.Skipped == 0 {
 		return fmt.Errorf("file was not moved: %s", filepath.Base(path))
 	}
 	return nil

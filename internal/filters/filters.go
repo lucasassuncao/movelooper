@@ -30,14 +30,9 @@ func HasExtension(file os.DirEntry, extension string) bool {
 
 // MatchesAnyExtension reports whether fileName's extension matches any entry in the list.
 func MatchesAnyExtension(fileName string, extensions []string) bool {
-	for _, e := range extensions {
-		if strings.ToLower(e) == ExtAll {
-			return true
-		}
-	}
 	fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(fileName), "."))
 	for _, e := range extensions {
-		if strings.ToLower(e) == fileExt {
+		if ext := strings.ToLower(e); ext == ExtAll || ext == fileExt {
 			return true
 		}
 	}
@@ -235,10 +230,8 @@ func matchesName(m *models.MatchFilter, fileName string) bool {
 	if m.Glob != "" && !MatchesGlob(fileName, m.Glob, m.CaseSensitive) {
 		return false
 	}
-	if m.Literal != "" {
-		if normalizeCase(fileName, m.CaseSensitive) != normalizeCase(m.Literal, m.CaseSensitive) {
-			return false
-		}
+	if m.Literal != "" && normalizeCase(fileName, m.CaseSensitive) != normalizeCase(m.Literal, m.CaseSensitive) {
+		return false
 	}
 	return true
 }

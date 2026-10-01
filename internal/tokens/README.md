@@ -33,13 +33,13 @@ func RenameOnlyToken(template string) string
 RenameOnlyToken returns the first rename\-only token \(sequence or hash family\) found in template, or "" if there is none. These tokens are resolved only by ResolveRename, never by ResolveGroupBy, so callers reject them in organize\-by.
 
 <a name="ResolveArchiveName"></a>
-## func [ResolveArchiveName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L172>)
+## func [ResolveArchiveName](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L155>)
 
 ```go
 func ResolveArchiveName(template, category string, now time.Time) string
 ```
 
-ResolveArchiveName resolves an archive filename template using only tokens that do not depend on a specific file: category, run date/time, and system context. It cannot use file tokens \(\{name\}, \{ext\}, \{mod\-\*\}\), sequence, or hash tokens, which need a concrete file or destination directory. Unknown tokens are left as\-is; path separators in the result are replaced with underscores so the output is always a plain filename. An empty template returns the category name.
+ResolveArchiveName resolves archive names from category and runtime tokens.
 
 <a name="ResolveGroupBy"></a>
 ## func [ResolveGroupBy](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L96>)
@@ -51,31 +51,31 @@ func ResolveGroupBy(template string, ctx *TokenContext) string
 ResolveGroupBy resolves a group\-by template string into a relative subdirectory path that should be appended to the category destination.
 
 <a name="ResolveRename"></a>
-## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L139>)
+## func [ResolveRename](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/resolve.go#L130>)
 
 ```go
 func ResolveRename(template string, ctx *TokenContext) string
 ```
 
-ResolveRename applies a rename template to produce a destination filename. It supports the same tokens as ResolveGroupBy, plus \{seq\}, \{seq:N\}, \{seq\-alpha\}, \{seq\-roman\}, \{md5\}, \{md5:N\}, and \{sha256:N\}. When template is empty, the original filename is returned unchanged. Path separators are stripped from the result so the output is always a plain filename.
+ResolveRename renders a destination filename from the rename template.
 
 <a name="ResolveSeqAlpha"></a>
-## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L230>)
+## func [ResolveSeqAlpha](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L203>)
 
 ```go
 func ResolveSeqAlpha(destDir, template string) string
 ```
 
-ResolveSeqAlpha returns the next Excel\-style label \(a, b, ..., z, aa, ab, ...\) for destDir, reading the labels already there through the shape of template.
+ResolveSeqAlpha returns the next Excel\-style label for the destination directory.
 
 <a name="ResolveSeqRoman"></a>
-## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L288>)
+## func [ResolveSeqRoman](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L254>)
 
 ```go
 func ResolveSeqRoman(destDir, template string) string
 ```
 
-ResolveSeqRoman returns the next roman numeral for destDir, reading the numerals already there through the shape of template.
+ResolveSeqRoman returns the next Roman numeral for the destination directory.
 
 <a name="ValidateTemplate"></a>
 ## func [ValidateTemplate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/validate.go#L84>)
@@ -96,11 +96,9 @@ func VariesPerFile(template string) bool
 VariesPerFile reports whether template contains at least one token that differs from file to file. A rename template where nothing varies per file resolves to the same destination name for every file it is applied to, which is only safe when the conflict strategy keeps the earlier files.
 
 <a name="SeqAllocator"></a>
-## type [SeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L146-L148>)
+## type [SeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L124-L126>)
 
-SeqAllocator hands out sequence numbers per destination directory without re\-scanning the directory for every file. The first request for a directory seeds the counter from the existing files \(the same scan ResolveSeq\* perform\); subsequent requests increment in memory. This turns an O\(files\) directory scan per moved file into a single scan per directory for a whole batch.
-
-Not safe for concurrent use: the move pipeline is single\-threaded \(see the seqDirLocks note\). A failed or skipped move leaves a gap in the numbering, which is harmless — sequence numbers are not guaranteed to be contiguous.
+SeqAllocator caches the next sequence value per destination directory to avoid rescanning on every file. It is intentionally single\-threaded.
 
 ```go
 type SeqAllocator struct {
@@ -109,7 +107,7 @@ type SeqAllocator struct {
 ```
 
 <a name="NewSeqAllocator"></a>
-### func [NewSeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L158>)
+### func [NewSeqAllocator](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/seq.go#L134>)
 
 ```go
 func NewSeqAllocator() *SeqAllocator
@@ -118,7 +116,7 @@ func NewSeqAllocator() *SeqAllocator
 NewSeqAllocator returns an empty allocator ready to seed directories on demand.
 
 <a name="TokenContext"></a>
-## type [TokenContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/model.go#L12-L21>)
+## type [TokenContext](<https://github.com/lucasassuncao/movelooper/blob/main/internal/tokens/tokens.go#L12-L21>)
 
 TokenContext carries all inputs needed to resolve any token in a template. ResolveGroupBy uses Info, CategoryName, and Now. ResolveRename additionally uses DestDir and SourcePath.
 

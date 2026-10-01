@@ -21,25 +21,11 @@ func ResolveImports(path string) ([]byte, error) {
 		return nil, fmt.Errorf("resolving path %q: %w", path, err)
 	}
 
-	data, err := os.ReadFile(absPath) //#nosec G304 -- absPath resolved via filepath.Abs
-	if err != nil {
-		return nil, fmt.Errorf("reading %q: %w", absPath, err)
+	data, doc, err := parseYAMLFile(absPath)
+	if err != nil || doc == nil {
+		return data, err
 	}
-
-	var doc yaml.Node
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("parsing %q: %w", absPath, err)
-	}
-	if doc.Kind == 0 || len(doc.Content) == 0 {
-		return data, nil
-	}
-
 	root := doc.Content[0]
-	if root.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("%q: expected a YAML mapping at top level", absPath)
-	}
-
-	merged := map[string]bool{absPath: true}
 
 	var importPaths []string
 	var categoriesValNode *yaml.Node
@@ -58,17 +44,15 @@ func ResolveImports(path string) ([]byte, error) {
 	}
 
 	// Nothing to do.
-	if importKeyIdx < 0 && len(importPaths) == 0 {
+	if importKeyIdx < 0 {
 		return data, nil
 	}
 
 	// Strip the `import:` key-value pair.
-	if importKeyIdx >= 0 {
-		root.Content = append(root.Content[:importKeyIdx], root.Content[importKeyIdx+2:]...)
-	}
+	root.Content = append(root.Content[:importKeyIdx], root.Content[importKeyIdx+2:]...)
 
 	if len(importPaths) == 0 {
-		return yaml.Marshal(&doc)
+		return yaml.Marshal(doc)
 	}
 
 	// Ensure a `categories:` sequence exists in the main document.
@@ -79,20 +63,54 @@ func ResolveImports(path string) ([]byte, error) {
 		categoriesValNode = seqNode
 	}
 
-	baseDir := filepath.Dir(absPath)
+	merged := map[string]bool{absPath: true}
+	items, err := importAll(absPath, importPaths, merged, []string{absPath})
+	if err != nil {
+		return nil, err
+	}
+	categoriesValNode.Content = append(categoriesValNode.Content, items...)
+
+	return yaml.Marshal(doc)
+}
+
+// parseYAMLFile reads and parses the YAML file at absPath. doc is nil when the
+// file is empty; otherwise its top level is guaranteed to be a mapping.
+func parseYAMLFile(absPath string) ([]byte, *yaml.Node, error) {
+	data, err := os.ReadFile(absPath) //#nosec G304 -- absPath resolved via filepath.Abs
+	if err != nil {
+		return nil, nil, fmt.Errorf("reading %q: %w", absPath, err)
+	}
+
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return nil, nil, fmt.Errorf("parsing %q: %w", absPath, err)
+	}
+	if doc.Kind == 0 || len(doc.Content) == 0 {
+		return data, nil, nil
+	}
+	if doc.Content[0].Kind != yaml.MappingNode {
+		return nil, nil, fmt.Errorf("%q: expected a YAML mapping at top level", absPath)
+	}
+	return data, &doc, nil
+}
+
+// importAll loads the categories of every path in importPaths, which are
+// relative to declaringFile. chain is the import path ending at declaringFile.
+func importAll(declaringFile string, importPaths []string, merged map[string]bool, chain []string) ([]*yaml.Node, error) {
+	baseDir := filepath.Dir(declaringFile)
+	var items []*yaml.Node
 	for _, imp := range importPaths {
 		impAbs, err := filepath.Abs(filepath.Join(baseDir, imp))
 		if err != nil {
-			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, absPath, err)
+			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, declaringFile, err)
 		}
-		items, err := loadImportedCategories(impAbs, merged, []string{absPath})
+		nested, err := loadImportedCategories(impAbs, merged, chain)
 		if err != nil {
 			return nil, fmt.Errorf("importing %q: %w", imp, err)
 		}
-		categoriesValNode.Content = append(categoriesValNode.Content, items...)
+		items = append(items, nested...)
 	}
-
-	return yaml.Marshal(&doc)
+	return items, nil
 }
 
 // loadImportedCategories reads a YAML file, resolves its own `import:` entries
@@ -113,23 +131,11 @@ func loadImportedCategories(absPath string, merged map[string]bool, chain []stri
 	}
 	merged[absPath] = true
 
-	data, err := os.ReadFile(absPath) //#nosec G304 -- absPath resolved via filepath.Abs
-	if err != nil {
-		return nil, fmt.Errorf("reading %q: %w", absPath, err)
+	_, doc, err := parseYAMLFile(absPath)
+	if err != nil || doc == nil {
+		return nil, err
 	}
-
-	var doc yaml.Node
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("parsing %q: %w", absPath, err)
-	}
-	if doc.Kind == 0 || len(doc.Content) == 0 {
-		return nil, nil
-	}
-
 	root := doc.Content[0]
-	if root.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("%q: expected a YAML mapping at top level", absPath)
-	}
 
 	var importPaths []string
 	var categoryItems []*yaml.Node
@@ -145,19 +151,9 @@ func loadImportedCategories(absPath string, merged map[string]bool, chain []stri
 		}
 	}
 
-	// Recurse into nested imports.
-	baseDir := filepath.Dir(absPath)
-	for _, imp := range importPaths {
-		impAbs, err := filepath.Abs(filepath.Join(baseDir, imp))
-		if err != nil {
-			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, absPath, err)
-		}
-		nested, err := loadImportedCategories(impAbs, merged, append(chain, absPath))
-		if err != nil {
-			return nil, fmt.Errorf("importing %q: %w", imp, err)
-		}
-		categoryItems = append(categoryItems, nested...)
+	nested, err := importAll(absPath, importPaths, merged, append(chain, absPath))
+	if err != nil {
+		return nil, err
 	}
-
-	return categoryItems, nil
+	return append(categoryItems, nested...), nil
 }

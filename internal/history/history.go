@@ -113,10 +113,8 @@ func NewHistory(path string, limit int) (*History, error) {
 		batchCount: make(map[string]int),
 	}
 
-	if err := h.load(); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
+	if err := h.load(); err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	return h, nil
@@ -276,22 +274,8 @@ func (h *History) RemoveBatch(batchID string) error {
 	defer h.mu.Unlock()
 
 	return h.withFileLock(func() error {
-		newEntries := make([]Entry, 0, len(h.entries))
-		for _, entry := range h.entries {
-			if entry.BatchID != batchID {
-				newEntries = append(newEntries, entry)
-			}
-		}
-
-		original := h.entries
-		h.entries = newEntries
-		if err := h.save(); err != nil {
-			h.entries = original
-			h.rebuildIndex()
-			return err
-		}
-		h.rebuildIndex()
-		return nil
+		_, err := h.removeWhere(func(e Entry) bool { return e.BatchID == batchID })
+		return err
 	})
 }
 
@@ -310,25 +294,11 @@ func (h *History) RemoveCategoryFromBatch(batchID string, categories []string) (
 
 	var removed int
 	err := h.withFileLock(func() error {
-		newEntries := make([]Entry, 0, len(h.entries))
-		for _, e := range h.entries {
-			if e.BatchID == batchID && e.Category != "" && catSet[e.Category] {
-				continue
-			}
-			newEntries = append(newEntries, e)
-		}
-
-		removed = len(h.entries) - len(newEntries)
-		original := h.entries
-		h.entries = newEntries
-		if err := h.save(); err != nil {
-			h.entries = original
-			h.rebuildIndex()
-			removed = 0
-			return err
-		}
-		h.rebuildIndex()
-		return nil
+		var err error
+		removed, err = h.removeWhere(func(e Entry) bool {
+			return e.BatchID == batchID && e.Category != "" && catSet[e.Category]
+		})
+		return err
 	})
 	return removed, err
 }
@@ -345,23 +315,30 @@ func (h *History) RemoveEntries(entries []Entry) error {
 	}
 
 	return h.withFileLock(func() error {
-		newEntries := make([]Entry, 0, len(h.entries))
-		for _, e := range h.entries {
-			if !toRemove[e.BatchID+"\x00"+e.Source] {
-				newEntries = append(newEntries, e)
-			}
-		}
-
-		original := h.entries
-		h.entries = newEntries
-		if err := h.save(); err != nil {
-			h.entries = original
-			h.rebuildIndex()
-			return err
-		}
-		h.rebuildIndex()
-		return nil
+		_, err := h.removeWhere(func(e Entry) bool { return toRemove[e.BatchID+"\x00"+e.Source] })
+		return err
 	})
+}
+
+// removeWhere drops every entry matching drop and saves, restoring the previous
+// entries if the save fails. Returns the number removed. Callers must hold h.mu.
+func (h *History) removeWhere(drop func(Entry) bool) (int, error) {
+	original := h.entries
+	kept := make([]Entry, 0, len(original))
+	for _, e := range original {
+		if !drop(e) {
+			kept = append(kept, e)
+		}
+	}
+
+	h.entries = kept
+	if err := h.save(); err != nil {
+		h.entries = original
+		h.rebuildIndex()
+		return 0, err
+	}
+	h.rebuildIndex()
+	return len(original) - len(kept), nil
 }
 
 // save writes h.entries to disk atomically using a temp file + rename, as an

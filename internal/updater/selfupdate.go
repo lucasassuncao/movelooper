@@ -37,18 +37,8 @@ type Release struct {
 	PublishedAt time.Time
 }
 
-// SelfUpdate downloads a release of movelooper from GitHub and replaces
-// the current binary. The old binary is kept as <name>.old until the next run,
-// when it is cleaned up automatically.
-//
-// repo must be in "owner/repo" format, e.g. "lucasassuncao/movelooper".
-// currentVersion is the running binary's version (e.g. "1.0.0" or "v1.0.0");
-// the update is skipped when it matches the resolved release tag.
-//
-// version selects the release to install: empty means "latest". includePrerelease
-// only affects the empty-version path: when true, the most recent release wins
-// even if it is a prerelease; otherwise the latest stable is used. When version
-// is non-empty, includePrerelease is ignored — the explicit tag is honored.
+// SelfUpdate replaces the running binary with the selected GitHub release and
+// keeps the previous binary as <name>.old for cleanup on the next run.
 func SelfUpdate(repo, currentVersion, version string, includePrerelease bool) error {
 	if repo == "" {
 		return fmt.Errorf("--repo is required (e.g. --repo lucasassuncao/movelooper)")
@@ -138,9 +128,7 @@ func ListReleases(repo string, includePrerelease bool, limit int) ([]Release, er
 	if !includePrerelease {
 		perPage *= 2
 	}
-	if perPage > 100 {
-		perPage = 100
-	}
+	perPage = min(perPage, 100)
 
 	raw, err := fetchReleases(repo, perPage)
 	if err != nil {
@@ -335,29 +323,16 @@ func selectAsset(assets []ghAsset) *ghAsset {
 
 	for i := range assets {
 		lower := strings.ToLower(assets[i].Name)
-		excluded := false
-		for _, s := range skip {
-			if strings.Contains(lower, s) {
-				excluded = true
-				break
-			}
-		}
-		if excluded {
+		if containsAny(lower, skip) {
 			continue
 		}
 
 		score := 0
-		for _, w := range osPatterns {
-			if strings.Contains(lower, w) {
-				score += scoreOS
-				break
-			}
+		if containsAny(lower, osPatterns) {
+			score += scoreOS
 		}
-		for _, a := range archPatterns {
-			if strings.Contains(lower, a) {
-				score += scoreArch
-				break
-			}
+		if containsAny(lower, archPatterns) {
+			score += scoreArch
 		}
 		if runtime.GOOS == "windows" && filepath.Ext(lower) == ".exe" {
 			score += scoreExt
@@ -372,15 +347,20 @@ func selectAsset(assets []ghAsset) *ghAsset {
 	return best
 }
 
-// checksumManifestPatterns identifies release assets that hold checksum data,
-// either a manifest covering every asset (e.g. "checksums.txt", "*_SHA256SUMS")
-// or a per-asset digest file (e.g. "movelooper_linux_amd64.sha256").
+// containsAny reports whether s contains at least one of substrs.
+func containsAny(s string, substrs []string) bool {
+	for _, sub := range substrs {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+// checksumManifestPatterns are the asset names that carry release checksum data.
 var checksumManifestPatterns = []string{"checksum", "sha256sums", ".sha256"}
 
-// verifyDownloadedAsset checks downloadedPath against a checksum published
-// alongside the release, if one can be found. It is a no-op (nil error) when no
-// checksum data is available, since not every release publishes one; a mismatch
-// against a checksum that was found is always an error.
+// verifyDownloadedAsset validates the downloaded binary when a checksum manifest exists.
 func verifyDownloadedAsset(assets []ghAsset, asset *ghAsset, downloadedPath string) error {
 	expected, err := findAssetChecksum(assets, asset)
 	if err != nil {
@@ -402,20 +382,10 @@ func verifyDownloadedAsset(assets []ghAsset, asset *ghAsset, downloadedPath stri
 	return nil
 }
 
-// findAssetChecksum locates the checksum manifest among assets and returns the
-// expected SHA-256 hex digest for asset. Returns "" (no error) when no manifest
-// is found; an error only for a manifest that was found but could not be read.
+// findAssetChecksum returns the expected SHA-256 for asset from a matching manifest.
 func findAssetChecksum(assets []ghAsset, asset *ghAsset) (string, error) {
 	for i := range assets {
-		lower := strings.ToLower(assets[i].Name)
-		matched := false
-		for _, p := range checksumManifestPatterns {
-			if strings.Contains(lower, p) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
+		if !containsAny(strings.ToLower(assets[i].Name), checksumManifestPatterns) {
 			continue
 		}
 		body, err := fetchAssetBody(assets[i].BrowserDownloadURL)
@@ -429,10 +399,7 @@ func findAssetChecksum(assets []ghAsset, asset *ghAsset) (string, error) {
 	return "", nil
 }
 
-// findChecksumInManifest scans a checksum manifest for fileName. Each line is
-// either "<hex>  <filename>" (the common sha256sum(1) format, with an optional
-// leading "*" for binary mode) or a bare hex digest for a per-asset file, which
-// is accepted regardless of fileName since the whole manifest names only it.
+// findChecksumInManifest extracts the checksum for fileName from a manifest.
 func findChecksumInManifest(body []byte, fileName string) string {
 	sc := bufio.NewScanner(bytes.NewReader(body))
 	for sc.Scan() {
@@ -462,8 +429,7 @@ func isHexSHA256(s string) bool {
 	return err == nil
 }
 
-// fetchAssetBody downloads a small release asset (a checksum manifest) fully
-// into memory. Capped at 1 MiB, far more than any plain-text manifest needs.
+// fetchAssetBody downloads a small release asset into memory for checksum parsing.
 func fetchAssetBody(rawURL string) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -481,7 +447,7 @@ func fetchAssetBody(rawURL string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 }
 
-// sha256File computes the SHA-256 hex digest of the file at path.
+// sha256File returns the SHA-256 digest for the file at path.
 func sha256File(path string) (string, error) {
 	f, err := os.Open(filepath.Clean(path)) //#nosec G304 -- path is the updater's own ".new" temp download
 	if err != nil {
@@ -495,12 +461,10 @@ func sha256File(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// maxDownloadOverhead caps how much we read beyond the asset's advertised size.
+// maxDownloadOverhead caps how much extra data we read beyond the advertised size.
 const maxDownloadOverhead = 1 << 20 // 1 MiB
 
-// download fetches url into destPath. expectedSize is the asset size reported by
-// the release metadata; the response body is capped at expectedSize +
-// maxDownloadOverhead to prevent a misconfigured or hostile server from filling the disk.
+// download writes the asset to destPath and rejects oversized or truncated responses.
 func download(rawURL, destPath string, expectedSize int64) (retErr error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {

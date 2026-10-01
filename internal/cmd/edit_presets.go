@@ -16,13 +16,13 @@ var MovelooperBlockPresets = presets.Combine(
 	presets.ForField("categories", categoriesPresetsMap()),
 )
 
-// MovelooperDocPresets is a whole-document preset source for the root template
-// picker (ctrl+p). Each entry combines the base configuration with one of the
+// MovelooperDocPresets is a whole-document preset source for the root preset
+// picker (p). Each entry combines the base configuration with one of the
 // available category presets.
 var MovelooperDocPresets presets.Source = buildDocPresets()
 
-// docPresetSource implements presets.Source for whole-document templates.
-// PresetYAML("", name) returns the full YAML for the named template.
+// docPresetSource implements presets.Source for whole-document presets.
+// PresetYAML("", name) returns the full YAML for the named preset.
 type docPresetSource struct {
 	names []string
 	yamls map[string]string

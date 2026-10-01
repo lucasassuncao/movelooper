@@ -123,3 +123,8 @@ func TestRenameOnlyToken(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateTemplate_Mime(t *testing.T) {
+	assert.NoError(t, ValidateTemplate("{mime-type}/{mime-ext}"))
+	assert.NoError(t, ValidateTemplate("{mime}"))
+}

@@ -2,14 +2,14 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/charmbracelet/huh"
+	"github.com/lucasassuncao/bezel/inline"
+	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/fileops"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -133,20 +133,18 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 // confirmUndo shows a confirmation prompt and returns true if the user cancelled.
 func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) bool {
 	var sb strings.Builder
-	for i, entry := range entries {
-		if i < 5 {
-			fmt.Fprintf(&sb, "  - %s\n", filepath.Base(entry.Source))
-		} else if i == 5 {
-			fmt.Fprintf(&sb, "  ... and %d more files\n", len(entries)-5)
-			break
-		}
+	shown := min(len(entries), 5)
+	for _, entry := range entries[:shown] {
+		fmt.Fprintf(&sb, "  - %s\n", filepath.Base(entry.Source))
+	}
+	if len(entries) > shown {
+		fmt.Fprintf(&sb, "  ... and %d more files\n", len(entries)-shown)
 	}
 	msg := fmt.Sprintf("Undo batch: %s\n\nFiles to restore (%d total):\n%s\nProceed with restore?",
 		batchID, len(entries), sb.String())
 
-	var confirm bool
-	err := huh.NewConfirm().Title(msg).Value(&confirm).Run()
-	if errors.Is(err, huh.ErrUserAborted) || !confirm {
+	confirm, err := inline.Confirm(msg, theme.Resolve(theme.ThemeDefault, theme.DarkTerminal()))
+	if err != nil || !confirm {
 		m.Logger.Info("undo operation cancelled")
 		return true
 	}

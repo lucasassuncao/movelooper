@@ -84,11 +84,8 @@ func applyCategoryDefaults(cats []*models.Category, d *models.Defaults) error {
 		return fmt.Errorf("defaults: invalid action %q", d.Action)
 	}
 	if d.OrganizeBy != "" {
-		if err := tokens.ValidateTemplate(d.OrganizeBy); err != nil {
-			return fmt.Errorf("defaults: invalid organize-by template: %w", err)
-		}
-		if tok := tokens.RenameOnlyToken(d.OrganizeBy); tok != "" {
-			return fmt.Errorf("defaults: %s is not valid in organize-by; use it in rename only", tok)
+		if err := validateOrganizeBy(d.OrganizeBy); err != nil {
+			return fmt.Errorf("defaults: %w", err)
 		}
 	}
 
@@ -105,13 +102,8 @@ func applyCategoryDefaults(cats []*models.Category, d *models.Defaults) error {
 		// Re-check the archive invariants validateCategory already enforced:
 		// a category can only reach action: archive or a non-empty archive
 		// block here via defaults, which validateCategory could not have seen.
-		if MissingArchiveBlock(cat) {
-			return fmt.Errorf("category %q: destination.archive is required when action is %q", cat.Name, models.ActionArchive)
-		}
-		if cat.Destination.Archive != nil {
-			if err := validateArchive(cat.Name, cat.Destination.ConflictStrategy, cat.Destination.Archive); err != nil {
-				return err
-			}
+		if err := validateArchiveRules(cat); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -142,6 +134,18 @@ var archiveConflictAllowed = map[models.ConflictStrategy]bool{
 	models.ConflictStrategyRename:    true,
 	models.ConflictStrategyOverwrite: true,
 	models.ConflictStrategySkip:      true,
+}
+
+// validateArchiveRules requires the archive block for action: archive and
+// validates it whenever it is present.
+func validateArchiveRules(cat *models.Category) error {
+	if MissingArchiveBlock(cat) {
+		return fmt.Errorf("category %q: destination.archive is required when action is %q", cat.Name, models.ActionArchive)
+	}
+	if cat.Destination.Archive == nil {
+		return nil
+	}
+	return validateArchive(cat.Name, cat.Destination.ConflictStrategy, cat.Destination.Archive)
 }
 
 // validateArchive validates the archive block for a category.
@@ -193,13 +197,8 @@ func validateCategory(cat *models.Category) error {
 		return fmt.Errorf("category %q: invalid action %q - must be move, copy, symlink, or archive", cat.Name, cat.Destination.Action)
 	}
 
-	if MissingArchiveBlock(cat) {
-		return fmt.Errorf("category %q: destination.archive is required when action is %q", cat.Name, models.ActionArchive)
-	}
-	if cat.Destination.Archive != nil {
-		if err := validateArchive(cat.Name, cat.Destination.ConflictStrategy, cat.Destination.Archive); err != nil {
-			return err
-		}
+	if err := validateArchiveRules(cat); err != nil {
+		return err
 	}
 
 	if !validConflictStrategies[cat.Destination.ConflictStrategy] {
@@ -213,11 +212,8 @@ func validateCategory(cat *models.Category) error {
 	}
 
 	if cat.Destination.OrganizeBy != "" {
-		if err := tokens.ValidateTemplate(cat.Destination.OrganizeBy); err != nil {
-			return fmt.Errorf("category %q: invalid organize-by template: %w", cat.Name, err)
-		}
-		if tok := tokens.RenameOnlyToken(cat.Destination.OrganizeBy); tok != "" {
-			return fmt.Errorf("category %q: %s is not valid in organize-by; use it in rename only", cat.Name, tok)
+		if err := validateOrganizeBy(cat.Destination.OrganizeBy); err != nil {
+			return fmt.Errorf("category %q: %w", cat.Name, err)
 		}
 	}
 
@@ -226,6 +222,18 @@ func validateCategory(cat *models.Category) error {
 	}
 
 	return validateFilter(cat.Name, &cat.Source.Filter)
+}
+
+// validateOrganizeBy checks an organize-by template. Callers prefix the error
+// with where the template came from.
+func validateOrganizeBy(template string) error {
+	if err := tokens.ValidateTemplate(template); err != nil {
+		return fmt.Errorf("invalid organize-by template: %w", err)
+	}
+	if tok := tokens.RenameOnlyToken(template); tok != "" {
+		return fmt.Errorf("%s is not valid in organize-by; use it in rename only", tok)
+	}
+	return nil
 }
 
 // validateHooks validates both before and after hooks for a category.
@@ -268,7 +276,7 @@ func validateFilter(catName string, f *models.CategoryFilter) error {
 	if !FilterDepthOK(f, MaxFilterNestingDepth, 0) {
 		return fmt.Errorf("category %q: filter nesting exceeds maximum depth of %d", catName, MaxFilterNestingDepth)
 	}
-	return validateFilterDepth(catName, f, 0)
+	return validateFilterNode(catName, f)
 }
 
 // FilterDepthOK reports whether f's any/all/not nesting stays within max
@@ -279,25 +287,19 @@ func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool {
 	if depth >= max {
 		return false
 	}
-	for i := range f.Not {
-		if !FilterDepthOK(&f.Not[i], max, depth+1) {
-			return false
-		}
-	}
-	for i := range f.Any {
-		if !FilterDepthOK(&f.Any[i], max, depth+1) {
-			return false
-		}
-	}
-	for i := range f.All {
-		if !FilterDepthOK(&f.All[i], max, depth+1) {
-			return false
+	for _, children := range [][]models.CategoryFilter{f.Not, f.Any, f.All} {
+		for i := range children {
+			if !FilterDepthOK(&children[i], max, depth+1) {
+				return false
+			}
 		}
 	}
 	return true
 }
 
-func validateFilterDepth(catName string, f *models.CategoryFilter, depth int) error {
+// validateFilterNode checks the shape of f and recurses into its children.
+// Depth is enforced separately by FilterDepthOK.
+func validateFilterNode(catName string, f *models.CategoryFilter) error {
 	hasAny := len(f.Any) > 0
 	hasAll := len(f.All) > 0
 
@@ -315,29 +317,25 @@ func validateFilterDepth(catName string, f *models.CategoryFilter, depth int) er
 	}
 
 	for i := range f.Not {
-		if err := validateFilterDepth(catName, &f.Not[i], depth+1); err != nil {
+		if err := validateFilterNode(catName, &f.Not[i]); err != nil {
 			return err
 		}
 	}
 
-	if hasAny {
-		for i := range f.Any {
-			if err := validateFilterDepth(catName, &f.Any[i], depth+1); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
+	// any and all cannot both be set (checked above).
+	children := f.Any
 	if hasAll {
-		for i := range f.All {
-			if err := validateFilterDepth(catName, &f.All[i], depth+1); err != nil {
-				return err
-			}
-		}
-		return nil
+		children = f.All
 	}
-
-	return validateLeafFilter(catName, f)
+	if len(children) == 0 {
+		return validateLeafFilter(catName, f)
+	}
+	for i := range children {
+		if err := validateFilterNode(catName, &children[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // validateLeafFilter validates a plain (non-composite) filter node.
@@ -465,9 +463,6 @@ func ResolveConfigPath(configPath string) (string, error) {
 		filepath.Join(exDir, "conf", "movelooper.yaml"),
 	}
 	for _, p := range candidates {
-		if p == "" {
-			continue
-		}
 		if _, err := os.Stat(p); err == nil {
 			return p, nil
 		}

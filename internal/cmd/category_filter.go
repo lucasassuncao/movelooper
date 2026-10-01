@@ -25,15 +25,8 @@ func ParseCategoryNames(raw string) []string {
 	return names
 }
 
-// FilterCategories returns the subset of all that should be processed.
-//
-// When names is empty, all categories are returned. Without includeDisabled,
-// categories with enabled: false are silently excluded (same behavior as today).
-// With includeDisabled, all categories are returned regardless of their enabled field.
-//
-// When names is non-empty, each name is validated against the config. An unknown
-// name returns an error. A disabled category without includeDisabled is skipped
-// with a warning that suggests the flag.
+// FilterCategories returns the categories to process; it keeps enabled ones by
+// default, includes disabled ones when requested, and errors on unknown names.
 func FilterCategories(all []*models.Category, names []string, includeDisabled bool, log logger.Logger) ([]*models.Category, error) {
 	if len(names) == 0 {
 		if includeDisabled {
@@ -57,7 +50,7 @@ func FilterCategories(all []*models.Category, names []string, includeDisabled bo
 	for _, name := range names {
 		cat, ok := index[name]
 		if !ok {
-			return nil, fmt.Errorf("unknown category %q — valid categories: %s", name, strings.Join(categoryNames(all), ", "))
+			return nil, fmt.Errorf("unknown category %q (valid categories: %s)", name, strings.Join(categoryNames(all), ", "))
 		}
 		if !cat.IsEnabled() && !includeDisabled {
 			log.Warn(fmt.Sprintf("category %q is disabled - use --include-disabled to run it anyway", name))
