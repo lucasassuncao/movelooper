@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 
-	"github.com/lucasassuncao/bezel/inline"
+	"github.com/lucasassuncao/bezel/progress"
 	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/pterm/pterm"
@@ -18,16 +19,20 @@ func newArchiveProgress(m *models.Movelooper) func(done, total int) {
 	if !isInteractiveTerminal(m) {
 		return nil
 	}
-	th := theme.Resolve(theme.ThemeDefault, theme.DarkTerminal())
+	return archiveBar(os.Stdout, theme.Resolve(theme.ThemeDefault, theme.DarkTerminal()))
+}
+
+// archiveBar redraws the bar in place on w with \r.
+func archiveBar(w io.Writer, th theme.Resolved) func(done, total int) {
 	return func(done, total int) {
 		if total <= 0 {
 			return
 		}
 		if done >= total {
-			fmt.Fprint(os.Stdout, "\r\x1b[K") // erase the bar line; the log line reports completion
+			fmt.Fprint(w, "\r\x1b[K") // erase the bar line; the log line reports completion
 			return
 		}
-		fmt.Fprintf(os.Stdout, "\rarchiving %d/%d %s", done, total, inline.Bar(done, total, 40, th))
+		fmt.Fprint(w, "\r"+progress.Line("archiving", done, total, 56, th))
 	}
 }
 

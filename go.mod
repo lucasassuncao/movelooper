@@ -10,10 +10,10 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.15
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
-	github.com/knadh/koanf/v2 v2.3.6
-	github.com/lucasassuncao/bezel v0.1.0
-	github.com/lucasassuncao/docgen v0.1.0
-	github.com/lucasassuncao/yedit v0.59.0
+	github.com/knadh/koanf/v2 v2.3.7
+	github.com/lucasassuncao/bezel v0.2.0
+	github.com/lucasassuncao/docgen v0.1.1
+	github.com/lucasassuncao/yedit v0.60.0
 	github.com/pterm/pterm v0.12.83
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
@@ -33,7 +33,7 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20260929091141-666ce5eec9fc // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20261001125412-878653296cfd // indirect
 	github.com/charmbracelet/x/exp/slice v0.1.0 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
@@ -42,7 +42,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dlclark/regexp2/v2 v2.8.0 // indirect
+	github.com/dlclark/regexp2/v2 v2.8.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gookit/color v1.6.1 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
