@@ -258,7 +258,7 @@ categories:
       conflict-strategy: hash_check
 ```
 
-Run `movelooper edit` to open the merged config in the interactive TUI editor.
+`movelooper edit` edits the main file; in its `import` block, **Ctrl+O** picks the files to import.
 
 > **See also:** [Configuration](/CONFIGURATION.md): `import:` key and all global settings.
 

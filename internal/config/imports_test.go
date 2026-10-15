@@ -198,6 +198,22 @@ categories:
 		},
 	},
 	{
+		name: "absolute import is used as written",
+		setup: func(t *testing.T, dir string) string {
+			// Another directory, the way a file on another drive has no relative form.
+			other := writeYAML(t, t.TempDir(), "elsewhere.yaml", `
+categories:
+  - name: images
+    source: {path: /tmp/img, extensions: [jpg]}
+    destination: {path: /tmp/dst}
+`)
+			return writeYAML(t, dir, "main.yaml", "import:\n  - '"+other+"'\n")
+		},
+		check: func(t *testing.T, data []byte) {
+			assert.Equal(t, 1, countCategories(t, data))
+		},
+	},
+	{
 		name:       "missing import file",
 		wantAnyErr: true,
 		setup: func(t *testing.T, dir string) string {
@@ -247,4 +263,40 @@ func countCategories(t *testing.T, data []byte) int {
 	}
 	require.NoError(t, yaml.Unmarshal(data, &doc))
 	return len(doc.Categories)
+}
+
+// A leading ~ is the home directory, as it is for every other path setting.
+func TestResolveImportsExpandsTilde(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	writeYAML(t, home, "shared.yaml", `
+categories:
+  - name: images
+    source: {path: /tmp/img, extensions: [jpg]}
+    destination: {path: /tmp/dst}
+`)
+	path := writeYAML(t, t.TempDir(), "main.yaml", "import:\n  - ~/shared.yaml\n")
+
+	data, err := ResolveImports(path)
+	require.NoError(t, err)
+	assert.Equal(t, 1, countCategories(t, data))
+}
+
+// CheckImports judges each entry on its own, as the editor's validator needs:
+// one broken import must not hide whether the others load.
+func TestCheckImportsReportsEachEntry(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeYAML(t, dir, "ok.yaml", "categories: []\n")
+	writeYAML(t, dir, "loop.yaml", "import:\n  - main.yaml\n")
+	main := filepath.Join(dir, "main.yaml")
+	other := writeYAML(t, t.TempDir(), "abs.yaml", "categories: []\n")
+
+	errs := CheckImports(main, []string{"ok.yaml", "missing.yaml", "loop.yaml", other})
+	require.Len(t, errs, 4)
+	assert.NoError(t, errs[0])
+	assert.ErrorContains(t, errs[1], "missing.yaml")
+	assert.ErrorContains(t, errs[2], "circular import")
+	assert.NoError(t, errs[3], "an absolute entry loads as written")
 }

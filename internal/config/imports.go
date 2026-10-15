@@ -13,7 +13,7 @@ import (
 // `import:` entries, merges all `categories:` items into the main document, and
 // returns the final merged YAML bytes ready to be fed into Viper.
 // The `import:` key is stripped from the output.
-// Import paths are relative to the file that declares them.
+// Import paths are relative to the declaring file unless absolute or ~.
 // Circular imports are detected and reported as errors.
 func ResolveImports(path string) ([]byte, error) {
 	absPath, err := filepath.Abs(path)
@@ -94,13 +94,33 @@ func parseYAMLFile(absPath string) ([]byte, *yaml.Node, error) {
 	return data, &doc, nil
 }
 
+// CheckImports reports, for each entry of paths, why it would not load if
+// declared in declaringFile: a missing or invalid file, or a cycle. nil is fine.
+func CheckImports(declaringFile string, paths []string) []error {
+	abs, err := filepath.Abs(declaringFile)
+	if err != nil {
+		abs = declaringFile
+	}
+	errs := make([]error, len(paths))
+	for i, p := range paths {
+		_, errs[i] = importAll(abs, []string{p}, map[string]bool{abs: true}, []string{abs})
+	}
+	return errs
+}
+
 // importAll loads the categories of every path in importPaths, which are
 // relative to declaringFile. chain is the import path ending at declaringFile.
 func importAll(declaringFile string, importPaths []string, merged map[string]bool, chain []string) ([]*yaml.Node, error) {
 	baseDir := filepath.Dir(declaringFile)
 	var items []*yaml.Node
 	for _, imp := range importPaths {
-		impAbs, err := filepath.Abs(filepath.Join(baseDir, imp))
+		// Join keeps baseDir even before an absolute path, so only a relative
+		// one is joined: an import on another drive has no relative form.
+		target := ExpandTilde(imp)
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(baseDir, target)
+		}
+		impAbs, err := filepath.Abs(target)
 		if err != nil {
 			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, declaringFile, err)
 		}

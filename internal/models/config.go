@@ -7,7 +7,9 @@ import (
 // Config represents the complete structure of the movelooper.yaml file
 type Config struct {
 	Configuration Configuration `yaml:"configuration" mapstructure:"configuration"`
-	Categories    []Category    `yaml:"categories" mapstructure:"categories"`
+	// Import is read by config.ResolveImports, which strips it before loading.
+	Import     []string   `yaml:"import,omitempty" mapstructure:"-"`
+	Categories []Category `yaml:"categories" mapstructure:"categories"`
 }
 
 // Configuration holds the general settings for Movelooper, grouped into
@@ -55,6 +57,10 @@ func (Config) Metadata() map[string]any {
 		"configuration": meta{
 			Description: "General settings for movelooper, grouped into logging, watch, history, and defaults sub-sections.",
 			Required:    true,
+		},
+		"import": meta{
+			Description: "Other YAML files whose categories are merged into this one. Paths are relative to this file, unless absolute or starting with ~. In the editor, Ctrl+O picks a file.",
+			Example:     "import:\n  - ./movelooper/wallhaven.yaml",
 		},
 		"categories": meta{
 			Description: "List of file movement rules. Each entry defines a source directory, file filters, a destination, and optional hooks.",

@@ -143,7 +143,7 @@ func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) 
 	msg := fmt.Sprintf("Undo batch: %s\n\nFiles to restore (%d total):\n%s\nProceed with restore?",
 		batchID, len(entries), sb.String())
 
-	confirm, err := inline.Confirm(msg, theme.Resolve(theme.ThemeDefault, theme.DarkTerminal()))
+	confirm, err := inline.Confirm(msg, theme.Resolve(theme.Default, theme.DarkTerminal()))
 	if err != nil || !confirm {
 		m.Logger.Info("undo operation cancelled")
 		return true

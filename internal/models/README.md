@@ -322,19 +322,21 @@ func (CategorySource) Metadata() map[string]any
 
 
 <a name="Config"></a>
-## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L8-L11>)
+## type [Config](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L8-L13>)
 
 Config represents the complete structure of the movelooper.yaml file
 
 ```go
 type Config struct {
     Configuration Configuration `yaml:"configuration" mapstructure:"configuration"`
-    Categories    []Category    `yaml:"categories" mapstructure:"categories"`
+    // Import is read by config.ResolveImports, which strips it before loading.
+    Import     []string   `yaml:"import,omitempty" mapstructure:"-"`
+    Categories []Category `yaml:"categories" mapstructure:"categories"`
 }
 ```
 
 <a name="Config.Metadata"></a>
-### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L53>)
+### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L55>)
 
 ```go
 func (Config) Metadata() map[string]any
@@ -343,7 +345,7 @@ func (Config) Metadata() map[string]any
 
 
 <a name="Configuration"></a>
-## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L15-L20>)
+## type [Configuration](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L17-L22>)
 
 Configuration holds the general settings for Movelooper, grouped into logging, watch, history, and defaults sub\-sections.
 
@@ -357,7 +359,7 @@ type Configuration struct {
 ```
 
 <a name="Configuration.Metadata"></a>
-### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L66>)
+### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L72>)
 
 ```go
 func (Configuration) Metadata() map[string]any
@@ -390,7 +392,7 @@ const (
 ```
 
 <a name="Defaults"></a>
-## type [Defaults](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L47-L51>)
+## type [Defaults](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L49-L53>)
 
 Defaults holds fallback values applied to any category that omits them.
 
@@ -403,7 +405,7 @@ type Defaults struct {
 ```
 
 <a name="Defaults.Metadata"></a>
-### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L177>)
+### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L183>)
 
 ```go
 func (Defaults) Metadata() map[string]any
@@ -412,7 +414,7 @@ func (Defaults) Metadata() map[string]any
 
 
 <a name="History"></a>
-## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L40-L44>)
+## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L42-L46>)
 
 History holds the undo\-history settings.
 
@@ -425,7 +427,7 @@ type History struct {
 ```
 
 <a name="History.Metadata"></a>
-### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L154>)
+### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L160>)
 
 ```go
 func (History) Metadata() map[string]any
@@ -434,7 +436,7 @@ func (History) Metadata() map[string]any
 
 
 <a name="Logging"></a>
-## type [Logging](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L23-L31>)
+## type [Logging](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L25-L33>)
 
 Logging holds the log output settings.
 
@@ -451,7 +453,7 @@ type Logging struct {
 ```
 
 <a name="Logging.Metadata"></a>
-### func \(Logging\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L84>)
+### func \(Logging\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L90>)
 
 ```go
 func (Logging) Metadata() map[string]any
@@ -522,7 +524,7 @@ func (SizeFilter) Metadata() map[string]any
 
 
 <a name="Watch"></a>
-## type [Watch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L34-L37>)
+## type [Watch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L36-L39>)
 
 Watch holds the watch\-mode settings.
 
@@ -534,7 +536,7 @@ type Watch struct {
 ```
 
 <a name="Watch.Metadata"></a>
-### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L133>)
+### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L139>)
 
 ```go
 func (Watch) Metadata() map[string]any

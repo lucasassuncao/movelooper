@@ -12,6 +12,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 - [Constants](<#constants>)
 - [Variables](<#variables>)
+- [func CheckImports\(declaringFile string, paths \[\]string\) \[\]error](<#CheckImports>)
 - [func ConfigureLogger\(k \*koanf.Koanf, formatOverride string\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func ExpandTilde\(path string\) string](<#ExpandTilde>)
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
@@ -46,6 +47,15 @@ const MaxFilterNestingDepth = 10
 ```go
 var ErrConfigNotFound = errors.New("config file not found")
 ```
+
+<a name="CheckImports"></a>
+## func [CheckImports](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/imports.go#L99>)
+
+```go
+func CheckImports(declaringFile string, paths []string) []error
+```
+
+CheckImports reports, for each entry of paths, why it would not load if declared in declaringFile: a missing or invalid file, or a cycle. nil is fine.
 
 <a name="ConfigureLogger"></a>
 ## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L67>)
@@ -126,7 +136,7 @@ ResolveConfigPath returns the absolute path to the config file. If configPath is
 func ResolveImports(path string) ([]byte, error)
 ```
 
-ResolveImports reads the YAML file at path, recursively resolves any top\-level \`import:\` entries, merges all \`categories:\` items into the main document, and returns the final merged YAML bytes ready to be fed into Viper. The \`import:\` key is stripped from the output. Import paths are relative to the file that declares them. Circular imports are detected and reported as errors.
+ResolveImports reads the YAML file at path, recursively resolves any top\-level \`import:\` entries, merges all \`categories:\` items into the main document, and returns the final merged YAML bytes ready to be fed into Viper. The \`import:\` key is stripped from the output. Import paths are relative to the declaring file unless absolute or \~. Circular imports are detected and reported as errors.
 
 <a name="UnmarshalConfig"></a>
 ## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L47>)

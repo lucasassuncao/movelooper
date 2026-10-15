@@ -616,6 +616,16 @@
         "logging"
       ],
       "type": "object"
+    },
+    "import": {
+      "description": "Other YAML files whose categories are merged into this one. Paths are relative to this file, unless absolute or starting with ~. In the editor, Ctrl+O picks a file.",
+      "examples": [
+        "import:\n  - ./movelooper/wallhaven.yaml"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     }
   },
   "required": [

@@ -1,15 +1,15 @@
 .PHONY: help build build-all release tag install fmt lint test test-coverage test-watch security govulncheck sbom vuln deps docs completions all run tools clean-tools clean
 
 # Tool versions
-GOLANGCI_LINT_VERSION := v2.13.2
+GOLANGCI_LINT_VERSION := v2.14.0
 GOMARKDOC_VERSION     := v1.1.0
 GORELEASER_VERSION    := v2.15.2
 GOTESTSUM_VERSION     := v1.13.0
-GOSEC_VERSION         := v2.29.0
+GOSEC_VERSION         := v2.29.1-0.20261012130337-71577268350e
 GOCOBERTURA_VERSION   := latest
 SYFT_VERSION          := v1.51.1
 GRYPE_VERSION         := v0.118.0
-GOVULNCHECK_VERSION   := v1.7.0
+GOVULNCHECK_VERSION   := v1.9.0
 
 # Tools are installed into ./.gobin (gitignored) rather than taken from PATH,
 # so every target runs the version pinned above and never whatever happens to

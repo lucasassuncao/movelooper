@@ -71,7 +71,7 @@ func newBatchPicker(batches []history.BatchSummary, hist *history.History) batch
 	keys := list.DefaultKeys()
 	keys.Filter = key.NewBinding() // no filter: the keys stay what they were
 
-	th := theme.Resolve(theme.ThemeDefault, true)
+	th := theme.Resolve(theme.Default, true)
 	m := batchPicker{th: th, batches: reversed, hist: hist, list: list.New(rows, 0).WithKeys(keys)}
 	m.sh = shell.New(shell.Config{Layout: layout.Fill("batches"), Theme: th, Title: "Select a batch to undo"})
 	m.sh = m.sh.SetActions(pickerListActions...)
@@ -84,7 +84,7 @@ func (m batchPicker) Init() tea.Cmd { return tea.RequestBackgroundColor }
 func (m batchPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
-		m.th = theme.Resolve(theme.ThemeDefault, msg.IsDark())
+		m.th = theme.Resolve(theme.Default, msg.IsDark())
 		m.sh = m.sh.SetTheme(m.th)
 		return m, nil
 	case tea.WindowSizeMsg:

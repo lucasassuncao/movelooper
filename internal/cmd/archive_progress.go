@@ -19,7 +19,7 @@ func newArchiveProgress(m *models.Movelooper) func(done, total int) {
 	if !isInteractiveTerminal(m) {
 		return nil
 	}
-	return archiveBar(os.Stdout, theme.Resolve(theme.ThemeDefault, theme.DarkTerminal()))
+	return archiveBar(os.Stdout, theme.Resolve(theme.Default, theme.DarkTerminal()))
 }
 
 // archiveBar redraws the bar in place on w with \r.

@@ -49,7 +49,7 @@ Fallback destination settings applied to any category that omits them. Per-categ
 
 ## `import` key
 
-Split `categories` across multiple YAML files using the top-level `import:` key. Import paths are relative to the file that declares them. Circular imports are detected and reported as an error.
+Split `categories` across multiple YAML files using the top-level `import:` key. Import paths are relative to the file that declares them, unless absolute or starting with `~`. Circular imports are detected and reported as an error.
 
 **`movelooper.yaml`**, main file:
 
@@ -86,3 +86,5 @@ categories:
 ```
 
 Imported files can also have their own `import:` for nested splitting.
+
+In `movelooper edit`, **Ctrl+O** in the `import` block picks the files; see [Picking import files](/EDIT.md#picking-import-files).

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/lucasassuncao/bezel/theme"
@@ -37,7 +38,8 @@ func EditCmd() *cobra.Command {
 The left panel lists top-level configuration keys; pressing Enter opens the
 block editor where sub-fields can be toggled and edited. Tab changes pane;
 Ctrl+S writes the file; Ctrl+U undoes the last change; Ctrl+Y redoes it;
-Esc goes back; q quits. Press ? in the editor for every key.
+Esc goes back; q quits. In the import block, Ctrl+O picks a file. Press ?
+in the editor for every key.
 
 Use --output to write to a different file than the one loaded (e.g. to
 produce a new config from an existing one).`,
@@ -100,12 +102,12 @@ produce a new config from an existing one).`,
 				EnableHints:          true,
 				Metadata:             movelooperHints,
 				Theme:                selectedTheme,
-				PassthroughKeys:      []string{"import"},
+				PathFields:           editPathFields,
 				NoSaveConfirm:        noSaveConfirm,
 				NoDeleteConfirm:      noDeleteConfirm,
 				NoValidateOnSave:     noValidateOnSave,
 				SchemaRecursionDepth: config.MaxFilterNestingDepth - 1,
-				Validators:           MovelooperValidators,
+				Validators:           append(slices.Clone(MovelooperValidators), importsResolve(saveTarget)),
 				AnimationDuration:    600 * time.Millisecond,
 				Trace: editor.Trace{
 					Dump:     dump || dumpPath != "",
