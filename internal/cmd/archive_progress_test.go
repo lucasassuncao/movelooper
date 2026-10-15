@@ -31,7 +31,7 @@ func TestArchiveBar(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	bar := archiveBar(&buf, theme.Resolve(theme.Default, theme.DarkTerminal()))
+	bar := archiveBar(&buf, theme.Resolve(theme.Default, true))
 
 	bar(0, 0)
 	assert.Empty(t, buf.String(), "an empty batch draws nothing")

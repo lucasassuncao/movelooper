@@ -37,11 +37,20 @@ type Release struct {
 	PublishedAt time.Time
 }
 
+// Progress hears how many bytes of the binary have arrived. When the download
+// stops, finished or not, it is called once more with done == total.
+type Progress func(done, total int64)
+
 // SelfUpdate replaces the running binary with the selected GitHub release and
-// keeps the previous binary as <name>.old for cleanup on the next run.
-func SelfUpdate(repo, currentVersion, version string, includePrerelease bool) error {
+// keeps the previous binary as <name>.old for cleanup on the next run. A nil
+// onProgress, or a release with no advertised size, prints a plain line instead.
+func SelfUpdate(repo, currentVersion, version string, includePrerelease bool, onProgress Progress) error {
 	if repo == "" {
 		return fmt.Errorf("--repo is required (e.g. --repo lucasassuncao/movelooper)")
+	}
+	repo, err := parseRepo(repo)
+	if err != nil {
+		return err
 	}
 
 	// Clean up any leftover .old binary from a previous update.
@@ -74,9 +83,12 @@ func SelfUpdate(repo, currentVersion, version string, includePrerelease bool) er
 		return fmt.Errorf("resolving executable path: %w", err)
 	}
 
-	fmt.Printf("Downloading new binary...\n")
+	if onProgress == nil || asset.Size <= 0 {
+		onProgress = nil
+		fmt.Printf("Downloading new binary...\n")
+	}
 	tmpPath := exePath + ".new"
-	if err := download(asset.BrowserDownloadURL, tmpPath, asset.Size); err != nil {
+	if err := download(asset.BrowserDownloadURL, tmpPath, asset.Size, onProgress); err != nil {
 		return err
 	}
 
@@ -119,6 +131,10 @@ func ListReleases(repo string, includePrerelease bool, limit int) ([]Release, er
 	if repo == "" {
 		return nil, fmt.Errorf("repo is required (e.g. lucasassuncao/movelooper)")
 	}
+	repo, err := parseRepo(repo)
+	if err != nil {
+		return nil, err
+	}
 	if limit <= 0 {
 		limit = 20
 	}
@@ -153,6 +169,21 @@ func ListReleases(repo string, includePrerelease bool, limit int) ([]Release, er
 		}
 	}
 	return out, nil
+}
+
+// parseRepo reduces a repository given as owner/repo, github.com/owner/repo
+// or its https URL, with or without .git or a trailing slash, to owner/repo.
+func parseRepo(repo string) (string, error) {
+	s := strings.TrimSpace(repo)
+	for _, prefix := range []string{"https://", "http://", "www.", "github.com/"} {
+		s = strings.TrimPrefix(s, prefix)
+	}
+	s = strings.TrimSuffix(strings.TrimSuffix(s, "/"), ".git")
+	owner, name, ok := strings.Cut(s, "/")
+	if !ok || owner == "" || name == "" || strings.ContainsAny(name, "/?#") {
+		return "", fmt.Errorf("invalid repository %q: use owner/repo (e.g. lucasassuncao/movelooper)", repo)
+	}
+	return s, nil
 }
 
 // resolveRelease maps the (version, includePrerelease) inputs to a concrete release.
@@ -464,8 +495,23 @@ func sha256File(path string) (string, error) {
 // maxDownloadOverhead caps how much extra data we read beyond the advertised size.
 const maxDownloadOverhead = 1 << 20 // 1 MiB
 
-// download writes the asset to destPath and rejects oversized or truncated responses.
-func download(rawURL, destPath string, expectedSize int64) (retErr error) {
+// progressWriter counts what passes through it into a Progress.
+type progressWriter struct {
+	w           io.Writer
+	done, total int64
+	on          Progress
+}
+
+func (p *progressWriter) Write(b []byte) (int, error) {
+	n, err := p.w.Write(b)
+	p.done += int64(n)
+	p.on(p.done, p.total)
+	return n, err
+}
+
+// download writes the asset to destPath and rejects oversized or truncated
+// responses, reporting to onProgress, when not nil, as it goes.
+func download(rawURL, destPath string, expectedSize int64, onProgress Progress) (retErr error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return err
@@ -498,7 +544,12 @@ func download(rawURL, destPath string, expectedSize int64) (retErr error) {
 	}
 	limited := io.LimitReader(resp.Body, limit+1) // +1 so we can detect overflow
 
-	written, err := io.Copy(f, limited)
+	var dst io.Writer = f
+	if onProgress != nil {
+		dst = &progressWriter{w: f, total: expectedSize, on: onProgress}
+		defer onProgress(expectedSize, expectedSize)
+	}
+	written, err := io.Copy(dst, limited)
 	if err != nil {
 		_ = os.Remove(destPath)
 		return fmt.Errorf("writing binary: %w", err)

@@ -42,11 +42,11 @@ and --prerelease to include rc/beta/alpha releases.`,
 			if list {
 				return runSelfUpdateList(repo, prerelease, limit, currentVersion)
 			}
-			return updater.SelfUpdate(repo, currentVersion, version, prerelease)
+			return updater.SelfUpdate(repo, currentVersion, version, prerelease, newDownloadProgress())
 		},
 	}
 
-	cmd.Flags().StringVar(&repo, "repo", DefaultRepo, `GitHub repository in "owner/repo" format`)
+	cmd.Flags().StringVar(&repo, "repo", DefaultRepo, `GitHub repository as "owner/repo"; a github.com URL also works`)
 	cmd.Flags().StringVar(&version, "version", "", "Install this specific release tag (e.g. v1.2.0) instead of the latest")
 	cmd.Flags().BoolVar(&list, "list", false, "List available releases and exit")
 	cmd.Flags().BoolVar(&prerelease, "prerelease", false, "Include prereleases (rc/beta/alpha) in --list, or as the latest target when no --version is given")

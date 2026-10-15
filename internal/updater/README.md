@@ -14,13 +14,14 @@ Package updater implements the self\-update mechanism for movelooper.
 
 - [func CleanOldBinary\(\)](<#CleanOldBinary>)
 - [func NormalizeVersion\(v string\) string](<#NormalizeVersion>)
-- [func SelfUpdate\(repo, currentVersion, version string, includePrerelease bool\) error](<#SelfUpdate>)
+- [func SelfUpdate\(repo, currentVersion, version string, includePrerelease bool, onProgress Progress\) error](<#SelfUpdate>)
+- [type Progress](<#Progress>)
 - [type Release](<#Release>)
   - [func ListReleases\(repo string, includePrerelease bool, limit int\) \(\[\]Release, error\)](<#ListReleases>)
 
 
 <a name="CleanOldBinary"></a>
-## func [CleanOldBinary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L194>)
+## func [CleanOldBinary](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L225>)
 
 ```go
 func CleanOldBinary()
@@ -29,7 +30,7 @@ func CleanOldBinary()
 CleanOldBinary removes a \<exe\>.old file left by a previous self\-update. Call this from main\(\) at startup.
 
 <a name="NormalizeVersion"></a>
-## func [NormalizeVersion](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L209>)
+## func [NormalizeVersion](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L240>)
 
 ```go
 func NormalizeVersion(v string) string
@@ -38,13 +39,22 @@ func NormalizeVersion(v string) string
 NormalizeVersion strips a leading "v" so that "v1.2.3" and "1.2.3" compare equal. Shared with the self\-update command, which labels the installed tag.
 
 <a name="SelfUpdate"></a>
-## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L42>)
+## func [SelfUpdate](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L47>)
 
 ```go
-func SelfUpdate(repo, currentVersion, version string, includePrerelease bool) error
+func SelfUpdate(repo, currentVersion, version string, includePrerelease bool, onProgress Progress) error
 ```
 
-SelfUpdate replaces the running binary with the selected GitHub release and keeps the previous binary as \<name\>.old for cleanup on the next run.
+SelfUpdate replaces the running binary with the selected GitHub release and keeps the previous binary as \<name\>.old for cleanup on the next run. A nil onProgress, or a release with no advertised size, prints a plain line instead.
+
+<a name="Progress"></a>
+## type [Progress](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L42>)
+
+Progress hears how many bytes of the binary have arrived. When the download stops, finished or not, it is called once more with done == total.
+
+```go
+type Progress func(done, total int64)
+```
 
 <a name="Release"></a>
 ## type [Release](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L34-L38>)
@@ -60,7 +70,7 @@ type Release struct {
 ```
 
 <a name="ListReleases"></a>
-### func [ListReleases](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L118>)
+### func [ListReleases](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L130>)
 
 ```go
 func ListReleases(repo string, includePrerelease bool, limit int) ([]Release, error)

@@ -170,7 +170,7 @@ movelooper config --config /path/to/movelooper.yaml
 
 ## `movelooper self-update`: update the binary
 
-Downloads a release from GitHub and replaces the current binary. The old binary is saved with a `.old` suffix (e.g. `movelooper.exe.old` on Windows) and cleaned up on the next run.
+Downloads a release from GitHub and replaces the current binary. The old binary is saved with a `.old` suffix (e.g. `movelooper.exe.old` on Windows) and cleaned up on the next run. In a terminal, a progress bar follows the download; piped or redirected output gets a plain line instead.
 
 ```bash
 movelooper self-update                          # install the latest stable release
@@ -182,7 +182,7 @@ movelooper self-update --repo lucasassuncao/movelooper
 
 | Flag           | Description                                                                |
 |----------------|----------------------------------------------------------------------------|
-| `--repo`       | GitHub repository in `owner/repo` format                                   |
+| `--repo`       | GitHub repository as `owner/repo`; a `github.com` URL also works            |
 | `--version`    | Install this specific release tag (e.g. `v1.2.0`) instead of the latest     |
 | `--list`       | List available releases and exit                                           |
 | `--prerelease` | Include prereleases (rc/beta/alpha) in `--list`, or as the latest target   |

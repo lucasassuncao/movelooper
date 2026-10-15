@@ -371,7 +371,7 @@ func TestDownload(t *testing.T) {
 			defer srv.Close()
 
 			dest := tt.destFn(t.TempDir())
-			err := download(srv.URL, dest, tt.expectedSize)
+			err := download(srv.URL, dest, tt.expectedSize, nil)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -383,6 +383,54 @@ func TestDownload(t *testing.T) {
 				tt.check(t, dest)
 			}
 		})
+	}
+}
+
+func TestParseRepo(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{
+		"lucasassuncao/movelooper",
+		"github.com/lucasassuncao/movelooper/",
+		"https://github.com/lucasassuncao/movelooper",
+		"https://www.github.com/lucasassuncao/movelooper.git",
+		" lucasassuncao/movelooper/ ",
+	} {
+		got, err := parseRepo(in)
+		require.NoError(t, err, in)
+		assert.Equal(t, "lucasassuncao/movelooper", got, in)
+	}
+	for _, in := range []string{"movelooper", "github.com/", "/movelooper", "owner/", "a/b/c", "https://github.com/a/b/releases"} {
+		_, err := parseRepo(in)
+		assert.ErrorContains(t, err, "invalid repository", in)
+	}
+}
+
+// The last call always has done == total, so a bar can clear itself even
+// when the server sent less than it advertised.
+func TestDownload_ReportsProgress(t *testing.T) {
+	t.Parallel()
+	body := strings.Repeat("x", 100_000)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	for _, size := range []int64{int64(len(body)), 200_000} {
+		var calls [][2]int64
+		on := func(done, total int64) { calls = append(calls, [2]int64{done, total}) }
+		err := download(srv.URL, filepath.Join(t.TempDir(), "binary"), size, on)
+		if size > int64(len(body)) {
+			require.ErrorContains(t, err, "download truncated")
+		} else {
+			require.NoError(t, err)
+		}
+
+		require.GreaterOrEqual(t, len(calls), 2)
+		assert.Equal(t, [2]int64{int64(len(body)), size}, calls[len(calls)-2], "the bytes that arrived")
+		assert.Equal(t, [2]int64{size, size}, calls[len(calls)-1], "the closing call")
+		for i := 1; i < len(calls)-1; i++ {
+			assert.Greater(t, calls[i][0], calls[i-1][0], "done only grows")
+		}
 	}
 }
 
@@ -450,7 +498,7 @@ func TestSelfUpdate(t *testing.T) {
 				srv := serveFakeRelease(t, http.StatusOK, tt.release)
 				defer srv.Close()
 				withTestServer(t, srv, func() {
-					err := SelfUpdate(tt.repo, tt.currentVersion, "", false)
+					err := SelfUpdate(tt.repo, tt.currentVersion, "", false, nil)
 					if tt.wantErr != "" {
 						require.Error(t, err)
 						assert.Contains(t, err.Error(), tt.wantErr)
@@ -460,7 +508,7 @@ func TestSelfUpdate(t *testing.T) {
 				})
 				return
 			}
-			err := SelfUpdate(tt.repo, tt.currentVersion, "", false)
+			err := SelfUpdate(tt.repo, tt.currentVersion, "", false, nil)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -499,7 +547,7 @@ func TestSelfUpdate_DownloadsAndReplacesBinary(t *testing.T) {
 	t.Cleanup(func() { osExecutable = origExecutable })
 
 	withTestServer(t, srv, func() {
-		require.NoError(t, SelfUpdate("owner/repo", "v1.0.0", "", false))
+		require.NoError(t, SelfUpdate("owner/repo", "v1.0.0", "", false, nil))
 	})
 
 	got, err := os.ReadFile(fakeBin)
@@ -549,7 +597,7 @@ func TestSelfUpdate_VerifiesMatchingChecksum(t *testing.T) {
 	t.Cleanup(func() { osExecutable = origExecutable })
 
 	withTestServer(t, srv, func() {
-		require.NoError(t, SelfUpdate("owner/repo", "v1.0.0", "", false))
+		require.NoError(t, SelfUpdate("owner/repo", "v1.0.0", "", false, nil))
 	})
 
 	got, err := os.ReadFile(fakeBin)
@@ -596,7 +644,7 @@ func TestSelfUpdate_ChecksumMismatchAbortsInstall(t *testing.T) {
 	t.Cleanup(func() { osExecutable = origExecutable })
 
 	withTestServer(t, srv, func() {
-		err := SelfUpdate("owner/repo", "v1.0.0", "", false)
+		err := SelfUpdate("owner/repo", "v1.0.0", "", false, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "checksum mismatch")
 	})
