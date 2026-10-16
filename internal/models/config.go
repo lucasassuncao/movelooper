@@ -90,18 +90,20 @@ func (Configuration) Metadata() map[string]any {
 func (Logging) Metadata() map[string]any {
 	return map[string]any{
 		"output": meta{
-			Description: "Where log output is written. Use 'both' to write to the console and a file simultaneously. 'log' is an alias for 'file'.",
-			Required:    true,
-			OneOf:       []string{"console", "file", "log", "both"},
-			Default:     "console",
-			Example:     "output: console",
+			Description:  "Where log output is written. Use 'both' to write to the console and a file simultaneously. 'log' is an alias for 'file'.",
+			Required:     true,
+			OneOf:        []string{"console", "file", "log", "both"},
+			EnablePicker: true,
+			Default:      "console",
+			Example:      "output: console",
 		},
 		"level": meta{
-			Description: "Minimum severity level to emit. Lower levels produce more output; 'fatal' produces the least.",
-			Required:    true,
-			OneOf:       []string{"trace", "debug", "info", "warn", "error", "fatal"},
-			Default:     "info",
-			Example:     "level: info",
+			Description:  "Minimum severity level to emit. Lower levels produce more output; 'fatal' produces the least.",
+			Required:     true,
+			OneOf:        []string{"trace", "debug", "info", "warn", "error", "fatal"},
+			EnablePicker: true,
+			Default:      "info",
+			Example:      "level: info",
 		},
 		"file": meta{
 			Description: "Path to the log file. Only used when output is 'file' or 'both'. Supports ~ for the home directory.",
@@ -115,16 +117,18 @@ func (Logging) Metadata() map[string]any {
 			Example:     "show-caller: false",
 		},
 		"format": meta{
-			Description: "Log rendering format. 'pretty' is the human-readable console renderer; 'json' emits structured slog JSON lines for log aggregation.",
-			OneOf:       []string{"pretty", "json"},
-			Default:     "pretty",
-			Example:     "format: pretty",
+			Description:  "Log rendering format. 'pretty' is the human-readable console renderer; 'json' emits structured slog JSON lines for log aggregation.",
+			OneOf:        []string{"pretty", "json"},
+			EnablePicker: true,
+			Default:      "pretty",
+			Example:      "format: pretty",
 		},
 		"color": meta{
-			Description: "ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. Ignored when format is json.",
-			OneOf:       []string{"auto", "always", "never"},
-			Default:     "auto",
-			Example:     "color: auto",
+			Description:  "ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. Ignored when format is json.",
+			OneOf:        []string{"auto", "always", "never"},
+			EnablePicker: true,
+			Default:      "auto",
+			Example:      "color: auto",
 		},
 		"max-width": meta{
 			Description: "Maximum width, in columns, for wrapping pretty log lines. Ignored when format is json.",
@@ -183,14 +187,16 @@ func (History) Metadata() map[string]any {
 func (Defaults) Metadata() map[string]any {
 	return map[string]any{
 		"conflict-strategy": meta{
-			Description: "Fallback conflict-strategy for categories that omit destination.conflict-strategy.",
-			OneOf:       []string{"rename", "hash_check", "overwrite", "skip", "newest", "oldest", "larger", "smaller"},
-			Example:     "conflict-strategy: rename",
+			Description:  "Fallback conflict-strategy for categories that omit destination.conflict-strategy.",
+			OneOf:        []string{"rename", "hash_check", "overwrite", "skip", "newest", "oldest", "larger", "smaller"},
+			EnablePicker: true,
+			Example:      "conflict-strategy: rename",
 		},
 		"action": meta{
-			Description: "Fallback action for categories that omit destination.action.",
-			OneOf:       []string{"move", "copy", "symlink", "archive"},
-			Example:     "action: move",
+			Description:  "Fallback action for categories that omit destination.action.",
+			OneOf:        []string{"move", "copy", "symlink", "archive"},
+			EnablePicker: true,
+			Example:      "action: move",
 		},
 		"organize-by": meta{
 			Description: "Fallback organize-by template for categories that omit destination.organize-by.",

@@ -116,7 +116,7 @@ type AgeFilter struct {
 ```
 
 <a name="AgeFilter.Metadata"></a>
-### func \(AgeFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L328>)
+### func \(AgeFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L332>)
 
 ```go
 func (AgeFilter) Metadata() map[string]any
@@ -152,7 +152,7 @@ func (a *ArchiveConfig) KeepsSource() bool
 KeepsSource reports whether original files are retained \(the default\).
 
 <a name="ArchiveConfig.Metadata"></a>
-### func \(ArchiveConfig\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L239>)
+### func \(ArchiveConfig\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L241>)
 
 ```go
 func (ArchiveConfig) Metadata() map[string]any
@@ -245,7 +245,7 @@ func (f CategoryFilter) IsZero() bool
 IsZero lets yaml.v3 omit an empty CategoryFilter when the parent field has omitempty.
 
 <a name="CategoryFilter.Metadata"></a>
-### func \(CategoryFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L272>)
+### func \(CategoryFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L276>)
 
 ```go
 func (CategoryFilter) Metadata() map[string]any
@@ -267,7 +267,7 @@ type CategoryHook struct {
 ```
 
 <a name="CategoryHook.Metadata"></a>
-### func \(CategoryHook\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L375>)
+### func \(CategoryHook\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L379>)
 
 ```go
 func (CategoryHook) Metadata() map[string]any
@@ -288,7 +288,7 @@ type CategoryHooks struct {
 ```
 
 <a name="CategoryHooks.Metadata"></a>
-### func \(CategoryHooks\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L364>)
+### func \(CategoryHooks\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L368>)
 
 ```go
 func (CategoryHooks) Metadata() map[string]any
@@ -405,7 +405,7 @@ type Defaults struct {
 ```
 
 <a name="Defaults.Metadata"></a>
-### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L183>)
+### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L187>)
 
 ```go
 func (Defaults) Metadata() map[string]any
@@ -427,7 +427,7 @@ type History struct {
 ```
 
 <a name="History.Metadata"></a>
-### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L160>)
+### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L164>)
 
 ```go
 func (History) Metadata() map[string]any
@@ -477,7 +477,7 @@ type MatchFilter struct {
 ```
 
 <a name="MatchFilter.Metadata"></a>
-### func \(MatchFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L304>)
+### func \(MatchFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L308>)
 
 ```go
 func (MatchFilter) Metadata() map[string]any
@@ -515,7 +515,7 @@ type SizeFilter struct {
 ```
 
 <a name="SizeFilter.Metadata"></a>
-### func \(SizeFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L347>)
+### func \(SizeFilter\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/category.go#L351>)
 
 ```go
 func (SizeFilter) Metadata() map[string]any
@@ -536,7 +536,7 @@ type Watch struct {
 ```
 
 <a name="Watch.Metadata"></a>
-### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L139>)
+### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L143>)
 
 ```go
 func (Watch) Metadata() map[string]any

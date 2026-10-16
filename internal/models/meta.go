@@ -38,4 +38,5 @@ type meta struct {
 	Multiline    bool   `yaml:"multiline,omitempty"`
 	Snippet      string `yaml:"snippet,omitempty"`
 	PreChecked   bool   `yaml:"prechecked,omitempty"`
+	EnablePicker bool   `yaml:"enablepicker,omitempty"` // ctrl+o picks the value from OneOf
 }

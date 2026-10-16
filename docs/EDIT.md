@@ -53,7 +53,7 @@ In the file preview, **↑ / ↓** scroll, and **Tab** or **Esc** go back to the
 | **Enter** | Add the field, or open a nested list or map |
 | **Tab** | Switch between the field tree and the YAML buffer |
 | **p** | Pick a preset for this block, when it has any |
-| **Ctrl+O** | Pick a file, in the `import` block (see [below](#picking-import-files)) |
+| **Ctrl+O** | Pick a file, in the `import` block (see [below](#picking-import-files)); on a field with a fixed set of values, such as `conflict-strategy` or `action`, pick one of them |
 | **h** | Show or hide the Hint/Example pane |
 | **Ctrl+H** | Focus the Hint/Example pane to scroll it |
 | **Ctrl+D** | Remove the field (or delete the entry, in a list) |
@@ -63,6 +63,12 @@ In the file preview, **↑ / ↓** scroll, and **Tab** or **Esc** go back to the
 | **Esc** | Go up one level; from the top, back to the list (asks first when the block has unapplied changes) |
 
 **Ctrl+C** quits from any screen.
+
+---
+
+## Picking a value
+
+Fields that take one of a fixed set of values (`conflict-strategy`, `action`, the archive's `format` and `compression`, the logging options and others) can be picked instead of typed. With the cursor on one in the field tree, **Ctrl+O** lists its values, starting on the current one, or on the default when the field is not set yet. **Enter** writes the value, adding the field when needed; **Esc** closes the list. Typing the value in the YAML buffer works as before.
 
 ---
 
