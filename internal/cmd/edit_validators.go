@@ -8,7 +8,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/lucasassuncao/yedit/spec"
 	"github.com/lucasassuncao/yedit/validate"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // MovelooperValidators is the rule set enforced by the edit command at

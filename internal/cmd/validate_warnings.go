@@ -9,7 +9,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
 	"github.com/lucasassuncao/yedit/spec"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // configWarnings reports configurations that are perfectly valid but destroy

@@ -14,15 +14,15 @@ require (
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
 	github.com/knadh/koanf/v2 v2.3.8
 	github.com/lucasassuncao/bezel v0.5.0
-	github.com/lucasassuncao/docgen v0.1.2
-	github.com/lucasassuncao/yedit v0.62.0
+	github.com/lucasassuncao/docgen v0.1.3
+	github.com/lucasassuncao/yedit v0.63.0
 	github.com/pterm/pterm v0.12.84
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
+	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
 	golang.org/x/text v0.43.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -64,7 +64,7 @@ require (
 	github.com/xo/terminfo v1.2.0 // indirect
 	github.com/yuin/goldmark v1.8.6 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

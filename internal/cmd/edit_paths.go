@@ -8,7 +8,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/yedit/editor"
 	"github.com/lucasassuncao/yedit/spec"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // editPathFields makes import a list of paths in the editor: ctrl+o picks a

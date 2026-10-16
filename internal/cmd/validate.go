@@ -14,7 +14,7 @@ import (
 	"github.com/lucasassuncao/yedit/spec"
 	"github.com/lucasassuncao/yedit/validate"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 type validateFormat string
