@@ -26,7 +26,7 @@ Practical reference for contributing to movelooper. Covers setup, daily workflow
 | Make | any | Task runner |
 | Git | any | Version control |
 
-All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype) are pinned in the `Makefile` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in the `Makefile` does not invalidate an already installed binary, run `make tools-clean` first.
+All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype) are pinned in `scripts/make/tools.mk` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in `scripts/make/tools.mk` does not invalidate an already installed binary, run `make tools-clean` first.
 
 ---
 

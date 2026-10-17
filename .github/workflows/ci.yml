@@ -124,12 +124,12 @@ jobs:
       # syft and grype are built from source by the Makefile, which is slow for
       # a scan that takes seconds. The install rules have no prerequisites, so a
       # restored .gobin is enough for make to skip the build; the key follows
-      # the Makefile because that is where the versions are pinned.
+      # scripts/make/tools.mk because that is where the versions are pinned.
       - name: Cache pinned tools
         uses: actions/cache@v6
         with:
           path: .gobin
-          key: gobin-${{ runner.os }}-${{ hashFiles('Makefile') }}
+          key: gobin-${{ runner.os }}-${{ hashFiles('scripts/make/tools.mk') }}
 
       # govulncheck is the gate that matters for a Go binary: it only reports
       # advisories reachable from this module's code. It runs before the SBOM

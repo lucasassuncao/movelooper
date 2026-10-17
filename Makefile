@@ -1,215 +1,57 @@
-.PHONY: help build build-all release tag install fmt lint test test-coverage test-watch security govulncheck sbom vuln deps docs completions all run tools clean-tools clean
+# Targets live in scripts/make/*.mk, one file per area. A recipe that needs more
+# than portable commands calls a script instead, and every script exists in both
+# scripts/bash and scripts/pwsh with the same name and arguments.
 
-# Tool versions
-GOLANGCI_LINT_VERSION := v2.14.0
-GOMARKDOC_VERSION     := v1.1.0
-GORELEASER_VERSION    := v2.15.2
-GOTESTSUM_VERSION     := v1.13.0
-GOSEC_VERSION         := v2.29.1-0.20261012130337-71577268350e
-GOCOBERTURA_VERSION   := latest
-SYFT_VERSION          := v1.51.1
-GRYPE_VERSION         := v0.118.0
-GOVULNCHECK_VERSION   := v1.9.0
+# The includes are read before any target of this file, so without this the
+# first target of tools.mk would become the default goal.
+.DEFAULT_GOAL := help
 
-# Tools are installed into ./.gobin (gitignored) rather than taken from PATH,
-# so every target runs the version pinned above and never whatever happens to
-# be installed system-wide. Each tool is a file target: the first target that
-# needs it installs it, later runs reuse it. Bumping a version above does not
-# invalidate an already installed binary - run `make tools-clean` first.
-GOBIN_DIR := $(CURDIR)/.gobin
-
+# On Windows make may run recipes under cmd.exe or sh, and $(SHELL) does not
+# say which, so recipes stay shell-neutral and shell logic goes in a script.
 ifeq ($(OS),Windows_NT)
-EXE := .exe
+EXE        := .exe
+SCRIPT_DIR := scripts/pwsh
+SCRIPT_EXT := .ps1
+SCRIPT_RUN := pwsh -NoProfile -ExecutionPolicy Bypass -File
 else
-EXE :=
+EXE        :=
+SCRIPT_DIR := scripts/bash
+SCRIPT_EXT := .sh
+SCRIPT_RUN := bash
 endif
 
-GORELEASER  := $(GOBIN_DIR)/goreleaser$(EXE)
-GOLANGCI    := $(GOBIN_DIR)/golangci-lint$(EXE)
-GOMARKDOC   := $(GOBIN_DIR)/gomarkdoc$(EXE)
-GOTESTSUM   := $(GOBIN_DIR)/gotestsum$(EXE)
-GOSEC       := $(GOBIN_DIR)/gosec$(EXE)
-GOCOBERTURA := $(GOBIN_DIR)/gocover-cobertura$(EXE)
-SYFT        := $(GOBIN_DIR)/syft$(EXE)
-GRYPE       := $(GOBIN_DIR)/grype$(EXE)
-GOVULNCHECK := $(GOBIN_DIR)/govulncheck$(EXE)
-
-TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(SYFT) $(GRYPE) $(GOVULNCHECK)
-
-# `go install` takes its destination from GOBIN in the environment and has no
-# flag for it, so the tool rules - and only those - export it. A file-wide
-# export would also redirect `install`, which is meant to put movelooper in the
-# user's own GOBIN.
-$(TOOLS): export GOBIN = $(GOBIN_DIR)
-
-$(GORELEASER):
-	@echo "Installing goreleaser $(GORELEASER_VERSION)..."
-	@go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
-
-$(GOLANGCI):
-	@echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."
-	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-
-$(GOMARKDOC):
-	@echo "Installing gomarkdoc $(GOMARKDOC_VERSION)..."
-	@go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@$(GOMARKDOC_VERSION)
-
-$(GOTESTSUM):
-	@echo "Installing gotestsum $(GOTESTSUM_VERSION)..."
-	@go install gotest.tools/gotestsum@$(GOTESTSUM_VERSION)
-
-$(GOSEC):
-	@echo "Installing gosec $(GOSEC_VERSION)..."
-	@go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)
-
-$(GOCOBERTURA):
-	@echo "Installing gocover-cobertura $(GOCOBERTURA_VERSION)..."
-	@go install github.com/t-yuki/gocover-cobertura@$(GOCOBERTURA_VERSION)
-
-$(SYFT):
-	@echo "Installing syft $(SYFT_VERSION)..."
-	@go install github.com/anchore/syft/cmd/syft@$(SYFT_VERSION)
-
-$(GRYPE):
-	@echo "Installing grype $(GRYPE_VERSION)..."
-	@go install github.com/anchore/grype/cmd/grype@$(GRYPE_VERSION)
-
-$(GOVULNCHECK):
-	@echo "Installing govulncheck $(GOVULNCHECK_VERSION)..."
-	@go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
-
-# Coverage
-COVERAGE_DIR  := coverage
-COVERAGE_OUT  := $(COVERAGE_DIR)/coverage.out
-COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
-COVERAGE_XML  := $(COVERAGE_DIR)/coverage.xml
-
-# Recipes run through whatever shell make finds, and on Windows that is sh.exe
-# only when one is on PATH - cmd.exe otherwise. Make does not say which it
-# picked: $(SHELL) reads "sh.exe" either way, even when the fallback happened.
-# So a recipe line has to be valid in both, and branching on $(OS) is not enough
-# to tell them apart.
-#
-# `mkdir -p` is not valid in both. cmd.exe has no -p flag and reads it as a
-# second directory to create, so the first run leaves a stray ./-p in the repo
-# and every run after that fails outright, because cmd's mkdir treats an
-# existing directory as an error rather than as nothing to do.
-#
-# A directory target, not $(wildcard) in an ifeq: wildcard expands at parse
-# time, so `make clean test-coverage` drops the mkdir and then deletes the
-# directory. A target is checked when make reaches it.
-$(COVERAGE_DIR):
-	@mkdir $(COVERAGE_DIR)
-
-# Shell completion scripts, generated from the binary itself and attached to
-# each release. Same shell portability problem as above.
-COMPLETIONS_DIR := completions
-
-# Spelled absolute so the target does not collide with the phony "completions"
-# rule below, which would redefine it.
-COMPLETIONS_PATH := $(CURDIR)/$(COMPLETIONS_DIR)
-
-$(COMPLETIONS_PATH):
-	@mkdir $(COMPLETIONS_DIR)
+# $(call script,name) is the command that runs this OS's version of a script.
+script = $(SCRIPT_RUN) $(SCRIPT_DIR)/$(1)$(SCRIPT_EXT)
 
 # Project variables
-BINARY_NAME := movelooper
-BUILD_DIR   := bin
-MAIN_PATH   := main.go
-SBOM_FILE   := sbom.json
+BINARY_NAME     := movelooper
+BUILD_DIR       := bin
+MAIN_PATH       := main.go
+SBOM_FILE       := sbom.json
+COVERAGE_DIR    := coverage
+COMPLETIONS_DIR := completions
 
-help: ## Show this help message
-ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command "Select-String -Path $(MAKEFILE_LIST) -Pattern '^([a-zA-Z_-]+):.*## (.+)' | Sort-Object { $$_.Matches[0].Groups[1].Value } | ForEach-Object { Write-Host -NoNewline -ForegroundColor Cyan ('{0,-20}' -f $$_.Matches[0].Groups[1].Value); Write-Host (' ' + $$_.Matches[0].Groups[2].Value) }"
-else
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
-endif
+MAKE_DIR := scripts/make
 
-build: $(GORELEASER) ## Build binary with goreleaser (current platform only)
-	@echo "Building..."
-	@$(GORELEASER) build --skip=validate --single-target --snapshot --clean
+# tools.mk first: the others name $(GOLANGCI), $(GOTESTSUM) and friends as
+# prerequisites, and a prerequisite is expanded when its rule is read.
+include $(MAKE_DIR)/tools.mk
+include $(MAKE_DIR)/go.mk
+include $(MAKE_DIR)/build.mk
+include $(MAKE_DIR)/test.mk
+include $(MAKE_DIR)/security.mk
 
-build-all: $(GORELEASER) ## Build binaries for all platforms
-	@echo "Building for all platforms..."
-	@$(GORELEASER) build --skip=validate --snapshot --clean
+.PHONY: help check-scripts all clean
 
-release: $(GORELEASER) completions ## Create a release with goreleaser
-	@echo "Creating release..."
-	@$(GORELEASER) release --timeout 360s
+# A `## text` line right above a target is its help entry. make appends every
+# included file to MAKEFILE_LIST, so help sees the targets of all of them.
+## Show this help message
+help:
+	@$(call script,help) $(MAKEFILE_LIST)
 
-tag: ## Create and push an annotated git tag (usage: make tag VERSION=v1.2.3)
-ifndef VERSION
-	$(error Usage: make tag VERSION=v1.2.3)
-endif
-	git diff --exit-code --quiet
-	git tag -a $(VERSION) -m "Release $(VERSION)"
-	git push origin $(VERSION)
-
-install: ## Install binary globally
-	@go install
-
-fmt: ## Format code
-	@go fmt ./...
-
-lint: $(GOLANGCI) ## Run linter checks
-	@$(GOLANGCI) -v run ./...
-
-test: $(GOTESTSUM) ## Run tests with gotestsum (testdox format)
-	@$(GOTESTSUM) --format testdox -- -race ./...
-
-test-watch: $(GOTESTSUM) ## Run tests in watch mode (reruns on file changes)
-	@$(GOTESTSUM) --format testdox --watch -- -race ./...
-
-# Order-only (after the |): writing a report changes the directory's timestamp.
-test-coverage: $(GOTESTSUM) $(GOCOBERTURA) | $(COVERAGE_DIR) ## Run tests with coverage (HTML + Cobertura XML)
-	@$(GOTESTSUM) --format testdox -- -race -coverprofile=$(COVERAGE_OUT) -covermode=atomic ./...
-	@go tool cover -func=$(COVERAGE_OUT) | tail -1
-	@go tool cover -html=$(COVERAGE_OUT) -o $(COVERAGE_HTML)
-	@$(GOCOBERTURA) < $(COVERAGE_OUT) > $(COVERAGE_XML)
-	@echo "Reports: $(COVERAGE_HTML) | $(COVERAGE_XML)"
-
-security: $(GOSEC) ## Run security analysis with gosec
-	@$(GOSEC) -stdout -severity medium ./...
-
-# gosec reads this repository's code; govulncheck reads the dependency tree the
-# way the compiler does, so it only reports advisories whose vulnerable symbol
-# is actually reachable from this module. That is the difference between "a CVE
-# exists somewhere in go.sum" and "this binary can execute it".
-govulncheck: $(GOVULNCHECK) ## Report vulnerabilities reachable from this code
-	@echo "Checking for reachable vulnerabilities..."
-	@$(GOVULNCHECK) ./...
-
-sbom: $(SYFT) ## Generate a CycloneDX SBOM of the dependency tree
-	@echo "Generating SBOM..."
-	@$(SYFT) . --source-name $(BINARY_NAME) --exclude './.gobin/**' --exclude './$(BUILD_DIR)/**' --exclude './dist/**' -o cyclonedx-json=$(SBOM_FILE)
-
-vuln: $(GRYPE) sbom ## Scan the SBOM for known vulnerabilities with grype
-	@echo "Scanning for vulnerabilities..."
-	@$(GRYPE) sbom:$(SBOM_FILE) --fail-on medium
-
-deps: ## Download and tidy dependencies
-	@go mod download
-	@go mod tidy
-
-docs: $(GOMARKDOC) ## Generate package docs (gomarkdoc) and config reference (generate-docs)
-	@$(GOMARKDOC) -e \
-		--repository.url https://github.com/lucasassuncao/movelooper \
-		--repository.default-branch main \
-		--repository.path / \
-		-o '{{.Dir}}/README.md' ./internal/...
-	@go run $(MAIN_PATH) generate-docs
-	@echo ""
-
-# Cobra generates these from the command tree, so they are always in sync with
-# the real flags. They are release inputs, not tracked files: `release` depends
-# on this target because .goreleaser.yaml attaches $(COMPLETIONS_DIR)/* to the
-# release, and globbing a missing directory is a hard error there.
-completions: | $(COMPLETIONS_PATH) ## Generate shell completion scripts into ./completions
-	@go run $(MAIN_PATH) completion bash > $(COMPLETIONS_DIR)/movelooper_completion.bash
-	@go run $(MAIN_PATH) completion zsh > $(COMPLETIONS_DIR)/movelooper_completion.zsh
-	@go run $(MAIN_PATH) completion fish > $(COMPLETIONS_DIR)/movelooper_completion.fish
-	@go run $(MAIN_PATH) completion powershell > $(COMPLETIONS_DIR)/movelooper_completion.ps1
-	@echo "Completion scripts written to $(COMPLETIONS_DIR)/"
+## Fail if a script in scripts/bash or scripts/pwsh has no twin in the other
+check-scripts:
+	@$(call script,check-parity) scripts/bash scripts/pwsh
 
 # Local, deterministic checks first, so a failure points at the code. The
 # supply-chain scans go last because they are the only steps that need the
@@ -219,32 +61,8 @@ completions: | $(COMPLETIONS_PATH) ## Generate shell completion scripts into ./c
 # on an advisory this binary never executes.
 all: deps fmt docs lint security test-coverage govulncheck sbom vuln
 
-run: ## Run the application
-	@go run $(MAIN_PATH)
-
-tools: $(TOOLS) ## Install every pinned tool into ./.gobin
-	@echo "Tools installed in $(GOBIN_DIR)"
-
-clean-tools: ## Remove ./.gobin so the next target reinstalls the pinned tools
-	@echo "Removing $(GOBIN_DIR)..."
-	@rm -rf $(GOBIN_DIR)
-
-clean: clean-tools ## Remove build artifacts, installed tools and cache
-	@echo "Removing $(BUILD_DIR)..."
-	@rm -rf $(BUILD_DIR)
-	@echo ""
-	@echo "Removing dist..."
-	@rm -rf dist/
-	@echo ""
-	@echo "Removing $(COVERAGE_DIR)..."
-	@rm -rf $(COVERAGE_DIR)
-	@echo ""
-	@echo "Removing $(COMPLETIONS_DIR)..."
-	@rm -rf $(COMPLETIONS_DIR)
-	@echo ""
-	@echo "Removing $(SBOM_FILE)..."
-	@rm -rf $(SBOM_FILE)
-	@echo ""
+## Remove build artifacts, installed tools and cache
+clean: clean-tools
+	@$(call script,remove) $(BUILD_DIR) dist $(COVERAGE_DIR) $(COMPLETIONS_DIR) $(SBOM_FILE)
 	@echo "Cleaning Go build and test cache..."
 	@go clean -cache -testcache
-	@echo ""
