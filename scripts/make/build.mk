@@ -1,4 +1,4 @@
-.PHONY: build build-all release tag completions
+.PHONY: build build-all release release-notes tag completions
 
 ## Build binary with goreleaser (current platform only)
 build: $(GORELEASER)
@@ -11,17 +11,22 @@ build-all: $(GORELEASER)
 	@$(GORELEASER) build --skip=validate --snapshot --clean
 
 ## Create a release with goreleaser
-release: $(GORELEASER) completions
+release: $(GORELEASER) completions release-notes
 	@echo "Creating release..."
-	@$(GORELEASER) release --timeout 360s
+	@$(GORELEASER) release --timeout 360s --release-notes=$(RELEASE_NOTES)
 
-## Create and push an annotated git tag (usage: make tag VERSION=v1.2.3)
-tag:
+# The tag at HEAD, so it matches what `make tag` wrote into the tag message.
+## Write the git-cliff notes of the tag at HEAD into release-notes.md
+release-notes: $(GITCLIFF)
+	@$(GITCLIFF) --current --strip all -o $(RELEASE_NOTES)
+
+## Create and push an annotated git tag with git-cliff notes (usage: make tag VERSION=v1.2.3)
+tag: $(GITCLIFF)
 ifndef VERSION
 	$(error Usage: make tag VERSION=v1.2.3)
 endif
 	git diff --exit-code --quiet
-	git tag -a $(VERSION) -m "Release $(VERSION)"
+	@$(call script,tag) $(GITCLIFF) $(VERSION)
 	git push origin $(VERSION)
 
 # Cobra generates these from the command tree, so they are always in sync with

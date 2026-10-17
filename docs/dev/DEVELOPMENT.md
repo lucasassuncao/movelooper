@@ -26,7 +26,7 @@ Practical reference for contributing to movelooper. Covers setup, daily workflow
 | Make | any | Task runner |
 | Git | any | Version control |
 
-All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype) are pinned in `scripts/make/tools.mk` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in `scripts/make/tools.mk` does not invalidate an already installed binary, run `make tools-clean` first.
+All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype, git-cliff) are pinned in `scripts/make/tools.mk` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in `scripts/make/tools.mk` does not invalidate an already installed binary, run `make tools-clean` first.
 
 ---
 
@@ -72,6 +72,8 @@ make sbom            # CycloneDX SBOM of the dependency tree (syft)
 make vuln            # scan the SBOM for known vulnerabilities (grype)
 make docs            # regenerate package READMEs (gomarkdoc) + config reference (generate-docs)
 make deps            # go mod download && go mod tidy
+make tag             # create and push an annotated tag with git-cliff notes (VERSION=v1.2.3)
+make release-notes   # git-cliff notes of the tag at HEAD into release-notes.md (cliff.toml)
 make tools           # install every pinned tool into ./.gobin
 make tools-clean     # remove ./.gobin so the next target reinstalls the pinned tools
 make clean           # remove build artifacts, installed tools and cache

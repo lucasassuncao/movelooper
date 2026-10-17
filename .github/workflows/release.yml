@@ -42,9 +42,14 @@ jobs:
       - name: Generate shell completions
         run: make completions
 
+      # git-cliff renders every commit with its whole message (cliff.toml), so
+      # these notes replace goreleaser's changelog, which keeps only subjects.
+      - name: Generate release notes
+        run: make release-notes
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          args: release --clean --release-notes=release-notes.md

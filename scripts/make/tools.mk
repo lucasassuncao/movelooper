@@ -8,6 +8,7 @@ GOCOBERTURA_VERSION   := latest
 SYFT_VERSION          := v1.51.1
 GRYPE_VERSION         := v0.118.0
 GOVULNCHECK_VERSION   := v1.9.0
+GITCLIFF_VERSION      := v2.14.2
 
 # Tools are installed into ./.gobin (gitignored) rather than taken from PATH,
 # so every target runs the version pinned above and never whatever happens to
@@ -25,8 +26,9 @@ GOCOBERTURA := $(GOBIN_DIR)/gocover-cobertura$(EXE)
 SYFT        := $(GOBIN_DIR)/syft$(EXE)
 GRYPE       := $(GOBIN_DIR)/grype$(EXE)
 GOVULNCHECK := $(GOBIN_DIR)/govulncheck$(EXE)
+GITCLIFF    := $(GOBIN_DIR)/git-cliff$(EXE)
 
-TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(SYFT) $(GRYPE) $(GOVULNCHECK)
+TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(SYFT) $(GRYPE) $(GOVULNCHECK) $(GITCLIFF)
 
 # `go install` takes its destination from GOBIN in the environment and has no
 # flag for it, so the tool rules - and only those - export it. A file-wide
@@ -71,6 +73,10 @@ $(GRYPE):
 $(GOVULNCHECK):
 	@echo "Installing govulncheck $(GOVULNCHECK_VERSION)..."
 	@go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+
+$(GITCLIFF):
+	@echo "Installing git-cliff $(GITCLIFF_VERSION)..."
+	@$(call script,install-git-cliff) $(GITCLIFF_VERSION) $(GOBIN_DIR)
 
 ## Install every pinned tool into ./.gobin
 tools: $(TOOLS)
