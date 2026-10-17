@@ -48,7 +48,7 @@ type batchPicker struct {
 	sh       shell.Shell
 	th       theme.Resolved
 	batches  []history.BatchSummary
-	list     list.Model
+	list     list.Model[string]
 	hist     *history.History
 	selected string
 
@@ -60,13 +60,13 @@ type batchPicker struct {
 func newBatchPicker(batches []history.BatchSummary, hist *history.History) batchPicker {
 	reversed := slices.Clone(batches)
 	slices.Reverse(reversed)
-	rows := make([]list.Row, len(reversed))
+	rows := make([]list.Row[string], len(reversed))
 	for i, b := range reversed {
 		label := fmt.Sprintf("%-24s  %3d files  %s", b.BatchID, b.Count, b.Timestamp.Format("2006-01-02 15:04:05"))
 		if i == 0 {
 			label += "  (most recent)"
 		}
-		rows[i] = list.Row{Label: label, Value: b.BatchID}
+		rows[i] = list.Row[string]{Label: label, Value: b.BatchID}
 	}
 	keys := list.DefaultKeys()
 	keys.Filter = key.NewBinding() // no filter: the keys stay what they were
@@ -129,7 +129,7 @@ func (m batchPicker) resize() batchPicker {
 
 func (m batchPicker) chosen() string {
 	if r := m.list.Selected(); r != nil {
-		return r.Value.(string)
+		return r.Value
 	}
 	return ""
 }
