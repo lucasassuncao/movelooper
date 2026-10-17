@@ -25,7 +25,7 @@ type slogLogger struct {
 }
 
 // NewSlog builds a Logger that emits structured JSON via slog. addSource mirrors
-// the pretty logger's show-caller setting.
+// the pretty logger's caller, from the hidden --show-caller flag.
 func NewSlog(w io.Writer, level string, addSource bool) Logger {
 	h := slog.NewJSONHandler(w, &slog.HandlerOptions{
 		Level:       slogLevel(level),

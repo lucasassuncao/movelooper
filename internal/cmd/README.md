@@ -200,7 +200,7 @@ var MovelooperValidators = []spec.Validator{
 ```
 
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1100>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1099>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -218,7 +218,7 @@ func ConfigCmd() *cobra.Command
 ConfigCmd returns the "config" command for configuration utilities.
 
 <a name="ConfigurationPreset"></a>
-## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L639>)
+## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L638>)
 
 ```go
 func ConfigurationPreset(name string) *models.Configuration
@@ -245,7 +245,7 @@ func FilterCategories(all []*models.Category, names []string, includeDisabled bo
 FilterCategories returns the categories to process; it keeps enabled ones by default, includes disabled ones when requested, and errors on unknown names.
 
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1104>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1103>)
 
 ```go
 func ListOfCategoriesPresets() []string
@@ -254,7 +254,7 @@ func ListOfCategoriesPresets() []string
 
 
 <a name="ListOfConfigurationPresets"></a>
-## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L643>)
+## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L642>)
 
 ```go
 func ListOfConfigurationPresets() []string

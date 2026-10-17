@@ -216,16 +216,17 @@ func TestMultiStrategy(t *testing.T) {
 }
 
 // testConfigureLogger defines the structure for test cases of the ConfigureLogger function,
-// containing a yaml builder function, closer expectation flag, and caller expectation flag.
+// containing a yaml builder function, the --show-caller flag, and what to expect.
 type testConfigureLogger struct {
 	name       string
 	yaml       func(*testing.T) string
+	showCaller bool
 	wantCloser bool
 	wantCaller bool
 }
 
 // testConfigureLoggerTestCases defines a set of test cases for the ConfigureLogger function,
-// covering console, file, both, and unknown output types, and show-caller configuration.
+// covering console, file, both, and unknown output types, and the --show-caller flag.
 var testConfigureLoggerTestCases = []testConfigureLogger{
 	{
 		name: "console output",
@@ -250,11 +251,16 @@ var testConfigureLoggerTestCases = []testConfigureLogger{
 		yaml: func(*testing.T) string { return "configuration:\n  logging:\n    output: syslog\n" },
 	},
 	{
-		name: "show-caller enabled",
+		name:       "show-caller from the flag",
+		yaml:       func(*testing.T) string { return "configuration:\n  logging:\n    output: console\n" },
+		showCaller: true,
+		wantCaller: true,
+	},
+	{
+		name: "the config key no longer turns it on",
 		yaml: func(*testing.T) string {
 			return "configuration:\n  logging:\n    output: console\n    show-caller: true\n"
 		},
-		wantCaller: true,
 	},
 }
 
@@ -266,7 +272,7 @@ func TestConfigureLogger(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			k := loadKoanfFromYAML(t, tt.yaml(t))
-			logger, closer, err := ConfigureLogger(k, "")
+			logger, closer, err := ConfigureLogger(k, "", tt.showCaller)
 			require.NoError(t, err)
 			assert.NotNil(t, logger)
 			if tt.wantCloser {
@@ -275,11 +281,9 @@ func TestConfigureLogger(t *testing.T) {
 			} else {
 				assert.Nil(t, closer)
 			}
-			if tt.wantCaller {
-				pl, ok := logger.(*pterm.Logger)
-				require.True(t, ok, "expected pretty (pterm) logger for caller assertion")
-				assert.True(t, pl.ShowCaller)
-			}
+			pl, ok := logger.(*pterm.Logger)
+			require.True(t, ok, "expected pretty (pterm) logger for caller assertion")
+			assert.Equal(t, tt.wantCaller, pl.ShowCaller)
 		})
 	}
 }
@@ -292,7 +296,7 @@ func TestConfigureLogger_JSONFormat(t *testing.T) {
 	yaml := "configuration:\n  logging:\n    output: file\n    level: info\n    format: json\n    file: " + logPath + "\n"
 	k := loadKoanfFromYAML(t, yaml)
 
-	log, closer, err := ConfigureLogger(k, "")
+	log, closer, err := ConfigureLogger(k, "", false)
 	require.NoError(t, err)
 	require.NotNil(t, closer)
 
@@ -318,13 +322,59 @@ func TestConfigureLogger_FormatOverride(t *testing.T) {
 	yaml := "configuration:\n  logging:\n    output: file\n    format: pretty\n    file: " + logPath + "\n"
 	k := loadKoanfFromYAML(t, yaml)
 
-	log, closer, err := ConfigureLogger(k, "json")
+	log, closer, err := ConfigureLogger(k, "json", false)
 	require.NoError(t, err)
 	require.NotNil(t, closer)
 	defer func() { require.NoError(t, closer.Close()) }()
 
 	_, isPretty := log.(*pterm.Logger)
 	assert.False(t, isPretty, "override to json should win over the configured pretty format")
+}
+
+// TestConfigureLogger_JSONShowCaller verifies that --show-caller reaches the
+// structured logger too, as slog's source field.
+func TestConfigureLogger_JSONShowCaller(t *testing.T) {
+	t.Parallel()
+	logPath := filepath.Join(t.TempDir(), "app.log")
+	yaml := "configuration:\n  logging:\n    output: file\n    file: " + logPath + "\n"
+
+	log, closer, err := ConfigureLogger(loadKoanfFromYAML(t, yaml), "json", true)
+	require.NoError(t, err)
+	log.Info("hello")
+	require.NoError(t, closer.Close())
+
+	data, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(bytes.TrimSpace(data), &entry))
+	assert.Contains(t, entry, "source")
+}
+
+// TestConfigureLogger_MaxWidth verifies that an unset max-width hands pterm 0,
+// its terminal width, so a long path is not cut at a fixed 70 columns.
+func TestConfigureLogger_MaxWidth(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		line string
+		want int
+	}{
+		"unset uses the terminal": {"", 0},
+		"zero uses the terminal":  {"    max-width: 0\n", 0},
+		"a value caps the width":  {"    max-width: 120\n", 120},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			logPath := filepath.Join(t.TempDir(), "app.log")
+			yaml := "configuration:\n  logging:\n    output: file\n    file: " + logPath + "\n" + tc.line
+			log, closer, err := ConfigureLogger(loadKoanfFromYAML(t, yaml), "", false)
+			require.NoError(t, err)
+			defer func() { require.NoError(t, closer.Close()) }()
+
+			plog, ok := log.(*pterm.Logger)
+			require.True(t, ok, "pretty format uses the pterm logger")
+			assert.Equal(t, tc.want, plog.MaxWidth)
+		})
+	}
 }
 
 // loadKoanfFromYAML is a helper that writes yaml content to a temp file and loads it into koanf.

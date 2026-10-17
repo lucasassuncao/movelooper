@@ -24,10 +24,9 @@ The following arguments are supported:
 | output | string | - | Where log output is written. Use 'both' to write to the console and a file simultaneously. 'log' is an alias for 'file'. | Yes | console |
 | level | string | - | Minimum severity level to emit. Lower levels produce more output; 'fatal' produces the least. | Yes | info |
 | file | string | directory | Path to the log file. Only used when output is 'file' or 'both'. Supports ~ for the home directory. | No | ~/movelooper.log |
-| show-caller | bool | - | Append the source file and line number to each log entry. Useful when debugging hooks or scanners. | No | false |
 | format | string | - | Log rendering format. 'pretty' is the human-readable console renderer; 'json' emits structured slog JSON lines for log aggregation. | No | pretty |
 | color | string | - | ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. Ignored when format is json. | No | auto |
-| max-width | int | - | Maximum width, in columns, for wrapping pretty log lines. Ignored when format is json. | No | 70 |
+| max-width | int | - | Maximum width, in columns, for wrapping pretty log lines; 0 uses the terminal's width. Ignored when format is json. | No | 0 |
 
 ### watch
 

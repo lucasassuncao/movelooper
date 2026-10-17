@@ -608,15 +608,14 @@ func configurationPresetsMap() map[string]*models.Configuration {
 	logFile := "~/.movelooper/logs/movelooper.log"
 	histFile := "~/.movelooper/history/movelooper.json"
 
-	cfg := func(output, level string, showCaller bool, format string) *models.Configuration {
+	cfg := func(output, level, format string) *models.Configuration {
 		return &models.Configuration{
 			Logging: models.Logging{
-				Output:     output,
-				Level:      level,
-				File:       logFile,
-				ShowCaller: showCaller,
-				Format:     format,
-				Color:      "auto",
+				Output: output,
+				Level:  level,
+				File:   logFile,
+				Format: format,
+				Color:  "auto",
 			},
 			Watch:   models.Watch{Delay: 5 * time.Minute},
 			History: models.History{Limit: 100, File: histFile},
@@ -624,15 +623,15 @@ func configurationPresetsMap() map[string]*models.Configuration {
 	}
 
 	return map[string]*models.Configuration{
-		"console-trace": cfg("console", "trace", true, "pretty"),
-		"console-debug": cfg("console", "debug", true, "pretty"),
-		"console-info":  cfg("console", "info", false, "pretty"),
-		"console-warn":  cfg("console", "warn", false, "pretty"),
-		"console-error": cfg("console", "error", false, "pretty"),
-		"console-fatal": cfg("console", "fatal", false, "pretty"),
-		"file":          cfg("file", "warn", false, "pretty"),
-		"both":          cfg("both", "info", false, "pretty"),
-		"json":          cfg("file", "info", false, "json"),
+		"console-trace": cfg("console", "trace", "pretty"),
+		"console-debug": cfg("console", "debug", "pretty"),
+		"console-info":  cfg("console", "info", "pretty"),
+		"console-warn":  cfg("console", "warn", "pretty"),
+		"console-error": cfg("console", "error", "pretty"),
+		"console-fatal": cfg("console", "fatal", "pretty"),
+		"file":          cfg("file", "warn", "pretty"),
+		"both":          cfg("both", "info", "pretty"),
+		"json":          cfg("file", "info", "json"),
 	}
 }
 

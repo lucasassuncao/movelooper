@@ -41,7 +41,8 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 			if format != "" && format != "pretty" && format != "json" {
 				return fmt.Errorf("invalid --format %q: must be \"pretty\" or \"json\"", format)
 			}
-			return preRunHandler(m, configPath, format)
+			showCaller, _ := cmd.Root().PersistentFlags().GetBool("show-caller")
+			return preRunHandler(m, configPath, format, showCaller)
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			if m.LogCloser != nil {
@@ -65,6 +66,9 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	_ = cmd.RegisterFlagCompletionFunc("format", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 		return []string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp
 	})
+	// A development aid, so --help leaves it out; every command still takes it.
+	cmd.PersistentFlags().Bool("show-caller", false, "Add the source location to every log line")
+	_ = cmd.PersistentFlags().MarkHidden("show-caller")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview mode! It shows what would be moved without moving files")
 	cmd.Flags().BoolVar(&showFiles, "show-files", false, "Show list of individual files detected")
 	cmd.Flags().StringVar(&categoryFilter, "category", "", "Comma-separated list of category names to process (default: all)")
@@ -131,11 +135,12 @@ func categoryNameCompletion(cmd *cobra.Command, _ []string, _ string) ([]string,
 }
 
 // preRunHandler handles the necessary configuration before command execution.
-// formatOverride comes from the --format flag and forces the log format.
-func preRunHandler(m *models.Movelooper, configPath, formatOverride string) error {
+// formatOverride and showCaller come from the --format and --show-caller flags.
+func preRunHandler(m *models.Movelooper, configPath, formatOverride string, showCaller bool) error {
 	return config.NewApp(m, configPath,
 		config.WithLogger(),
 		config.WithFormatOverride(formatOverride),
+		config.WithShowCaller(showCaller),
 		config.WithConfig(),
 		config.WithCategories(),
 		config.WithHistory(),

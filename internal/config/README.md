@@ -13,7 +13,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 - [Constants](<#constants>)
 - [Variables](<#variables>)
 - [func CheckImports\(declaringFile string, paths \[\]string\) \[\]error](<#CheckImports>)
-- [func ConfigureLogger\(k \*koanf.Koanf, formatOverride string\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
+- [func ConfigureLogger\(k \*koanf.Koanf, formatOverride string, showCaller bool\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func ExpandTilde\(path string\) string](<#ExpandTilde>)
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
@@ -29,6 +29,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
   - [func WithFormatOverride\(format string\) Option](<#WithFormatOverride>)
   - [func WithHistory\(\) Option](<#WithHistory>)
   - [func WithLogger\(\) Option](<#WithLogger>)
+  - [func WithShowCaller\(on bool\) Option](<#WithShowCaller>)
   - [func WithValidateDirs\(\) Option](<#WithValidateDirs>)
 
 
@@ -58,13 +59,13 @@ func CheckImports(declaringFile string, paths []string) []error
 CheckImports reports, for each entry of paths, why it would not load if declared in declaringFile: a missing or invalid file, or a cycle. nil is fine.
 
 <a name="ConfigureLogger"></a>
-## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L67>)
+## func [ConfigureLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L65>)
 
 ```go
-func ConfigureLogger(k *koanf.Koanf, formatOverride string) (logger.Logger, io.Closer, error)
+func ConfigureLogger(k *koanf.Koanf, formatOverride string, showCaller bool) (logger.Logger, io.Closer, error)
 ```
 
-ConfigureLogger configures the logger based on the configuration. It returns a pretty \(pterm\) logger by default, or a structured JSON \(slog\) logger when the format resolves to "json". formatOverride comes from the \-\-format flag and takes precedence over configuration.logging.format; an empty override leaves the configured value in effect. The Closer must be called on exit \(non\-nil only when writing to a file\).
+ConfigureLogger configures the logger based on the configuration. It returns a pretty \(pterm\) logger by default, or a structured JSON \(slog\) logger when the format resolves to "json". formatOverride \(\-\-format\) wins over configuration.logging.format unless empty; showCaller \(the hidden \-\-show\-caller\) adds each line's source. The Closer must be called on exit \(non\-nil only when writing to a file\).
 
 <a name="ExpandTilde"></a>
 ## func [ExpandTilde](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/paths.go#L12>)
@@ -112,7 +113,7 @@ func MissingArchiveBlock(cat *models.Category) bool
 MissingArchiveBlock reports whether cat uses action: archive but omits the archive block, which is required to configure packing. It is the single source of truth for this rule, reused by the editor validators \(internal/cmd\) and by validateCategory below.
 
 <a name="NewApp"></a>
-## func [NewApp](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L54>)
+## func [NewApp](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L61>)
 
 ```go
 func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr error)
@@ -157,7 +158,7 @@ type Option func(*options)
 ```
 
 <a name="WithCategories"></a>
-### func [WithCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L41>)
+### func [WithCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L48>)
 
 ```go
 func WithCategories() Option
@@ -166,7 +167,7 @@ func WithCategories() Option
 
 
 <a name="WithConfig"></a>
-### func [WithConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L37>)
+### func [WithConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L44>)
 
 ```go
 func WithConfig() Option
@@ -175,7 +176,7 @@ func WithConfig() Option
 
 
 <a name="WithFormatOverride"></a>
-### func [WithFormatOverride](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L33>)
+### func [WithFormatOverride](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L34>)
 
 ```go
 func WithFormatOverride(format string) Option
@@ -184,7 +185,7 @@ func WithFormatOverride(format string) Option
 WithFormatOverride forces the log format \(e.g. from the \-\-format flag\), taking precedence over configuration.logging.format. An empty string is a no\-op, leaving the configured value in effect.
 
 <a name="WithHistory"></a>
-### func [WithHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L45>)
+### func [WithHistory](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L52>)
 
 ```go
 func WithHistory() Option
@@ -193,7 +194,7 @@ func WithHistory() Option
 
 
 <a name="WithLogger"></a>
-### func [WithLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L26>)
+### func [WithLogger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L27>)
 
 ```go
 func WithLogger() Option
@@ -201,8 +202,17 @@ func WithLogger() Option
 
 
 
+<a name="WithShowCaller"></a>
+### func [WithShowCaller](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L40>)
+
+```go
+func WithShowCaller(on bool) Option
+```
+
+WithShowCaller adds each log line's source location, from the hidden \-\-show\-caller flag. It is a development aid, not a configuration key.
+
 <a name="WithValidateDirs"></a>
-### func [WithValidateDirs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L49>)
+### func [WithValidateDirs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/builder.go#L56>)
 
 ```go
 func WithValidateDirs() Option

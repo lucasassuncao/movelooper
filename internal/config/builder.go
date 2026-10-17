@@ -17,6 +17,7 @@ type Option func(*options)
 type options struct {
 	configureLogger bool
 	formatOverride  string
+	showCaller      bool
 	loadConfig      bool
 	loadCategories  bool
 	initHistory     bool
@@ -32,6 +33,12 @@ func WithLogger() Option {
 // no-op, leaving the configured value in effect.
 func WithFormatOverride(format string) Option {
 	return func(o *options) { o.formatOverride = format }
+}
+
+// WithShowCaller adds each log line's source location, from the hidden
+// --show-caller flag. It is a development aid, not a configuration key.
+func WithShowCaller(on bool) Option {
+	return func(o *options) { o.showCaller = on }
 }
 
 func WithConfig() Option {
@@ -75,7 +82,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 	}
 
 	if o.configureLogger {
-		logger, closer, err := ConfigureLogger(k, o.formatOverride)
+		logger, closer, err := ConfigureLogger(k, o.formatOverride, o.showCaller)
 		if err != nil {
 			return fmt.Errorf("failed to configure logger: %w", err)
 		}

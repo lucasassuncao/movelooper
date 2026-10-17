@@ -336,7 +336,7 @@ type Config struct {
 ```
 
 <a name="Config.Metadata"></a>
-### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L55>)
+### func \(Config\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L54>)
 
 ```go
 func (Config) Metadata() map[string]any
@@ -359,7 +359,7 @@ type Configuration struct {
 ```
 
 <a name="Configuration.Metadata"></a>
-### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L72>)
+### func \(Configuration\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L71>)
 
 ```go
 func (Configuration) Metadata() map[string]any
@@ -392,7 +392,7 @@ const (
 ```
 
 <a name="Defaults"></a>
-## type [Defaults](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L49-L53>)
+## type [Defaults](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L48-L52>)
 
 Defaults holds fallback values applied to any category that omits them.
 
@@ -405,7 +405,7 @@ type Defaults struct {
 ```
 
 <a name="Defaults.Metadata"></a>
-### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L187>)
+### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L181>)
 
 ```go
 func (Defaults) Metadata() map[string]any
@@ -414,7 +414,7 @@ func (Defaults) Metadata() map[string]any
 
 
 <a name="History"></a>
-## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L42-L46>)
+## type [History](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L41-L45>)
 
 History holds the undo\-history settings.
 
@@ -427,7 +427,7 @@ type History struct {
 ```
 
 <a name="History.Metadata"></a>
-### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L164>)
+### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L158>)
 
 ```go
 func (History) Metadata() map[string]any
@@ -436,24 +436,23 @@ func (History) Metadata() map[string]any
 
 
 <a name="Logging"></a>
-## type [Logging](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L25-L33>)
+## type [Logging](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L25-L32>)
 
 Logging holds the log output settings.
 
 ```go
 type Logging struct {
-    Output     string `yaml:"output" mapstructure:"output"`
-    Level      string `yaml:"level" mapstructure:"level"`
-    File       string `yaml:"file" mapstructure:"file"`
-    ShowCaller bool   `yaml:"show-caller" mapstructure:"show-caller"`
-    Format     string `yaml:"format,omitempty" mapstructure:"format"`
-    Color      string `yaml:"color,omitempty" mapstructure:"color"`
-    MaxWidth   int    `yaml:"max-width,omitempty" mapstructure:"max-width"`
+    Output   string `yaml:"output" mapstructure:"output"`
+    Level    string `yaml:"level" mapstructure:"level"`
+    File     string `yaml:"file" mapstructure:"file"`
+    Format   string `yaml:"format,omitempty" mapstructure:"format"`
+    Color    string `yaml:"color,omitempty" mapstructure:"color"`
+    MaxWidth int    `yaml:"max-width,omitempty" mapstructure:"max-width"`
 }
 ```
 
 <a name="Logging.Metadata"></a>
-### func \(Logging\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L90>)
+### func \(Logging\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L89>)
 
 ```go
 func (Logging) Metadata() map[string]any
@@ -524,7 +523,7 @@ func (SizeFilter) Metadata() map[string]any
 
 
 <a name="Watch"></a>
-## type [Watch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L36-L39>)
+## type [Watch](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L35-L38>)
 
 Watch holds the watch\-mode settings.
 
@@ -536,7 +535,7 @@ type Watch struct {
 ```
 
 <a name="Watch.Metadata"></a>
-### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L143>)
+### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L137>)
 
 ```go
 func (Watch) Metadata() map[string]any

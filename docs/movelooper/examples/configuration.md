@@ -8,7 +8,6 @@ configuration:
         output: both
         level: info
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: false
         format: pretty
         color: auto
     watch:
@@ -26,7 +25,6 @@ configuration:
         output: console
         level: debug
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: true
         format: pretty
         color: auto
     watch:
@@ -44,7 +42,6 @@ configuration:
         output: console
         level: error
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: false
         format: pretty
         color: auto
     watch:
@@ -62,7 +59,6 @@ configuration:
         output: console
         level: fatal
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: false
         format: pretty
         color: auto
     watch:
@@ -80,7 +76,6 @@ configuration:
         output: console
         level: info
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: false
         format: pretty
         color: auto
     watch:
@@ -98,7 +93,6 @@ configuration:
         output: console
         level: trace
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: true
         format: pretty
         color: auto
     watch:
@@ -116,7 +110,6 @@ configuration:
         output: console
         level: warn
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: false
         format: pretty
         color: auto
     watch:
@@ -134,7 +127,6 @@ configuration:
         output: file
         level: warn
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: false
         format: pretty
         color: auto
     watch:
@@ -152,7 +144,6 @@ configuration:
         output: file
         level: info
         file: ~/.movelooper/logs/movelooper.log
-        show-caller: false
         format: json
         color: auto
     watch:

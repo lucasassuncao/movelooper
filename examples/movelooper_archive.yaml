@@ -3,7 +3,6 @@ configuration:
     output: both
     level: info
     file: "D:\\Scripts\\go\\logs\\movelooper.log"
-    show-caller: false
   watch:
     delay: 10s
   history:

@@ -70,7 +70,7 @@ configuration:
     output: json
     level: debug
     file: /var/log/movelooper.log
-    show-caller: true
+    show-caller: true # an older config's key: it still loads, and is ignored
   watch:
     delay: 2m
   history:
@@ -81,7 +81,6 @@ configuration:
 			assert.Equal(t, "json", cfg.Logging.Output)
 			assert.Equal(t, "debug", cfg.Logging.Level)
 			assert.Equal(t, "/var/log/movelooper.log", cfg.Logging.File)
-			assert.True(t, cfg.Logging.ShowCaller)
 			assert.Equal(t, 2*time.Minute, cfg.Watch.Delay)
 			assert.Equal(t, 100, cfg.History.Limit)
 			assert.Equal(t, "/var/lib/movelooper/history.json", cfg.History.File)

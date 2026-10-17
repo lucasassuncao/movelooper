@@ -23,13 +23,12 @@ type Configuration struct {
 
 // Logging holds the log output settings.
 type Logging struct {
-	Output     string `yaml:"output" mapstructure:"output"`
-	Level      string `yaml:"level" mapstructure:"level"`
-	File       string `yaml:"file" mapstructure:"file"`
-	ShowCaller bool   `yaml:"show-caller" mapstructure:"show-caller"`
-	Format     string `yaml:"format,omitempty" mapstructure:"format"`
-	Color      string `yaml:"color,omitempty" mapstructure:"color"`
-	MaxWidth   int    `yaml:"max-width,omitempty" mapstructure:"max-width"`
+	Output   string `yaml:"output" mapstructure:"output"`
+	Level    string `yaml:"level" mapstructure:"level"`
+	File     string `yaml:"file" mapstructure:"file"`
+	Format   string `yaml:"format,omitempty" mapstructure:"format"`
+	Color    string `yaml:"color,omitempty" mapstructure:"color"`
+	MaxWidth int    `yaml:"max-width,omitempty" mapstructure:"max-width"`
 }
 
 // Watch holds the watch-mode settings.
@@ -111,11 +110,6 @@ func (Logging) Metadata() map[string]any {
 			Formats:     []string{"directory"},
 			Example:     "file: ~/movelooper.log",
 		},
-		"show-caller": meta{
-			Description: "Append the source file and line number to each log entry. Useful when debugging hooks or scanners.",
-			Default:     "false",
-			Example:     "show-caller: false",
-		},
 		"format": meta{
 			Description:  "Log rendering format. 'pretty' is the human-readable console renderer; 'json' emits structured slog JSON lines for log aggregation.",
 			OneOf:        []string{"pretty", "json"},
@@ -131,11 +125,11 @@ func (Logging) Metadata() map[string]any {
 			Example:      "color: auto",
 		},
 		"max-width": meta{
-			Description: "Maximum width, in columns, for wrapping pretty log lines. Ignored when format is json.",
-			Default:     "70",
-			Min:         "20",
+			Description: "Maximum width, in columns, for wrapping pretty log lines; 0 uses the terminal's width. Ignored when format is json.",
+			Default:     "0",
+			Min:         "0",
 			Max:         "500",
-			Example:     "max-width: 70",
+			Example:     "max-width: 120",
 		},
 	}
 }

@@ -549,13 +549,13 @@
               "type": "string"
             },
             "max-width": {
-              "default": "70",
-              "description": "Maximum width, in columns, for wrapping pretty log lines. Ignored when format is json.",
+              "default": "0",
+              "description": "Maximum width, in columns, for wrapping pretty log lines; 0 uses the terminal's width. Ignored when format is json.",
               "examples": [
-                "max-width: 70"
+                "max-width: 120"
               ],
               "maximum": 500,
-              "minimum": 20,
+              "minimum": 0,
               "type": "integer"
             },
             "output": {
@@ -571,14 +571,6 @@
                 "output: console"
               ],
               "type": "string"
-            },
-            "show-caller": {
-              "default": "false",
-              "description": "Append the source file and line number to each log entry. Useful when debugging hooks or scanners.",
-              "examples": [
-                "show-caller: false"
-              ],
-              "type": "boolean"
             }
           },
           "required": [

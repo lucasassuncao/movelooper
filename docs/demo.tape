@@ -43,7 +43,7 @@ Sleep 300ms
 Enter
 Sleep 1.5s
 
-# Navigate the sub-fields: logging → output → level → file → show-caller
+# Navigate the sub-fields: logging → output → level → file → format
 Down
 Sleep 400ms
 Down

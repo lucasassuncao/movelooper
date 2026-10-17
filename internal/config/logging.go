@@ -12,8 +12,6 @@ import (
 	"github.com/pterm/pterm"
 )
 
-const maxWidth = 70
-
 // writerBuilder is an interface for building log writers based on the configuration.
 type writerBuilder interface {
 	Writer(k *koanf.Koanf) (io.Writer, io.Closer, error)
@@ -60,11 +58,11 @@ func logWriterFactory(output string) writerBuilder {
 
 // ConfigureLogger configures the logger based on the configuration.
 // It returns a pretty (pterm) logger by default, or a structured JSON (slog)
-// logger when the format resolves to "json". formatOverride comes from the
-// --format flag and takes precedence over configuration.logging.format; an
-// empty override leaves the configured value in effect. The Closer must be
-// called on exit (non-nil only when writing to a file).
-func ConfigureLogger(k *koanf.Koanf, formatOverride string) (logger.Logger, io.Closer, error) {
+// logger when the format resolves to "json". formatOverride (--format) wins
+// over configuration.logging.format unless empty; showCaller (the hidden
+// --show-caller) adds each line's source. The Closer must be called on exit
+// (non-nil only when writing to a file).
+func ConfigureLogger(k *koanf.Koanf, formatOverride string, showCaller bool) (logger.Logger, io.Closer, error) {
 	output := k.String("configuration.logging.output")
 	strategy := logWriterFactory(output)
 
@@ -74,7 +72,6 @@ func ConfigureLogger(k *koanf.Koanf, formatOverride string) (logger.Logger, io.C
 	}
 
 	level := k.String("configuration.logging.level")
-	showCaller := k.Bool("configuration.logging.show-caller")
 
 	format := k.String("configuration.logging.format")
 	if formatOverride != "" {
@@ -90,16 +87,13 @@ func ConfigureLogger(k *koanf.Koanf, formatOverride string) (logger.Logger, io.C
 
 	applyColor(k.String("configuration.logging.color"), output)
 
-	width := k.Int("configuration.logging.max-width")
-	if width <= 0 {
-		width = maxWidth
-	}
-
+	// Unset or 0 is pterm's own terminal width: a fixed default cut long paths
+	// in the middle, since pterm wraps values that have no spaces.
 	plog := pterm.DefaultLogger.
 		WithCaller(showCaller).
 		WithLevel(parseLogLevel(level)).
 		WithWriter(w).
-		WithMaxWidth(width)
+		WithMaxWidth(k.Int("configuration.logging.max-width"))
 
 	return plog, closer, nil
 }

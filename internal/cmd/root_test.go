@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,6 +57,24 @@ func TestCategoryCompletion_EndToEnd(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, "images")
 	assert.Contains(t, out, "docs")
+}
+
+// TestShowCallerIsAHiddenFlag runs a dry run with --show-caller: the flag is
+// for development, so --help leaves it out, yet the logger still gets it.
+func TestShowCallerIsAHiddenFlag(t *testing.T) {
+	// Not parallel: RootCmd mutates package-global command state.
+	m := &models.Movelooper{}
+	root := RootCmd(m, "test")
+	f := root.PersistentFlags().Lookup("show-caller")
+	require.NotNil(t, f)
+	assert.True(t, f.Hidden)
+
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"--config", writeCompletionConfig(t), "--show-caller", "--dry-run"})
+	require.NoError(t, root.Execute())
+	plog, ok := m.Logger.(*pterm.Logger)
+	require.True(t, ok, "the default format is the pretty pterm logger")
+	assert.True(t, plog.ShowCaller)
 }
 
 // TestCategoryNameCompletion verifies that --category completion loads the config
