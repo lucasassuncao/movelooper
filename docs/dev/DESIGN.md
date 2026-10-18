@@ -52,7 +52,7 @@ Koanf is used only during startup. Once `AppBuilder.Build()` returns, the koanf 
 | `internal/updater` | Self-update logic (GitHub releases). |
 | `internal/lockfile` | OS-level advisory locks on a sidecar file, released automatically when the process exits. Serializes history writes and single-instance `watch` across processes. |
 
-**Dependency rule:** `logger`, `content`, and `lockfile` are leaf packages: they import nothing internal. `history` imports `lockfile`. `tokens` imports `content`. `models` imports `history`, `logger`, and `tokens` (to type `Movelooper` fields and validate template patterns). `fileops`, `filters`, `hooks`, and `scanner` import `models` and other leaves as needed. `config` imports `filters`, `tokens`, `history`, and `models`. `cmd` imports all of the above. The graph is strictly acyclic, with no upward imports.
+**Dependency rule:** `logger`, `content`, `lockfile`, `archive`, and `updater` are leaf packages: they import nothing internal. `history` imports `lockfile`. `tokens` imports `content`. `models` imports `history`, `logger`, and `tokens` (to type `Movelooper` fields and validate template patterns). `filters`, `hooks`, and `scanner` import `models` and leaves as needed; `fileops` also imports `filters`. `config` imports `filters`, `history`, `logger`, `models`, and `tokens`. `cmd` imports all of the above. The graph is strictly acyclic, with no upward imports.
 
 ---
 

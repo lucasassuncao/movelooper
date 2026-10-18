@@ -1,3 +1,5 @@
+##@ Test
+
 .PHONY: test test-watch test-coverage
 
 ## Run tests with gotestsum (testdox format)

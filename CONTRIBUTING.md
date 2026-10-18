@@ -37,25 +37,24 @@ Small fixes (typos, one-line corrections) can go straight to a pull request.
 
 ### PR checklist
 
-- [ ] `make all` passes locally (fmt, docs, lint, security, tests)
+- [ ] `make all` passes locally (fmt, docs, lint, security, tests, vulnerability scans)
 - [ ] New behaviour is covered by tests
-- [ ] `docs/dev/TESTS.md` updated for any new or removed test cases
 - [ ] `docs/dev/DESIGN.md` updated if a new architectural pattern or decision was introduced
 - [ ] Commit messages follow the project style (see below)
 
 ### Commit message style
 
-One short subject line in imperative mood, 50 characters or fewer. Add up to 3–5 terse bullet points in the body only when context is genuinely needed.
+[Conventional Commits](https://www.conventionalcommits.org): `type(scope): subject`, in imperative mood with no trailing period, plus an optional prose body that says why the change exists. The type decides where the commit appears in the release notes, so it matters. The full rule is in the [Development Guide](docs/dev/DEVELOPMENT.md#commit-messages).
 
 ```
-feat: add {hostname} template token to destination paths
+fix(undo): stop undo of a copy from deleting the last copy
 
-- add "hostname" entry to knownTokens in groupby.go
-- handle token in ResolveGroupBy and ResolveRename
-- cover both functions in table-driven tests
+Undoing a copy removes the file at the destination, which reverses the
+run only while the original is still at the source. Nothing checked
+that: deleting the original and then undoing left no copy at all, and
+editing the copy before an undo took the edits with it. Undo now keeps
+the file in both cases and warns; --force removes it anyway.
 ```
-
-No trailing period on the subject line.
 
 ---
 

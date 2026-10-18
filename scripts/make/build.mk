@@ -1,4 +1,6 @@
-.PHONY: build build-all release release-notes tag completions
+##@ Build and release
+
+.PHONY: build build-all release release-check release-notes notes tag completions
 
 ## Build binary with goreleaser (current platform only)
 build: $(GORELEASER)
@@ -15,10 +17,21 @@ release: $(GORELEASER) completions release-notes
 	@echo "Creating release..."
 	@$(GORELEASER) release --timeout 360s --release-notes=$(RELEASE_NOTES)
 
+# The release pipeline without publishing, so a broken .goreleaser.yaml shows up
+# here instead of in the workflow, after the tag is already public.
+## Validate .goreleaser.yaml and build a snapshot release into ./dist
+release-check: $(GORELEASER) completions
+	@$(GORELEASER) check
+	@$(GORELEASER) release --snapshot --clean
+
 # The tag at HEAD, so it matches what `make tag` wrote into the tag message.
 ## Write the git-cliff notes of the tag at HEAD into release-notes.md
 release-notes: $(GITCLIFF)
 	@$(GITCLIFF) --current --strip all -o $(RELEASE_NOTES)
+
+## Print the git-cliff notes that `make tag` would write for the untagged commits
+notes: $(GITCLIFF)
+	@$(GITCLIFF) --unreleased --strip all
 
 ## Create and push an annotated git tag with git-cliff notes (usage: make tag VERSION=v1.2.3)
 tag: $(GITCLIFF)

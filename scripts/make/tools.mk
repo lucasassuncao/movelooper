@@ -1,42 +1,58 @@
+##@ Tools
+
+.PHONY: tools clean-tools
+
 # Tool versions
+CADDY_VERSION         := v2.11.7
+GITCLIFF_VERSION      := v2.14.2
+GOCOBERTURA_VERSION   := latest
 GOLANGCI_LINT_VERSION := v2.14.0
 GOMARKDOC_VERSION     := v1.1.0
 GORELEASER_VERSION    := v2.15.2
-GOTESTSUM_VERSION     := v1.13.0
 GOSEC_VERSION         := v2.29.1-0.20261012130337-71577268350e
-GOCOBERTURA_VERSION   := latest
-SYFT_VERSION          := v1.51.1
-GRYPE_VERSION         := v0.118.0
+GOTESTSUM_VERSION     := v1.13.0
 GOVULNCHECK_VERSION   := v1.9.0
-GITCLIFF_VERSION      := v2.14.2
+GRYPE_VERSION         := v0.118.0
+PSSA_VERSION          := 1.25.0
+SHELLCHECK_VERSION    := v0.11.0
+SYFT_VERSION          := v1.51.1
 
 # Tools are installed into ./.gobin (gitignored) rather than taken from PATH,
 # so every target runs the version pinned above and never whatever happens to
 # be installed system-wide. Each tool is a file target: the first target that
 # needs it installs it, later runs reuse it. Bumping a version above does not
-# invalidate an already installed binary - run `make tools-clean` first.
+# invalidate an already installed binary - run `make clean-tools` first.
 GOBIN_DIR := $(CURDIR)/.gobin
 
-GORELEASER  := $(GOBIN_DIR)/goreleaser$(EXE)
-GOLANGCI    := $(GOBIN_DIR)/golangci-lint$(EXE)
-GOMARKDOC   := $(GOBIN_DIR)/gomarkdoc$(EXE)
-GOTESTSUM   := $(GOBIN_DIR)/gotestsum$(EXE)
-GOSEC       := $(GOBIN_DIR)/gosec$(EXE)
-GOCOBERTURA := $(GOBIN_DIR)/gocover-cobertura$(EXE)
-SYFT        := $(GOBIN_DIR)/syft$(EXE)
-GRYPE       := $(GOBIN_DIR)/grype$(EXE)
-GOVULNCHECK := $(GOBIN_DIR)/govulncheck$(EXE)
+# git-cliff is used to generate release notes and tag messages.
 GITCLIFF    := $(GOBIN_DIR)/git-cliff$(EXE)
 
-TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(SYFT) $(GRYPE) $(GOVULNCHECK) $(GITCLIFF)
+# go tools for testing, linting, and documentation generation.
+GOCOBERTURA := $(GOBIN_DIR)/gocover-cobertura$(EXE)
+GOLANGCI    := $(GOBIN_DIR)/golangci-lint$(EXE)
+GOMARKDOC   := $(GOBIN_DIR)/gomarkdoc$(EXE)
+GORELEASER  := $(GOBIN_DIR)/goreleaser$(EXE)
+GOSEC       := $(GOBIN_DIR)/gosec$(EXE)
+GOTESTSUM   := $(GOBIN_DIR)/gotestsum$(EXE)
+GOVULNCHECK := $(GOBIN_DIR)/govulncheck$(EXE)
 
-# `go install` takes its destination from GOBIN in the environment and has no
-# flag for it, so the tool rules - and only those - export it. A file-wide
-# export would also redirect `install`, which is meant to put movelooper in the
-# user's own GOBIN.
+# tools for generating SBOMs and scanning for vulnerabilities
+GRYPE       := $(GOBIN_DIR)/grype$(EXE)
+SYFT        := $(GOBIN_DIR)/syft$(EXE)
+
+# linters for scripts/bash and scripts/pwsh. PSScriptAnalyzer is a pwsh module,
+# saved as <name>/<version>, and its manifest is what Import-Module takes.
+SHELLCHECK  := $(GOBIN_DIR)/shellcheck$(EXE)
+PSSA        := $(GOBIN_DIR)/PSScriptAnalyzer/$(PSSA_VERSION)/PSScriptAnalyzer.psd1
+
+# caddy serves the docs site locally.
+CADDY       := $(GOBIN_DIR)/caddy$(EXE)
+
+TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(SYFT) $(GRYPE) $(GOVULNCHECK) $(GITCLIFF) $(SHELLCHECK) $(PSSA) $(CADDY)
+
+# `go install` takes its destination from GOBIN in the environment and has no flag for it, so the tool rules - and only those - export it. A file-wide
+# export would also redirect `install`, which is meant to put movelooper in the user's own GOBIN.
 $(TOOLS): export GOBIN = $(GOBIN_DIR)
-
-.PHONY: tools clean-tools
 
 $(GORELEASER):
 	@echo "Installing goreleaser $(GORELEASER_VERSION)..."
@@ -77,6 +93,18 @@ $(GOVULNCHECK):
 $(GITCLIFF):
 	@echo "Installing git-cliff $(GITCLIFF_VERSION)..."
 	@$(call script,install-git-cliff) $(GITCLIFF_VERSION) $(GOBIN_DIR)
+
+$(SHELLCHECK):
+	@echo "Installing shellcheck $(SHELLCHECK_VERSION)..."
+	@$(call script,install-shellcheck) $(SHELLCHECK_VERSION) $(GOBIN_DIR)
+
+$(PSSA):
+	@echo "Installing PSScriptAnalyzer $(PSSA_VERSION)..."
+	@$(call script,install-psscriptanalyzer) $(PSSA_VERSION) $(GOBIN_DIR)
+
+$(CADDY):
+	@echo "Installing caddy $(CADDY_VERSION)..."
+	@go install github.com/caddyserver/caddy/v2/cmd/caddy@$(CADDY_VERSION)
 
 ## Install every pinned tool into ./.gobin
 tools: $(TOOLS)

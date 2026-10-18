@@ -1,5 +1,5 @@
-# Prints the help of every makefile passed as an argument: a `## text` line
-# documents the target on the line right below it, and nothing else does.
+# Prints the help of every makefile passed as an argument, in order: a `##@ text`
+# line starts a section, and a `## text` line documents the target right below it.
 param([Parameter(ValueFromRemainingArguments)][string[]]$Files)
 $ErrorActionPreference = 'Stop'
 
@@ -8,21 +8,22 @@ if (-not $Files) {
     exit 2
 }
 
-$entries = foreach ($file in $Files) {
+$sections = 0
+foreach ($file in $Files) {
     $desc = $null
     foreach ($line in Get-Content -LiteralPath $file) {
+        if ($line -match '^##@ (.+)') {
+            if ($sections++) { Write-Host '' }
+            Write-Host "$($PSStyle.Bold)$($Matches[1])$($PSStyle.Reset)"
+            continue
+        }
         if ($line -match '^## (.+)') {
             $desc = $Matches[1]
             continue
         }
         if ($desc -and $line -match '^([a-zA-Z_-]+):') {
-            [pscustomobject]@{ Target = $Matches[1]; Description = $desc }
+            Write-Host ('  {0}{1,-20}{2} {3}' -f $PSStyle.Foreground.Cyan, $Matches[1], $PSStyle.Reset, $desc)
         }
         $desc = $null
     }
-}
-
-foreach ($entry in $entries | Sort-Object Target) {
-    Write-Host -NoNewline -ForegroundColor Cyan ('{0,-20}' -f $entry.Target)
-    Write-Host (' ' + $entry.Description)
 }

@@ -1,3 +1,5 @@
+##@ Security
+
 .PHONY: security govulncheck sbom vuln
 
 ## Run security analysis with gosec

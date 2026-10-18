@@ -1,4 +1,6 @@
-.PHONY: deps fmt lint docs install run
+##@ Go
+
+.PHONY: deps fmt lint install run
 
 ## Download and tidy dependencies
 deps:
@@ -12,12 +14,6 @@ fmt:
 ## Run linter checks
 lint: $(GOLANGCI)
 	@$(GOLANGCI) -v run ./...
-
-## Generate package docs (gomarkdoc) and config reference (generate-docs)
-docs: $(GOMARKDOC)
-	@$(call script,package-docs) $(GOMARKDOC) https://github.com/lucasassuncao/movelooper main ./internal/...
-	@go run $(MAIN_PATH) generate-docs
-	@echo ""
 
 ## Install binary globally
 install:

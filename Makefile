@@ -1,3 +1,5 @@
+.PHONY: help check-scripts all clean
+
 # Targets live in scripts/make/*.mk, one file per area. A recipe that needs more
 # than portable commands calls a script instead, and every script exists in both
 # scripts/bash and scripts/pwsh with the same name and arguments.
@@ -39,27 +41,26 @@ MAKE_DIR := scripts/make
 include $(MAKE_DIR)/tools.mk
 include $(MAKE_DIR)/go.mk
 include $(MAKE_DIR)/build.mk
+include $(MAKE_DIR)/docs.mk
 include $(MAKE_DIR)/test.mk
 include $(MAKE_DIR)/security.mk
 
-.PHONY: help check-scripts all clean
 
-# A `## text` line right above a target is its help entry. make appends every
-# included file to MAKEFILE_LIST, so help sees the targets of all of them.
+# A `##@ text` line starts a help section and a `## text` line right above a
+# target is its entry. make appends every included file to MAKEFILE_LIST, in
+# include order, so help shows the sections of all of them in that order.
+##@ General
+
 ## Show this help message
 help:
 	@$(call script,help) $(MAKEFILE_LIST)
 
-## Fail if a script in scripts/bash or scripts/pwsh has no twin in the other
-check-scripts:
+## Check that every script has a twin, then lint them (shellcheck, PSScriptAnalyzer)
+check-scripts: $(SHELLCHECK) $(PSSA)
 	@$(call script,check-parity) scripts/bash scripts/pwsh
+	@$(call script,lint-scripts) $(SHELLCHECK) $(PSSA) scripts/bash scripts/pwsh
 
-# Local, deterministic checks first, so a failure points at the code. The
-# supply-chain scans go last because they are the only steps that need the
-# network: govulncheck and grype both fetch a vulnerability database, and a
-# hiccup there should not mask a lint or test failure. govulncheck runs before
-# grype so the reachability answer is printed even when grype fails the build
-# on an advisory this binary never executes.
+## Run every check: deps, fmt, docs, lint, security, tests and vulnerability scans
 all: deps fmt docs lint security test-coverage govulncheck sbom vuln
 
 ## Remove build artifacts, installed tools and cache

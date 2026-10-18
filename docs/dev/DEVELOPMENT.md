@@ -25,8 +25,10 @@ Practical reference for contributing to movelooper. Covers setup, daily workflow
 | Go | 1.27.0+ | Build and test |
 | Make | any | Task runner |
 | Git | any | Version control |
+| PowerShell (`pwsh`) | 7.4+ | Runs `scripts/pwsh` on Windows; `make check-scripts` needs it on every OS |
+| VHS, ttyd, ffmpeg | any | Only for `make demo` |
 
-All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype, git-cliff) are pinned in `scripts/make/tools.mk` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in `scripts/make/tools.mk` does not invalidate an already installed binary, run `make tools-clean` first.
+All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype, git-cliff, shellcheck, PSScriptAnalyzer, caddy) are pinned in `scripts/make/tools.mk` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in `scripts/make/tools.mk` does not invalidate an already installed binary, run `make clean-tools` first.
 
 ---
 
@@ -71,13 +73,18 @@ make security        # gosec static analysis
 make sbom            # CycloneDX SBOM of the dependency tree (syft)
 make vuln            # scan the SBOM for known vulnerabilities (grype)
 make docs            # regenerate package READMEs (gomarkdoc) + config reference (generate-docs)
+make serve-docs      # serve the docs site on http://localhost:8080 (caddy)
+make demo            # record examples/demo/demo.gif from demo.tape (vhs)
 make deps            # go mod download && go mod tidy
+make notes           # print the git-cliff notes the next `make tag` would write
 make tag             # create and push an annotated tag with git-cliff notes (VERSION=v1.2.3)
 make release-notes   # git-cliff notes of the tag at HEAD into release-notes.md (cliff.toml)
+make release-check   # goreleaser check + a local snapshot release into dist/
+make check-scripts   # every script has a twin, shellcheck and PSScriptAnalyzer pass
 make tools           # install every pinned tool into ./.gobin
-make tools-clean     # remove ./.gobin so the next target reinstalls the pinned tools
+make clean-tools     # remove ./.gobin so the next target reinstalls the pinned tools
 make clean           # remove build artifacts, installed tools and cache
-make all             # deps + fmt + docs + lint + security + test-coverage + sbom + vuln
+make all             # deps + fmt + docs + lint + security + test-coverage + govulncheck + sbom + vuln
 ```
 
 ### Before committing
@@ -92,16 +99,20 @@ CI enforces formatting, dependency tidiness, tests, lint, security, and generate
 
 ### Commit messages
 
-- One short subject line (imperative mood, 50 chars or fewer)
-- Up to 3–5 terse bullet points in the body when context is needed
-- No trailing period on the subject line
+Commits follow [Conventional Commits](https://www.conventionalcommits.org): `type(scope): subject`. The type is not decoration: git-cliff groups the tag and release notes by it (`cliff.toml`), so a commit lands under Features, Bug Fixes, Refactor, Performance, Documentation, Build, CI, Tests, Chores or, without a type, Other.
+
+- **Type:** `feat`, `fix`, `refactor`, `perf`, `docs`, `build`, `ci`, `test` or `chore`, picked by what the change does for whoever uses the code.
+- **Scope:** optional, the area touched (`config`, `fileops`, `release`...). Reuse a scope already in `git log` rather than inventing a synonym.
+- **Breaking change:** `!` before the colon (`feat(config)!: ...`), and the body says what users must change.
+- **Subject:** imperative mood, lowercase after the colon, no trailing period, around 50 characters.
+- **Body:** optional prose, wrapped at about 72 columns, saying why the change exists: the bug's mechanism, the constraint behind the approach, what was ruled out. The diff already shows what changed. The whole message reaches the release page, so the body is written for its readers too.
 
 ```
-refactor: replace dispatchAction switch with FileAction Strategy registry
+feat(release): write tag and release notes with git-cliff
 
-- add FileAction interface and moveAction/copyAction/symlinkAction structs
-- register in fileActions map; unknown names fall back to move
-- remove fmt.Errorf("unknown action") path
+goreleaser's changelog kept only each commit's subject, so the body,
+where the reason for a change lives, never reached the release page.
+git-cliff now renders every commit with its whole message.
 ```
 
 ---
@@ -120,7 +131,7 @@ go test ./internal/fileops/... -run TestMoveFiles -v   # single package, filtere
 ### Test organisation
 
 - Tests live in the **same package** as the code they test (e.g. `package fileops`, not `package fileops_test`). This allows testing unexported functions directly, which is intentional, internal invariants are worth testing.
-- Each package has one or more `*_test.go` files. Extra test files (e.g. `fileops_extra_test.go`, `filters_extra_test.go`) group related tests that would make the main test file too long.
+- Each source file has its own test file (`scan.go` → `scan_test.go`), so tests live next to the code they exercise. There are no catch-all test files; when a test file grows too long, the source file usually wants splitting too.
 - The `internal/cmd/integration_test.go` file contains end-to-end tests that exercise the full command flow against real temporary directories.
 
 ### Writing tests
@@ -178,16 +189,7 @@ assert.Equal(t, want, got)    // collect all assertion failures, then report
 
 ### Packages and imports
 
-Follow the existing dependency rule (see [`DESIGN.md`](DESIGN.md) §2):
-
-```
-logger, content, history → (nothing internal)
-tokens → content
-models → logger, history, tokens
-fileops, filters, hooks, scanner → models (+ leaves as needed)
-config → models, filters, tokens, history
-cmd → all of the above
-```
+Follow the dependency rule in [`DESIGN.md`](DESIGN.md) §2: leaf packages import nothing internal, `cmd` imports everything, and nothing imports upward. It lives only there, so it cannot drift from a copy.
 
 Import groups in each file follow standard Go convention (enforced by `gofmt`/`gci`):
 
@@ -240,7 +242,7 @@ Run `make lint` before opening a PR. The CI pipeline will fail if lint errors ar
 - [ ] Read [`DESIGN.md`](DESIGN.md) to understand where the change belongs
 - [ ] Follow the extension guides in [`DESIGN.md`](DESIGN.md) §6 for registries and the builder
 - [ ] Write tests before or alongside the implementation (TDD preferred)
-- [ ] Run `make all` (deps + fmt + docs + lint + security + test-coverage + sbom + vuln) before pushing
+- [ ] Run `make all` (deps + fmt + docs + lint + security + test-coverage + govulncheck + sbom + vuln) before pushing
 - [ ] Update [`DESIGN.md`](DESIGN.md) if a new pattern or architectural decision is introduced
 
 ### Where to put new code
@@ -259,19 +261,18 @@ Run `make lint` before opening a PR. The CI pipeline will fail if lint errors ar
 
 ## 7. CI pipeline
 
-The CI workflow (`.github/workflows/ci.yml`) runs on every push and pull request to `main`. Steps run in order:
+The CI workflow (`.github/workflows/ci.yml`) runs on every push and pull request to `main`. Its jobs run in parallel:
 
-| Step | Command | What it checks |
+| Job | Runs on | Steps |
 |---|---|---|
-| Dependencies | `go mod tidy` + `git diff` | `go.mod` and `go.sum` are up to date |
-| Format | `make fmt` + `git diff` | All code is `gofmt`-formatted |
-| Docs | `make docs` + `git diff` | Package README files are regenerated and committed |
-| Lint | `make lint` | golangci-lint passes |
-| Test | `make test-coverage` | All tests pass; coverage report uploaded as artifact |
-| Security | `make security` | gosec finds no medium+ severity issues |
-| Supply chain | `make vuln` | grype finds no medium+ severity CVEs in dependencies; SBOM uploaded as artifact |
+| Checks | Linux | `go mod tidy`, `make fmt` and `make docs`, each followed by `git diff`, so an uncommitted result fails the job |
+| Test | Linux, Windows, macOS | `make lint`, `make security` (gosec, medium+) and `make test-coverage`; coverage uploaded as artifact |
+| Supply chain | Linux | `make govulncheck` (vulnerabilities reachable from this code), then `make vuln` (grype, medium+); SBOM uploaded as artifact |
+| Deploy GitHub Pages | Linux | Publishes the docs site once Checks passes; never on pull requests |
 
-**All steps must pass before merging.** There are no exceptions.
+Lint and security run on every OS because Go only compiles the files of the target platform, so `*_windows.go` and `*_unix.go` are only analyzed on their own OS.
+
+**Checks, Test and Supply chain must pass before merging.** There are no exceptions. A red Supply chain job with nothing changed in the repo usually means a CVE was published against a dependency.
 
 If the docs check fails, run `make docs` locally, review the diff, and commit the result.
 
@@ -288,11 +289,12 @@ Releases are managed with goreleaser and GitHub Actions. Binaries are built for:
 ### Creating a release
 
 1. Ensure `main` is clean and all CI checks pass.
-2. Create and push an annotated tag:
+2. Optionally preview: `make notes` prints the tag message body, and `make release-check` runs the release pipeline without publishing.
+3. Create and push an annotated tag:
    ```bash
    make tag VERSION=v1.2.3
    ```
-3. The release workflow picks up the tag, builds all platform binaries, and publishes the GitHub release automatically.
+4. The release workflow picks up the tag, builds all platform binaries, and publishes the GitHub release automatically.
 
 ### Version naming
 
@@ -308,21 +310,13 @@ Pre-release versions (`-alpha`, `-beta`, `-rc.1`) are marked as pre-release on G
 
 ## 9. Serving the docs site locally
 
-The landing page is plain HTML and works directly from the filesystem. The docs section (docsify) does not, it uses `fetch()` to load `.md` files at runtime, which browsers block on `file://` origins. A local HTTP server is required.
-
-Install [Caddy](https://caddyserver.com/docs/install). On Windows with Chocolatey:
-
-```powershell
-choco install caddy
-```
-
-Or download the binary from [caddyserver.com/download](https://caddyserver.com/download) and add it to `PATH`.
-
-From the repo root:
+The landing page is plain HTML and works directly from the filesystem. The docs section (docsify) does not, it uses `fetch()` to load `.md` files at runtime, which browsers block on `file://` origins. A local HTTP server is required:
 
 ```bash
-caddy file-server --root docs --listen :8080
+make serve-docs
 ```
+
+It installs the pinned [Caddy](https://caddyserver.com) into `./.gobin` on first use and serves `docs/` until you press Ctrl+C.
 
 | URL | Page |
 |---|---|
@@ -330,18 +324,3 @@ caddy file-server --root docs --listen :8080
 | `http://localhost:8080/pages/docs/` | Docs (docsify) |
 
 Caddy serves `docs/` as the HTTP root. The docsify entry point at `docs/pages/docs/index.html` is configured with `basePath: '../../'`, which resolves to the server root, so all markdown files are reachable directly at their `docs/`-relative paths.
-
-To avoid typing the flags every time, create a `Caddyfile` at the repo root:
-
-```
-:8080 {
-    root * docs
-    file_server
-}
-```
-
-Then just run:
-
-```bash
-caddy run
-```
