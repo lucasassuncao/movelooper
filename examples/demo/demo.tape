@@ -1,8 +1,7 @@
 # movelooper demo: one messy folder in, an organized tree out.
 #
-# Records the Downloads folder before, the run itself with --show-files, the
-# same folder after, and where everything ended up. The config it uses is
-# movelooper.yaml in this directory, which is the same example the README shows.
+# Records a single run with --show-files, whose output lists where every file
+# went. The config is movelooper.yaml in this directory, the README's example.
 #
 # Run from this directory, with movelooper on your PATH:
 #   vhs demo.tape
@@ -18,8 +17,8 @@ Require ffmpeg
 
 Set Shell         "powershell"
 Set FontSize      14
-Set Width         1400
-Set Height        900
+Set Width         1000
+Set Height        380
 Set Theme         "Catppuccin Mocha"
 Set Framerate     30
 Set PlaybackSpeed 1.0
@@ -34,6 +33,9 @@ Enter
 Type "New-Item -ItemType Directory -Force sandbox\Downloads | Out-Null"
 Enter
 Type "cd sandbox"
+Enter
+# A home inside the sandbox keeps the run's undo history out of ~/.movelooper.
+Type "$env:USERPROFILE = (Get-Location).Path"
 Enter
 Type "'fake jpeg bytes' | Set-Content Downloads\vacation.jpg"
 Enter
@@ -51,38 +53,10 @@ Type "clear"
 Enter
 Show
 
-# -- Before: six unsorted files -----------------------------------------------
-
-Type "# Downloads before movelooper runs"
-Enter
-Type "ls Downloads"
-Enter
-Sleep 4s
-
 # -- Organize -----------------------------------------------------------------
 
-Type "# Run movelooper, listing every file it touches"
-Enter
-Type "movelooper --config ..\movelooper.yaml --show-files"
-Enter
-Sleep 7s
-
-Type "clear"
-Enter
 Sleep 500ms
-
-# -- After: only what no rule claimed is left ---------------------------------
-
-Type "# Downloads after: only what no rule claimed"
+Type "movelooper --config ..\movelooper.yaml --show-files"
+Sleep 500ms
 Enter
-Type "ls Downloads"
-Enter
-Sleep 4s
-
-# -- Where everything went ----------------------------------------------------
-
-Type "# Where everything went"
-Enter
-Type "tree /F"
-Enter
-Sleep 6s
+Sleep 8s

@@ -41,7 +41,7 @@ Note: That file is `examples/demo/movelooper.yaml`, the exact config running in 
 
 <!-- markdownlint-disable MD033 -->
 <p align="left">
-  <img src="../examples/demo/demo.gif" alt="movelooper sorting a Downloads folder: the files before, the run with --show-files, and the resulting tree" width="100%">
+  <img src="../examples/demo/demo.gif" alt="movelooper sorting a Downloads folder with --show-files, which lists where every file went" width="100%">
 </p>
 <!-- markdownlint-enable MD033 -->
 
