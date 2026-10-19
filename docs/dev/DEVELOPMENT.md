@@ -73,7 +73,8 @@ make security        # gosec static analysis
 make sbom            # CycloneDX SBOM of the dependency tree (syft)
 make vuln            # scan the SBOM for known vulnerabilities (grype)
 make docs            # regenerate package READMEs (gomarkdoc) + config reference (generate-docs)
-make serve-docs      # serve the docs site on http://localhost:8080 (caddy)
+make stage-docs      # assemble the docs site into site/, as GitHub Pages publishes it
+make serve-docs      # stage-docs, then serve site/ on http://localhost:8080 (caddy)
 make demo            # record examples/demo/demo.gif from demo.tape (vhs)
 make deps            # go mod download && go mod tidy
 make notes           # print the git-cliff notes the next `make tag` would write
@@ -316,11 +317,11 @@ The landing page is plain HTML and works directly from the filesystem. The docs 
 make serve-docs
 ```
 
-It installs the pinned [Caddy](https://caddyserver.com) into `./.gobin` on first use and serves `docs/` until you press Ctrl+C.
+It first runs `make stage-docs`, which assembles the site into `site/`: the contents of `docs/pages/` as the root, the markdown files of `docs/` next to them, the `docs/movelooper/` and `docs/dev/` folders, and `examples/demo/demo.gif`. Then it installs the pinned [Caddy](https://caddyserver.com) into `./.gobin` on first use and serves `site/` until you press Ctrl+C.
 
 | URL | Page |
 |---|---|
-| `http://localhost:8080/pages/` | Landing page |
-| `http://localhost:8080/pages/docs/` | Docs (docsify) |
+| `http://localhost:8080/` | Landing page |
+| `http://localhost:8080/docs/` | Docs (docsify) |
 
-Caddy serves `docs/` as the HTTP root. The docsify entry point at `docs/pages/docs/index.html` is configured with `basePath: '../../'`, which resolves to the server root, so all markdown files are reachable directly at their `docs/`-relative paths.
+The Deploy GitHub Pages job runs the same `make stage-docs` and publishes `site/`, so the local preview has the layout of the published site. Edit the files under `docs/` and `examples/`, never under `site/`: it is rebuilt from scratch on every run.

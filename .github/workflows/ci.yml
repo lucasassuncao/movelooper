@@ -195,15 +195,8 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v4
 
-      - name: Prepare site content
-        run: |
-          cp docs/_sidebar.md docs/pages/
-          find docs -maxdepth 1 -name "*.md" -exec cp {} docs/pages/ \;
-          [ -f docs/pages/commands.md ] && mv docs/pages/commands.md docs/pages/COMMANDS.md || true
-          cp -r docs/movelooper docs/pages/
-          cp -r docs/dev docs/pages/
-          mkdir -p docs/pages/examples/demo
-          cp examples/demo/demo.gif docs/pages/examples/demo/
+      - name: Stage site
+        run: make stage-docs
 
       - name: Delete stale artifacts
         env:
@@ -216,7 +209,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/pages/
+          path: site/
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -33,6 +33,7 @@ SBOM_FILE       := sbom.json
 COVERAGE_DIR    := coverage
 COMPLETIONS_DIR := completions
 RELEASE_NOTES   := release-notes.md
+SITE_DIR        := site
 
 MAKE_DIR := scripts/make
 
@@ -65,6 +66,6 @@ all: deps fmt docs lint security test-coverage govulncheck sbom vuln
 
 ## Remove build artifacts, installed tools and cache
 clean: clean-tools
-	@$(call script,remove) $(BUILD_DIR) dist $(COVERAGE_DIR) $(COMPLETIONS_DIR) $(SBOM_FILE) $(RELEASE_NOTES)
+	@$(call script,remove) $(BUILD_DIR) dist $(COVERAGE_DIR) $(COMPLETIONS_DIR) $(SBOM_FILE) $(RELEASE_NOTES) $(SITE_DIR)
 	@echo "Cleaning Go build and test cache..."
 	@go clean -cache -testcache
