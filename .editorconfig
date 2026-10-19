@@ -22,9 +22,31 @@ indent_size = 2
 indent_style = tab
 indent_size = 4
 
-[Makefile]
+[{Makefile,*.mk}]
 indent_style = tab
 indent_size = 4
 
-[*.{sum,tape,png,gitignore}]
+[*.sh]
+indent_style = tab
+indent_size = 4
+
+[*.ps1]
+indent_style = space
+indent_size = 4
+
+[*.toml]
+indent_style = space
+indent_size = 2
+
+[Dockerfile]
+indent_style = space
+indent_size = 4
+
+[*.{png,gif,jpg,ico}]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+
+[*.tape]
 trim_trailing_whitespace = false
