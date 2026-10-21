@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/knadh/koanf/parsers/yaml"
@@ -8,6 +9,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/yedit/presets"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	yamlv3 "go.yaml.in/yaml/v3"
@@ -32,6 +34,23 @@ func TestDocPresets_AreValidConfigs(t *testing.T) {
 			_, err = config.UnmarshalConfig(k)
 			assert.NoErrorf(t, err, "doc preset %q must be a valid config", name)
 		})
+	}
+}
+
+// TestPresets_IndentWithTwoSpaces guards the editor's style: presets land in
+// the file as they are, so they must use the 2 spaces yedit writes edits with.
+func TestPresets_IndentWithTwoSpaces(t *testing.T) {
+	t.Parallel()
+	sources := map[string]presets.Source{"doc": MovelooperDocPresets, "block": MovelooperBlockPresets}
+	for kind, src := range sources {
+		for _, field := range src.ListFields() {
+			for _, name := range src.ListPresets(field) {
+				y, err := src.PresetYAML(field, name)
+				require.NoError(t, err)
+				second := strings.SplitN(y, "\n", 3)[1]
+				assert.Regexpf(t, `^  \S`, second, "%s preset %q:\n%s", kind, name, y)
+			}
+		}
 	}
 }
 

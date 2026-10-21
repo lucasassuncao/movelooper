@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -11,10 +12,40 @@ import (
 	"github.com/lucasassuncao/yedit/presets"
 )
 
-var MovelooperBlockPresets = presets.Combine(
+var MovelooperBlockPresets presets.Source = twoSpaces{presets.Combine(
 	presets.ForField("configuration", configurationPresetsMap()),
 	presets.ForField("categories", categoriesPresetsMap()),
-)
+)}
+
+// twoSpaces re-encodes another source's presets with 2-space indentation, the
+// editor's own style; presets land in the file as they are.
+type twoSpaces struct{ presets.Source }
+
+func (s twoSpaces) PresetYAML(field, name string) (string, error) {
+	raw, err := s.Source.PresetYAML(field, name)
+	if err != nil {
+		return "", err
+	}
+	var n yaml.Node
+	if err := yaml.Unmarshal([]byte(raw), &n); err != nil {
+		return "", err
+	}
+	return marshal(&n)
+}
+
+// marshal is v as YAML indented with 2 spaces.
+func marshal(v any) (string, error) {
+	var b strings.Builder
+	enc := yaml.NewEncoder(&b)
+	enc.SetIndent(2)
+	if err := enc.Encode(v); err != nil {
+		return "", err
+	}
+	if err := enc.Close(); err != nil {
+		return "", err
+	}
+	return b.String(), nil
+}
 
 // MovelooperDocPresets is a whole-document preset source for the root preset
 // picker (p). Each entry combines the base configuration with one of the
@@ -57,11 +88,11 @@ func buildDocPresets() *docPresetSource {
 
 	yamls := make(map[string]string, len(docs))
 	for _, name := range names {
-		raw, err := yaml.Marshal(docs[name])
+		raw, err := marshal(docs[name])
 		if err != nil {
 			continue
 		}
-		yamls[name] = string(raw)
+		yamls[name] = raw
 	}
 	return &docPresetSource{names: names, yamls: yamls}
 }
