@@ -12,10 +12,10 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
-	github.com/knadh/koanf/v2 v2.4.0
-	github.com/lucasassuncao/bezel v0.7.0
-	github.com/lucasassuncao/docgen v0.1.3
-	github.com/lucasassuncao/yedit v0.65.0
+	github.com/knadh/koanf/v2 v2.4.1
+	github.com/lucasassuncao/bezel v0.8.0
+	github.com/lucasassuncao/docgen v0.1.4
+	github.com/lucasassuncao/yedit v0.66.0
 	github.com/pterm/pterm v0.12.84
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
