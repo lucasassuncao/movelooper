@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
@@ -110,19 +109,13 @@ func (r *renameResolver) SkipMessage(ConflictArgs) string { return "" }
 type overwriteResolver struct{}
 
 func (r *overwriteResolver) Resolve(args ConflictArgs) (string, bool, FinalizeFunc, error) {
-	if runtime.GOOS == "windows" {
-		// os.Rename fails on Windows when the destination exists. Move it aside
-		// instead of deleting it, so a failed action can be rolled back.
-		finalize, err := swapAside(args.Dst)
-		if err != nil {
-			return "", false, nil, fmt.Errorf("failed to set aside destination file for overwrite: %w", err)
-		}
-		return args.Dst, true, finalize, nil
+	// Set aside on every platform: a copy or cross-device move truncates dst in
+	// place, so a failure partway would lose the file it was meant to replace.
+	finalize, err := swapAside(args.Dst)
+	if err != nil {
+		return "", false, nil, fmt.Errorf("failed to set aside destination file for overwrite: %w", err)
 	}
-	// On POSIX, os.Rename(src, dst) atomically replaces an existing dst,
-	// so no pre-removal is needed. Cross-device copyFile uses O_TRUNC which
-	// also overwrites safely without a prior remove.
-	return args.Dst, true, nil, nil
+	return args.Dst, true, finalize, nil
 }
 
 func (r *overwriteResolver) SkipMessage(ConflictArgs) string { return "" }

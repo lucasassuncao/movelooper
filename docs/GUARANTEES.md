@@ -12,11 +12,11 @@ The corollary matters just as much: because a run never argues with your config,
 
 ## What movelooper guarantees
 
-**Every completed move is recorded, and you are told when it is not.** Moves are recorded after they happen, in a history file, and `undo` replays them backwards. If the history cannot be written, movelooper says so and exits with a non-zero status. It never reports a clean success for moves it cannot undo.
+**Every completed move is recorded, and you are told when it is not.** Moves are recorded after they happen, in a history file, and `undo` replays them backwards. If the history cannot be written, movelooper says so and exits with a non-zero status. If it cannot even be opened, nothing is moved at all. It never reports a clean success for moves it cannot undo.
 
 **An interrupted run still records what it moved.** Press Ctrl+C during a run and movelooper stops starting new work, writes the history for the files it already moved, and prints the batch ID to undo them with.
 
-**A preview touches nothing.** `--dry-run` only reads. It resolves every destination, reports which of them already exist and what your conflict strategy will do to them, and writes nothing.
+**A preview touches nothing.** `--dry-run` only reads. It resolves every destination, reports which of them already exist and what your conflict strategy will do to them, and writes nothing. Hooks do not run either: the preview lists the commands they would run.
 
 **A file is never processed twice in one run.** Categories are matched in order and the first match claims the file.
 
@@ -33,6 +33,8 @@ The corollary matters just as much: because a run never argues with your config,
 **`action: archive` cannot be undone.** `undo` refuses archive batches. With `keep-source: false` the originals are deleted and the archive becomes the only copy. `validate` warns about this.
 
 **`hash_check` deletes duplicate sources.** When the destination already holds a byte-identical file, the source is removed. No content is lost (the bytes still exist at the destination), but the source file is gone.
+
+**Replacing strategies delete the file they replace.** With `overwrite`, `newest`, `oldest`, `larger`, or `smaller`, the file already at the destination is removed when the incoming one takes its place. That is what declaring them means. `undo` puts the incoming file back, but the replaced file is gone.
 
 **Two simultaneous runs are not coordinated.** The main command takes no lock, so a scheduled run and a manual run can overlap. Nothing is corrupted (a file is claimed by exactly one of them) and a file that another process already moved is not counted as a failure, but the work is not divided intelligently either.
 

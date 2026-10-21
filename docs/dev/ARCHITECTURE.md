@@ -47,7 +47,7 @@ flowchart TD
     Filter --> ForEach[For each enabled category]
 
     ForEach --> BeforeHook{Before hook\ndefined?}
-    BeforeHook -- yes --> RunBefore[Run before hook\nhooks.RunHook]
+    BeforeHook -- yes --> RunBefore[Run before hook\nhooks.RunHook\nonly logged on dry run]
     BeforeHook -- no --> Scan
     RunBefore --> Scan
 
@@ -65,13 +65,13 @@ flowchart TD
     NextExt -- yes --> ForExt
     NextExt -- no --> AfterHook{After hook\ndefined?}
 
-    AfterHook -- yes --> RunAfter[Run after hook\nML_FILES_MOVED env vars]
+    AfterHook -- yes --> RunAfter[Run after hook\nML_FILES_MOVED env vars\nonly logged on dry run]
     AfterHook -- no --> NextCat
     RunAfter --> NextCat
 
     NextCat{More categories?}
     NextCat -- yes --> ForEach
-    NextCat -- no --> Summary[Print summary\nmoved / size / failures]
+    NextCat -- no --> Summary[Print summary\nmoved / size / failures / batch ID]
     Summary --> End([done])
 ```
 
@@ -280,7 +280,7 @@ flowchart TD
     Strategy -- rename --> Rename[Append counter suffix\nfile.txt → file 1 .txt]
     Rename --> Proceed([proceed with new name])
 
-    Strategy -- overwrite --> Overwrite[Replace destination\nswap-aside on Windows for rollback]
+    Strategy -- overwrite --> Overwrite[Swap destination aside]
     Overwrite --> Proceed2([proceed, original name])
 
     Strategy -- hash_check --> Hash[Compare SHA-256 of source\nand destination]
@@ -311,4 +311,4 @@ flowchart TD
     SwapSmaller --> Proceed7([proceed, original name])
 ```
 
-> **Swap-aside**: for strategies that replace the destination (`overwrite`, `newest`, `oldest`, `larger`, `smaller`), the existing file is renamed to a temporary backup before the action runs. If the action fails, the backup is restored atomically.
+> **Swap-aside**: for strategies that replace the destination (`overwrite`, `newest`, `oldest`, `larger`, `smaller`), the existing file is renamed to a temporary backup before the action runs. If the action fails, the backup is restored atomically. If it succeeds, the backup is deleted: replacing the destination is what the strategy was declared for.

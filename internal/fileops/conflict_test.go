@@ -110,9 +110,7 @@ var testResolverTestCases = []testResolver{
 			writeFile(t, dst, []byte("old"))
 		},
 		resolve: (&overwriteResolver{}).Resolve,
-		// On POSIX os.Rename replaces atomically (dst left in place); on Windows
-		// Resolve moves dst aside under a backup. Either way resolved == dst.
-		want: testResolverWant{move: true, pathIsDst: true},
+		want:    testResolverWant{move: true, pathIsDst: true, dstRemoved: true},
 	},
 	{
 		name: "skip/does not move",
@@ -279,6 +277,28 @@ func TestSafeSwap(t *testing.T) {
 		assert.NoFileExists(t, dst)
 
 		// the action failed → finalize must restore the original destination.
+		require.NoError(t, finalize(true))
+		got, err := os.ReadFile(dst)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("original"), got)
+	})
+
+	// On Linux and macOS overwrite used to leave dst in place, so a copy that
+	// failed partway had already truncated the file it was meant to replace.
+	t.Run("overwrite sets the destination aside on every platform", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		src := filepath.Join(dir, "src.txt")
+		dst := filepath.Join(dir, "dst.txt")
+		writeFile(t, src, []byte("new"))
+		writeFile(t, dst, []byte("original"))
+
+		_, _, finalize, err := (&overwriteResolver{}).Resolve(
+			ConflictArgs{Src: src, Dst: dst, DestDir: dir, FileName: "dst.txt"})
+		require.NoError(t, err)
+		require.NotNil(t, finalize)
+
+		writeFile(t, dst, []byte("partial")) // what a copy that failed partway leaves
 		require.NoError(t, finalize(true))
 		got, err := os.ReadFile(dst)
 		require.NoError(t, err)

@@ -35,6 +35,7 @@ Both `before` and `after` are optional and independent.
 - `before` runs before any files are processed. If it fails with `on-failure: abort`, the entire category is skipped, no files are moved.
 - `after` runs after all files have been processed. If it fails, the files are already moved; only the hook result is affected.
 - Each command in `run` is a separate shell invocation. A non-zero exit from any command triggers `on-failure`.
+- With `--dry-run`, neither hook runs. The preview logs the commands each one would run instead.
 
 ---
 
@@ -47,7 +48,6 @@ Both `before` and `after` are optional and independent.
 | `ML_CATEGORY` | Category name as configured |
 | `ML_SOURCE_PATH` | Source directory path |
 | `ML_DEST_PATH` | Destination root path |
-| `ML_DRY_RUN` | `true` when running with `--dry-run`, `false` otherwise |
 | `ML_ACTION` | `move`, `copy`, or `symlink` |
 
 ### Available only in `after`
@@ -156,21 +156,5 @@ hooks:
         if ! /usr/local/bin/validate-files.sh "$ML_DEST_PATH"; then
           echo "Validation failed, undoing batch $ML_BATCH_ID"
           movelooper undo "$ML_BATCH_ID"
-        fi
-```
-
-### Dry-run awareness
-
-The `ML_DRY_RUN` variable lets you skip side effects during previews:
-
-```yaml
-hooks:
-  after:
-    shell: bash
-    on-failure: warn
-    run:
-      - |
-        if [ "$ML_DRY_RUN" = "false" ] && [ "$ML_FILES_MOVED" -gt 0 ]; then
-          curl -s https://example.com/webhook -d "moved=$ML_FILES_MOVED"
         fi
 ```

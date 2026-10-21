@@ -613,6 +613,31 @@ func requireSymlinks(t *testing.T, dir string) {
 	_ = os.Remove(probe)
 }
 
+// TestOverwriteWithSymlinkAction is a regression test: on Linux and macOS
+// overwrite left the existing file in place, and os.Symlink refused to replace it.
+func TestOverwriteWithSymlinkAction(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	requireSymlinks(t, dir)
+	src := filepath.Join(dir, "a.txt")
+	dst := filepath.Join(dir, "dst", "a.txt")
+	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0o750))
+	writeFile(t, src, []byte("new"))
+	writeFile(t, dst, []byte("old"))
+
+	mctx := newTestMoveContext()
+	resolved, skip, finalize, err := applyConflictStrategy(mctx, models.ConflictStrategyOverwrite, ConflictArgs{
+		Src: src, Dst: dst, DestDir: filepath.Dir(dst), FileName: "a.txt", Action: models.ActionSymlink,
+	})
+	require.NoError(t, err)
+	require.False(t, skip)
+	require.NoError(t, performAction(context.Background(), mctx, models.ActionSymlink, src, resolved, finalize))
+
+	info, err := os.Lstat(dst)
+	require.NoError(t, err)
+	assert.NotZero(t, info.Mode()&os.ModeSymlink, "the destination must now be the link")
+}
+
 // TestDanglingSymlinkAtDestination is a regression test for a destination name
 // held by a symlink whose target is gone. os.Stat follows the link and reports
 // the name free, so the conflict strategy never ran and the action landed on

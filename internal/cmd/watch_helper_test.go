@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,6 +24,18 @@ func TestCategoriesWithHooks(t *testing.T) {
 	}
 
 	assert.Equal(t, []string{"with-before", "with-after"}, categoriesWithHooks(cats))
+}
+
+// TestRunWatch_RefusesWithoutHistory: history enabled but not opened must stop
+// watch before it moves anything, since none of those moves could be undone.
+func TestRunWatch_RefusesWithoutHistory(t *testing.T) {
+	t.Parallel()
+	m := &models.Movelooper{Logger: newIntegrationLogger()}
+	m.Config.History.Enabled = true
+
+	err := runWatch(context.Background(), m, WatchOptions{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "history could not be initialized")
 }
 
 // TestResolveDestDir covers the watch-mode destination resolution: the plain

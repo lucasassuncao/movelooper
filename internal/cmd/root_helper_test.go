@@ -431,6 +431,124 @@ func TestRunMove_DryRunLeavesConflictingFilesUntouched(t *testing.T) {
 	assert.Empty(t, m.History.GetAllBatches())
 }
 
+// TestRunMove_RefusesWithoutHistory: with history enabled but not opened, a run
+// used to move everything and exit 0, leaving moves that could never be undone.
+// A dry-run moves nothing, so it still previews.
+func TestRunMove_RefusesWithoutHistory(t *testing.T) {
+	t.Parallel()
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("x"), 0o600))
+
+	m := buildIntegrationMovelooper(t, srcDir, dstDir, filepath.Join(t.TempDir(), "h.json"), []string{"jpg"})
+	m.History = nil
+	m.Config.History.Enabled = true
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{DryRun: true}))
+
+	err := runMove(context.Background(), m, MoveOptions{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "history could not be initialized")
+	assert.FileExists(t, filepath.Join(srcDir, "a.jpg"), "nothing may move without history")
+}
+
+// TestRunMove_PrintsBatchID: the summary names the batch, so the run can be
+// undone without digging it out of 'undo --list', and omits it when none exists.
+func TestRunMove_PrintsBatchID(t *testing.T) {
+	t.Parallel()
+
+	t.Run("in the run summary", func(t *testing.T) {
+		t.Parallel()
+		srcDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("x"), 0o600))
+		var buf bytes.Buffer
+		m := newBufMovelooper(t, &buf, []*models.Category{moveTestCategory("images", srcDir, t.TempDir(), "", []string{"jpg"})})
+
+		require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+		batches := m.History.GetAllBatches()
+		require.Len(t, batches, 1)
+		assert.Contains(t, buf.String(), batches[0].BatchID)
+	})
+
+	t.Run("not when nothing was recorded", func(t *testing.T) {
+		t.Parallel()
+		var buf bytes.Buffer
+		m := newBufMovelooper(t, &buf, []*models.Category{moveTestCategory("images", t.TempDir(), t.TempDir(), "", []string{"jpg"})})
+
+		require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+		assert.NotContains(t, buf.String(), "batch_id")
+	})
+}
+
+// TestRunMove_DryRunDoesNotRunHooks: a preview touches nothing, so a hook that
+// writes a file must not run; the dry-run logs its commands instead.
+func TestRunMove_DryRunDoesNotRunHooks(t *testing.T) {
+	t.Parallel()
+	srcDir := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "ran.txt")
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("x"), 0o600))
+
+	command := "echo ran > " + filepath.ToSlash(marker)
+	cat := moveTestCategory("images", srcDir, t.TempDir(), "", []string{"jpg"})
+	cat.Hooks = &models.CategoryHooks{
+		Before: &models.CategoryHook{OnFailure: "abort", Run: []string{command}},
+		After:  &models.CategoryHook{OnFailure: "abort", Run: []string{command}},
+	}
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{cat})
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{DryRun: true}))
+
+	assert.NoFileExists(t, marker, "hooks must not run in a dry-run")
+	out := buf.String()
+	assert.Contains(t, out, "would run the before hook")
+	assert.Contains(t, out, "would run the after hook")
+	assert.Contains(t, out, "echo ran")
+}
+
+// TestRunMove_FirstMatchClaimsTheFile: a file matched by an earlier category is
+// that category's, even when it does not move it. Before, a conflict skip or an
+// archive left the file free and the next category moved it as well.
+func TestRunMove_FirstMatchClaimsTheFile(t *testing.T) {
+	t.Parallel()
+
+	t.Run("skipped by the conflict strategy", func(t *testing.T) {
+		t.Parallel()
+		srcDir, dstA, dstB := t.TempDir(), t.TempDir(), t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("new"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dstA, "a.jpg"), []byte("old"), 0o600))
+
+		first := moveTestCategory("first", srcDir, dstA, "", []string{"jpg"})
+		first.Destination.ConflictStrategy = models.ConflictStrategySkip
+		second := moveTestCategory("second", srcDir, dstB, "", []string{"jpg"})
+		var buf bytes.Buffer
+		m := newBufMovelooper(t, &buf, []*models.Category{first, second})
+
+		require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+		assert.FileExists(t, filepath.Join(srcDir, "a.jpg"), "the skipped file stays where it was")
+		assert.NoFileExists(t, filepath.Join(dstB, "a.jpg"), "a later category must not take it")
+	})
+
+	t.Run("archived", func(t *testing.T) {
+		t.Parallel()
+		srcDir, dstA, dstB := t.TempDir(), t.TempDir(), t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.jpg"), []byte("x"), 0o600))
+
+		first := archiveTestCategory(srcDir, dstA, &models.ArchiveConfig{Format: "zip", Name: "{category}"})
+		second := moveTestCategory("second", srcDir, dstB, "", []string{"jpg"})
+		var buf bytes.Buffer
+		m := newBufMovelooper(t, &buf, []*models.Category{first, second})
+
+		require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+		assert.FileExists(t, filepath.Join(dstA, "images.zip"))
+		assert.FileExists(t, filepath.Join(srcDir, "a.jpg"), "keep-source leaves the archived file in place")
+		assert.NoFileExists(t, filepath.Join(dstB, "a.jpg"), "a later category must not take it")
+	})
+}
+
 // TestAppendPlannedMoves_DetectsExistingDestination pins the conflict detection
 // itself, independent of how it is logged.
 func TestAppendPlannedMoves_DetectsExistingDestination(t *testing.T) {

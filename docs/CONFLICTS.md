@@ -13,6 +13,8 @@ The `conflict-strategy` field in `destination` controls what happens when a file
 | `larger` | Keeps the larger file |
 | `smaller` | Keeps the smaller file |
 
+> `overwrite`, `newest`, `oldest`, `larger`, and `smaller` delete the file they replace. That is expected: declaring one of them is the decision to replace it. `undo` puts the incoming file back but cannot recover the replaced one, so check a new rule with `--dry-run` first.
+
 ---
 
 ## `rename`

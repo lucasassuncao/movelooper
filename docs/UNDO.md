@@ -67,6 +67,8 @@ Only entries from the specified categories are reverted. If the batch becomes em
 
 If the source file no longer exists at undo time, movelooper logs a warning and skips it. The rest of the batch is still restored.
 
+Undo cannot bring back a file that a replacing conflict strategy (`overwrite`, `newest`, `oldest`, `larger`, `smaller`) deleted at the destination. See [Conflict Strategies](/CONFLICTS.md).
+
 ## When undo refuses to delete a copy
 
 Undoing a `copy` deletes the file at the destination, which reverses the run only while the original is still where it came from. Two cases turn that deletion into a real loss, and movelooper holds back on both:
@@ -95,6 +97,8 @@ configuration:
     file: ~/.movelooper/history/movelooper.json    # custom path
     enabled: true                                  # set false to disable tracking entirely
 ```
+
+While `enabled` is true, a run or `watch` whose history file cannot be opened stops before moving anything, because none of those moves could be undone. `enabled: false` is the way to run without history.
 
 When `limit` is reached, the oldest batches are evicted automatically.
 

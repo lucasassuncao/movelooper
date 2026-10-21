@@ -20,8 +20,8 @@ import (
 	"github.com/pterm/pterm"
 )
 
-// movedSet tracks absolute paths that have already been moved in the current
-// batch, preventing a file from being claimed by more than one category.
+// movedSet tracks absolute paths already claimed by a category in the current
+// batch, whatever happened to them next, so no later category takes them again.
 type movedSet map[string]bool
 
 func (s movedSet) mark(dir, name string)     { s[filepath.Join(dir, name)] = true }
@@ -79,6 +79,11 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	if err != nil {
 		return err
 	}
+	if !opts.DryRun {
+		if err := requireHistory(m); err != nil {
+			return err
+		}
+	}
 
 	var stats runStats
 	var histBuf *history.Buffer
@@ -122,13 +127,16 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	// The history flush happens here, after the loop, on every exit path —
 	// including an interrupt — so files already moved stay undoable.
 	historyFailed := stats.historyFailed > 0
-	if histBuf != nil && histBuf.Len() > 0 {
+	recorded := histBuf != nil && histBuf.Len() > 0
+	if recorded {
 		if err := histBuf.Flush(m.History); err != nil {
 			historyFailed = true
 			m.Logger.Error("failed to record history; this run cannot be undone",
 				m.Logger.Args("error", err.Error(), "files", histBuf.Len()))
 		}
 	}
+	// The batch ID is only worth printing when there is a batch to undo.
+	undoable := recorded && !historyFailed
 
 	switch {
 	case interrupted:
@@ -137,8 +145,11 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	case opts.DryRun:
 		m.Logger.Info("dry-run complete, no files were moved")
 	default:
-		m.Logger.Info("run complete",
-			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "files_skipped", stats.filesSkipped, "categories_skipped", stats.skipped))
+		args := []any{"moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "files_skipped", stats.filesSkipped, "categories_skipped", stats.skipped}
+		if undoable {
+			args = append(args, "batch_id", batch.batchID)
+		}
+		m.Logger.Info("run complete", m.Logger.Args(args...))
 	}
 
 	// Surface failures through the exit code so scripts and cron can detect them.
@@ -146,9 +157,12 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	// only reported here after it completes.
 	switch {
 	case fatal != nil:
+		if undoable {
+			return fmt.Errorf("%w; the files moved before it stopped can be undone with 'movelooper undo %s'", fatal, batch.batchID)
+		}
 		return fatal
 	case interrupted:
-		if stats.totalFiles > 0 && !historyFailed {
+		if stats.totalFiles > 0 && undoable {
 			return fmt.Errorf("run interrupted: %d file(s) were already moved — undo them with 'movelooper undo %s'", stats.totalFiles, batch.batchID)
 		}
 		return errors.New("run interrupted")
@@ -160,9 +174,19 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	return nil
 }
 
+// requireHistory stops a run before it moves anything when history is enabled
+// but could not be opened (NewApp already logged why): those moves could never
+// be undone. history.enabled: false is the explicit way to run without it.
+func requireHistory(m *models.Movelooper) error {
+	if m.Config.History.Enabled && m.History == nil {
+		return errors.New("history could not be initialized, so nothing was moved: fix the error above or set configuration.history.enabled to false")
+	}
+	return nil
+}
+
 // hookEnv builds the environment variable map to inject into a hook process.
 // afterVars is non-nil only for "after" hooks.
-func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[string]string {
+func hookEnv(category *models.Category, after *hookAfterVars) map[string]string {
 	action := category.Destination.Action
 	if action == "" {
 		action = models.ActionMove
@@ -171,7 +195,6 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 		"ML_CATEGORY":    category.Name,
 		"ML_SOURCE_PATH": category.Source.Path,
 		"ML_DEST_PATH":   category.Destination.Path,
-		"ML_DRY_RUN":     strconv.FormatBool(dryRun),
 		"ML_ACTION":      string(action),
 	}
 	if after != nil {
@@ -186,11 +209,26 @@ func hookEnv(category *models.Category, dryRun bool, after *hookAfterVars) map[s
 	return env
 }
 
+// runCategoryHook runs one of a category's hooks. A dry-run only logs the
+// commands instead: a preview touches nothing, and a hook is not bound to that.
+func runCategoryHook(ctx context.Context, m *models.Movelooper, category *models.Category, stage string, hook *models.CategoryHook, dryRun bool, after *hookAfterVars) error {
+	if dryRun {
+		args := make([]any, 0, len(hook.Run)*2)
+		for _, command := range hook.Run {
+			args = append(args, "command", command)
+		}
+		label := pterm.Cyan(fmt.Sprintf("[%s]", category.Name))
+		m.Logger.Info(fmt.Sprintf("%s would run the %s hook", label, stage), m.Logger.Args(args...))
+		return nil
+	}
+	env := hookEnv(category, after)
+	return hooks.RunHook(ctx, hook, hooks.HookContext{Log: m.Logger, Stdout: os.Stdout, Stderr: os.Stderr}, env)
+}
+
 // processCategoryMove handles all extensions for a single category.
 func processCategoryMove(ctx context.Context, m *models.Movelooper, category *models.Category, batch moveBatch) error {
 	if category.Hooks != nil && category.Hooks.Before != nil {
-		env := hookEnv(category, batch.dryRun, nil)
-		if err := hooks.RunHook(ctx, category.Hooks.Before, hooks.HookContext{Log: m.Logger, Stdout: os.Stdout, Stderr: os.Stderr}, env); err != nil {
+		if err := runCategoryHook(ctx, m, category, "before", category.Hooks.Before, batch.dryRun, nil); err != nil {
 			return fmt.Errorf("before hook: %w", err)
 		}
 	}
@@ -209,11 +247,6 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		byExt[ext] = append(byExt[ext], fe)
 	}
 
-	// seen claims each file for the first extension in the list that matches it,
-	// so a file is never counted or moved twice when "all" is listed alongside
-	// specific extensions (the "all" pass would otherwise re-grab everything).
-	seen := make(map[string]bool, len(allEntries))
-
 	isArchive := category.Destination.Action == models.ActionArchive
 	pendingVerb, pastVerb := actionVerbs(category.Destination.Action)
 	var archiveFiles []scanner.FileEntry
@@ -225,7 +258,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 		if strings.EqualFold(extension, filters.ExtAll) {
 			candidates = allEntries
 		}
-		matched, matchedBytes := matchExtensionFiles(m, category, candidates, extension, batch, seen)
+		matched, matchedBytes := matchExtensionFiles(m, category, candidates, extension, batch)
 
 		asDirEntries := make([]os.DirEntry, len(matched))
 		for i, fe := range matched {
@@ -238,7 +271,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 			archiveFiles = append(archiveFiles, matched...)
 			archiveBytes += matchedBytes
 		case batch.dryRun:
-			previewExtensionMove(m, category, matched, extension, pendingVerb, batch)
+			previewExtensionMove(m, category, matched, extension, pendingVerb)
 		case len(matched) > 0:
 			t := moveMatchedFiles(ctx, m, category, matched, extension, batch)
 			totalMoved += t.moved
@@ -285,14 +318,14 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	batch.stats.filesSkipped += totalSkipped
 
 	if category.Hooks != nil && category.Hooks.After != nil {
-		env := hookEnv(category, batch.dryRun, &hookAfterVars{
+		after := &hookAfterVars{
 			moved:       totalMoved,
 			skipped:     totalSkipped,
 			failed:      totalFailed,
 			batchID:     batch.batchID,
 			archivePath: archivePath,
-		})
-		if err := hooks.RunHook(ctx, category.Hooks.After, hooks.HookContext{Log: m.Logger, Stdout: os.Stdout, Stderr: os.Stderr}, env); err != nil {
+		}
+		if err := runCategoryHook(ctx, m, category, "after", category.Hooks.After, batch.dryRun, after); err != nil {
 			return fmt.Errorf("after hook: %w", err)
 		}
 	}
@@ -309,25 +342,20 @@ func logSkippedDirs(m *models.Movelooper, categoryName string, skipped []scanner
 	}
 }
 
-// matchExtensionFiles returns the candidates that pass the category filters
-// for extension and were not claimed by an earlier extension pass, along with
-// their total size. Matched files are recorded in seen so the "all" sentinel
-// never re-grabs a file already taken by a specific extension.
-func matchExtensionFiles(m *models.Movelooper, category *models.Category, candidates []scanner.FileEntry, extension string, batch moveBatch, seen map[string]bool) ([]scanner.FileEntry, int64) {
+// matchExtensionFiles returns the candidates that pass the category filters for
+// extension, with their total size. A match is claimed on the spot, so no later
+// extension pass ("all") or category takes it again, whether it moves or not.
+func matchExtensionFiles(m *models.Movelooper, category *models.Category, candidates []scanner.FileEntry, extension string, batch moveBatch) ([]scanner.FileEntry, int64) {
 	matched := make([]scanner.FileEntry, 0, len(candidates))
 	var bytes int64
 	for _, fe := range candidates {
-		full := filepath.Join(fe.Dir, fe.Entry.Name())
-		if seen[full] {
-			continue
-		}
 		info, err := matchesCategory(category, fe, batch.moved, extension)
 		if err != nil {
 			m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
 			continue
 		}
 		if info != nil {
-			seen[full] = true
+			batch.moved.mark(fe.Dir, fe.Entry.Name())
 			matched = append(matched, fe)
 			bytes += info.Size()
 		}
@@ -335,13 +363,8 @@ func matchExtensionFiles(m *models.Movelooper, category *models.Category, candid
 	return matched, bytes
 }
 
-// previewExtensionMove logs the dry-run preview for one extension and claims
-// the files in the shared moved set, so a later category does not preview the
-// same file — mirroring how a real run claims them.
-func previewExtensionMove(m *models.Movelooper, category *models.Category, matched []scanner.FileEntry, extension, pendingVerb string, batch moveBatch) {
-	for _, fe := range matched {
-		batch.moved.mark(fe.Dir, fe.Entry.Name())
-	}
+// previewExtensionMove logs the dry-run preview for one extension.
+func previewExtensionMove(m *models.Movelooper, category *models.Category, matched []scanner.FileEntry, extension, pendingVerb string) {
 	plannedArgs, conflicts := appendPlannedMoves(nil, category, matched)
 	header := fmt.Sprintf("Would %s %d %s", pendingVerb, len(matched), fileNoun(extension, len(matched)))
 	logFileBlock(m, category.Name, header, plannedArgs)
@@ -464,11 +487,7 @@ func groupByDir(entries []scanner.FileEntry) map[string][]os.DirEntry {
 // moveExtensionWithResult moves files described by req and returns the MoveResult.
 func moveExtensionWithResult(ctx context.Context, m *models.Movelooper, req fileops.MoveRequest, batch moveBatch) fileops.MoveResult {
 	mctx := fileops.MoveContext{Logger: m.Logger, History: batch.recorder}
-	result := fileops.MoveFiles(ctx, mctx, req)
-	for _, name := range result.Moved {
-		batch.moved.mark(req.SourceDir, name)
-	}
-	return result
+	return fileops.MoveFiles(ctx, mctx, req)
 }
 
 // formatBytes converts a byte count to a human-readable string (e.g. "1.23 MB").

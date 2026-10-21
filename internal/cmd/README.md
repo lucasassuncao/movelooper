@@ -53,10 +53,10 @@ var GenerateCmd = &cobra.Command{
 <a name="MovelooperBlockPresets"></a>
 
 ```go
-var MovelooperBlockPresets = presets.Combine(
+var MovelooperBlockPresets presets.Source = twoSpaces{presets.Combine(
     presets.ForField("configuration", configurationPresetsMap()),
     presets.ForField("categories", categoriesPresetsMap()),
-)
+)}
 ```
 
 <a name="MovelooperDocPresets"></a>MovelooperDocPresets is a whole\-document preset source for the root preset picker \(p\). Each entry combines the base configuration with one of the available category presets.
@@ -200,7 +200,7 @@ var MovelooperValidators = []spec.Validator{
 ```
 
 <a name="CategoriesPreset"></a>
-## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1099>)
+## func [CategoriesPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1130>)
 
 ```go
 func CategoriesPreset(name string) []models.Category
@@ -218,7 +218,7 @@ func ConfigCmd() *cobra.Command
 ConfigCmd returns the "config" command for configuration utilities.
 
 <a name="ConfigurationPreset"></a>
-## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L638>)
+## func [ConfigurationPreset](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L669>)
 
 ```go
 func ConfigurationPreset(name string) *models.Configuration
@@ -245,7 +245,7 @@ func FilterCategories(all []*models.Category, names []string, includeDisabled bo
 FilterCategories returns the categories to process; it keeps enabled ones by default, includes disabled ones when requested, and errors on unknown names.
 
 <a name="ListOfCategoriesPresets"></a>
-## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1103>)
+## func [ListOfCategoriesPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L1134>)
 
 ```go
 func ListOfCategoriesPresets() []string
@@ -254,7 +254,7 @@ func ListOfCategoriesPresets() []string
 
 
 <a name="ListOfConfigurationPresets"></a>
-## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L642>)
+## func [ListOfConfigurationPresets](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit_presets.go#L673>)
 
 ```go
 func ListOfConfigurationPresets() []string

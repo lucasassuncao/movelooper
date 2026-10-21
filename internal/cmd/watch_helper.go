@@ -98,6 +98,9 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 		return err
 	}
 	m.Categories = filtered
+	if err := requireHistory(m); err != nil {
+		return err
+	}
 
 	release, err := acquireLockAt(watchLockPath())
 	if err != nil {

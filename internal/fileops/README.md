@@ -77,7 +77,7 @@ func UniqueDestination(destDir, fileName string) (string, error)
 UniqueDestination returns a path in destDir for fileName that does not collide with an existing file, appending \(n\) before the extension when needed.
 
 <a name="ConflictArgs"></a>
-## type [ConflictArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L15-L24>)
+## type [ConflictArgs](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L14-L23>)
 
 ConflictArgs carries the paths needed by a ConflictResolver.
 
@@ -95,7 +95,7 @@ type ConflictArgs struct {
 ```
 
 <a name="ConflictResolver"></a>
-## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L37-L40>)
+## type [ConflictResolver](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L36-L39>)
 
 ConflictResolver resolves a naming conflict when a destination file already exists. Resolve returns the final destination path, whether the move should proceed, an optional finalize callback \(nil when the destination is left untouched\), and any error encountered. When shouldMove is false the caller must skip the file. SkipMessage returns the log message to emit when shouldMove is false; "" means no log.
 
@@ -118,7 +118,7 @@ type FileAction interface {
 ```
 
 <a name="FinalizeFunc"></a>
-## type [FinalizeFunc](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L30>)
+## type [FinalizeFunc](<https://github.com/lucasassuncao/movelooper/blob/main/internal/fileops/conflict.go#L29>)
 
 FinalizeFunc commits or rolls back a destination that a resolver moved aside before the file action ran. It is invoked once the action completes: when failed is true the original destination is restored, otherwise the set\-aside copy is discarded. Resolvers that do not displace the destination return nil.
 

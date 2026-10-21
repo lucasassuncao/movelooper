@@ -112,7 +112,7 @@ With no config anywhere, `movelooper edit` starts a new one at `~/.movelooper/co
 
 ## Safety
 
-**Movelooper never destroys the last copy of a file.** Bytes are only removed where they demonstrably exist somewhere else: `hash_check` drops a source whose twin is already at the destination, and `archive` only deletes originals when you set `keep-source: false` and they are inside the archive. There is no delete rule, and nothing is destroyed to make room.
+**Movelooper never destroys the last copy of a file behind your back.** Bytes are only removed where they demonstrably exist somewhere else: `hash_check` drops a source whose twin is already at the destination, and `archive` only deletes originals when you set `keep-source: false` and they are inside the archive. The one exception is a strategy you declare to replace what is at the destination (`overwrite`, `newest`, `oldest`, `larger`, `smaller`): the replaced file is deleted, and `undo` cannot bring it back. There is no delete rule.
 
 Every completed move is recorded in `~/.movelooper/history/movelooper.json`, and `undo` replays any batch backwards. If the history cannot be written, movelooper says so and exits non-zero instead of reporting a success you cannot reverse. An interrupted run still records what it moved.
 

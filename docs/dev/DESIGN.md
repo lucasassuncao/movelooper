@@ -176,7 +176,7 @@ runMove(ctx, m, ...)
           └── hooks.RunHook(ctx, category.Hooks.After, ...)    ← optional
 ```
 
-The `movedSet` in `runMove` tracks absolute paths already processed in the current batch. A file claimed by the first matching category cannot be claimed again by a later one.
+The `movedSet` in `runMove` tracks absolute paths already claimed in the current batch. A file is claimed the moment it matches a category, whether that category then moves, skips, or archives it, and a later category cannot claim it again.
 
 ---
 
