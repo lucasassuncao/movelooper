@@ -12,6 +12,25 @@ type Config struct {
 	Categories []Category `yaml:"categories" mapstructure:"categories"`
 }
 
+// ImportFile is a file listed under import: categories added to the config
+// that imports it, and imports of its own. It has no configuration block.
+type ImportFile struct {
+	Import     []string   `yaml:"import,omitempty"`
+	Categories []Category `yaml:"categories"`
+}
+
+func (ImportFile) Metadata() map[string]any {
+	return map[string]any{
+		"import": meta{
+			Description: "Other YAML files whose categories are merged into this one. Paths are relative to this file, unless absolute or starting with ~. In the editor, Ctrl+O picks a file and Enter opens one.",
+			Example:     "import:\n  - ./more.yaml",
+		},
+		"categories": meta{
+			Description: "Categories added to the config that imports this file, after its own.",
+		},
+	}
+}
+
 // Configuration holds the general settings for Movelooper, grouped into
 // logging, watch, history, and defaults sub-sections.
 type Configuration struct {
@@ -58,7 +77,7 @@ func (Config) Metadata() map[string]any {
 			Required:    true,
 		},
 		"import": meta{
-			Description: "Other YAML files whose categories are merged into this one. Paths are relative to this file, unless absolute or starting with ~. In the editor, Ctrl+O picks a file.",
+			Description: "Other YAML files whose categories are merged into this one. Paths are relative to this file, unless absolute or starting with ~. In the editor, Ctrl+O picks a file and Enter opens one.",
 			Example:     "import:\n  - ./movelooper/wallhaven.yaml",
 		},
 		"categories": meta{

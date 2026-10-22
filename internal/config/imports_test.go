@@ -10,6 +10,28 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// ImportPath resolves an entry the way the loader does: relative to the file
+// that declares it, with ~ expanded, and an absolute one as written.
+func TestImportPathResolvesLikeTheLoader(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	main := filepath.Join(dir, "movelooper.yaml")
+	other := filepath.Join(t.TempDir(), "abs.yaml")
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	cases := map[string]string{
+		"./movelooper/wallhaven.yaml": filepath.Join(dir, "movelooper", "wallhaven.yaml"),
+		"../shared/a.yaml":            filepath.Join(filepath.Dir(dir), "shared", "a.yaml"),
+		other:                         other,
+		"~/x.yaml":                    filepath.Join(home, "x.yaml"),
+	}
+	for imp, want := range cases {
+		got, err := ImportPath(main, imp)
+		require.NoError(t, err)
+		assert.Equal(t, want, got, imp)
+	}
+}
+
 // testResolveImports defines the structure for test cases of the ResolveImports function,
 // containing a setup function, expected error substring, any-error flag, and a check function.
 type testResolveImports struct {

@@ -610,7 +610,7 @@
       "type": "object"
     },
     "import": {
-      "description": "Other YAML files whose categories are merged into this one. Paths are relative to this file, unless absolute or starting with ~. In the editor, Ctrl+O picks a file.",
+      "description": "Other YAML files whose categories are merged into this one. Paths are relative to this file, unless absolute or starting with ~. In the editor, Ctrl+O picks a file and Enter opens one.",
       "examples": [
         "import:\n  - ./movelooper/wallhaven.yaml"
       ],

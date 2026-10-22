@@ -89,8 +89,8 @@ github.com/lucasassuncao/bezel v0.8.0 h1:90+ImgoR5l6btHw562Uvl9gb3COsWCxFOrtBrnH
 github.com/lucasassuncao/bezel v0.8.0/go.mod h1:dDu2bsKY4q7qoVFnN94KYnpIslS0FJICM8BGWU2JsvQ=
 github.com/lucasassuncao/docgen v0.1.4 h1:rPtuGsVUWkyYK2E+vHByEvTXiMjRh6QYjJkYlEJUyak=
 github.com/lucasassuncao/docgen v0.1.4/go.mod h1:zTbugGB7O6L/FVJXgFvfYompPFZfqUCxM8BgQGt2qvc=
-github.com/lucasassuncao/yedit v0.66.0 h1:UM/YAJjqZOlTVZ+5ROPWFXdDH0yhio/mgJ+ICIFj/nw=
-github.com/lucasassuncao/yedit v0.66.0/go.mod h1:Mj/MpiR05SMWXomDtdYI5WI6VQKLNsZWGM4fe1PPBck=
+github.com/lucasassuncao/yedit v0.67.0 h1:VCGli0gvS2Hwk2gBmSX6Xv0NoUauSvsENc2qlo+4XOg=
+github.com/lucasassuncao/yedit v0.67.0/go.mod h1:Mj/MpiR05SMWXomDtdYI5WI6VQKLNsZWGM4fe1PPBck=
 github.com/lucasb-eyer/go-colorful v1.4.1 h1:1EO+WB73+EH8EVbzlrG3KLAfEypQWVHIBqlTf+2hNss=
 github.com/lucasb-eyer/go-colorful v1.4.1/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/mattn/go-runewidth v0.0.31 h1:1oCV4ReTlosDBc6rYRw5cL8S/4y8iv5oRl4SJ5IBgwo=

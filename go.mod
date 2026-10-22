@@ -15,7 +15,7 @@ require (
 	github.com/knadh/koanf/v2 v2.4.1
 	github.com/lucasassuncao/bezel v0.8.0
 	github.com/lucasassuncao/docgen v0.1.4
-	github.com/lucasassuncao/yedit v0.66.0
+	github.com/lucasassuncao/yedit v0.67.0
 	github.com/pterm/pterm v0.12.84
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1

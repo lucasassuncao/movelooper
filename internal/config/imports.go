@@ -108,19 +108,24 @@ func CheckImports(declaringFile string, paths []string) []error {
 	return errs
 }
 
+// ImportPath is the absolute path of the import entry imp declared in
+// declaringFile: relative to its folder, with ~ expanded.
+func ImportPath(declaringFile, imp string) (string, error) {
+	// Join keeps the folder even before an absolute path, so only a relative
+	// one is joined: an import on another drive has no relative form.
+	target := ExpandTilde(imp)
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(declaringFile), target)
+	}
+	return filepath.Abs(target)
+}
+
 // importAll loads the categories of every path in importPaths, which are
 // relative to declaringFile. chain is the import path ending at declaringFile.
 func importAll(declaringFile string, importPaths []string, merged map[string]bool, chain []string) ([]*yaml.Node, error) {
-	baseDir := filepath.Dir(declaringFile)
 	var items []*yaml.Node
 	for _, imp := range importPaths {
-		// Join keeps baseDir even before an absolute path, so only a relative
-		// one is joined: an import on another drive has no relative form.
-		target := ExpandTilde(imp)
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(baseDir, target)
-		}
-		impAbs, err := filepath.Abs(target)
+		impAbs, err := ImportPath(declaringFile, imp)
 		if err != nil {
 			return nil, fmt.Errorf("resolving import %q declared in %q: %w", imp, declaringFile, err)
 		}

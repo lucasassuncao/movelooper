@@ -16,6 +16,7 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 - [func ConfigureLogger\(k \*koanf.Koanf, formatOverride string, showCaller bool\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func ExpandTilde\(path string\) string](<#ExpandTilde>)
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
+- [func ImportPath\(declaringFile, imp string\) \(string, error\)](<#ImportPath>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
 - [func LoadConfig\(k \*koanf.Koanf\) models.Configuration](<#LoadConfig>)
 - [func MissingArchiveBlock\(cat \*models.Category\) bool](<#MissingArchiveBlock>)
@@ -84,6 +85,15 @@ func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
 ```
 
 FilterDepthOK reports whether f's any/all/not nesting stays within max levels. depth is the level being checked \(0 = the filter itself\). Exported so the edit command's validators \(internal/cmd/edit\_validators.go\) can enforce the same rule inside the TUI, without duplicating the recursion.
+
+<a name="ImportPath"></a>
+## func [ImportPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/imports.go#L113>)
+
+```go
+func ImportPath(declaringFile, imp string) (string, error)
+```
+
+ImportPath is the absolute path of the import entry imp declared in declaringFile: relative to its folder, with \~ expanded.
 
 <a name="InitConfig"></a>
 ## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L32>)

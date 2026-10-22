@@ -92,7 +92,7 @@ produce a new config from an existing one).`,
 				return fmt.Errorf("building hint source: %w", err)
 			}
 
-			res, err := editor.Run(editor.Config{
+			cfg := editor.Config{
 				Path:                 loadPath,
 				SavePath:             output,
 				Schema:               &models.Config{},
@@ -102,8 +102,8 @@ produce a new config from an existing one).`,
 				EnableHints:          true,
 				Metadata:             movelooperHints,
 				Theme:                selectedTheme,
-				PathFields:           editPathFields,
 				NoSaveConfirm:        noSaveConfirm,
+				ShowDiffOnSave:       true,
 				NoDeleteConfirm:      noDeleteConfirm,
 				NoValidateOnSave:     noValidateOnSave,
 				SchemaRecursionDepth: config.MaxFilterNestingDepth - 1,
@@ -113,7 +113,9 @@ produce a new config from an existing one).`,
 					Dump:     dump || dumpPath != "",
 					DumpPath: dumpPath,
 				},
-			})
+			}
+			cfg.PathFields = importFields(cfg)
+			res, err := editor.Run(cfg)
 			if err != nil {
 				return err
 			}

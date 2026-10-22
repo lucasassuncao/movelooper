@@ -50,7 +50,7 @@ In the file preview, **↑ / ↓** scroll, and **Tab** or **Esc** go back to the
 |---|---|
 | **↑ / ↓** | Move between fields |
 | **→ / ←** | Expand / collapse a field |
-| **Enter** | Add the field, or open a nested list or map |
+| **Enter** | Add the field, or open a nested list or map; in the `import` block, open the file (see [below](#editing-imported-files)) |
 | **Tab** | Switch between the field tree and the YAML buffer |
 | **p** | Pick a preset for this block, when it has any |
 | **Ctrl+O** | Pick a file, in the `import` block (see [below](#picking-import-files)); on a field with a fixed set of values, such as `conflict-strategy` or `action`, pick one of them |
@@ -74,7 +74,7 @@ Fields that take one of a fixed set of values (`conflict-strategy`, `action`, th
 
 ## Picking import files
 
-In the `import` block, **Ctrl+O** opens a file picker in the config's folder:
+The `import` block lists its files one per entry, like `categories`: the YAML pane edits the selected entry, **[+ add new]** adds one, and **Ctrl+D** removes the one under the cursor. **Ctrl+O** opens a file picker in the config's folder:
 
 | Key | Action |
 |---|---|
@@ -84,13 +84,31 @@ In the `import` block, **Ctrl+O** opens a file picker in the config's folder:
 | **Enter** | Pick the `.yaml` or `.yml` file, or open the folder |
 | **Esc** | Close the picker |
 
-The pick is written the way the rest of the list is: `./` or `../` relative to the config, with forward slashes, or absolute when it is on another drive. It is appended to the list, or replaces the entry under the cursor when the YAML buffer has focus. With `--output`, paths are relative to the output file, since that is where they will be read from.
+The pick is written the way the rest of the list is: `./` or `../` relative to the config, with forward slashes, or absolute when it is on another drive. From the list it is added as a new entry; while the YAML pane has focus, it replaces the entry being edited. With `--output`, paths are relative to the output file, since that is where they will be read from.
+
+---
+
+## Editing imported files
+
+**Enter** on an entry of the `import` block opens that file in a tab of its own, in the same session. An imported file holds `categories` and, optionally, `import` of its own, which open the same way; it has no `configuration` block, and the editor does not ask for one.
+
+| Key | Action |
+|---|---|
+| **Ctrl+T** | Step through the open files; the strip under the title names them by file, the main config first, and the one in front is highlighted |
+| **Ctrl+S** | Save the file in front, with its own diff and validation |
+| **Esc** | On a file's block list, close it and return to the main config (asks first when it has unsaved changes); a file stays open until then |
+| **q** | On the main config, quit, asking first about every file with unsaved changes; in a file tab it does nothing |
+| **Ctrl+C** | Quit from anywhere, with the same question |
+
+Each file has its own undo history. Opening a file that is already open brings it to front. A path that does not exist yet opens an empty file, which the first save creates.
 
 ---
 
 ## Saving and validation
 
 **Ctrl+S** in the block editor only applies the block to the document; the file is written by **Ctrl+S** in the block list. That save validates the entire config first: if there are errors, a dialog lists them and nothing is written. Use `--no-validate-on-save` to save anyway; you are then asked to confirm, with the errors listed as warnings.
+
+When the config is valid, the save asks for confirmation and shows a diff of what changes in the file, with old and new line numbers: removed lines start with `-`, added lines with `+`. **↑ / ↓** and **PgUp / PgDn** scroll a long diff, **Enter** writes the file, and **Esc** keeps editing. `--no-save-confirm` skips the dialog.
 
 The same check flags `import` entries that do not resolve from where the file will be saved.
 

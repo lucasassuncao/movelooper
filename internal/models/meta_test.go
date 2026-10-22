@@ -22,7 +22,7 @@ type metadataProvider interface {
 // metadataTypes lists every provider in this package. TestMetadataCoverage
 // keeps the list honest, so a new provider cannot quietly go untested.
 var metadataTypes = []metadataProvider{
-	Config{}, Configuration{}, Logging{}, Watch{}, History{}, Defaults{},
+	Config{}, ImportFile{}, Configuration{}, Logging{}, Watch{}, History{}, Defaults{},
 	Category{}, CategorySource{}, CategoryDestination{}, ArchiveConfig{},
 	CategoryFilter{}, MatchFilter{}, AgeFilter{}, SizeFilter{},
 	CategoryHooks{}, CategoryHook{},
