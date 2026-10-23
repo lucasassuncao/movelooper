@@ -2,6 +2,7 @@ package fileops
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
@@ -30,5 +31,10 @@ func ResolveDestination(category *models.Category, tctx *tokens.TokenContext) (d
 	destDir = ResolveDestDir(category, tctx)
 	tctx.DestDir = destDir
 	destName = tokens.ResolveRename(category.Destination.Rename, tctx)
+	// A rename can resolve to nothing ({name-alpha} of "___"), which would make
+	// the destination the directory itself; the file keeps its own name then.
+	if n := strings.TrimSpace(destName); n == "" || n == "." || n == ".." {
+		destName = tctx.Info.Name()
+	}
 	return destDir, destName
 }

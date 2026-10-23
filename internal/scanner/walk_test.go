@@ -331,3 +331,12 @@ func TestWalkSourceExcludeIsCaseInsensitiveOnWindows(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"kept.txt"}, entryNames(entries))
 }
+
+func TestWithin(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join("base", "dl")
+	assert.True(t, scanner.Within(root, root))
+	assert.True(t, scanner.Within(filepath.Join(root, "Media"), root))
+	assert.False(t, scanner.Within(filepath.Join("base", "other"), root))
+	assert.False(t, scanner.Within("base", root), "a parent is not within its child")
+}

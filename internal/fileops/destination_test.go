@@ -65,3 +65,22 @@ func TestResolveDestination_EmptyRenameKeepsTheName(t *testing.T) {
 	_, name := ResolveDestination(cat, newDestTokenContext(t))
 	assert.Equal(t, "photo.jpg", name)
 }
+
+// A rename that resolves to nothing must not make the destination the directory
+// itself: "{name-alpha}" of "___.txt" is empty, so the file keeps its own name.
+func TestResolveDestination_EmptyRenameKeepsTheOriginalName(t *testing.T) {
+	t.Parallel()
+	src := filepath.Join(t.TempDir(), "___.txt")
+	writeFile(t, src, []byte("x"))
+	info, err := os.Stat(src)
+	require.NoError(t, err)
+	dst := filepath.Join(t.TempDir(), "dst")
+
+	for _, rename := range []string{"{name-alpha}", "{name-initials}", "."} {
+		cat := &models.Category{Name: "c", Destination: models.CategoryDestination{Path: dst, Rename: rename}}
+		tctx := &tokens.TokenContext{Info: info, CategoryName: "c", Now: time.Now(), SourcePath: src}
+		dir, name := ResolveDestination(cat, tctx)
+		assert.Equal(t, dst, dir, rename)
+		assert.Equal(t, "___.txt", name, rename)
+	}
+}

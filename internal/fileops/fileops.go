@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -189,7 +190,14 @@ func moveOneFile(ctx context.Context, mctx MoveContext, req MoveRequest, file os
 		return fileResult{outcome: outcomeFailed}
 	}
 	if skip {
-		return fileResult{outcome: outcomeSkipped}
+		res := fileResult{outcome: outcomeSkipped}
+		// hash_check removed a duplicate source: record it so undo can copy it back.
+		if strategy == models.ConflictStrategyHashCheck && consumesSource(action) {
+			if _, err := os.Lstat(sourcePath); os.IsNotExist(err) {
+				res.historyFailed = recordMove(mctx, req, category.Name, history.ActionDedupe, sourcePath, destPath, false)
+			}
+		}
+		return res
 	}
 	destPath = resolved
 
@@ -209,7 +217,7 @@ func moveOneFile(ctx context.Context, mctx MoveContext, req MoveRequest, file os
 		detail:  MovedDetail{Source: sourcePath, Destination: destPath},
 		size:    info.Size(),
 	}
-	result.historyFailed = recordMove(mctx, req, category.Name, string(action), sourcePath, destPath)
+	result.historyFailed = recordMove(mctx, req, category.Name, string(action), sourcePath, destPath, finalize != nil)
 
 	if req.LogEachMove {
 		mctx.Logger.Info("file processed", mctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
@@ -253,16 +261,32 @@ func runFileAction(ctx context.Context, mctx MoveContext, args actionArgs) (res 
 // (a full disk, a directory we cannot write to) are reported as fatal so the
 // caller can stop repeating the same error for every remaining file.
 func destinationFailure(destDir string, err error) fileResult {
+	// A rename refused for permission may be the source's (a folder the process
+	// may not delete from): it is fatal only if the destination refuses too.
+	if errors.Is(err, fs.ErrPermission) && destinationWritable(destDir) {
+		return fileResult{outcome: outcomeFailed}
+	}
 	if isFatalDestinationError(err) {
 		return fileResult{outcome: outcomeFatal, err: fmt.Errorf("%w: %s: %w", ErrFatalDestination, destDir, err)}
 	}
 	return fileResult{outcome: outcomeFailed}
 }
 
+// destinationWritable reports whether a file can be created in dir.
+func destinationWritable(dir string) bool {
+	f, err := os.CreateTemp(dir, ".movelooper-probe-*")
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	_ = os.Remove(f.Name())
+	return true
+}
+
 // recordMove adds the move to the history. It reports whether recording failed,
 // which means this file cannot be undone — loud enough to log as an error, but
 // never a reason to undo the move that already happened.
-func recordMove(mctx MoveContext, req MoveRequest, categoryName, action, sourcePath, destPath string) (failed bool) {
+func recordMove(mctx MoveContext, req MoveRequest, categoryName, action, sourcePath, destPath string, replaced bool) (failed bool) {
 	if mctx.History == nil {
 		return false
 	}
@@ -273,6 +297,7 @@ func recordMove(mctx MoveContext, req MoveRequest, categoryName, action, sourceP
 		BatchID:     req.BatchID,
 		Action:      action,
 		Category:    categoryName,
+		Replaced:    replaced,
 	})
 	if err != nil {
 		mctx.Logger.Error("failed to record history; this file cannot be undone",
@@ -358,15 +383,20 @@ func dispatchAction(ctx context.Context, action models.Action, src, dst string) 
 	return fa.Execute(ctx, src, dst)
 }
 
-// applyConflictStrategy checks whether destPath already exists and resolves the
-// conflict according to strategy. Returns a non-nil error only for unknown strategies;
-// resolver failures are logged internally and surfaced as skip=true, err=nil.
+// applyConflictStrategy resolves a taken destPath according to strategy. It errs
+// for an unknown strategy or a directory at destPath; resolver failures are
+// logged and surfaced as skip=true, err=nil.
 func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, args ConflictArgs) (resolved string, skip bool, finalize FinalizeFunc, err error) {
 	// Lstat, never Stat: Stat follows a symlink, so a link whose target is gone
 	// reports "does not exist" and the configured strategy would never run, even
 	// though the name is taken. The action would then land on whatever the link
 	// points at, outside the destination directory.
-	if _, statErr := os.Lstat(args.Dst); statErr != nil {
+	dstInfo, statErr := os.Lstat(args.Dst)
+	if statErr == nil && dstInfo.IsDir() {
+		// No strategy may resolve this: overwrite would set the directory aside.
+		return "", true, nil, fmt.Errorf("destination %q is a directory", args.Dst)
+	}
+	if statErr != nil {
 		if !os.IsNotExist(statErr) {
 			// Anything other than "does not exist" (e.g. permission denied) means we
 			// cannot tell whether a conflict exists, so skip rather than risk an
@@ -400,10 +430,11 @@ func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, ar
 	return resolvedPath, false, fin, nil
 }
 
-// MoveFileCtx attempts to move a file from source to destination.
-// Falls back to copy+delete when os.Rename fails across different devices/drives.
+// MoveFileCtx attempts to move a file from source to destination, never over a
+// file that took the name after the conflict check. Falls back to copy+delete
+// when the rename fails across different devices/drives.
 func MoveFileCtx(ctx context.Context, src, dst string) error {
-	err := os.Rename(src, dst)
+	err := renameNoReplace(src, dst)
 	if err == nil {
 		return nil
 	}
@@ -462,6 +493,15 @@ func (cr *ctxReader) Read(p []byte) (int, error) {
 	}
 }
 
+// CopyFile copies src to dst preserving the original file mode and timestamps.
+// A timestamp it could not restore is not an error: the bytes are in place.
+func CopyFile(ctx context.Context, src, dst string) error {
+	if err := copyFile(ctx, src, dst); err != nil && !errors.Is(err, ErrTimestampPreserve) {
+		return err
+	}
+	return nil
+}
+
 // copyFile copies src to dst preserving the original file mode and timestamps.
 func copyFile(ctx context.Context, src, dst string) (retErr error) {
 	srcInfo, err := os.Stat(src)
@@ -484,7 +524,8 @@ func copyFile(ctx context.Context, src, dst string) (retErr error) {
 		}
 	}
 
-	out, err := os.OpenFile(filepath.Clean(dst), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode()) //#nosec G304 -- path comes from directory walk, validated by caller
+	// O_EXCL: a file that took the name after the conflict check is not truncated.
+	out, err := os.OpenFile(filepath.Clean(dst), os.O_CREATE|os.O_WRONLY|os.O_EXCL, srcInfo.Mode()) //#nosec G304 -- path comes from directory walk, validated by caller
 	if err != nil {
 		return err
 	}
@@ -520,10 +561,28 @@ func copyFile(ctx context.Context, src, dst string) (retErr error) {
 
 const maxConflictAttempts = 1000
 
+// compoundExts are the extensions that span two dots.
+var compoundExts = []string{".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"}
+
+// nameExt is the part of name a counter goes before: none for a dotfile such
+// as ".bashrc", both parts of a .tar.gz, and filepath.Ext otherwise.
+func nameExt(name string) string {
+	lower := strings.ToLower(name)
+	for _, c := range compoundExts {
+		if strings.HasSuffix(lower, c) && len(name) > len(c) {
+			return name[len(name)-len(c):]
+		}
+	}
+	if strings.HasPrefix(name, ".") && strings.Count(name, ".") == 1 {
+		return ""
+	}
+	return filepath.Ext(name)
+}
+
 // UniqueDestination returns a path in destDir for fileName that does not collide
 // with an existing file, appending (n) before the extension when needed.
 func UniqueDestination(destDir, fileName string) (string, error) {
-	ext := filepath.Ext(fileName)
+	ext := nameExt(fileName)
 	nameOnly := strings.TrimSuffix(fileName, ext)
 
 	destPath := filepath.Join(destDir, fileName)

@@ -13,6 +13,7 @@ Package scanner walks a category's source directory and returns the regular file
 ## Index
 
 - [func WalkSource\(ctx context.Context, source models.CategorySource, autoExclude \[\]string\) \(files \[\]FileEntry, skipped \[\]SkippedDir, err error\)](<#WalkSource>)
+- [func Within\(dir, root string\) bool](<#Within>)
 - [type FileEntry](<#FileEntry>)
 - [type SkippedDir](<#SkippedDir>)
 
@@ -27,6 +28,15 @@ func WalkSource(ctx context.Context, source models.CategorySource, autoExclude [
 WalkSource returns all regular files under source.Path that pass the exclusion and depth rules. autoExclude lists destination paths that are automatically excluded to prevent infinite loops when the destination is inside the source tree. When source.Recursive is false only the top\-level directory is read.
 
 Only a failure to read source.Path itself is an error. Sub\-directories that cannot be read are skipped and returned in skipped, so a single folder the process has no permission on does not abandon the files it could reach.
+
+<a name="Within"></a>
+## func [Within](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L126>)
+
+```go
+func Within(dir, root string) bool
+```
+
+Within reports whether dir is root or a directory under it, compared the way the filesystem compares names.
 
 <a name="FileEntry"></a>
 ## type [FileEntry](<https://github.com/lucasassuncao/movelooper/blob/main/internal/scanner/walk.go#L18-L21>)

@@ -227,6 +227,10 @@ func CleanOldBinary() {
 	if err != nil {
 		return
 	}
+	// SelfUpdate resolves the symlink first, so the .old file sits by the target.
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
 	old := exe + ".old"
 	if _, err := os.Stat(old); err == nil {
 		if err := os.Remove(old); err != nil {
@@ -391,16 +395,20 @@ func containsAny(s string, substrs []string) bool {
 // checksumManifestPatterns are the asset names that carry release checksum data.
 var checksumManifestPatterns = []string{"checksum", "sha256sums", ".sha256"}
 
-// verifyDownloadedAsset validates the downloaded binary when a checksum manifest exists.
+// verifyDownloadedAsset validates the downloaded binary when a checksum manifest
+// exists. A manifest that cannot be read, or leaves the asset out, stops the
+// install: only a release with no manifest at all installs unverified.
 func verifyDownloadedAsset(assets []ghAsset, asset *ghAsset, downloadedPath string) error {
-	expected, err := findAssetChecksum(assets, asset)
+	expected, found, err := findAssetChecksum(assets, asset)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not fetch checksum manifest: %v\n", err)
+		return fmt.Errorf("could not read the release's checksum manifest, not installing an unverified binary: %w", err)
+	}
+	if !found {
+		fmt.Fprintln(os.Stderr, "warning: no checksum manifest found for this release; skipping verification")
 		return nil
 	}
 	if expected == "" {
-		fmt.Fprintln(os.Stderr, "warning: no checksum manifest found for this release; skipping verification")
-		return nil
+		return fmt.Errorf("the release's checksum manifest does not list %s, not installing an unverified binary", asset.Name)
 	}
 	got, err := sha256File(downloadedPath)
 	if err != nil {
@@ -413,25 +421,29 @@ func verifyDownloadedAsset(assets []ghAsset, asset *ghAsset, downloadedPath stri
 	return nil
 }
 
-// findAssetChecksum returns the expected SHA-256 for asset from a matching manifest.
-func findAssetChecksum(assets []ghAsset, asset *ghAsset) (string, error) {
+// findAssetChecksum returns the expected SHA-256 for asset from a matching
+// manifest; found reports whether the release has any manifest at all.
+func findAssetChecksum(assets []ghAsset, asset *ghAsset) (sum string, found bool, err error) {
 	for i := range assets {
 		if !containsAny(strings.ToLower(assets[i].Name), checksumManifestPatterns) {
 			continue
 		}
+		found = true
 		body, err := fetchAssetBody(assets[i].BrowserDownloadURL)
 		if err != nil {
-			return "", err
+			return "", true, err
 		}
-		if sum := findChecksumInManifest(body, asset.Name); sum != "" {
-			return sum, nil
+		own := strings.EqualFold(assets[i].Name, asset.Name+".sha256")
+		if sum := findChecksumInManifest(body, asset.Name, own); sum != "" {
+			return sum, true, nil
 		}
 	}
-	return "", nil
+	return "", found, nil
 }
 
-// findChecksumInManifest extracts the checksum for fileName from a manifest.
-func findChecksumInManifest(body []byte, fileName string) string {
+// findChecksumInManifest extracts the checksum for fileName from a manifest. A
+// bare digest names no file, so it counts only in the asset's own manifest.
+func findChecksumInManifest(body []byte, fileName string, own bool) string {
 	sc := bufio.NewScanner(bytes.NewReader(body))
 	for sc.Scan() {
 		fields := strings.Fields(sc.Text())
@@ -439,7 +451,7 @@ func findChecksumInManifest(body []byte, fileName string) string {
 		case 0:
 			continue
 		case 1:
-			if isHexSHA256(fields[0]) {
+			if own && isHexSHA256(fields[0]) {
 				return fields[0]
 			}
 		default:

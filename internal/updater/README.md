@@ -30,7 +30,7 @@ func CleanOldBinary()
 CleanOldBinary removes a \<exe\>.old file left by a previous self\-update. Call this from main\(\) at startup.
 
 <a name="NormalizeVersion"></a>
-## func [NormalizeVersion](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L240>)
+## func [NormalizeVersion](<https://github.com/lucasassuncao/movelooper/blob/main/internal/updater/selfupdate.go#L244>)
 
 ```go
 func NormalizeVersion(v string) string

@@ -75,6 +75,20 @@ type watchConfig struct {
 	// retries counts consecutive failed move attempts per path. Only touched by
 	// the single ticker goroutine, so no locking is needed.
 	retries map[string]int
+	// batchID is the session's one history batch: the limit counts batches, so
+	// a batch per file pushed every one-shot run out after a hundred files.
+	batchID string
+}
+
+// newWatchConfig is the state of one watch session.
+func newWatchConfig(m *models.Movelooper, opts WatchOptions) *watchConfig {
+	return &watchConfig{
+		tracker:   newFileTracker(),
+		threshold: m.Config.Watch.Delay,
+		showFiles: opts.ShowFiles,
+		retries:   make(map[string]int),
+		batchID:   history.NewWatchBatchID(),
+	}
 }
 
 // categoriesWithHooks returns the names of categories that define before/after
@@ -132,12 +146,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	}
 	defer watcher.Close()
 
-	cfg := watchConfig{
-		tracker:   newFileTracker(),
-		threshold: m.Config.Watch.Delay,
-		showFiles: opts.ShowFiles,
-		retries:   make(map[string]int),
-	}
+	cfg := newWatchConfig(m, opts)
 
 	registerSources(m, watcher)
 
@@ -148,20 +157,21 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	defer stop()
 
 	go runEventLoop(ctx, m, watcher, cfg.tracker)
-	go runTickerLoop(ctx, m, &cfg)
+	go runTickerLoop(ctx, m, cfg)
 
-	m.Logger.Info("watching for changes — press Ctrl+C to stop")
+	m.Logger.Info("watching for changes — press Ctrl+C to stop", m.Logger.Args("batch_id", cfg.batchID))
 
 	<-ctx.Done()
 	m.Logger.Info("shutting down watch mode")
 	return nil
 }
 
-// registerSources adds each unique source directory to the watcher.
+// registerSources adds each unique source directory to the watcher. The list
+// is already filtered, disabled categories kept only for --include-disabled.
 func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
 	seen := make(map[string]bool, len(m.Categories))
 	for _, cat := range m.Categories {
-		if !cat.IsEnabled() || seen[cat.Source.Path] {
+		if seen[cat.Source.Path] {
 			continue
 		}
 		m.Logger.Info("monitoring directory", m.Logger.Args("path", cat.Source.Path))
@@ -217,9 +227,6 @@ func runTickerLoop(ctx context.Context, m *models.Movelooper, cfg *watchConfig) 
 // entries that can never be moved.
 func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *fileTracker) {
 	for _, cat := range m.Categories {
-		if !cat.IsEnabled() {
-			continue
-		}
 		src := cat.Source
 		src.Recursive = false
 		autoExclude := []string{cat.Destination.Path}
@@ -264,7 +271,7 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchCo
 			continue
 		}
 
-		err := attemptMoveFile(ctx, m, path, cfg.showFiles)
+		err := attemptMoveFile(ctx, m, path, cfg.showFiles, cfg.batchID)
 		if err == nil || os.IsNotExist(err) {
 			delete(cfg.retries, path)
 			continue
@@ -300,7 +307,7 @@ func resolveDestDir(cat *models.Category, path string) string {
 }
 
 // attemptMoveFile tries to find a matching category and move the file.
-func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, showFiles bool) error {
+func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, showFiles bool, batchID string) error {
 	fileName := filepath.Base(path)
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 	if ext == "" {
@@ -318,7 +325,7 @@ func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, sho
 			m.Logger.Info("moving file",
 				m.Logger.Args("file", fileName, "to", resolveDestDir(cat, path), "category", cat.Name))
 		}
-		return moveFileToCategory(ctx, m, *cat, path, ext)
+		return moveFileToCategory(ctx, m, *cat, path, ext, batchID)
 	}
 	return nil
 }
@@ -344,14 +351,13 @@ func matchesExtensionAndFilters(cat *models.Category, fileName, path string) boo
 	return filters.MatchesFilter(cat.Source.Filter, path, info)
 }
 
-func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Category, path, ext string) error {
+func moveFileToCategory(ctx context.Context, m *models.Movelooper, cat models.Category, path, ext, batchID string) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return fmt.Errorf("failed to stat file before move: %w", err)
 	}
 
 	targetFile := fileInfoDirEntry{info: info}
-	batchID := history.NewWatchBatchID()
 	// Watch moves one file at a time, so saving per Add is fine here; assign the
 	// concrete *History only when tracking is enabled to avoid a typed-nil Recorder.
 	mctx := fileops.MoveContext{Logger: m.Logger}

@@ -143,12 +143,24 @@ func openLogFile(k *koanf.Koanf) (*os.File, error) {
 		return nil, fmt.Errorf("couldn't create log directory: %w", err)
 	}
 
+	rotateLog(file, maxLogBytes)
 	logFile, err := os.OpenFile(filepath.Clean(file), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't open the log file: %w", err)
 	}
 
 	return logFile, nil
+}
+
+// maxLogBytes is the size past which the log starts over.
+const maxLogBytes = 10 << 20
+
+// rotateLog moves a log past limit bytes to <path>.1, replacing the older
+// copy, so the log keeps two files at most. A failure leaves it growing.
+func rotateLog(path string, limit int64) {
+	if info, err := os.Stat(path); err == nil && info.Size() > limit {
+		_ = os.Rename(path, path+".1")
+	}
 }
 
 // parseLogLevel returns the pterm log level based on the string level

@@ -12,13 +12,14 @@ import "github.com/lucasassuncao/movelooper/internal/config"
 
 - [Constants](<#constants>)
 - [Variables](<#variables>)
+- [func AnchorPath\(p, dir string\) string](<#AnchorPath>)
 - [func CheckImports\(declaringFile string, paths \[\]string\) \[\]error](<#CheckImports>)
 - [func ConfigureLogger\(k \*koanf.Koanf, formatOverride string, showCaller bool\) \(logger.Logger, io.Closer, error\)](<#ConfigureLogger>)
 - [func ExpandTilde\(path string\) string](<#ExpandTilde>)
 - [func FilterDepthOK\(f \*models.CategoryFilter, max, depth int\) bool](<#FilterDepthOK>)
 - [func ImportPath\(declaringFile, imp string\) \(string, error\)](<#ImportPath>)
 - [func InitConfig\(k \*koanf.Koanf, path string\) error](<#InitConfig>)
-- [func LoadConfig\(k \*koanf.Koanf\) models.Configuration](<#LoadConfig>)
+- [func LoadConfig\(k \*koanf.Koanf\) \(models.Configuration, error\)](<#LoadConfig>)
 - [func MissingArchiveBlock\(cat \*models.Category\) bool](<#MissingArchiveBlock>)
 - [func NewApp\(m \*models.Movelooper, configPath string, opts ...Option\) \(retErr error\)](<#NewApp>)
 - [func ResolveConfigPath\(configPath string\) \(string, error\)](<#ResolveConfigPath>)
@@ -50,8 +51,17 @@ const MaxFilterNestingDepth = 10
 var ErrConfigNotFound = errors.New("config file not found")
 ```
 
+<a name="AnchorPath"></a>
+## func [AnchorPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/paths.go#L28>)
+
+```go
+func AnchorPath(p, dir string) string
+```
+
+AnchorPath makes a relative path absolute against dir, the folder of the file that declares it. "\~" paths and rooted ones such as \\Data on Windows stay.
+
 <a name="CheckImports"></a>
-## func [CheckImports](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/imports.go#L99>)
+## func [CheckImports](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/imports.go#L108>)
 
 ```go
 func CheckImports(declaringFile string, paths []string) []error
@@ -78,7 +88,7 @@ func ExpandTilde(path string) string
 ExpandTilde expands a leading "\~" or "\~/" \(and "\~\\" on Windows\) in path to the user's home directory. Any other value — including a bare "\~username" — is returned unchanged, as is path when the home directory cannot be resolved.
 
 <a name="FilterDepthOK"></a>
-## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L286>)
+## func [FilterDepthOK](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L293>)
 
 ```go
 func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
@@ -87,7 +97,7 @@ func FilterDepthOK(f *models.CategoryFilter, max, depth int) bool
 FilterDepthOK reports whether f's any/all/not nesting stays within max levels. depth is the level being checked \(0 = the filter itself\). Exported so the edit command's validators \(internal/cmd/edit\_validators.go\) can enforce the same rule inside the TUI, without duplicating the recursion.
 
 <a name="ImportPath"></a>
-## func [ImportPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/imports.go#L113>)
+## func [ImportPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/imports.go#L122>)
 
 ```go
 func ImportPath(declaringFile, imp string) (string, error)
@@ -96,7 +106,7 @@ func ImportPath(declaringFile, imp string) (string, error)
 ImportPath is the absolute path of the import entry imp declared in declaringFile: relative to its folder, with \~ expanded.
 
 <a name="InitConfig"></a>
-## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L32>)
+## func [InitConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L33>)
 
 ```go
 func InitConfig(k *koanf.Koanf, path string) error
@@ -105,16 +115,16 @@ func InitConfig(k *koanf.Koanf, path string) error
 InitConfig reads the YAML file at path, resolves any import: entries, and loads the merged document into k. Returns ErrConfigNotFound when the file does not exist, or a descriptive error for any other failure.
 
 <a name="LoadConfig"></a>
-## func [LoadConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/appconfig.go#L17>)
+## func [LoadConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/appconfig.go#L23>)
 
 ```go
-func LoadConfig(k *koanf.Koanf) models.Configuration
+func LoadConfig(k *koanf.Koanf) (models.Configuration, error)
 ```
 
-LoadConfig reads the application\-level settings from k and returns a fully populated Configuration. It must be called after InitConfig has successfully loaded the file.
+LoadConfig reads the application\-level settings from k, after InitConfig. The error names the values it could not read: the Configuration holds their defaults instead, so the error is a warning, never a reason to stop.
 
 <a name="MissingArchiveBlock"></a>
-## func [MissingArchiveBlock](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L125>)
+## func [MissingArchiveBlock](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L126>)
 
 ```go
 func MissingArchiveBlock(cat *models.Category) bool
@@ -132,7 +142,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 NewApp resolves the config file and runs the requested initialization steps in order.
 
 <a name="ResolveConfigPath"></a>
-## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L440>)
+## func [ResolveConfigPath](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L447>)
 
 ```go
 func ResolveConfigPath(configPath string) (string, error)
@@ -150,7 +160,7 @@ func ResolveImports(path string) ([]byte, error)
 ResolveImports reads the YAML file at path, recursively resolves any top\-level \`import:\` entries, merges all \`categories:\` items into the main document, and returns the final merged YAML bytes ready to be fed into Viper. The \`import:\` key is stripped from the output. Import paths are relative to the declaring file unless absolute or \~. Circular imports are detected and reported as errors.
 
 <a name="UnmarshalConfig"></a>
-## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L47>)
+## func [UnmarshalConfig](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/config.go#L48>)
 
 ```go
 func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error)

@@ -60,9 +60,10 @@ movelooper undo --dry-run                            # preview what would be res
 movelooper undo batch_a1b2c3d4e5f6a7b8               # undo a specific move batch
 movelooper undo batch_a1b2c3d4e5f6a7b8 --dry-run     # preview a specific batch restore
 movelooper undo watch_0f1e2d3c4b5a6978               # undo a specific watch batch
-movelooper undo --category images                    # undo only "images" entries from the last batch
+movelooper undo --category images                    # pick a batch, then undo only its "images" entries
 movelooper undo batch_a1b2c3d4e5f6a7b8 --category images,docs  # partial undo on a specific batch
 movelooper undo --dry-run --format json              # preview the restore as JSON lines
+movelooper undo batch_a1b2c3d4e5f6a7b8 --yes         # restore without asking (cron, scripts)
 ```
 
 | Flag          | Short | Description                                                        |
@@ -71,6 +72,7 @@ movelooper undo --dry-run --format json              # preview the restore as JS
 | `--dry-run`   |       | Preview which files would be restored without moving any files     |
 | `--category`  |       | Comma-separated list of category names to undo (default: all)      |
 | `--force`     |       | Remove a copied file at the destination even when the original is gone or the copy was modified |
+| `--yes`       | `-y`  | Restore without asking for confirmation; required without a terminal (cron, scripts) |
 
 The global `--format json` also applies here: undo's restore/dry-run logs (`file(s) restored`, `[dry-run] would restore file(s)`) are emitted as structured JSON lines.
 
@@ -105,7 +107,7 @@ movelooper edit --config /path/to/movelooper.yaml
 
 ## `movelooper validate`: validate config file
 
-Loads and validates the configuration file, reporting all rule violations. Exits with a non-zero status when errors are found.
+Loads and validates the configuration file, reporting all rule violations. Exits with a non-zero status when errors are found. Every file listed under `import:` is checked too, through its own imports, and its violations start with that file's name; an import that does not load is an error on the `import` entry.
 
 Alongside errors, `validate` reports **warnings**: configurations that are perfectly valid and will run exactly as written, but that lose files in ways people rarely intend. Warnings never fail the command and never stop a run, the config stays the source of truth. They are reported here so you find out before the run instead of afterwards, from the missing files.
 

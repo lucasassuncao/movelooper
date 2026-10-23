@@ -43,9 +43,11 @@ func ResolveImports(path string) ([]byte, error) {
 		}
 	}
 
-	// Nothing to do.
+	if categoriesValNode != nil {
+		anchorCategoryPaths(categoriesValNode.Content, filepath.Dir(absPath))
+	}
 	if importKeyIdx < 0 {
-		return data, nil
+		return yaml.Marshal(doc)
 	}
 
 	// Strip the `import:` key-value pair.
@@ -61,6 +63,13 @@ func ResolveImports(path string) ([]byte, error) {
 		seqNode := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 		root.Content = append(root.Content, keyNode, seqNode)
 		categoriesValNode = seqNode
+	}
+	// "categories:" with no value is null: the imports appended to it were lost.
+	if categoriesValNode.Kind == yaml.ScalarNode && categoriesValNode.Tag == "!!null" {
+		*categoriesValNode = yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	}
+	if categoriesValNode.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("%q: categories must be a list to import into", absPath)
 	}
 
 	merged := map[string]bool{absPath: true}
@@ -172,13 +181,51 @@ func loadImportedCategories(absPath string, merged map[string]bool, chain []stri
 				return nil, fmt.Errorf("%q: decoding import list: %w", absPath, err)
 			}
 		case "categories":
+			if n := root.Content[i+1]; n.Kind == yaml.MappingNode {
+				return nil, fmt.Errorf("%q: categories must be a list", absPath)
+			}
 			categoryItems = root.Content[i+1].Content
 		}
 	}
+	anchorCategoryPaths(categoryItems, filepath.Dir(absPath))
 
 	nested, err := importAll(absPath, importPaths, merged, append(chain, absPath))
 	if err != nil {
 		return nil, err
 	}
 	return append(categoryItems, nested...), nil
+}
+
+// anchorCategoryPaths makes the relative source, destination and exclude
+// paths of each category node absolute against dir, its file's folder.
+func anchorCategoryPaths(items []*yaml.Node, dir string) {
+	for _, item := range items {
+		src, dst := mapValue(item, "source"), mapValue(item, "destination")
+		anchorScalar(mapValue(src, "path"), dir)
+		anchorScalar(mapValue(dst, "path"), dir)
+		if ex := mapValue(src, "exclude-paths"); ex != nil && ex.Kind == yaml.SequenceNode {
+			for _, n := range ex.Content {
+				anchorScalar(n, dir)
+			}
+		}
+	}
+}
+
+// mapValue is the value under key in the mapping n, or nil.
+func mapValue(n *yaml.Node, key string) *yaml.Node {
+	if n == nil || n.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		if n.Content[i].Value == key {
+			return n.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func anchorScalar(n *yaml.Node, dir string) {
+	if n != nil && n.Kind == yaml.ScalarNode && n.Tag != "!!null" {
+		n.Value = AnchorPath(n.Value, dir)
+	}
 }

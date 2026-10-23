@@ -4,12 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/document"
+	"github.com/lucasassuncao/yedit/metadata"
 	"github.com/lucasassuncao/yedit/report"
 	"github.com/lucasassuncao/yedit/spec"
 	"github.com/lucasassuncao/yedit/validate"
@@ -80,26 +83,10 @@ func runValidate(configPath string, format validateFormat, summaryOnly, strict b
 		return err
 	}
 
-	doc, err := document.Load(path, nil)
+	violations, err := collectViolations(path, strict)
 	if err != nil {
-		return fmt.Errorf("could not parse %s: %w", path, err)
+		return err
 	}
-
-	hints, err := buildMovelooperHints()
-	if err != nil {
-		return fmt.Errorf("building hint source: %w", err)
-	}
-
-	// validate.Wire discovers the schema without linking the TUI into this
-	// build, and resolves it exactly as editor.Wire does, so the rules enforced
-	// here and the ones enforced while editing cannot drift apart.
-	wired := validate.Wire(MovelooperValidators, &models.Config{}, config.MaxFilterNestingDepth-1, hints)
-
-	violations := validate.RunAll(wired, doc.Raw(), doc.Blocks())
-	if strict {
-		violations = append(violations, strictDirViolations(doc.Raw())...)
-	}
-	violations = append(violations, configWarnings(doc.Raw())...)
 
 	opts := report.Options{SummaryOnly: summaryOnly, Theme: t, WarningNote: warningNote}
 	switch format {
@@ -121,9 +108,103 @@ func runValidate(configPath string, format validateFormat, summaryOnly, strict b
 	return nil
 }
 
+// collectViolations runs every rule against the config at path.
+func collectViolations(path string, strict bool) ([]spec.Violation, error) {
+	doc, err := document.Load(path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse %s: %w", path, err)
+	}
+
+	hints, err := buildMovelooperHints()
+	if err != nil {
+		return nil, fmt.Errorf("building hint source: %w", err)
+	}
+
+	// validate.Wire discovers the schema without linking the TUI into this
+	// build, and resolves it exactly as editor.Wire does, so the rules enforced
+	// here and the ones enforced while editing cannot drift apart.
+	rules := append(slices.Clone(MovelooperValidators), importsResolve(path))
+	wired := validate.Wire(rules, &models.Config{}, config.MaxFilterNestingDepth-1, hints)
+
+	violations := validate.RunAll(wired, doc.Raw(), doc.Blocks())
+	if strict {
+		violations = append(violations, strictDirViolations(doc.Raw(), filepath.Dir(path))...)
+	}
+	violations = append(violations, configWarnings(doc.Raw())...)
+	imported, err := importViolations(path, strict)
+	if err != nil {
+		return nil, err
+	}
+	return append(violations, imported...), nil
+}
+
+// importViolations runs the rules on every file the config imports, as the
+// editor does in an import's tab; each path starts with that file's name.
+func importViolations(path string, strict bool) ([]spec.Violation, error) {
+	hints, err := metadata.New(models.ImportFile{})
+	if err != nil {
+		return nil, fmt.Errorf("building hint source: %w", err)
+	}
+	var out []spec.Violation
+	for _, abs := range importedFiles(path) {
+		name, _ := importPath(abs, path)
+		name = strings.TrimPrefix(name, "./")
+		doc, err := document.Load(abs, nil)
+		if err != nil {
+			out = append(out, spec.Violation{Path: name, Message: err.Error()})
+			continue
+		}
+		rules := append(slices.Clone(MovelooperValidators), importsResolve(abs))
+		wired := validate.Wire(rules, &models.ImportFile{}, config.MaxFilterNestingDepth-1, hints)
+		found := validate.RunAll(wired, doc.Raw(), doc.Blocks())
+		if strict {
+			found = append(found, strictDirViolations(doc.Raw(), filepath.Dir(abs))...)
+		}
+		for _, v := range append(found, configWarnings(doc.Raw())...) {
+			v.Path = strings.TrimSuffix(name+": "+v.Path, ": ")
+			out = append(out, v)
+		}
+	}
+	return out, nil
+}
+
+// importedFiles lists every file path imports, directly or through another
+// import, once each. Entries that do not load are left to importsResolve.
+func importedFiles(path string) []string {
+	seen := map[string]bool{path: true}
+	var out []string
+	queue := []string{path}
+	for len(queue) > 0 {
+		file := queue[0]
+		queue = queue[1:]
+		raw, err := os.ReadFile(file) //#nosec G304 -- a config file the user named, or one it imports
+		if err != nil {
+			continue
+		}
+		var doc struct {
+			Import []string `yaml:"import"`
+		}
+		if yaml.Unmarshal(raw, &doc) != nil {
+			continue
+		}
+		for _, imp := range doc.Import {
+			abs, err := config.ImportPath(file, imp)
+			if err != nil || seen[abs] {
+				continue
+			}
+			seen[abs] = true
+			if _, err := os.Stat(abs); err == nil {
+				out = append(out, abs)
+				queue = append(queue, abs)
+			}
+		}
+	}
+	return out
+}
+
 // strictDirViolations checks whether source.path and destination.path for each
-// category exist on disk, returning a violation for each path that does not.
-func strictDirViolations(rawYAML []byte) []spec.Violation {
+// category exist on disk, with relative paths read from dir, the file's folder.
+func strictDirViolations(rawYAML []byte, dir string) []spec.Violation {
 	var doc map[string]any
 	if err := yaml.Unmarshal(rawYAML, &doc); err != nil {
 		return nil
@@ -141,7 +222,7 @@ func strictDirViolations(rawYAML []byte) []spec.Violation {
 		prefix := fmt.Sprintf("categories[%d]", i)
 		if src, ok := cat["source"].(map[string]any); ok {
 			if p, ok := src["path"].(string); ok && p != "" {
-				if _, err := os.Stat(config.ExpandTilde(p)); os.IsNotExist(err) {
+				if _, err := os.Stat(config.ExpandTilde(config.AnchorPath(p, dir))); os.IsNotExist(err) {
 					out = append(out, spec.Violation{
 						Path:    prefix + ".source.path",
 						Message: fmt.Sprintf("directory does not exist: %s", p),
@@ -151,7 +232,7 @@ func strictDirViolations(rawYAML []byte) []spec.Violation {
 		}
 		if dst, ok := cat["destination"].(map[string]any); ok {
 			if p, ok := dst["path"].(string); ok && p != "" {
-				if _, err := os.Stat(config.ExpandTilde(p)); os.IsNotExist(err) {
+				if _, err := os.Stat(config.ExpandTilde(config.AnchorPath(p, dir))); os.IsNotExist(err) {
 					out = append(out, spec.Violation{
 						Path:    prefix + ".destination.path",
 						Message: fmt.Sprintf("directory does not exist: %s", p),

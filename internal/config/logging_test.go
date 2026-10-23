@@ -386,3 +386,24 @@ func loadKoanfFromYAML(t *testing.T, content string) *koanf.Koanf {
 	require.NoError(t, InitConfig(k, path))
 	return k
 }
+
+// The log file only ever grew: past the limit it now starts over, keeping the
+// previous one as <file>.1.
+func TestRotateLog(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "movelooper.log")
+	require.NoError(t, os.WriteFile(path, []byte("0123456789"), 0o600))
+	require.NoError(t, os.WriteFile(path+".1", []byte("older"), 0o600))
+
+	rotateLog(path, 100)
+	assert.FileExists(t, path, "under the limit nothing moves")
+
+	rotateLog(path, 5)
+	assert.NoFileExists(t, path)
+	got, err := os.ReadFile(path + ".1")
+	require.NoError(t, err)
+	assert.Equal(t, "0123456789", string(got), "the full log replaces the older copy")
+
+	rotateLog(filepath.Join(dir, "missing.log"), 5)
+}

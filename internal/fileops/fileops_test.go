@@ -2,12 +2,14 @@ package fileops
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
@@ -722,4 +724,149 @@ func TestDanglingSymlinkAtDestination(t *testing.T) {
 		_, err = os.Lstat(dst)
 		assert.True(t, os.IsNotExist(err), "the link was set aside and discarded")
 	})
+}
+
+// A directory where the file should land is not a conflict a strategy may
+// resolve: overwrite used to set the whole directory aside.
+func TestApplyConflictStrategy_DirectoryAtDestinationFails(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	src := filepath.Join(dir, "a.txt")
+	writeFile(t, src, []byte("new"))
+	dst := filepath.Join(dir, "out")
+	require.NoError(t, os.MkdirAll(dst, 0o750))
+	writeFile(t, filepath.Join(dst, "keep.txt"), []byte("keep"))
+
+	for _, strategy := range []models.ConflictStrategy{models.ConflictStrategyOverwrite, models.ConflictStrategyNewest, models.ConflictStrategyRename} {
+		_, _, finalize, err := applyConflictStrategy(newTestMoveContext(), strategy, ConflictArgs{
+			Src: src, Dst: dst, DestDir: dir, FileName: "out", Action: models.ActionMove,
+		})
+		require.Error(t, err, strategy)
+		assert.Nil(t, finalize, strategy)
+		assert.FileExists(t, filepath.Join(dst, "keep.txt"), strategy)
+		assert.NoDirExists(t, dst+".ml-bak.0", strategy)
+	}
+}
+
+// A permission error from a rename can be the source's: a folder the process
+// may not delete from. It stopped the whole run as "destination is not
+// writable" although the destination took files fine.
+func TestDestinationFailure_PermissionOnAWritableDestinationIsTheFiles(t *testing.T) {
+	t.Parallel()
+	err := &os.LinkError{Op: "rename", Old: "src", New: "dst", Err: fs.ErrPermission}
+
+	assert.Equal(t, outcomeFailed, destinationFailure(t.TempDir(), err).outcome)
+	assert.Equal(t, outcomeFatal, destinationFailure(filepath.Join(t.TempDir(), "gone"), err).outcome,
+		"a destination that cannot take a file is still fatal")
+}
+
+// hash_check deletes a source whose content the destination already holds;
+// with no history entry that file could never come back with undo.
+func TestMoveFiles_HashCheckRecordsTheDuplicateItRemoved(t *testing.T) {
+	t.Parallel()
+	src, dst := t.TempDir(), t.TempDir()
+	writeFile(t, filepath.Join(src, "a.txt"), []byte("same"))
+	writeFile(t, filepath.Join(dst, "a.txt"), []byte("same"))
+	entries, err := os.ReadDir(src)
+	require.NoError(t, err)
+	var rec history.Buffer
+	cat := &models.Category{Name: "docs", Destination: models.CategoryDestination{
+		Path: dst, ConflictStrategy: models.ConflictStrategyHashCheck,
+	}}
+
+	res := MoveFiles(context.Background(), MoveContext{Logger: newTestLogger(), History: &rec},
+		MoveRequest{Category: cat, Files: entries, Extension: "txt", BatchID: "b", SourceDir: src})
+
+	assert.Equal(t, 1, res.Skipped)
+	assert.NoFileExists(t, filepath.Join(src, "a.txt"))
+	require.Equal(t, 1, rec.Len())
+	h, err := history.NewHistory(filepath.Join(t.TempDir(), "h.json"), 10)
+	require.NoError(t, err)
+	require.NoError(t, rec.Flush(h))
+	got := h.GetBatch("b")
+	require.Len(t, got, 1)
+	assert.Equal(t, history.ActionDedupe, got[0].Action)
+	assert.Equal(t, filepath.Join(src, "a.txt"), got[0].Source)
+	assert.Equal(t, filepath.Join(dst, "a.txt"), got[0].Destination)
+}
+
+// An overwrite deletes the file it replaces once the move succeeds. The entry
+// says so, because undo can bring back the incoming file but not that one.
+func TestMoveFiles_OverwriteMarksTheEntryReplaced(t *testing.T) {
+	t.Parallel()
+	src, dst := t.TempDir(), t.TempDir()
+	writeFile(t, filepath.Join(src, "a.txt"), []byte("new"))
+	writeFile(t, filepath.Join(dst, "a.txt"), []byte("old"))
+	writeFile(t, filepath.Join(src, "b.txt"), []byte("fresh"))
+	entries, err := os.ReadDir(src)
+	require.NoError(t, err)
+	var rec history.Buffer
+	cat := &models.Category{Name: "docs", Destination: models.CategoryDestination{
+		Path: dst, ConflictStrategy: models.ConflictStrategyOverwrite,
+	}}
+
+	MoveFiles(context.Background(), MoveContext{Logger: newTestLogger(), History: &rec},
+		MoveRequest{Category: cat, Files: entries, Extension: "txt", BatchID: "b", SourceDir: src})
+
+	h, err := history.NewHistory(filepath.Join(t.TempDir(), "h.json"), 10)
+	require.NoError(t, err)
+	require.NoError(t, rec.Flush(h))
+	replaced := map[string]bool{}
+	for _, e := range h.GetBatch("b") {
+		replaced[filepath.Base(e.Destination)] = e.Replaced
+	}
+	assert.Equal(t, map[string]bool{"a.txt": true, "b.txt": false}, replaced)
+}
+
+// The conflict check runs before the move, and os.Rename replaces whatever
+// took the name in between, on Windows and Unix alike: the move must refuse.
+func TestMoveFileCtx_NeverReplacesAnExistingFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	src, dst := filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt")
+	writeFile(t, src, []byte("new"))
+	writeFile(t, dst, []byte("old"))
+
+	require.Error(t, MoveFileCtx(context.Background(), src, dst))
+
+	got, err := os.ReadFile(dst)
+	require.NoError(t, err)
+	assert.Equal(t, "old", string(got))
+	assert.FileExists(t, src)
+}
+
+// A copy, or the copy half of a move across drives, must not truncate a file
+// that took the destination name after the conflict check.
+func TestCopyFile_NeverTruncatesAnExistingFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	src, dst := filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt")
+	writeFile(t, src, []byte("new"))
+	writeFile(t, dst, []byte("old"))
+
+	require.Error(t, copyFile(context.Background(), src, dst))
+
+	got, err := os.ReadFile(dst)
+	require.NoError(t, err)
+	assert.Equal(t, "old", string(got))
+}
+
+// The counter goes before the extension, and a dotfile or a .tar.gz has its
+// own idea of where that is: ".bashrc" is all name, ".tar.gz" all extension.
+func TestUniqueDestination_KeepsDotfilesAndCompoundExtensions(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		".bashrc":    ".bashrc(1)",
+		"a.tar.gz":   "a(1).tar.gz",
+		"b.TAR.BZ2":  "b(1).TAR.BZ2",
+		"photo.jpg":  "photo(1).jpg",
+		".env.local": ".env(1).local",
+	}
+	for name, want := range cases {
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, name), []byte("x"))
+		got, err := UniqueDestination(dir, name)
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join(dir, want), got, name)
+	}
 }

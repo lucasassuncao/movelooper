@@ -22,3 +22,13 @@ func ExpandTilde(path string) string {
 	}
 	return filepath.Join(home, path[2:])
 }
+
+// AnchorPath makes a relative path absolute against dir, the folder of the file
+// that declares it. "~" paths and rooted ones such as \Data on Windows stay.
+func AnchorPath(p, dir string) string {
+	if p == "" || filepath.IsAbs(p) || filepath.VolumeName(p) != "" ||
+		strings.HasPrefix(p, "~") || strings.HasPrefix(p, `\`) || strings.HasPrefix(p, "/") {
+		return p
+	}
+	return filepath.Join(dir, p)
+}

@@ -151,6 +151,27 @@ var testDefaultShellTestCases = []testDefaultShell{
 		wantArgs:  []string{"/C"},
 	},
 	{
+		name:      "bash override on windows takes -c, not /C",
+		override:  "bash",
+		skip:      func() bool { return runtime.GOOS != "windows" },
+		wantShell: "bash",
+		wantArgs:  []string{"-c"},
+	},
+	{
+		name:      "pwsh.exe override on windows",
+		override:  `C:\Program Files\PowerShell\7\pwsh.exe`,
+		skip:      func() bool { return runtime.GOOS != "windows" },
+		wantShell: `C:\Program Files\PowerShell\7\pwsh.exe`,
+		wantArgs:  []string{"-NonInteractive", "-NoProfile", "-Command"},
+	},
+	{
+		name:      "CMD.EXE override on windows",
+		override:  "CMD.EXE",
+		skip:      func() bool { return runtime.GOOS != "windows" },
+		wantShell: "CMD.EXE",
+		wantArgs:  []string{"/C"},
+	},
+	{
 		name:      "bash override on unix",
 		override:  "bash",
 		skip:      func() bool { return runtime.GOOS == "windows" },

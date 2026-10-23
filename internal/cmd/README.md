@@ -290,7 +290,7 @@ func SelfUpdateCmd(currentVersion string) *cobra.Command
 SelfUpdateCmd returns the self\-update command.
 
 <a name="UndoCmd"></a>
-## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L11>)
+## func [UndoCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/undo.go#L12>)
 
 ```go
 func UndoCmd(m *models.Movelooper) *cobra.Command
@@ -299,7 +299,7 @@ func UndoCmd(m *models.Movelooper) *cobra.Command
 UndoCmd reverts a batch of file moves
 
 <a name="ValidateCmd"></a>
-## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L36>)
+## func [ValidateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/validate.go#L39>)
 
 ```go
 func ValidateCmd() *cobra.Command

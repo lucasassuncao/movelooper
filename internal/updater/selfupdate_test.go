@@ -197,6 +197,7 @@ func TestFindChecksumInManifest(t *testing.T) {
 		name     string
 		body     string
 		fileName string
+		own      bool // the manifest is <fileName>.sha256
 		want     string
 	}{
 		{
@@ -221,7 +222,14 @@ func TestFindChecksumInManifest(t *testing.T) {
 			name:     "bare digest (per-asset manifest)",
 			body:     hash + "\n",
 			fileName: "movelooper_linux_amd64",
+			own:      true,
 			want:     hash,
+		},
+		{
+			name:     "bare digest of another asset's manifest",
+			body:     hash + "\n",
+			fileName: "movelooper_linux_amd64",
+			want:     "",
 		},
 		{
 			name:     "empty manifest",
@@ -233,7 +241,7 @@ func TestFindChecksumInManifest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, findChecksumInManifest([]byte(tt.body), tt.fileName))
+			assert.Equal(t, tt.want, findChecksumInManifest([]byte(tt.body), tt.fileName, tt.own))
 		})
 	}
 }
@@ -657,4 +665,64 @@ func TestSelfUpdate_ChecksumMismatchAbortsInstall(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "no .old file should be created when install aborts before replacing the binary")
 	_, err = os.Stat(fakeBin + ".new")
 	assert.True(t, os.IsNotExist(err), "the failed download must be cleaned up")
+}
+
+// verifyServer serves a checksum manifest with status and body, and returns a
+// release whose manifest asset points at it.
+func verifyServer(t *testing.T, status int, body string) (*httptest.Server, []ghAsset, *ghAsset, string) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	bin := filepath.Join(t.TempDir(), "movelooper.new")
+	require.NoError(t, os.WriteFile(bin, []byte("binary"), 0o600))
+	asset := ghAsset{Name: "movelooper_linux_amd64"}
+	assets := []ghAsset{asset, {Name: "movelooper_checksums.txt", BrowserDownloadURL: srv.URL + "/sums"}}
+	return srv, assets, &asset, bin
+}
+
+// A manifest that is there but cannot be read used to install the binary
+// unverified: one failed request was enough to skip the check.
+func TestVerifyDownloadedAsset_FailsWhenTheManifestCannotBeRead(t *testing.T) {
+	srv, assets, asset, bin := verifyServer(t, http.StatusInternalServerError, "")
+	withTestServer(t, srv, func() {
+		require.Error(t, verifyDownloadedAsset(assets, asset, bin))
+	})
+}
+
+func TestVerifyDownloadedAsset_FailsWhenTheManifestLeavesTheAssetOut(t *testing.T) {
+	srv, assets, asset, bin := verifyServer(t, http.StatusOK, strings.Repeat("0", 64)+"  some_other_asset\n")
+	withTestServer(t, srv, func() {
+		require.Error(t, verifyDownloadedAsset(assets, asset, bin))
+	})
+}
+
+func TestVerifyDownloadedAsset_WithoutAManifestStillInstalls(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "movelooper.new")
+	require.NoError(t, os.WriteFile(bin, []byte("binary"), 0o600))
+	asset := ghAsset{Name: "movelooper_linux_amd64"}
+	require.NoError(t, verifyDownloadedAsset([]ghAsset{asset}, &asset, bin))
+}
+
+// A self-update leaves the old binary beside the real file, so with a symlinked
+// install the cleanup must look there, not beside the link.
+func TestCleanOldBinary_FollowsASymlinkedInstall(t *testing.T) {
+	dir := t.TempDir()
+	real := filepath.Join(dir, "real", "movelooper")
+	require.NoError(t, os.MkdirAll(filepath.Dir(real), 0o750))
+	require.NoError(t, os.WriteFile(real, []byte("bin"), 0o600))
+	require.NoError(t, os.WriteFile(real+".old", []byte("old"), 0o600))
+	link := filepath.Join(dir, "movelooper")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks not available here: %v", err)
+	}
+	orig := osExecutable
+	osExecutable = func() (string, error) { return link, nil }
+	t.Cleanup(func() { osExecutable = orig })
+
+	CleanOldBinary()
+
+	assert.NoFileExists(t, real+".old")
 }

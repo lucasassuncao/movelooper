@@ -6,7 +6,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -36,6 +38,9 @@ func RunHook(ctx context.Context, hook *models.CategoryHook, hctx HookContext, e
 		args := append(shellArgs, command)              //nolint:gocritic
 		cmd := exec.CommandContext(ctx, shell, args...) //#nosec G204 -- shell and command are user-defined config values
 		cmd.Env = combined
+		if shellName(shell) == "cmd" {
+			rawCmdLine(cmd, command)
+		}
 
 		cmd.Stdout = hctx.Stdout
 		cmd.Stderr = hctx.Stderr
@@ -56,10 +61,10 @@ func RunHook(ctx context.Context, hook *models.CategoryHook, hctx HookContext, e
 func defaultShell(override string) (shell string, args []string) {
 	if override != "" {
 		if runtime.GOOS == "windows" {
-			switch override {
+			switch shellName(override) {
 			case "powershell", "pwsh":
 				return override, []string{"-NonInteractive", "-NoProfile", "-Command"}
-			default:
+			case "cmd":
 				return override, []string{"/C"}
 			}
 		}
@@ -85,4 +90,10 @@ func buildEnv(extra map[string]string) []string {
 		env = append(env, k+"="+v)
 	}
 	return env
+}
+
+// shellName is shell without its folder or ".exe", lowercased: "pwsh.exe" and
+// a full path to it pick the same arguments as "pwsh".
+func shellName(shell string) string {
+	return strings.TrimSuffix(strings.ToLower(filepath.Base(shell)), ".exe")
 }

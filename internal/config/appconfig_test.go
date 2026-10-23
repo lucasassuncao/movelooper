@@ -149,7 +149,25 @@ func TestLoadConfig(t *testing.T) {
 			if tt.yaml != "" {
 				require.NoError(t, InitConfig(k, path))
 			}
-			tt.check(t, LoadConfig(k))
+			cfg, _ := LoadConfig(k)
+			tt.check(t, cfg)
 		})
 	}
+}
+
+// A value of the wrong type used to vanish without a word, and a duration
+// written without a unit became nanoseconds: watch moved files at once.
+func TestLoadConfig_ReportsValuesItCouldNotRead(t *testing.T) {
+	t.Parallel()
+	path := writeYAML(t, t.TempDir(), "cfg.yaml", "configuration:\n  watch:\n    delay: 10\n  history:\n    limit: cem\n")
+	k := koanf.New(".")
+	require.NoError(t, InitConfig(k, path))
+
+	cfg, err := LoadConfig(k)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "watch.delay")
+	assert.Contains(t, err.Error(), "limit")
+	assert.Equal(t, defaultWatchDelay, cfg.Watch.Delay, "a bare number is not ten nanoseconds")
+	assert.Equal(t, defaultHistoryLimit, cfg.History.Limit)
 }

@@ -1,8 +1,11 @@
 package archive
 
 import (
+	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,4 +75,23 @@ func TestWrite_TarGzCanceledContextLeavesNoArchive(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	assert.NoFileExists(t, dst)
 	assert.NoFileExists(t, dst+".tmp")
+}
+
+// A file still being written grows between its header and its copy, and the
+// tar writer refused the extra bytes, failing the whole archive.
+func TestCopyTarBody_StopsAtTheHeaderSize(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	require.NoError(t, tw.WriteHeader(&tar.Header{Name: "grows.log", Mode: 0o600, Size: 5}))
+
+	require.NoError(t, copyTarBody(tw, strings.NewReader("12345 and more written meanwhile"), 5))
+	require.NoError(t, tw.Close())
+
+	tr := tar.NewReader(&buf)
+	_, err := tr.Next()
+	require.NoError(t, err)
+	got, err := io.ReadAll(tr)
+	require.NoError(t, err)
+	assert.Equal(t, "12345", string(got))
 }

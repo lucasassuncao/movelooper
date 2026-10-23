@@ -26,7 +26,7 @@ Both `before` and `after` are optional and independent.
 
 | Field | Required | Values | Description |
 |---|---|---|---|
-| `shell` | no | any executable | Shell to run commands. Defaults to `$SHELL` when it is set (on any OS, so Git Bash on Windows counts), otherwise `cmd` on Windows and `sh` elsewhere. Use `pwsh` for PowerShell Core. |
+| `shell` | no | any executable | Shell to run commands. Defaults to `$SHELL` when it is set (on any OS, so Git Bash on Windows counts), otherwise `cmd` on Windows and `sh` elsewhere. Use `pwsh` for PowerShell Core. A name or a full path works, with or without `.exe`: `cmd` gets `/C`, `powershell` and `pwsh` get `-Command`, and any other shell, `bash` on Windows included, gets `-c`. |
 | `on-failure` | yes | `abort`, `warn` | What to do when a command exits non-zero. `abort` stops the sequence; `warn` logs and continues. |
 | `run` | yes | list of strings | Commands executed in order, each as a separate shell invocation. |
 

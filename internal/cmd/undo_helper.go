@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/fileops"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"golang.org/x/term"
 )
 
 func printBatchList(m *models.Movelooper) error {
@@ -31,36 +33,60 @@ func printBatchList(m *models.Movelooper) error {
 	return w.Flush()
 }
 
-func undoBatch(ctx context.Context, m *models.Movelooper, batchID string, dryRun, force bool, categoryNames []string) error {
+// undoOptions carries the undo command's flags.
+type undoOptions struct {
+	DryRun, Force bool
+	Yes           bool // restore without asking
+	Categories    []string
+}
+
+// stdinIsTerminal is a variable so tests can run as if under cron.
+var stdinIsTerminal = func() bool {
+	return term.IsTerminal(int(os.Stdin.Fd())) //#nosec G115 -- a stdin file descriptor always fits in an int
+}
+
+func undoBatch(ctx context.Context, m *models.Movelooper, batchID string, opts undoOptions) error {
 	allEntries := m.History.GetBatch(batchID)
 	if len(allEntries) == 0 {
 		return fmt.Errorf("batch %q not found in history", batchID)
 	}
 
-	partial := len(categoryNames) > 0
 	entries := allEntries
-	if partial {
-		filtered, ok := filterEntriesByCategory(m, batchID, allEntries, categoryNames)
+	if len(opts.Categories) > 0 {
+		filtered, ok := filterEntriesByCategory(m, batchID, allEntries, opts.Categories)
 		if !ok {
 			return nil
 		}
 		entries = filtered
 	}
 
-	if dryRun {
-		return dryRunUndoBatch(m, batchID, entries, force)
+	if opts.DryRun {
+		return dryRunUndoBatch(m, batchID, entries, opts.Force)
 	}
 
-	if cancelled := confirmUndo(m, batchID, entries); cancelled {
-		return nil
+	if !opts.Yes {
+		proceed, err := confirmUndo(m, batchID, entries)
+		if err != nil || !proceed {
+			return err
+		}
 	}
 
-	restored := restoreEntries(ctx, m, entries, force)
+	restored := restoreEntries(ctx, m, entries, opts.Force)
 
 	if len(restored) > 0 {
 		if err := m.History.RemoveEntries(restored); err != nil {
 			m.Logger.Error("failed to update history", m.Logger.Args("error", err.Error()))
 		}
+	}
+	// Archive entries are never restored, so they do not count as failures.
+	undoable := 0
+	for _, e := range entries {
+		if e.Action != string(models.ActionArchive) {
+			undoable++
+		}
+	}
+	if failed := undoable - len(restored); failed > 0 {
+		return fmt.Errorf("%d file(s) could not be restored; they stay in history for another try", failed)
 	}
 	return nil
 }
@@ -101,14 +127,18 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 			m.Logger.Warn("[dry-run] archive batches cannot be undone", m.Logger.Args("path", entry.Destination))
 			continue
 		}
-		if _, err := os.Stat(entry.Destination); os.IsNotExist(err) {
+		if _, err := os.Lstat(entry.Destination); os.IsNotExist(err) {
 			m.Logger.Warn("[dry-run] file not found at destination, would skip", m.Logger.Args("path", entry.Destination))
+			continue
+		}
+		if linkReplaced(entry) {
+			m.Logger.Warn("[dry-run] would keep the file, it is no longer the link movelooper made", m.Logger.Args("path", entry.Destination))
 			continue
 		}
 		switch entry.Action {
 		case "copy", "symlink":
 			// Undo removes the destination; the source still existing is expected.
-			if risk := copyUndoRisk(entry); risk != "" && !force {
+			if risk := copyUndoRisk(entry); risk != "" && !force && entry.Action == string(models.ActionCopy) {
 				m.Logger.Warn("[dry-run] would keep the copy, "+risk, m.Logger.Args("path", entry.Destination))
 				continue
 			}
@@ -120,6 +150,10 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 			}
 			restoreArgs = append(restoreArgs, "path", entry.Source)
 		}
+		if entry.Replaced {
+			m.Logger.Warn("[dry-run] the file this one replaced at the destination was deleted by the conflict strategy and cannot come back",
+				m.Logger.Args("path", entry.Destination))
+		}
 	}
 	if len(removeArgs) > 0 {
 		m.Logger.Info("[dry-run] would remove file(s)", m.Logger.Args(removeArgs...))
@@ -130,8 +164,12 @@ func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Ent
 	return nil
 }
 
-// confirmUndo shows a confirmation prompt and returns true if the user cancelled.
-func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) bool {
+// confirmUndo asks before restoring and reports whether to go ahead. Without a
+// terminal nobody can answer, so it fails instead of waiting on the prompt.
+func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) (bool, error) {
+	if !stdinIsTerminal() {
+		return false, errors.New("undo needs a terminal to confirm: pass --yes to restore without asking")
+	}
 	var sb strings.Builder
 	shown := min(len(entries), 5)
 	for _, entry := range entries[:shown] {
@@ -146,9 +184,9 @@ func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) 
 	confirm, err := inline.Confirm(msg, theme.Resolve(theme.Default, theme.DarkTerminal()))
 	if err != nil || !confirm {
 		m.Logger.Info("undo operation cancelled")
-		return true
+		return false, nil
 	}
-	return false
+	return true, nil
 }
 
 // copyUndoRisk reports why removing the copy at the destination would destroy
@@ -186,8 +224,14 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 			continue
 		}
 
-		if _, err := os.Stat(entry.Destination); os.IsNotExist(err) {
+		// Lstat: a link whose original is gone still holds the name.
+		if _, err := os.Lstat(entry.Destination); os.IsNotExist(err) {
 			m.Logger.Warn("file not found at destination, skipping", m.Logger.Args("path", entry.Destination))
+			failCount++
+			continue
+		}
+		if linkReplaced(entry) {
+			m.Logger.Warn("keeping the file, it is no longer the link movelooper made", m.Logger.Args("path", entry.Destination))
 			failCount++
 			continue
 		}
@@ -226,6 +270,10 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 			failCount++
 			continue
 		}
+		if entry.Replaced {
+			m.Logger.Warn("restored, but the file it replaced at the destination was deleted by the conflict strategy and cannot come back",
+				m.Logger.Args("path", entry.Destination))
+		}
 		restored = append(restored, entry)
 	}
 
@@ -247,12 +295,28 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 	return restored
 }
 
+// linkReplaced reports whether a symlink entry's destination is no longer a
+// link: something else took the name, and removing it would delete real bytes.
+func linkReplaced(entry history.Entry) bool {
+	if entry.Action != string(models.ActionSymlink) {
+		return false
+	}
+	fi, err := os.Lstat(entry.Destination)
+	return err == nil && fi.Mode()&os.ModeSymlink == 0
+}
+
 // restoreEntry performs the actual file operation for a single history entry.
 func restoreEntry(ctx context.Context, m *models.Movelooper, entry history.Entry) error {
 	switch entry.Action {
 	case "copy", "symlink":
 		if err := os.Remove(entry.Destination); err != nil {
 			m.Logger.Error("failed to remove file", m.Logger.Args("path", entry.Destination, "error", err.Error()))
+			return err
+		}
+	case history.ActionDedupe:
+		// The destination holds the same bytes and stays: the duplicate comes back.
+		if err := fileops.CopyFile(ctx, entry.Destination, entry.Source); err != nil {
+			m.Logger.Error("failed to copy the duplicate back", m.Logger.Args("from", entry.Destination, "to", entry.Source, "error", err.Error()))
 			return err
 		}
 	default: // "move" or legacy entries without Action

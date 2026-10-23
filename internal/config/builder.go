@@ -91,7 +91,12 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 	}
 
 	if o.loadConfig {
-		m.Config = LoadConfig(k)
+		cfg, err := LoadConfig(k)
+		m.Config = cfg
+		if err != nil && m.Logger != nil {
+			m.Logger.Warn("some configuration values could not be read; their defaults are used",
+				m.Logger.Args("error", err.Error()))
+		}
 	}
 
 	if o.loadCategories {

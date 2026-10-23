@@ -17,13 +17,15 @@ Each entry in the `categories` list defines a rule: which files to match and whe
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `path` | string | yes | - | Directory to scan |
-| `extensions` | []string | yes | - | Extensions to match (without dot). Use `["all"]` to match any file |
+| `extensions` | []string | yes | - | Extensions to match, case-insensitive; a leading dot is dropped. A compound one such as `tar.gz` matches the end of the name. Use `["all"]` to match any file |
 | `filter` | object | no | - | Additional filters (see [Filters](/FILTERS.md)) |
 | `recursive` | bool | no | `false` | Scan subdirectories recursively |
 | `max-depth` | int | no | `0` | Max recursion depth; `0` = unlimited (only used with `recursive: true`) |
-| `exclude-paths` | []string | no | `[]` | Absolute paths to skip during recursive walk. The destination is always auto-excluded |
+| `exclude-paths` | []string | no | `[]` | Absolute paths to skip during recursive walk. The category's destination, and the destination of every other category in the run that lies inside this source, are always auto-excluded |
 
 A sub-directory the process cannot read is skipped with a warning naming it, and the rest of the tree is still scanned. Only the source `path` itself failing stops the category.
+
+A relative `path`, `exclude-paths` entry or `destination.path` is read from the folder of the file that declares the category, the main config or an imported file, never from the folder movelooper runs in. `~` is the home folder.
 
 ---
 

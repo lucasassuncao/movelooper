@@ -63,6 +63,7 @@ func archiveCategory(ctx context.Context, m *models.Movelooper, category *models
 		Compression: archive.Compression(arc.Compression),
 		OnProgress:  newArchiveProgress(m),
 	}
+	archived := statSources(files)
 	if err := archive.Write(ctx, destPath, entries, opts); err != nil {
 		return "", fmt.Errorf("write archive %q: %w", destPath, err)
 	}
@@ -71,7 +72,7 @@ func archiveCategory(ctx context.Context, m *models.Movelooper, category *models
 	recordArchiveHistory(m, category, destPath, batch)
 
 	if !arc.KeepsSource() {
-		deleteArchivedSources(m, files)
+		deleteArchivedSources(m, files, archived)
 	}
 	return destPath, nil
 }
@@ -89,7 +90,8 @@ func archiveEntries(category *models.Category, files []scanner.FileEntry) []arch
 		src := filepath.Join(fe.Dir, fe.Entry.Name())
 		name := fe.Entry.Name()
 		if !flatten {
-			if rel, err := filepath.Rel(root, src); err == nil && rel != "" && rel[0] != '.' {
+			// Within, not a leading-dot test: ".config/x" is inside the source.
+			if rel, err := filepath.Rel(root, src); err == nil && scanner.Within(src, root) {
 				name = rel
 			}
 		}
@@ -167,9 +169,34 @@ func recordArchiveHistory(m *models.Movelooper, category *models.Category, destP
 	}
 }
 
-func deleteArchivedSources(m *models.Movelooper, files []scanner.FileEntry) {
+// sourceState is what a source looked like just before it was archived.
+type sourceState struct {
+	size    int64
+	modTime time.Time
+}
+
+// statSources records each file's size and time before the archive reads it.
+func statSources(files []scanner.FileEntry) map[string]sourceState {
+	out := make(map[string]sourceState, len(files))
 	for _, fe := range files {
 		p := filepath.Join(fe.Dir, fe.Entry.Name())
+		if info, err := os.Stat(p); err == nil {
+			out[p] = sourceState{size: info.Size(), modTime: info.ModTime()}
+		}
+	}
+	return out
+}
+
+// deleteArchivedSources removes the archived files, except one that changed
+// since archived recorded it: its newer bytes are not in the archive.
+func deleteArchivedSources(m *models.Movelooper, files []scanner.FileEntry, archived map[string]sourceState) {
+	for _, fe := range files {
+		p := filepath.Join(fe.Dir, fe.Entry.Name())
+		info, err := os.Stat(p)
+		if was, ok := archived[p]; err == nil && (!ok || info.Size() != was.size || !info.ModTime().Equal(was.modTime)) {
+			m.Logger.Warn("keeping a source that changed after it was archived", m.Logger.Args("path", p))
+			continue
+		}
 		if err := os.Remove(p); err != nil {
 			m.Logger.Warn("failed to remove source after archiving", m.Logger.Args("path", p, "error", err.Error()))
 		}

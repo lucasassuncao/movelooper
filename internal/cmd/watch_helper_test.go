@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -167,4 +170,45 @@ func TestAcquireLockAt(t *testing.T) {
 		require.NoError(t, err)
 		defer release()
 	})
+}
+
+// A watch session is one batch: with a batch per file, a hundred watched
+// files pushed every one-shot run out of the history limit.
+func TestProcessPendingFiles_OneBatchPerSession(t *testing.T) {
+	t.Parallel()
+	src, dst := t.TempDir(), t.TempDir()
+	for _, n := range []string{"a.txt", "b.txt"} {
+		require.NoError(t, os.WriteFile(filepath.Join(src, n), []byte("x"), 0o600))
+	}
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{moveTestCategory("docs", src, dst, "", []string{"txt"})})
+	cfg := newWatchConfig(m, WatchOptions{})
+	past := time.Now().Add(-time.Hour)
+	cfg.tracker.touch(filepath.Join(src, "a.txt"), past)
+	cfg.tracker.touch(filepath.Join(src, "b.txt"), past)
+
+	processPendingFiles(context.Background(), m, cfg)
+
+	batches := m.History.GetAllBatches()
+	require.Len(t, batches, 1)
+	assert.Equal(t, 2, batches[0].Count)
+	assert.True(t, strings.HasPrefix(batches[0].BatchID, "watch_"))
+}
+
+// --include-disabled keeps disabled categories in the list, so the scan must
+// not drop them again: watch used to observe none of them.
+func TestPerformInitialScan_TracksTheCategoriesItIsGiven(t *testing.T) {
+	t.Parallel()
+	src := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(src, "a.txt"), []byte("x"), 0o600))
+	cat := moveTestCategory("off", src, t.TempDir(), "", []string{"txt"})
+	disabled := false
+	cat.Enabled = &disabled
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{cat})
+	tracker := newFileTracker()
+
+	performInitialScan(context.Background(), m, tracker)
+
+	assert.Contains(t, tracker.index, filepath.Join(src, "a.txt"))
 }

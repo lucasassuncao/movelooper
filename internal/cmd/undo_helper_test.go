@@ -172,7 +172,7 @@ func TestUndoBatch_UnknownBatchFails(t *testing.T) {
 	var buf bytes.Buffer
 	m := newBufMovelooper(t, &buf, nil)
 
-	err := undoBatch(context.Background(), m, "batch_missing", false, false, nil)
+	err := undoBatch(context.Background(), m, "batch_missing", undoOptions{})
 	assert.ErrorContains(t, err, "not found in history")
 }
 
@@ -197,7 +197,7 @@ func TestUndoBatch_DryRunTouchesNothing(t *testing.T) {
 	}
 	require.NoError(t, m.History.AddBatch([]history.Entry{entry}))
 
-	require.NoError(t, undoBatch(context.Background(), m, "batch_dry", true, false, nil))
+	require.NoError(t, undoBatch(context.Background(), m, "batch_dry", undoOptions{DryRun: true}))
 
 	assert.FileExists(t, dst, "dry-run must not move the file back")
 	assert.NoFileExists(t, src)
@@ -249,4 +249,156 @@ func TestFilterEntriesByCategory(t *testing.T) {
 	assert.False(t, ok, "no matching category means there is nothing to undo")
 	assert.Nil(t, filtered)
 	assert.Contains(t, buf.String(), "no entries for the specified categories")
+}
+
+// noTerminal makes stdin read as not a terminal, as under cron or a pipe.
+func noTerminal(t *testing.T) {
+	t.Helper()
+	old := stdinIsTerminal
+	stdinIsTerminal = func() bool { return false }
+	t.Cleanup(func() { stdinIsTerminal = old })
+}
+
+// movedEntry puts a file at its destination and records the move in batchID.
+func movedEntry(t *testing.T, m *models.Movelooper, batchID string) (src, dst string) {
+	t.Helper()
+	dir := t.TempDir()
+	src = filepath.Join(dir, "src", "file.txt")
+	dst = filepath.Join(dir, "dst", "file.txt")
+	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0o750))
+	require.NoError(t, os.WriteFile(dst, []byte("moved"), 0o600))
+	require.NoError(t, m.History.AddBatch([]history.Entry{{
+		Source: src, Destination: dst, Action: string(models.ActionMove),
+		BatchID: batchID, Category: "docs", Timestamp: time.Now(),
+	}}))
+	return src, dst
+}
+
+// Without a terminal nobody can answer the confirmation: undo must say so and
+// stop, not sit in a prompt that spins on a closed input.
+func TestUndoBatch_WithoutATerminalAsksForYes(t *testing.T) {
+	noTerminal(t)
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+	_, dst := movedEntry(t, m, "batch_tty")
+
+	done := make(chan error, 1)
+	go func() { done <- undoBatch(context.Background(), m, "batch_tty", undoOptions{}) }()
+	select {
+	case err := <-done:
+		require.ErrorContains(t, err, "--yes")
+	case <-time.After(5 * time.Second):
+		t.Fatal("undo waited on a prompt nobody can answer")
+	}
+	assert.FileExists(t, dst, "nothing is restored without a confirmation")
+}
+
+func TestUndoBatch_YesRestoresWithoutAsking(t *testing.T) {
+	noTerminal(t)
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+	src, dst := movedEntry(t, m, "batch_yes")
+
+	require.NoError(t, undoBatch(context.Background(), m, "batch_yes", undoOptions{Yes: true}))
+
+	assert.FileExists(t, src)
+	assert.NoFileExists(t, dst)
+}
+
+// Scripts read the exit code: an undo that restored nothing used to exit 0.
+func TestUndoBatch_ReportsFilesItCouldNotRestore(t *testing.T) {
+	noTerminal(t)
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+	_, dst := movedEntry(t, m, "batch_gone")
+	require.NoError(t, os.Remove(dst))
+
+	err := undoBatch(context.Background(), m, "batch_gone", undoOptions{Yes: true})
+
+	require.ErrorContains(t, err, "1 file(s) could not be restored")
+	assert.Len(t, m.History.GetBatch("batch_gone"), 1, "a failed restore stays in history for a retry")
+}
+
+// Undoing a symlink removes the link, never a real file that has since taken
+// its name: that one movelooper did not make.
+func TestRestoreEntries_SymlinkKeepsAFileThatReplacedTheLink(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "dst", "file.txt")
+	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0o750))
+	require.NoError(t, os.WriteFile(dst, []byte("a real file now"), 0o600))
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+	entries := []history.Entry{{
+		Source: filepath.Join(dir, "src", "file.txt"), Destination: dst,
+		Action: string(models.ActionSymlink), BatchID: "batch_l", Category: "docs", Timestamp: time.Now(),
+	}}
+
+	restored := restoreEntries(context.Background(), m, entries, false)
+
+	assert.Empty(t, restored)
+	assert.FileExists(t, dst)
+}
+
+// A link whose original is gone still holds the name: Stat followed it, said
+// "not found" and left the dangling link behind for good.
+func TestRestoreEntries_SymlinkRemovesADanglingLink(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src", "file.txt")
+	dst := filepath.Join(dir, "dst", "file.txt")
+	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0o750))
+	if err := os.Symlink(src, dst); err != nil {
+		t.Skipf("symlinks not available here: %v", err)
+	}
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+	entries := []history.Entry{{
+		Source: src, Destination: dst,
+		Action: string(models.ActionSymlink), BatchID: "batch_d", Category: "docs", Timestamp: time.Now(),
+	}}
+
+	restored := restoreEntries(context.Background(), m, entries, false)
+
+	assert.Len(t, restored, 1)
+	_, err := os.Lstat(dst)
+	assert.True(t, os.IsNotExist(err), "the dangling link is gone")
+}
+
+// A duplicate hash_check removed comes back as a copy of the identical file
+// at the destination, which stays where it is.
+func TestRestoreEntries_DedupeCopiesTheDuplicateBack(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src", "file.txt")
+	dst := filepath.Join(dir, "dst", "file.txt")
+	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0o750))
+	require.NoError(t, os.WriteFile(dst, []byte("same"), 0o600))
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+	entries := []history.Entry{{
+		Source: src, Destination: dst, Action: history.ActionDedupe,
+		BatchID: "batch_h", Category: "docs", Timestamp: time.Now(),
+	}}
+
+	restored := restoreEntries(context.Background(), m, entries, false)
+
+	assert.Len(t, restored, 1)
+	got, err := os.ReadFile(src)
+	require.NoError(t, err)
+	assert.Equal(t, "same", string(got))
+	assert.FileExists(t, dst, "the destination keeps its file")
+}
+
+// Undo can return the file a run moved, not the one it replaced: say so.
+func TestRestoreEntries_WarnsAboutAReplacedFile(t *testing.T) {
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+	src, dst := movedEntry(t, m, "batch_r")
+	entries := m.History.GetBatch("batch_r")
+	entries[0].Replaced = true
+
+	restored := restoreEntries(context.Background(), m, entries, false)
+
+	assert.Len(t, restored, 1)
+	assert.FileExists(t, src)
+	assert.NoFileExists(t, dst)
+	assert.Contains(t, buf.String(), "replaced")
 }

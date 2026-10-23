@@ -121,6 +121,12 @@ func walkRecursive(
 	return nil
 }
 
+// Within reports whether dir is root or a directory under it, compared the way
+// the filesystem compares names.
+func Within(dir, root string) bool {
+	return isExcluded(dir, []string{root})
+}
+
 // isExcluded reports whether dir is equal to or a subdirectory of any path in list.
 func isExcluded(dir string, list []string) bool {
 	cleanDir := normalizePath(dir)

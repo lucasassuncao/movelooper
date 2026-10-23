@@ -13,6 +13,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"github.com/lucasassuncao/movelooper/internal/scanner"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
 )
 
@@ -54,10 +55,10 @@ func UnmarshalConfig(k *koanf.Koanf) ([]*models.Category, error) {
 		if err := validateCategory(cat); err != nil {
 			return nil, err
 		}
-		// Normalise extensions to lowercase so the one-shot move (which indexes
-		// files by lowercased extension) and watch mode agree on matching.
+		// Normalise extensions to lowercase without a leading dot, so the one-shot
+		// move (which indexes files by extension) and watch mode agree on matching.
 		for i, ext := range cat.Source.Extensions {
-			cat.Source.Extensions[i] = strings.ToLower(ext)
+			cat.Source.Extensions[i] = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(ext)), ".")
 		}
 		cat.Source.Path = ExpandTilde(cat.Source.Path)
 		cat.Destination.Path = ExpandTilde(cat.Destination.Path)
@@ -188,8 +189,7 @@ func validateCategory(cat *models.Category) error {
 		return fmt.Errorf("category %q: source.extensions are required", cat.Name)
 	}
 
-	if cat.Source.Path != "" && cat.Destination.Path != "" &&
-		filepath.Clean(cat.Source.Path) == filepath.Clean(cat.Destination.Path) {
+	if cat.Source.Path != "" && cat.Destination.Path != "" && sameDir(cat.Source.Path, cat.Destination.Path) {
 		return fmt.Errorf("category %q: source and destination must be different directories", cat.Name)
 	}
 
@@ -222,6 +222,13 @@ func validateCategory(cat *models.Category) error {
 	}
 
 	return validateFilter(cat.Name, &cat.Source.Filter)
+}
+
+// sameDir reports whether two configured paths name one directory once "~" is
+// expanded, compared the way the filesystem compares names.
+func sameDir(a, b string) bool {
+	a, b = ExpandTilde(a), ExpandTilde(b)
+	return scanner.Within(a, b) && scanner.Within(b, a)
 }
 
 // validateOrganizeBy checks an organize-by template. Callers prefix the error

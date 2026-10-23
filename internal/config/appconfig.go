@@ -1,6 +1,9 @@
 package config
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/knadh/koanf/v2"
@@ -11,17 +14,30 @@ const defaultHistoryLimit = 100
 const defaultWatchDelay = 5 * time.Minute
 const defaultPollInterval = 5 * time.Second
 
-// LoadConfig reads the application-level settings from k and returns a
-// fully populated Configuration. It must be called after InitConfig has
-// successfully loaded the file.
-func LoadConfig(k *koanf.Koanf) models.Configuration {
+// durationKeys must carry a unit: the decoder reads a bare 10 as 10ns.
+var durationKeys = []string{"configuration.watch.delay", "configuration.watch.poll-interval"}
+
+// LoadConfig reads the application-level settings from k, after InitConfig. The
+// error names the values it could not read: the Configuration holds their
+// defaults instead, so the error is a warning, never a reason to stop.
+func LoadConfig(k *koanf.Koanf) (models.Configuration, error) {
+	var problems []error
+	for _, key := range durationKeys {
+		if v := k.Get(key); v != nil {
+			if _, ok := v.(string); !ok {
+				problems = append(problems, fmt.Errorf("%s: %v needs a unit, such as 10s or 5m", strings.TrimPrefix(key, "configuration."), v))
+				k.Delete(key)
+			}
+		}
+	}
+
 	var cfg models.Configuration
 	// The mapstructure tags on models.Configuration carry the key names, and
-	// koanf's decoder turns a duration string ("5m") into a time.Duration. The
-	// error is deliberately dropped: decoding is per field, so a malformed entry
-	// leaves that one field zeroed without touching the rest, and the fallbacks
-	// below already treat a zero as "not set".
-	_ = k.UnmarshalWithConf("configuration", &cfg, koanf.UnmarshalConf{Tag: "mapstructure"})
+	// koanf's decoder turns a duration string ("5m") into a time.Duration.
+	// Decoding is per field: a malformed entry leaves only that field zeroed.
+	if err := k.UnmarshalWithConf("configuration", &cfg, koanf.UnmarshalConf{Tag: "mapstructure"}); err != nil {
+		problems = append(problems, err)
+	}
 
 	// The unmarshal cannot tell an absent history.enabled from an explicit false,
 	// and an absent one means true.
@@ -40,7 +56,7 @@ func LoadConfig(k *koanf.Koanf) models.Configuration {
 		cfg.History.Limit = defaultHistoryLimit
 	}
 
-	return cfg
+	return cfg, errors.Join(problems...)
 }
 
 // historyEnabled reports whether undo history tracking is on. It defaults to

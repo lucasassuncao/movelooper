@@ -10,7 +10,7 @@ Global settings grouped into four sub-sections: `logging`, `watch`, `history`, a
 |---|---|---|---|---|
 | `output` | string | no | `console` | Where to write logs: `console`, `file`, or `both` |
 | `level` | string | no | `info` | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal` |
-| `file` | string | no | - | Path to the log file (required when `output` is `file` or `both`) |
+| `file` | string | no | - | Path to the log file (required when `output` is `file` or `both`). Past 10 MB it is renamed to `<file>.1`, replacing the older copy, and a new log starts |
 | `format` | string | no | `pretty` | `pretty` for the human console renderer; `json` for structured slog lines |
 | `color` | string | no | `auto` | ANSI color for `pretty`: `auto` (console only), `always`, `never`. Ignored for `json` |
 | `max-width` | int | no | `0` | Column width for wrapping `pretty` lines (0–500); `0` uses the terminal's width. Ignored for `json` |

@@ -61,6 +61,9 @@ type moveBatch struct {
 	// recorder buffers history entries in memory; runMove flushes them to disk
 	// once at the end of the run. nil when history tracking is disabled.
 	recorder history.Recorder
+	// destinations holds every running category's destination, which no scan
+	// enters: a recursive category would otherwise move on what another placed.
+	destinations []string
 }
 
 // hookAfterVars carries the post-move stats needed for "after" hook env vars.
@@ -93,6 +96,9 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 		dryRun:    opts.DryRun,
 		showFiles: opts.ShowFiles,
 		stats:     &stats,
+	}
+	for _, c := range categories {
+		batch.destinations = append(batch.destinations, c.Destination.Path)
 	}
 	if m.History != nil {
 		histBuf = &history.Buffer{}
@@ -234,6 +240,12 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	}
 
 	autoExclude := []string{category.Destination.Path}
+	for _, d := range batch.destinations {
+		// A destination holding the source is this category's input, not output.
+		if !scanner.Within(category.Source.Path, d) {
+			autoExclude = append(autoExclude, d)
+		}
+	}
 	allEntries, skipped, err := scanner.WalkSource(ctx, category.Source, autoExclude)
 	if err != nil {
 		return fmt.Errorf("scan %q: %w", category.Source.Path, err)
@@ -255,7 +267,8 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 	var totalMoved, totalSkipped, totalFailed int
 	for _, extension := range category.Source.Extensions {
 		candidates := byExt[extension]
-		if strings.EqualFold(extension, filters.ExtAll) {
+		// The index holds only the last part, so a compound "tar.gz" scans them all.
+		if strings.EqualFold(extension, filters.ExtAll) || strings.Contains(extension, ".") {
 			candidates = allEntries
 		}
 		matched, matchedBytes := matchExtensionFiles(m, category, candidates, extension, batch)

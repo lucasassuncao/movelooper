@@ -7,7 +7,7 @@ The following arguments are supported:
 | Name | Type | Format | Description | Required | Default |
 |------|------|--------|-------------|----------|---------|
 | path | string | directory | Directory to watch for incoming files. | Yes | - |
-| extensions | []string | - | File extensions to match (without the leading dot). Use the special value "all" to match every file. | Yes | - |
+| extensions | []string | - | File extensions to match; a leading dot is dropped, and a compound one such as "tar.gz" matches the end of the name. Use the special value "all" to match every file. | Yes | - |
 | filter | object | - | Optional filtering rules applied to each matched file. All populated sub-fields must match (AND logic) unless any/all are used. | No | - |
 | recursive | bool | - | Whether to scan sub-directories of the source path. Combine with max-depth to limit depth. | No | false |
 | max-depth | int | - | Maximum sub-directory depth when recursive is true. 0 means unlimited. | No | 0 |

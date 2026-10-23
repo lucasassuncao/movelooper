@@ -172,7 +172,7 @@ func (CategorySource) Metadata() map[string]any {
 			Example:     "path: ~/Downloads",
 		},
 		"extensions": meta{
-			Description: "File extensions to match (without the leading dot). Use the special value \"all\" to match every file.",
+			Description: "File extensions to match; a leading dot is dropped, and a compound one such as \"tar.gz\" matches the end of the name. Use the special value \"all\" to match every file.",
 			Required:    true,
 			MinCount:    1,
 			Unique:      true,

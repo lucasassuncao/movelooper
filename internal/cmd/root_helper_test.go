@@ -575,3 +575,61 @@ func TestAppendPlannedMoves_DetectsExistingDestination(t *testing.T) {
 	require.Len(t, conflicts, 1)
 	assert.Equal(t, filepath.Join(dstDir, "a.jpg"), conflicts[0])
 }
+
+// A recursive category must not take what another category put inside its
+// source: the images landed in dl/Media and an "all" pass over dl moved them on.
+func TestRunMove_RecursiveCategorySkipsOtherDestinations(t *testing.T) {
+	t.Parallel()
+	dl, other := t.TempDir(), t.TempDir()
+	media := filepath.Join(dl, "Media")
+	require.NoError(t, os.WriteFile(filepath.Join(dl, "photo.jpg"), []byte("x"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dl, "notes.pdf"), []byte("x"), 0o600))
+
+	images := moveTestCategory("images", dl, media, "", []string{"jpg"})
+	rest := moveTestCategory("rest", dl, other, "", []string{"all"})
+	rest.Source.Recursive = true
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{images, rest})
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+	assert.FileExists(t, filepath.Join(media, "photo.jpg"), "the image stays where its category put it")
+	assert.FileExists(t, filepath.Join(other, "notes.pdf"))
+	assert.NoFileExists(t, filepath.Join(other, "photo.jpg"))
+}
+
+// Another category's destination is skipped only inside the source: a chain
+// whose source is that destination must still see its files.
+func TestRunMove_ChainedCategoryStillScansItsSource(t *testing.T) {
+	t.Parallel()
+	dl, sorted := t.TempDir(), t.TempDir()
+	inbox := filepath.Join(dl, "Inbox")
+	require.NoError(t, os.MkdirAll(inbox, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(inbox, "old.pdf"), []byte("x"), 0o600))
+
+	first := moveTestCategory("first", dl, inbox, "", []string{"jpg"})
+	chained := moveTestCategory("chained", inbox, sorted, "", []string{"pdf"})
+	chained.Source.Recursive = true
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{first, chained})
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+	assert.FileExists(t, filepath.Join(sorted, "old.pdf"))
+}
+
+// A compound extension names the end of the file name, not filepath.Ext's
+// last part: "tar.gz" used to match nothing.
+func TestRunMove_CompoundExtension(t *testing.T) {
+	t.Parallel()
+	src, dst := t.TempDir(), t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(src, "b.tar.gz"), []byte("x"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(src, "c.gz"), []byte("x"), 0o600))
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, []*models.Category{moveTestCategory("tars", src, dst, "", []string{"tar.gz"})})
+
+	require.NoError(t, runMove(context.Background(), m, MoveOptions{}))
+
+	assert.FileExists(t, filepath.Join(dst, "b.tar.gz"))
+	assert.FileExists(t, filepath.Join(src, "c.gz"), "a plain .gz is not a .tar.gz")
+}

@@ -20,19 +20,15 @@ const ExtAll = "all"
 // HasExtension checks if a file has a given extension (case-insensitive).
 // When extension is "all", every file matches.
 func HasExtension(file os.DirEntry, extension string) bool {
-	if strings.ToLower(extension) == ExtAll {
-		return true
-	}
-	ext := "." + extension
-	fileExt := strings.ToLower(filepath.Ext(file.Name()))
-	return fileExt == strings.ToLower(ext)
+	return MatchesAnyExtension(file.Name(), []string{extension})
 }
 
-// MatchesAnyExtension reports whether fileName's extension matches any entry in the list.
+// MatchesAnyExtension reports whether fileName's extension matches any entry in
+// the list. The name's end is compared, so "tar.gz" matches all of "b.tar.gz".
 func MatchesAnyExtension(fileName string, extensions []string) bool {
-	fileExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(fileName), "."))
+	name := strings.ToLower(fileName)
 	for _, e := range extensions {
-		if ext := strings.ToLower(e); ext == ExtAll || ext == fileExt {
+		if ext := strings.ToLower(e); ext == ExtAll || strings.HasSuffix(name, "."+ext) {
 			return true
 		}
 	}

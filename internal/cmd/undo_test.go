@@ -36,3 +36,21 @@ func TestUndoCmd_EmptyHistoryIsANoop(t *testing.T) {
 	require.NoError(t, cmd.ExecuteContext(context.Background()))
 	assert.Contains(t, buf.String(), "no batches in history")
 }
+
+// With no batch ID and no terminal there is no one to pick: undo must say to
+// pass an ID instead of opening a picker on a closed input.
+func TestResolveBatchID_WithoutATerminalAsksForAnID(t *testing.T) {
+	noTerminal(t)
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+	movedEntry(t, m, "batch_any")
+
+	_, ok, err := resolveBatchID(m, nil)
+
+	assert.False(t, ok)
+	require.ErrorContains(t, err, "pass a batch ID")
+	id, ok, err := resolveBatchID(m, []string{"batch_any"})
+	require.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "batch_any", id)
+}

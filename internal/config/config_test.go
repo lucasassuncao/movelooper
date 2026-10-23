@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/knadh/koanf/v2"
@@ -115,6 +116,22 @@ categories:
 		check: func(t *testing.T, cats []*models.Category) {
 			require.Len(t, cats, 1)
 			assert.Equal(t, []string{"jpg", "png", "all"}, cats[0].Source.Extensions)
+		},
+	},
+	{
+		name: "a leading dot is dropped from extensions",
+		yaml: `
+categories:
+  - name: dotted
+    source:
+      path: /tmp/src
+      extensions: [".jpg", " .Tar.GZ "]
+    destination:
+      path: /tmp/dst
+`,
+		check: func(t *testing.T, cats []*models.Category) {
+			require.Len(t, cats, 1)
+			assert.Equal(t, []string{"jpg", "tar.gz"}, cats[0].Source.Extensions)
 		},
 	},
 	{
@@ -818,4 +835,23 @@ func TestValidateCategory_MimeFilter(t *testing.T) {
 	}
 	assert.NoError(t, validateCategory(base("image/*")))
 	require.Error(t, validateCategory(base("image/[")), "malformed glob is rejected")
+}
+
+// The same directory written two ways must still be refused: a run moved every
+// file onto itself and renamed it, one more "(1)" each run.
+func TestValidateCategory_SameDirectoryWrittenTwoWays(t *testing.T) {
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	pairs := [][2]string{{"~/Downloads", filepath.Join(home, "Downloads")}}
+	if runtime.GOOS == "windows" {
+		pairs = append(pairs, [2]string{`C:\Data\In`, `c:\data\IN\`})
+	}
+	for _, p := range pairs {
+		cat := &models.Category{
+			Name:        "same",
+			Source:      models.CategorySource{Path: p[0], Extensions: []string{"txt"}},
+			Destination: models.CategoryDestination{Path: p[1]},
+		}
+		require.ErrorContains(t, validateCategory(cat), "must be different", p)
+	}
 }

@@ -159,3 +159,33 @@ func TestArchiveConflictPath_ComparisonStrategiesSaySo(t *testing.T) {
 	assert.Equal(t, filepath.Join(dst, "images(1).zip"), path)
 	assert.NotContains(t, buf.String(), "does not apply", "rename is what it says it is")
 }
+
+// keep-source: false deleted every archived file, even one written again
+// after the archive took it: those newer bytes existed nowhere else.
+func TestDeleteArchivedSources_KeepsAFileChangedAfterArchiving(t *testing.T) {
+	src := t.TempDir()
+	files := fileEntriesFrom(t, src, "same.jpg", "grew.jpg")
+	archived := statSources(files)
+	require.NoError(t, os.WriteFile(filepath.Join(src, "grew.jpg"), []byte("written after the archive"), 0o600))
+	var buf bytes.Buffer
+	m := newBufMovelooper(t, &buf, nil)
+
+	deleteArchivedSources(m, files, archived)
+
+	assert.NoFileExists(t, filepath.Join(src, "same.jpg"))
+	assert.FileExists(t, filepath.Join(src, "grew.jpg"))
+}
+
+// A folder named with a leading dot is inside the source like any other: the
+// old check read ".config/x" as outside and dropped the folder from the name.
+func TestArchiveEntries_KeepsHiddenFolders(t *testing.T) {
+	root := t.TempDir()
+	hidden := filepath.Join(root, ".config")
+	require.NoError(t, os.MkdirAll(hidden, 0o750))
+	files := fileEntriesFrom(t, hidden, "app.json")
+
+	cat := archiveTestCategory(root, t.TempDir(), &models.ArchiveConfig{Format: "zip"})
+	entries := archiveEntries(cat, files)
+
+	assert.Equal(t, ".config/app.json", entries[0].Name)
+}

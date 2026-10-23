@@ -3,8 +3,10 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/knadh/koanf/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -321,4 +323,98 @@ func TestCheckImportsReportsEachEntry(t *testing.T) {
 	assert.ErrorContains(t, errs[1], "missing.yaml")
 	assert.ErrorContains(t, errs[2], "circular import")
 	assert.NoError(t, errs[3], "an absolute entry loads as written")
+}
+
+// "categories:" with no value is null, not a list: the imports were appended to
+// that null and lost, so the config ran with no categories and no error.
+func TestResolveImportsIntoAnEmptyCategoriesKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "more.yaml"), []byte("categories:\n  - name: imported\n"), 0o600))
+	main := filepath.Join(dir, "movelooper.yaml")
+	require.NoError(t, os.WriteFile(main, []byte("import:\n  - ./more.yaml\ncategories:\n"), 0o600))
+
+	out, err := ResolveImports(main)
+	require.NoError(t, err)
+
+	var doc struct {
+		Categories []struct{ Name string } `yaml:"categories"`
+	}
+	require.NoError(t, yaml.Unmarshal(out, &doc))
+	require.Len(t, doc.Categories, 1)
+	assert.Equal(t, "imported", doc.Categories[0].Name)
+}
+
+// A categories key holding something other than a list is an error, not a
+// silent drop of everything imported into it.
+func TestResolveImportsRejectsCategoriesThatAreNotAList(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "more.yaml"), []byte("categories:\n  - name: imported\n"), 0o600))
+	main := filepath.Join(dir, "movelooper.yaml")
+	require.NoError(t, os.WriteFile(main, []byte("import:\n  - ./more.yaml\ncategories:\n  name: x\n"), 0o600))
+
+	_, err := ResolveImports(main)
+	require.ErrorContains(t, err, "categories")
+}
+
+// An imported file whose categories is a map would have its keys and values
+// merged as if they were categories.
+func TestResolveImportsRejectsAnImportedMap(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "more.yaml"), []byte("categories:\n  name: imported\n"), 0o600))
+	main := filepath.Join(dir, "movelooper.yaml")
+	require.NoError(t, os.WriteFile(main, []byte("import:\n  - ./more.yaml\n"), 0o600))
+
+	_, err := ResolveImports(main)
+	require.ErrorContains(t, err, "categories must be a list")
+}
+
+// Relative category paths follow the file that declares them, as imports do:
+// they used to follow the working directory, which a scheduled task sets to
+// somewhere else entirely.
+func TestRelativePathsFollowTheirFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "more")
+	require.NoError(t, os.MkdirAll(sub, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(sub, "extra.yaml"), []byte(
+		"categories:\n  - name: imported\n    source:\n      path: in\n      extensions: [txt]\n      exclude-paths: [skip]\n    destination:\n      path: ../out\n"), 0o600))
+	main := filepath.Join(dir, "movelooper.yaml")
+	require.NoError(t, os.WriteFile(main, []byte(
+		"import:\n  - ./more/extra.yaml\ncategories:\n  - name: main\n    source:\n      path: src\n      extensions: [txt]\n    destination:\n      path: ~/dst\n"), 0o600))
+
+	k := koanf.New(".")
+	require.NoError(t, InitConfig(k, main))
+	cats, err := UnmarshalConfig(k)
+	require.NoError(t, err)
+	require.Len(t, cats, 2)
+
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(dir, "src"), cats[0].Source.Path)
+	assert.Equal(t, filepath.Join(home, "dst"), cats[0].Destination.Path, "~ is still the home folder")
+	assert.Equal(t, filepath.Join(sub, "in"), cats[1].Source.Path)
+	assert.Equal(t, filepath.Join(dir, "out"), cats[1].Destination.Path)
+	assert.Equal(t, []string{filepath.Join(sub, "skip")}, cats[1].Source.ExcludePaths)
+}
+
+func TestAnchorPath(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "cfg")
+	abs := filepath.Join(t.TempDir(), "x")
+	cases := map[string]string{
+		"in":     filepath.Join(dir, "in"),
+		"../out": filepath.Join(filepath.Dir(dir), "out"),
+		abs:      abs,
+		"~/x":    "~/x",
+		"":       "",
+	}
+	if runtime.GOOS == "windows" {
+		cases[`\rooted`] = `\rooted`
+	}
+	for in, want := range cases {
+		assert.Equal(t, want, AnchorPath(in, dir), in)
+	}
 }

@@ -17,6 +17,10 @@ import (
 
 const defaultMaxBatches = 100
 
+// ActionDedupe marks a source hash_check removed because the destination
+// already held its content; undo copies that content back to the source.
+const ActionDedupe = "dedupe"
+
 // NewBatchID returns a collision-resistant batch ID for a one-shot move operation.
 func NewBatchID() string { return newBatchID("batch") }
 
@@ -39,6 +43,9 @@ type Entry struct {
 	BatchID     string    `json:"batch_id"`
 	Action      string    `json:"action"`
 	Category    string    `json:"category"`
+	// Replaced means the file took the place of one already at Destination,
+	// which the conflict strategy deleted and undo cannot bring back.
+	Replaced bool `json:"replaced,omitempty"`
 }
 
 // Recorder records file operations for undo. *History saves to disk on every

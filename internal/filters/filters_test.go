@@ -145,6 +145,10 @@ var testHasExtensionTestCases = []testHasExtension{
 	{"all matches any", "doc.pdf", "all", true},
 	{"wrong ext", "doc.pdf", "txt", false},
 	{"no ext vs txt", "noext", "txt", false},
+	{"compound ext", "b.tar.gz", "tar.gz", true},
+	{"last part of a compound ext", "b.tar.gz", "gz", true},
+	{"compound ext needs every part", "a.gz", "tar.gz", false},
+	{"compound ext is not a name part", "tar.gz", "tar.gz", false},
 }
 
 // TestHasExtension tests the HasExtension function to ensure it correctly identifies file extensions.
@@ -154,6 +158,9 @@ func TestHasExtension(t *testing.T) {
 	createTempFile(t, dir, "doc.pdf")
 	createTempFile(t, dir, "image.PNG")
 	createTempFile(t, dir, "noext")
+	createTempFile(t, dir, "b.tar.gz")
+	createTempFile(t, dir, "a.gz")
+	createTempFile(t, dir, "tar.gz")
 
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
@@ -186,6 +193,8 @@ var testMatchesAnyExtensionTestCases = []testMatchesAnyExtension{
 	{"case insensitive", "file.PDF", []string{"pdf"}, true},
 	{"all matches any", "file.go", []string{"all"}, true},
 	{"no match", "file.go", []string{"txt", "pdf"}, false},
+	{"compound ext", "b.TAR.GZ", []string{"tar.gz"}, true},
+	{"compound ext needs every part", "a.gz", []string{"tar.gz"}, false},
 }
 
 // TestMatchesAnyExtension tests the MatchesAnyExtension function to ensure it correctly

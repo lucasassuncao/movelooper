@@ -15,11 +15,11 @@ movelooper watch --show-files               # log each file as it is moved
 
 ## How it works
 
-1. movelooper starts a filesystem watcher on every enabled category's `source.path`.
+1. movelooper starts a filesystem watcher on every enabled category's `source.path`, and on the disabled ones too with `--include-disabled`.
 2. When a file event arrives (create or write), the file is added to a pending queue with a timestamp.
 3. Every `watch.poll-interval` (default `5s`), pending files are checked. A file graduates from pending to ready when it has not received a new event for at least `watch.delay` (default `5m`).
 4. Ready files are processed using the same category rules as the one-shot `movelooper` command: extensions, filters, conflict strategy, organize-by, rename.
-5. Every processed batch is recorded in history and can be undone with `movelooper undo`.
+5. Every file moved during one watch session is recorded in a single batch, whose ID is printed when the watch starts, and can be undone with `movelooper undo`.
 
 ---
 

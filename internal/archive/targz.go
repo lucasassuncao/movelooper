@@ -37,7 +37,12 @@ func writeTarGz(ctx context.Context, w io.Writer, entries []Entry, comp Compress
 }
 
 func addTarEntry(tw *tar.Writer, e Entry) error {
-	info, err := os.Stat(e.Source)
+	src, err := os.Open(e.Source) //#nosec G304 -- source paths come from the directory scan
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	info, err := src.Stat()
 	if err != nil {
 		return err
 	}
@@ -50,12 +55,13 @@ func addTarEntry(tw *tar.Writer, e Entry) error {
 	if err := tw.WriteHeader(hdr); err != nil {
 		return err
 	}
-	src, err := os.Open(e.Source) //#nosec G304 -- source paths come from the directory scan
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-	_, err = io.Copy(tw, src)
+	return copyTarBody(tw, src, hdr.Size)
+}
+
+// copyTarBody copies exactly size bytes, the header's: a file still being
+// written grows meanwhile, and the tar writer refuses anything past the size.
+func copyTarBody(tw *tar.Writer, src io.Reader, size int64) error {
+	_, err := io.CopyN(tw, src, size)
 	return err
 }
 

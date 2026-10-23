@@ -6,12 +6,12 @@ Every run of `movelooper` records a batch in the history file. `movelooper undo`
 
 ## What is a batch?
 
-A batch is the set of all moves made in a single run of `movelooper`. Each batch has a unique ID:
+A batch is the set of all moves made in a single run of `movelooper`, or in one `watch` session from start to Ctrl+C. Each batch has a unique ID:
 
 - One-shot runs: `batch_a1b2c3d4e5f6a7b8`
-- Watch-mode runs: `watch_0f1e2d3c4b5a6978`
+- Watch sessions: `watch_0f1e2d3c4b5a6978`
 
-The batch ID is printed at the end of each run and in `undo --list`.
+The batch ID is printed at the end of each run, when a watch session starts, and in `undo --list`.
 
 ---
 
@@ -67,7 +67,7 @@ Only entries from the specified categories are reverted. If the batch becomes em
 
 If the source file no longer exists at undo time, movelooper logs a warning and skips it. The rest of the batch is still restored.
 
-Undo cannot bring back a file that a replacing conflict strategy (`overwrite`, `newest`, `oldest`, `larger`, `smaller`) deleted at the destination. See [Conflict Strategies](/CONFLICTS.md).
+Undo cannot bring back a file that a replacing conflict strategy (`overwrite`, `newest`, `oldest`, `larger`, `smaller`) deleted at the destination. Each such file is recorded in history, and undo and `undo --dry-run` name it with a warning. See [Conflict Strategies](/CONFLICTS.md).
 
 ## When undo refuses to delete a copy
 
@@ -83,6 +83,18 @@ movelooper undo batch_a1b2c3d4e5f6a7b8 --force
 ```
 
 `--force` removes those copies anyway. It changes nothing else: the guards on `move` undo, which never overwrite a source path that something else now occupies, always apply.
+
+---
+
+## Without a terminal
+
+Undo asks before it restores anything, and the picker needs a terminal to show. Under cron, the Task Scheduler or a script, pass the batch ID and `--yes`:
+
+```bash
+movelooper undo batch_a1b2c3d4e5f6a7b8 --yes
+```
+
+Without `--yes` there, undo stops with an error instead of waiting on a question nobody can answer.
 
 ---
 
@@ -110,6 +122,8 @@ When `limit` is reached, the oldest batches are evicted automatically.
 |---|---|---|
 | `--list` | `-l` | List all recorded batches |
 | `--dry-run` | | Preview which files would be restored |
+| `--force` | | Remove a copy even when the original is gone or the copy was modified |
+| `--yes` | `-y` | Restore without asking; required without a terminal |
 | `--category` | | Comma-separated category names to undo (default: all) |
 
 See [Commands](/COMMANDS.md) for the full flag reference including `--format json`.
