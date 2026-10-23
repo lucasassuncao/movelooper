@@ -1,11 +1,10 @@
 module github.com/lucasassuncao/movelooper
 
-go 1.27.0
+go 1.26.4
 
-toolchain go1.27.3
+toolchain go1.26.10
 
 require (
-	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.0
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/fsnotify/fsnotify v1.10.1
@@ -13,9 +12,9 @@ require (
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
 	github.com/knadh/koanf/v2 v2.4.1
-	github.com/lucasassuncao/bezel v0.8.0
-	github.com/lucasassuncao/docgen v0.1.4
-	github.com/lucasassuncao/yedit v0.67.0
+	github.com/lucasassuncao/bezel v0.11.0
+	github.com/lucasassuncao/docgen v0.1.5
+	github.com/lucasassuncao/yedit v0.68.0
 	github.com/pterm/pterm v0.12.84
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
@@ -29,6 +28,7 @@ require (
 	atomicgo.dev/cursor v0.2.0 // indirect
 	atomicgo.dev/keyboard v0.2.10 // indirect
 	atomicgo.dev/schedule v0.1.0 // indirect
+	charm.land/bubbles/v2 v2.2.1 // indirect
 	charm.land/glamour/v2 v2.0.1 // indirect
 	charm.land/lipgloss/v2 v2.0.6 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
@@ -44,7 +44,6 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/dlclark/regexp2/v2 v2.9.1 // indirect
-	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
