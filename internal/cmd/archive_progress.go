@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/lucasassuncao/bezel/progress"
+	"github.com/lucasassuncao/bezel/component/progress"
 	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/pterm/pterm"

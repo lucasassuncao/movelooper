@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/lucasassuncao/bezel/inline"
+	"github.com/lucasassuncao/bezel/component/inline"
 	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/fileops"
 	"github.com/lucasassuncao/movelooper/internal/history"

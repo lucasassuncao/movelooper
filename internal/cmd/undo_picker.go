@@ -8,13 +8,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/lucasassuncao/bezel/component/list"
+	"github.com/lucasassuncao/bezel/component/table"
 	"github.com/lucasassuncao/bezel/draw"
 	"github.com/lucasassuncao/bezel/key"
 	"github.com/lucasassuncao/bezel/layout"
-	"github.com/lucasassuncao/bezel/list"
 	"github.com/lucasassuncao/bezel/overlay"
 	"github.com/lucasassuncao/bezel/shell"
-	"github.com/lucasassuncao/bezel/table"
 	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/history"
 )

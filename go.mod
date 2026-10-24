@@ -12,9 +12,9 @@ require (
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
 	github.com/knadh/koanf/v2 v2.4.1
-	github.com/lucasassuncao/bezel v0.12.0
+	github.com/lucasassuncao/bezel v0.13.0
 	github.com/lucasassuncao/docgen v0.1.5
-	github.com/lucasassuncao/yedit v0.69.0
+	github.com/lucasassuncao/yedit v0.69.1
 	github.com/pterm/pterm v0.12.84
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1

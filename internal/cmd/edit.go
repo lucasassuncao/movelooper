@@ -9,8 +9,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/lucasassuncao/bezel/component/themebrowser"
 	"github.com/lucasassuncao/bezel/theme"
-	"github.com/lucasassuncao/bezel/themebrowser"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/yedit/editor"
