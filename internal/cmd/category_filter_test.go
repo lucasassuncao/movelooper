@@ -1,10 +1,11 @@
 package cmd
 
 import (
+	"github.com/lucasassuncao/movelooper/internal/logger"
+	"log/slog"
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,8 +138,6 @@ func disabledCategory(name string) *models.Category {
 	return &models.Category{Name: name, Enabled: &f}
 }
 
-func silentLogger() *pterm.Logger {
-	l := pterm.DefaultLogger
-	l.Level = pterm.LogLevelDisabled
-	return &l
+func silentLogger() *slog.Logger {
+	return logger.Discard()
 }

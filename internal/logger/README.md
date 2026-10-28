@@ -8,36 +8,124 @@
 import "github.com/lucasassuncao/movelooper/internal/logger"
 ```
 
+Package logger builds the app's \*slog.Logger: bezel's tree for people, or JSON lines for machines.
+
 ## Index
 
-- [type Logger](<#Logger>)
-  - [func NewSlog\(w io.Writer, level string, addSource bool\) Logger](<#NewSlog>)
+- [Constants](<#constants>)
+- [func Discard\(\) \*slog.Logger](<#Discard>)
+- [func Level\(level string\) slog.Level](<#Level>)
+- [func NewJSON\(w io.Writer, level string, addSource bool\) \*slog.Logger](<#NewJSON>)
+- [func NewPretty\(w io.Writer, th theme.Resolved, level string, addSource bool, color string, width int\) \*slog.Logger](<#NewPretty>)
+- [func Pretty\(l \*slog.Logger\) bool](<#Pretty>)
+- [type Look](<#Look>)
+  - [func NewLook\(th theme.Resolved, on bool\) Look](<#NewLook>)
+  - [func \(l Look\) Category\(name string\) string](<#Look.Category>)
+  - [func \(l Look\) Count\(n int\) string](<#Look.Count>)
+  - [func \(l Look\) None\(s string\) string](<#Look.None>)
 
 
-<a name="Logger"></a>
-## type [Logger](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L7-L14>)
+## Constants
 
-Logger is the minimal logging interface used across the application. \*pterm.Logger satisfies this interface.
+<a name="LevelTrace"></a>slog has no Trace or Fatal levels; these sit below Debug and above Error so the configured trace/fatal vocabulary survives both renderers.
 
 ```go
-type Logger interface {
-    Trace(msg string, args ...[]pterm.LoggerArgument)
-    Debug(msg string, args ...[]pterm.LoggerArgument)
-    Info(msg string, args ...[]pterm.LoggerArgument)
-    Warn(msg string, args ...[]pterm.LoggerArgument)
-    Error(msg string, args ...[]pterm.LoggerArgument)
-    Args(args ...interface{}) []pterm.LoggerArgument
+const (
+    LevelTrace = bezellog.LevelTrace
+)
+```
+
+<a name="Discard"></a>
+## func [Discard](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L48>)
+
+```go
+func Discard() *slog.Logger
+```
+
+Discard drops every line, for tests and code paths that log nothing.
+
+<a name="Level"></a>
+## func [Level](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L57>)
+
+```go
+func Level(level string) slog.Level
+```
+
+Level maps the configured level name to its slog level; unknown is info.
+
+<a name="NewJSON"></a>
+## func [NewJSON](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L22>)
+
+```go
+func NewJSON(w io.Writer, level string, addSource bool) *slog.Logger
+```
+
+NewJSON logs JSON lines. addSource adds each line's caller, from the hidden \-\-show\-caller flag.
+
+<a name="NewPretty"></a>
+## func [NewPretty](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L33>)
+
+```go
+func NewPretty(w io.Writer, th theme.Resolved, level string, addSource bool, color string, width int) *slog.Logger
+```
+
+NewPretty logs each message with its arguments as a tree under it, in th. color is "always", "never" or "auto" \(colour on a terminal\); width 0 wraps at the terminal's width.
+
+<a name="Pretty"></a>
+## func [Pretty](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L51>)
+
+```go
+func Pretty(l *slog.Logger) bool
+```
+
+Pretty reports whether l prints for people rather than as JSON.
+
+<a name="Look"></a>
+## type [Look](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/look.go#L12-L15>)
+
+Look paints the parts of a log message in the log's theme. The zero Look, and one for JSON, leaves them plain: a JSON line carries no colour.
+
+```go
+type Look struct {
+    // contains filtered or unexported fields
 }
 ```
 
-<a name="NewSlog"></a>
-### func [NewSlog](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/slog.go#L29>)
+<a name="NewLook"></a>
+### func [NewLook](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/look.go#L19>)
 
 ```go
-func NewSlog(w io.Writer, level string, addSource bool) Logger
+func NewLook(th theme.Resolved, on bool) Look
 ```
 
-NewSlog builds a Logger that emits structured JSON via slog. addSource mirrors the pretty logger's caller, from the hidden \-\-show\-caller flag.
+NewLook paints in th when on; the pretty log strips the colour itself wherever it writes without it.
+
+<a name="Look.Category"></a>
+### func \(Look\) [Category](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/look.go#L22>)
+
+```go
+func (l Look) Category(name string) string
+```
+
+Category is a category's name in brackets, in the theme's accent.
+
+<a name="Look.Count"></a>
+### func \(Look\) [Count](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/look.go#L28>)
+
+```go
+func (l Look) Count(n int) string
+```
+
+Count is a number of files, in the theme's success colour.
+
+<a name="Look.None"></a>
+### func \(Look\) [None](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/look.go#L25>)
+
+```go
+func (l Look) None(s string) string
+```
+
+None is a word that says nothing was found, in the theme's danger colour.
 
 Generated by [gomarkdoc](<https://github.com/princjef/gomarkdoc>)
 

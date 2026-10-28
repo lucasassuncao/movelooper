@@ -3,12 +3,12 @@ package hooks
 import (
 	"bytes"
 	"context"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,7 +19,6 @@ func TestRunHook_CmdKeepsQuotesAsWritten(t *testing.T) {
 	t.Parallel()
 	var out bytes.Buffer
 	hook := &models.CategoryHook{Shell: "cmd", OnFailure: "abort", Run: []string{`echo "a b"`}}
-	log := pterm.DefaultLogger
-	require.NoError(t, RunHook(context.Background(), hook, HookContext{Log: &log, Stdout: &out, Stderr: io.Discard}, nil))
+	require.NoError(t, RunHook(context.Background(), hook, HookContext{Log: logger.Discard(), Stdout: &out, Stderr: io.Discard}, nil))
 	assert.Equal(t, `"a b"`, strings.TrimSpace(out.String()))
 }

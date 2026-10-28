@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -41,5 +42,8 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	return root.ExecuteContext(ctx)
+	if err := root.ExecuteContext(ctx); !errors.Is(err, cmd.ErrThemesListed) {
+		return err
+	}
+	return nil
 }

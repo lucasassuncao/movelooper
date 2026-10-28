@@ -15,7 +15,7 @@ func TestUndoCmd_NilHistoryFails(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	m := &models.Movelooper{Logger: logger.NewSlog(&buf, "info", false)}
+	m := &models.Movelooper{Logger: logger.NewJSON(&buf, "info", false)}
 	cmd := UndoCmd(m)
 	cmd.SetArgs([]string{})
 

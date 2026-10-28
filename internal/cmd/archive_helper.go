@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,7 +16,6 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/scanner"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
-	"github.com/pterm/pterm"
 )
 
 // archiveCategory packs all matched files of a category into one archive at the
@@ -26,7 +26,7 @@ import (
 // false and the archive was written successfully.
 func archiveCategory(ctx context.Context, m *models.Movelooper, category *models.Category, files []scanner.FileEntry, batch moveBatch) (string, error) {
 	arc := category.Destination.Archive
-	label := pterm.Cyan(fmt.Sprintf("[%s]", category.Name))
+	label := m.Look.Category(category.Name)
 	if len(files) == 0 {
 		m.Logger.Info(fmt.Sprintf("%s no files to archive", label))
 		return "", nil
@@ -38,12 +38,12 @@ func archiveCategory(ctx context.Context, m *models.Movelooper, category *models
 	entries := archiveEntries(category, files)
 
 	if batch.dryRun {
-		args := make([]any, 0, len(entries)*2+2)
-		args = append(args, "archive", destPath)
+		attrs := make([]slog.Attr, 0, len(entries)+1)
+		attrs = append(attrs, slog.String("archive", destPath))
 		for _, e := range entries {
-			args = append(args, "entry", e.Name)
+			attrs = append(attrs, slog.String("entry", e.Name))
 		}
-		m.Logger.Info(fmt.Sprintf("%s would archive %d %s", label, len(entries), fileNoun("all", len(entries))), m.Logger.Args(args...))
+		m.Logger.LogAttrs(ctx, slog.LevelInfo, fmt.Sprintf("%s would archive %d %s", label, len(entries), fileNoun("all", len(entries))), attrs...)
 		return "", nil
 	}
 
@@ -67,7 +67,7 @@ func archiveCategory(ctx context.Context, m *models.Movelooper, category *models
 	if err := archive.Write(ctx, destPath, entries, opts); err != nil {
 		return "", fmt.Errorf("write archive %q: %w", destPath, err)
 	}
-	m.Logger.Info(fmt.Sprintf("%s archived %d %s", label, len(entries), fileNoun("all", len(entries))), m.Logger.Args("archive", destPath))
+	m.Logger.Info(fmt.Sprintf("%s archived %d %s", label, len(entries), fileNoun("all", len(entries))), slog.String("archive", destPath))
 
 	recordArchiveHistory(m, category, destPath, batch)
 
@@ -129,7 +129,7 @@ func archiveConflictPath(m *models.Movelooper, cs models.ConflictStrategy, destP
 	}
 	switch cs {
 	case models.ConflictStrategySkip:
-		m.Logger.Info("archive already exists, skipping", m.Logger.Args("path", destPath))
+		m.Logger.Info("archive already exists, skipping", slog.String("path", destPath))
 		return "", nil
 	case models.ConflictStrategyOverwrite:
 		return destPath, nil
@@ -140,7 +140,7 @@ func archiveConflictPath(m *models.Movelooper, cs models.ConflictStrategy, destP
 		// silently doing something other than what the category asked for.
 		if cs != "" && cs != models.ConflictStrategyRename {
 			m.Logger.Warn("conflict-strategy does not apply to an archive; renaming the new archive instead",
-				m.Logger.Args("conflict_strategy", string(cs), "path", destPath))
+				slog.String("conflict_strategy", string(cs)), slog.String("path", destPath))
 		}
 		dir := filepath.Dir(destPath)
 		name := filepath.Base(destPath)
@@ -165,7 +165,7 @@ func recordArchiveHistory(m *models.Movelooper, category *models.Category, destP
 		Action:      string(models.ActionArchive),
 		Category:    category.Name,
 	}); err != nil {
-		m.Logger.Warn("failed to record archive in history", m.Logger.Args("error", err.Error()))
+		m.Logger.Warn("failed to record archive in history", slog.Any("error", err))
 	}
 }
 
@@ -194,11 +194,11 @@ func deleteArchivedSources(m *models.Movelooper, files []scanner.FileEntry, arch
 		p := filepath.Join(fe.Dir, fe.Entry.Name())
 		info, err := os.Stat(p)
 		if was, ok := archived[p]; err == nil && (!ok || info.Size() != was.size || !info.ModTime().Equal(was.modTime)) {
-			m.Logger.Warn("keeping a source that changed after it was archived", m.Logger.Args("path", p))
+			m.Logger.Warn("keeping a source that changed after it was archived", slog.String("path", p))
 			continue
 		}
 		if err := os.Remove(p); err != nil {
-			m.Logger.Warn("failed to remove source after archiving", m.Logger.Args("path", p, "error", err.Error()))
+			m.Logger.Warn("failed to remove source after archiving", slog.String("path", p), slog.Any("error", err))
 		}
 	}
 }

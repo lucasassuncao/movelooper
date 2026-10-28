@@ -9,7 +9,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/lucasassuncao/bezel/component/themebrowser"
 	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
@@ -22,7 +21,6 @@ import (
 func EditCmd() *cobra.Command {
 	var output string
 	var themeName string
-	var listThemes bool
 	var noSaveConfirm bool
 	var noDeleteConfirm bool
 	var noValidateOnSave bool
@@ -50,7 +48,7 @@ produce a new config from an existing one).`,
   movelooper edit --theme grape
 
   # Browse the available themes in a scrollable table
-  movelooper edit --list-themes
+  movelooper --list-themes
 
   # Load from --config but save to a new file
   movelooper edit --output /path/to/new.yaml
@@ -61,13 +59,9 @@ produce a new config from an existing one).`,
   # Record the trace to a specific file instead of the OS temp dir
   movelooper edit --dump-path ./trace.jsonl`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if listThemes {
-				return themebrowser.BrowseInTerminal()
-			}
-
 			selectedTheme, err := theme.Lookup(themeName)
 			if err != nil {
-				return fmt.Errorf("%w: run 'movelooper edit --list-themes' to see available themes", err)
+				return fmt.Errorf("%w: run 'movelooper --list-themes' to see available themes", err)
 			}
 
 			configFlag, _ := cmd.Root().PersistentFlags().GetString("config")
@@ -135,7 +129,6 @@ produce a new config from an existing one).`,
 
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Save to this file instead of the loaded config (load path is unchanged)")
 	cmd.Flags().StringVar(&themeName, "theme", "plain", "Theme name (run --list-themes to see options)")
-	cmd.Flags().BoolVar(&listThemes, "list-themes", false, "Browse the available themes in a scrollable table (q quits)")
 	cmd.Flags().BoolVar(&noSaveConfirm, "no-save-confirm", false, "Skip the 'Save changes?' confirmation dialog")
 	cmd.Flags().BoolVar(&noDeleteConfirm, "no-delete-confirm", false, "Skip the 'Remove block?' confirmation dialog")
 	cmd.Flags().BoolVar(&noValidateOnSave, "no-validate-on-save", false, "Allow saving even when validators report errors (a warning is shown)")

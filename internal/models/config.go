@@ -48,6 +48,7 @@ type Logging struct {
 	Format   string `yaml:"format,omitempty" mapstructure:"format"`
 	Color    string `yaml:"color,omitempty" mapstructure:"color"`
 	MaxWidth int    `yaml:"max-width,omitempty" mapstructure:"max-width"`
+	Theme    string `yaml:"theme,omitempty" mapstructure:"theme"`
 }
 
 // Watch holds the watch-mode settings.
@@ -149,6 +150,11 @@ func (Logging) Metadata() map[string]any {
 			Min:         "0",
 			Max:         "500",
 			Example:     "max-width: 120",
+		},
+		"theme": meta{
+			Description: "Colour theme for the pretty format, by the same names as 'movelooper edit --theme' (run 'movelooper --list-themes'). Ignored when format is json.",
+			Default:     "default",
+			Example:     "theme: default",
 		},
 	}
 }

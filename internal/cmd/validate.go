@@ -53,7 +53,7 @@ func ValidateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			selectedTheme, err := theme.Lookup(themeName)
 			if err != nil {
-				return fmt.Errorf("%w: run 'movelooper edit --list-themes' to see available themes", err)
+				return fmt.Errorf("%w: run 'movelooper --list-themes' to see available themes", err)
 			}
 			configPath, _ := cmd.Root().PersistentFlags().GetString("config")
 			return runValidate(configPath, validateFormat(format), summary, strict, selectedTheme)

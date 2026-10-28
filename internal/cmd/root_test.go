@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,9 +72,10 @@ func TestShowCallerIsAHiddenFlag(t *testing.T) {
 	root.SetOut(&bytes.Buffer{})
 	root.SetArgs([]string{"--config", writeCompletionConfig(t), "--show-caller", "--dry-run"})
 	require.NoError(t, root.Execute())
-	plog, ok := m.Logger.(*pterm.Logger)
-	require.True(t, ok, "the default format is the pretty pterm logger")
-	assert.True(t, plog.ShowCaller)
+	assert.True(t, logger.Pretty(m.Logger), "the default format is the pretty logger")
+	on, err := root.PersistentFlags().GetBool("show-caller")
+	require.NoError(t, err)
+	assert.True(t, on)
 }
 
 // TestCategoryNameCompletion verifies that --category completion loads the config

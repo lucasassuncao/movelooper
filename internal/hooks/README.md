@@ -33,7 +33,7 @@ HookContext carries the dependencies needed to execute hooks.
 
 ```go
 type HookContext struct {
-    Log    logger.Logger
+    Log    *slog.Logger
     Stdout io.Writer
     Stderr io.Writer
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/history"
-	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
 )
@@ -30,7 +30,7 @@ var ErrTimestampPreserve = errors.New("could not preserve file timestamps")
 // one-shot run). Callers must leave it nil — not a typed-nil pointer — when
 // history tracking is disabled.
 type MoveContext struct {
-	Logger  logger.Logger
+	Logger  *slog.Logger
 	History history.Recorder
 }
 
@@ -144,7 +144,7 @@ type fileResult struct {
 // is the expected outcome when another process moved it between the directory
 // scan and now, so it is logged at debug level and never counted as a failure.
 func vanished(mctx MoveContext, sourcePath string) fileResult {
-	mctx.Logger.Debug("file is already gone, nothing to do", mctx.Logger.Args("file", sourcePath))
+	mctx.Logger.Debug("file is already gone, nothing to do", slog.String("file", sourcePath))
 	return fileResult{outcome: outcomeVanished}
 }
 
@@ -159,7 +159,7 @@ func moveOneFile(ctx context.Context, mctx MoveContext, req MoveRequest, file os
 		if sourceVanished(sourcePath, err) {
 			return vanished(mctx, sourcePath)
 		}
-		mctx.Logger.Error("failed to stat file", mctx.Logger.Args("file", file.Name(), "error", err.Error()))
+		mctx.Logger.Error("failed to stat file", slog.String("file", file.Name()), slog.Any("error", err))
 		return fileResult{outcome: outcomeFailed}
 	}
 
@@ -167,7 +167,7 @@ func moveOneFile(ctx context.Context, mctx MoveContext, req MoveRequest, file os
 	destDir, destName := ResolveDestination(category, &tctx)
 
 	if err := os.MkdirAll(destDir, 0o750); err != nil {
-		mctx.Logger.Error("failed to create directory", mctx.Logger.Args("path", destDir, "error", err.Error()))
+		mctx.Logger.Error("failed to create directory", slog.String("path", destDir), slog.Any("error", err))
 		return destinationFailure(destDir, err)
 	}
 
@@ -186,7 +186,7 @@ func moveOneFile(ctx context.Context, mctx MoveContext, req MoveRequest, file os
 		if sourceVanished(sourcePath, stratErr) {
 			return vanished(mctx, sourcePath)
 		}
-		mctx.Logger.Error("cannot process file", mctx.Logger.Args("file", sourcePath, "error", stratErr.Error()))
+		mctx.Logger.Error("cannot process file", slog.String("file", sourcePath), slog.Any("error", stratErr))
 		return fileResult{outcome: outcomeFailed}
 	}
 	if skip {
@@ -220,7 +220,7 @@ func moveOneFile(ctx context.Context, mctx MoveContext, req MoveRequest, file os
 	result.historyFailed = recordMove(mctx, req, category.Name, string(action), sourcePath, destPath, finalize != nil)
 
 	if req.LogEachMove {
-		mctx.Logger.Info("file processed", mctx.Logger.Args("action", action, "source", sourcePath, "destination", destPath))
+		mctx.Logger.Info("file processed", slog.String("action", string(action)), slog.String("source", sourcePath), slog.String("destination", destPath))
 	}
 	return result
 }
@@ -245,14 +245,14 @@ func runFileAction(ctx context.Context, mctx MoveContext, args actionArgs) (res 
 	case actionErr == nil:
 		return fileResult{}, false
 	case errors.Is(actionErr, ErrTimestampPreserve):
-		mctx.Logger.Warn("file processed but timestamps could not be preserved", mctx.Logger.Args("file", args.sourcePath))
+		mctx.Logger.Warn("file processed but timestamps could not be preserved", slog.String("file", args.sourcePath))
 		return fileResult{}, false
 	case sourceVanished(args.sourcePath, actionErr):
 		return vanished(mctx, args.sourcePath), true
 	default:
 		mctx.Logger.Warn("failed to perform action on file",
-			mctx.Logger.Args("file", args.sourcePath, "action", args.action, "destination", args.destPath,
-				"conflict_strategy", args.strategy, "error", actionErr.Error()))
+			slog.String("file", args.sourcePath), slog.String("action", string(args.action)), slog.String("destination", args.destPath),
+			slog.Any("conflict_strategy", args.strategy), slog.Any("error", actionErr))
 		return destinationFailure(args.destDir, actionErr), true
 	}
 }
@@ -301,7 +301,7 @@ func recordMove(mctx MoveContext, req MoveRequest, categoryName, action, sourceP
 	})
 	if err != nil {
 		mctx.Logger.Error("failed to record history; this file cannot be undone",
-			mctx.Logger.Args("file", sourcePath, "destination", destPath, "error", err.Error()))
+			slog.String("file", sourcePath), slog.String("destination", destPath), slog.Any("error", err))
 		return true
 	}
 	return false
@@ -367,7 +367,7 @@ func performAction(ctx context.Context, mctx MoveContext, action models.Action, 
 		failed := actionErr != nil && !errors.Is(actionErr, ErrTimestampPreserve)
 		if ferr := finalize(failed); ferr != nil {
 			mctx.Logger.Error("failed to finalize destination after conflict strategy",
-				mctx.Logger.Args("file", dst, "error", ferr.Error()))
+				slog.String("file", dst), slog.Any("error", ferr))
 		}
 	}
 	return actionErr
@@ -402,7 +402,7 @@ func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, ar
 			// cannot tell whether a conflict exists, so skip rather than risk an
 			// unintended overwrite.
 			ctx.Logger.Error("failed to check destination for conflicts",
-				ctx.Logger.Args("file", args.FileName, "error", statErr.Error()))
+				slog.String("file", args.FileName), slog.Any("error", statErr))
 			return "", true, nil, nil
 		}
 		return args.Dst, false, nil, nil
@@ -418,12 +418,12 @@ func applyConflictStrategy(ctx MoveContext, strategy models.ConflictStrategy, ar
 		if sourceVanished(args.Src, resolveErr) {
 			return "", false, nil, resolveErr
 		}
-		ctx.Logger.Error("failed to resolve conflict", ctx.Logger.Args("file", args.FileName, "error", resolveErr.Error()))
+		ctx.Logger.Error("failed to resolve conflict", slog.String("file", args.FileName), slog.Any("error", resolveErr))
 		return "", true, nil, nil
 	}
 	if !shouldMove {
 		if msg := resolver.SkipMessage(args); msg != "" {
-			ctx.Logger.Info(msg, ctx.Logger.Args("file", args.FileName))
+			ctx.Logger.Info(msg, slog.String("file", args.FileName))
 		}
 		return "", true, nil, nil
 	}

@@ -134,7 +134,7 @@ Useful for bootstrapping a new config or creating a category file for use with `
 
 ```bash
 movelooper edit --theme grape
-movelooper edit --list-themes   # see all available themes
+movelooper --list-themes        # see all available themes
 ```
 
 The default theme is `plain`.
@@ -146,7 +146,6 @@ The default theme is `plain`.
 | Flag | Description |
 |---|---|
 | `--theme` | Theme name (default: `plain`) |
-| `--list-themes` | Browse every available theme and its category in a scrollable table (`q` quits) |
 | `--output`, `-o` | Write to this file instead of the loaded config |
 | `--no-save-confirm` | Skip the save confirmation dialog |
 | `--no-delete-confirm` | Skip the block-delete confirmation dialog |

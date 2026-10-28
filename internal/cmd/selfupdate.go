@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/updater"
 	"github.com/spf13/cobra"
 )
@@ -42,7 +43,13 @@ and --prerelease to include rc/beta/alpha releases.`,
 			if list {
 				return runSelfUpdateList(repo, prerelease, limit, currentVersion)
 			}
-			return updater.SelfUpdate(repo, currentVersion, version, prerelease, newDownloadProgress())
+			// self-update loads no config, so only --theme can pick its bar's theme.
+			name, _ := cmd.Root().PersistentFlags().GetString("theme")
+			th, err := config.LogTheme(name)
+			if err != nil {
+				return err
+			}
+			return updater.SelfUpdate(repo, currentVersion, version, prerelease, newDownloadProgress(th))
 		},
 	}
 

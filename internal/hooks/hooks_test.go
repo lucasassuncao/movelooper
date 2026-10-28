@@ -3,14 +3,15 @@ package hooks
 import (
 	"context"
 	"fmt"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -234,6 +235,6 @@ func TestBuildEnv(t *testing.T) {
 	}
 }
 
-func silentLogger() *pterm.Logger {
-	return pterm.DefaultLogger.WithLevel(pterm.LogLevelDisabled)
+func silentLogger() *slog.Logger {
+	return logger.Discard()
 }

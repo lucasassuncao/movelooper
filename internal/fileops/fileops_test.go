@@ -2,7 +2,9 @@ package fileops
 
 import (
 	"context"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +13,6 @@ import (
 
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -592,10 +593,8 @@ func TestUniqueDestination(t *testing.T) {
 	}
 }
 
-func newTestLogger() *pterm.Logger {
-	l := pterm.DefaultLogger
-	l.Level = pterm.LogLevelDisabled
-	return &l
+func newTestLogger() *slog.Logger {
+	return logger.Discard()
 }
 
 func newTestMoveContext() MoveContext {

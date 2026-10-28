@@ -143,7 +143,7 @@ MoveContext carries the dependencies needed by file\-move operations. History ma
 
 ```go
 type MoveContext struct {
-    Logger  logger.Logger
+    Logger  *slog.Logger
     History history.Recorder
 }
 ```

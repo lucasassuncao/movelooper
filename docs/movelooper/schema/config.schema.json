@@ -571,6 +571,14 @@
                 "output: console"
               ],
               "type": "string"
+            },
+            "theme": {
+              "default": "default",
+              "description": "Colour theme for the pretty format, by the same names as 'movelooper edit --theme' (run 'movelooper --list-themes'). Ignored when format is json.",
+              "examples": [
+                "theme: default"
+              ],
+              "type": "string"
             }
           },
           "required": [

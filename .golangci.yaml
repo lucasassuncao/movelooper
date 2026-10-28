@@ -12,6 +12,7 @@ linters:
     - nakedret
     - nestif
     - nolintlint
+    - sloglint
     - staticcheck
     - unparam
     - whitespace
@@ -20,6 +21,9 @@ linters:
       min-complexity: 35
     lll:
       line-length: 300
+    sloglint:
+      attr-only: true
+      key-naming-case: snake
   exclusions:
     generated: lax
     presets:

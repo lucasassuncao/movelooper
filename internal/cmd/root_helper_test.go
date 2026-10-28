@@ -15,21 +15,17 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/scanner"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // TestLogExtensionResult_PlainWhenColorDisabled verifies that the scan summary
-// message carries the category and count, and that with color disabled (as the
-// JSON logger does) it contains no ANSI escape codes, keeping structured logs clean.
+// message carries the category and count, and that the JSON logger's zero Look
+// leaves it free of ANSI escape codes, keeping structured logs clean.
 func TestLogExtensionResult_PlainWhenColorDisabled(t *testing.T) {
-	// Not parallel: toggles pterm's global color state.
-	pterm.DisableColor()
-	t.Cleanup(func() { pterm.EnableColor() })
-
+	t.Parallel()
 	var buf bytes.Buffer
-	m := &models.Movelooper{Logger: logger.NewSlog(&buf, "info", false)}
+	m := &models.Movelooper{Logger: logger.NewJSON(&buf, "info", false)}
 
 	logExtensionResult(m, nil, "images", "jpg", "move", false)
 
@@ -79,7 +75,7 @@ func newBufMovelooper(t *testing.T, buf *bytes.Buffer, cats []*models.Category) 
 	hist, err := history.NewHistory(filepath.Join(t.TempDir(), "history.json"), 10)
 	require.NoError(t, err)
 	return &models.Movelooper{
-		Logger:     logger.NewSlog(buf, "info", false),
+		Logger:     logger.NewJSON(buf, "info", false),
 		Categories: cats,
 		History:    hist,
 	}
@@ -571,7 +567,7 @@ func TestAppendPlannedMoves_DetectsExistingDestination(t *testing.T) {
 	}
 
 	planned, conflicts := appendPlannedMoves(nil, m.Categories[0], matched)
-	assert.Len(t, planned, 8, "two source/destination key-value pairs")
+	assert.Len(t, planned, 4, "a source and a destination for each of two files")
 	require.Len(t, conflicts, 1)
 	assert.Equal(t, filepath.Join(dstDir, "a.jpg"), conflicts[0])
 }

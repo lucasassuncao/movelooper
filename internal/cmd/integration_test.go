@@ -2,21 +2,20 @@ package cmd
 
 import (
 	"context"
+	"github.com/lucasassuncao/movelooper/internal/logger"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newIntegrationLogger() *pterm.Logger {
-	l := pterm.DefaultLogger
-	l.Level = pterm.LogLevelDisabled
-	return &l
+func newIntegrationLogger() *slog.Logger {
+	return logger.Discard()
 }
 
 func buildIntegrationMovelooper(t *testing.T, srcDir, dstDir, histPath string, extensions []string) *models.Movelooper {

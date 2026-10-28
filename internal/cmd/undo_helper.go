@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,7 +76,7 @@ func undoBatch(ctx context.Context, m *models.Movelooper, batchID string, opts u
 
 	if len(restored) > 0 {
 		if err := m.History.RemoveEntries(restored); err != nil {
-			m.Logger.Error("failed to update history", m.Logger.Args("error", err.Error()))
+			m.Logger.Error("failed to update history", slog.Any("error", err))
 		}
 	}
 	// Archive entries are never restored, so they do not count as failures.
@@ -102,7 +103,7 @@ func filterEntriesByCategory(m *models.Movelooper, batchID string, all []history
 	for _, e := range all {
 		if e.Category == "" {
 			m.Logger.Warn("skipping entry with unknown category (recorded before category tracking was added)",
-				m.Logger.Args("source", e.Source))
+				slog.String("source", e.Source))
 			continue
 		}
 		if catSet[e.Category] {
@@ -111,7 +112,7 @@ func filterEntriesByCategory(m *models.Movelooper, batchID string, all []history
 	}
 	if len(filtered) == 0 {
 		m.Logger.Warn("no entries for the specified categories in this batch",
-			m.Logger.Args("batch_id", batchID, "categories", strings.Join(categoryNames, ",")))
+			slog.String("batch_id", batchID), slog.String("categories", strings.Join(categoryNames, ",")))
 		return nil, false
 	}
 	return filtered, true
@@ -119,47 +120,47 @@ func filterEntriesByCategory(m *models.Movelooper, batchID string, all []history
 
 // dryRunUndoBatch logs what would be restored without performing any file operations.
 func dryRunUndoBatch(m *models.Movelooper, batchID string, entries []history.Entry, force bool) error {
-	m.Logger.Info("[dry-run] would restore batch", m.Logger.Args("batch_id", batchID, "files", len(entries)))
-	var restoreArgs, removeArgs []any
+	m.Logger.Info("[dry-run] would restore batch", slog.String("batch_id", batchID), slog.Int("files", len(entries)))
+	var restoreAttrs, removeAttrs []slog.Attr
 	for i := len(entries) - 1; i >= 0; i-- {
 		entry := entries[i]
 		if entry.Action == string(models.ActionArchive) {
-			m.Logger.Warn("[dry-run] archive batches cannot be undone", m.Logger.Args("path", entry.Destination))
+			m.Logger.Warn("[dry-run] archive batches cannot be undone", slog.String("path", entry.Destination))
 			continue
 		}
 		if _, err := os.Lstat(entry.Destination); os.IsNotExist(err) {
-			m.Logger.Warn("[dry-run] file not found at destination, would skip", m.Logger.Args("path", entry.Destination))
+			m.Logger.Warn("[dry-run] file not found at destination, would skip", slog.String("path", entry.Destination))
 			continue
 		}
 		if linkReplaced(entry) {
-			m.Logger.Warn("[dry-run] would keep the file, it is no longer the link movelooper made", m.Logger.Args("path", entry.Destination))
+			m.Logger.Warn("[dry-run] would keep the file, it is no longer the link movelooper made", slog.String("path", entry.Destination))
 			continue
 		}
 		switch entry.Action {
 		case "copy", "symlink":
 			// Undo removes the destination; the source still existing is expected.
 			if risk := copyUndoRisk(entry); risk != "" && !force && entry.Action == string(models.ActionCopy) {
-				m.Logger.Warn("[dry-run] would keep the copy, "+risk, m.Logger.Args("path", entry.Destination))
+				m.Logger.Warn("[dry-run] would keep the copy, "+risk, slog.String("path", entry.Destination))
 				continue
 			}
-			removeArgs = append(removeArgs, "path", entry.Destination)
+			removeAttrs = append(removeAttrs, slog.String("path", entry.Destination))
 		default:
 			if _, err := os.Stat(entry.Source); err == nil {
-				m.Logger.Warn("[dry-run] source location already occupied, would skip", m.Logger.Args("path", entry.Source))
+				m.Logger.Warn("[dry-run] source location already occupied, would skip", slog.String("path", entry.Source))
 				continue
 			}
-			restoreArgs = append(restoreArgs, "path", entry.Source)
+			restoreAttrs = append(restoreAttrs, slog.String("path", entry.Source))
 		}
 		if entry.Replaced {
 			m.Logger.Warn("[dry-run] the file this one replaced at the destination was deleted by the conflict strategy and cannot come back",
-				m.Logger.Args("path", entry.Destination))
+				slog.String("path", entry.Destination))
 		}
 	}
-	if len(removeArgs) > 0 {
-		m.Logger.Info("[dry-run] would remove file(s)", m.Logger.Args(removeArgs...))
+	if len(removeAttrs) > 0 {
+		m.Logger.LogAttrs(context.Background(), slog.LevelInfo, "[dry-run] would remove file(s)", removeAttrs...)
 	}
-	if len(restoreArgs) > 0 {
-		m.Logger.Info("[dry-run] would restore file(s)", m.Logger.Args(restoreArgs...))
+	if len(restoreAttrs) > 0 {
+		m.Logger.LogAttrs(context.Background(), slog.LevelInfo, "[dry-run] would restore file(s)", restoreAttrs...)
 	}
 	return nil
 }
@@ -181,7 +182,7 @@ func confirmUndo(m *models.Movelooper, batchID string, entries []history.Entry) 
 	msg := fmt.Sprintf("Undo batch: %s\n\nFiles to restore (%d total):\n%s\nProceed with restore?",
 		batchID, len(entries), sb.String())
 
-	confirm, err := inline.Confirm(msg, theme.Resolve(theme.Default, theme.DarkTerminal()))
+	confirm, err := inline.Confirm(msg, theme.Resolve(m.Theme, theme.DarkTerminal()))
 	if err != nil || !confirm {
 		m.Logger.Info("undo operation cancelled")
 		return false, nil
@@ -213,25 +214,25 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 	restored := make([]history.Entry, 0, len(entries))
 	failCount := 0
 
-	m.Logger.Info("undoing batch", m.Logger.Args("files", len(entries)))
+	m.Logger.Info("undoing batch", slog.Int("files", len(entries)))
 
 	for i := len(entries) - 1; i >= 0; i-- {
 		entry := entries[i]
 
 		if entry.Action == string(models.ActionArchive) {
 			m.Logger.Warn("archive batches cannot be undone; the archive file was left in place",
-				m.Logger.Args("path", entry.Destination))
+				slog.String("path", entry.Destination))
 			continue
 		}
 
 		// Lstat: a link whose original is gone still holds the name.
 		if _, err := os.Lstat(entry.Destination); os.IsNotExist(err) {
-			m.Logger.Warn("file not found at destination, skipping", m.Logger.Args("path", entry.Destination))
+			m.Logger.Warn("file not found at destination, skipping", slog.String("path", entry.Destination))
 			failCount++
 			continue
 		}
 		if linkReplaced(entry) {
-			m.Logger.Warn("keeping the file, it is no longer the link movelooper made", m.Logger.Args("path", entry.Destination))
+			m.Logger.Warn("keeping the file, it is no longer the link movelooper made", slog.String("path", entry.Destination))
 			failCount++
 			continue
 		}
@@ -242,7 +243,7 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 		if entry.Action == string(models.ActionCopy) && !force {
 			if risk := copyUndoRisk(entry); risk != "" {
 				m.Logger.Warn("keeping the copy, "+risk+"; re-run with --force to remove it anyway",
-					m.Logger.Args("path", entry.Destination))
+					slog.String("path", entry.Destination))
 				failCount++
 				continue
 			}
@@ -253,14 +254,14 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 		// still existing is expected (those actions never consumed it).
 		if entry.Action != string(models.ActionCopy) && entry.Action != string(models.ActionSymlink) {
 			if _, err := os.Stat(entry.Source); err == nil {
-				m.Logger.Warn("source location already occupied, skipping", m.Logger.Args("path", entry.Source))
+				m.Logger.Warn("source location already occupied, skipping", slog.String("path", entry.Source))
 				failCount++
 				continue
 			}
 
 			sourceDir := filepath.Dir(entry.Source)
 			if err := os.MkdirAll(sourceDir, 0o750); err != nil {
-				m.Logger.Error("failed to create source directory", m.Logger.Args("path", sourceDir, "error", err.Error()))
+				m.Logger.Error("failed to create source directory", slog.String("path", sourceDir), slog.Any("error", err))
 				failCount++
 				continue
 			}
@@ -272,26 +273,26 @@ func restoreEntries(ctx context.Context, m *models.Movelooper, entries []history
 		}
 		if entry.Replaced {
 			m.Logger.Warn("restored, but the file it replaced at the destination was deleted by the conflict strategy and cannot come back",
-				m.Logger.Args("path", entry.Destination))
+				slog.String("path", entry.Destination))
 		}
 		restored = append(restored, entry)
 	}
 
 	if len(restored) > 0 {
-		restoredArgs := make([]any, 0, len(restored)*2)
+		restoredAttrs := make([]slog.Attr, 0, len(restored))
 		for _, entry := range restored {
 			switch entry.Action {
 			case string(models.ActionCopy), string(models.ActionSymlink):
 				// Undo removed the destination; the source was never gone.
-				restoredArgs = append(restoredArgs, "removed", entry.Destination)
+				restoredAttrs = append(restoredAttrs, slog.String("removed", entry.Destination))
 			default:
-				restoredArgs = append(restoredArgs, "path", entry.Source)
+				restoredAttrs = append(restoredAttrs, slog.String("path", entry.Source))
 			}
 		}
-		m.Logger.Info("file(s) restored", m.Logger.Args(restoredArgs...))
+		m.Logger.LogAttrs(context.Background(), slog.LevelInfo, "file(s) restored", restoredAttrs...)
 	}
 
-	m.Logger.Info("undo completed", m.Logger.Args("restored", len(restored), "failed", failCount))
+	m.Logger.Info("undo completed", slog.Int("restored", len(restored)), slog.Int("failed", failCount))
 	return restored
 }
 
@@ -310,18 +311,18 @@ func restoreEntry(ctx context.Context, m *models.Movelooper, entry history.Entry
 	switch entry.Action {
 	case "copy", "symlink":
 		if err := os.Remove(entry.Destination); err != nil {
-			m.Logger.Error("failed to remove file", m.Logger.Args("path", entry.Destination, "error", err.Error()))
+			m.Logger.Error("failed to remove file", slog.String("path", entry.Destination), slog.Any("error", err))
 			return err
 		}
 	case history.ActionDedupe:
 		// The destination holds the same bytes and stays: the duplicate comes back.
 		if err := fileops.CopyFile(ctx, entry.Destination, entry.Source); err != nil {
-			m.Logger.Error("failed to copy the duplicate back", m.Logger.Args("from", entry.Destination, "to", entry.Source, "error", err.Error()))
+			m.Logger.Error("failed to copy the duplicate back", slog.String("from", entry.Destination), slog.String("to", entry.Source), slog.Any("error", err))
 			return err
 		}
 	default: // "move" or legacy entries without Action
 		if err := fileops.MoveFileCtx(ctx, entry.Destination, entry.Source); err != nil {
-			m.Logger.Error("failed to move file back", m.Logger.Args("from", entry.Destination, "to", entry.Source, "error", err.Error()))
+			m.Logger.Error("failed to move file back", slog.String("from", entry.Destination), slog.String("to", entry.Source), slog.Any("error", err))
 			return err
 		}
 	}

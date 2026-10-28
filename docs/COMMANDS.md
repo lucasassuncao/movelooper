@@ -14,11 +14,13 @@ movelooper [flags]
 | `--show-files`        |       | List each detected file and, after moving, its destination (one block per category) |
 | `--config`            | `-c`  | Path to a custom config file                                         |
 | `--format`            |       | Log output format: `pretty` (default) or `json`. Overrides `configuration.logging.format` |
+| `--theme`             |       | Log theme for `pretty`. Overrides `configuration.logging.theme`     |
+| `--list-themes`       |       | Browse every available theme and its category in a scrollable table (`q` quits) |
 | `--version`           | `-v`  | Print the current version                                            |
 | `--category`          |       | Comma-separated list of category names to process (default: all)     |
 | `--include-disabled`  |       | Include categories with `enabled: false`                             |
 
-`--config` and `--format` are global flags: they apply to every command (`movelooper`, `watch`, `undo`, …). `--format json` emits structured slog JSON lines instead of the pretty console renderer, useful for piping to a log aggregator.
+`--config`, `--format`, `--theme` and `--list-themes` are global flags: they apply to every command (`movelooper`, `watch`, `undo`, …). `--format json` emits structured slog JSON lines instead of the pretty console renderer, useful for piping to a log aggregator.
 
 A run stops early in two cases: when you interrupt it with Ctrl+C, and when the destination becomes unwritable (a full disk, or a directory the process cannot write to) for several files in a row. In both cases the history of what was already moved is written before exiting, and the batch ID is printed so you can `undo` it. Every other failure skips the file and the run continues, reporting the total at the end. See [Guarantees and Limits](/GUARANTEES.md).
 
@@ -87,7 +89,7 @@ Opens the configuration file in an interactive two-panel TUI editor. The left pa
 ```bash
 movelooper edit
 movelooper edit --theme grape
-movelooper edit --list-themes
+movelooper --list-themes
 movelooper edit --output /path/to/new.yaml
 movelooper edit --config /path/to/movelooper.yaml
 ```
@@ -95,7 +97,6 @@ movelooper edit --config /path/to/movelooper.yaml
 | Flag                    | Description                                                              |
 |-------------------------|--------------------------------------------------------------------------|
 | `--theme`               | Theme name (default: `plain`), run `--list-themes` to see options       |
-| `--list-themes`         | Browse every available theme and its category in a scrollable table (`q` quits) |
 | `--output`, `-o`        | Save to this file instead of the loaded config (load path is unchanged)  |
 | `--no-save-confirm`     | Skip the save confirmation dialog                                        |
 | `--no-delete-confirm`   | Skip the block-delete confirmation dialog                                |

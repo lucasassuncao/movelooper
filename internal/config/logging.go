@@ -3,13 +3,13 @@ package config
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/knadh/koanf/v2"
+	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/logger"
-	"github.com/pterm/pterm"
 )
 
 // writerBuilder is an interface for building log writers based on the configuration.
@@ -56,70 +56,36 @@ func logWriterFactory(output string) writerBuilder {
 	return consoleStrategy{}
 }
 
-// ConfigureLogger configures the logger based on the configuration.
-// It returns a pretty (pterm) logger by default, or a structured JSON (slog)
-// logger when the format resolves to "json". formatOverride (--format) wins
-// over configuration.logging.format unless empty; showCaller (the hidden
-// --show-caller) adds each line's source. The Closer must be called on exit
-// (non-nil only when writing to a file).
-func ConfigureLogger(k *koanf.Koanf, formatOverride string, showCaller bool) (logger.Logger, io.Closer, error) {
-	output := k.String("configuration.logging.output")
-	strategy := logWriterFactory(output)
-
-	w, closer, err := strategy.Writer(k)
+// ConfigureLogger builds the logger the configuration asks for: bezel's tree
+// in th, or JSON lines when the format is "json". formatOverride (--format)
+// wins over configuration.logging.format unless empty; showCaller (the hidden
+// --show-caller) adds each line's source. The Closer is non-nil only when
+// writing to a file, and must be called on exit.
+func ConfigureLogger(k *koanf.Koanf, formatOverride string, showCaller bool, th theme.Resolved) (*slog.Logger, io.Closer, error) {
+	w, closer, err := logWriterFactory(k.String("configuration.logging.output")).Writer(k)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	level := k.String("configuration.logging.level")
-
 	format := k.String("configuration.logging.format")
 	if formatOverride != "" {
 		format = formatOverride
 	}
-
 	if format == "json" {
-		// Disable pterm color so any color helpers used in message strings stay
-		// inert, keeping the structured JSON output free of ANSI escape codes.
-		applyColor("never", output)
-		return logger.NewSlog(w, level, showCaller), closer, nil
+		return logger.NewJSON(w, level, showCaller), closer, nil
 	}
-
-	applyColor(k.String("configuration.logging.color"), output)
-
-	// Unset or 0 is pterm's own terminal width: a fixed default cut long paths
-	// in the middle, since pterm wraps values that have no spaces.
-	plog := pterm.DefaultLogger.
-		WithCaller(showCaller).
-		WithLevel(parseLogLevel(level)).
-		WithWriter(w).
-		WithMaxWidth(k.Int("configuration.logging.max-width"))
-
-	return plog, closer, nil
+	color := k.String("configuration.logging.color")
+	return logger.NewPretty(w, th, level, showCaller, color, k.Int("configuration.logging.max-width")), closer, nil
 }
 
-// colorMu serializes the pterm color toggle, which mutates process-global
-// state. ConfigureLogger runs once in production, but tests configure loggers
-// concurrently; the lock keeps that access race-free.
-var colorMu sync.Mutex
-
-// applyColor toggles pterm's global ANSI styling for the pretty format.
-// "auto" keeps color only for pure console output, so file logs stay clean.
-func applyColor(mode, output string) {
-	colorMu.Lock()
-	defer colorMu.Unlock()
-	switch mode {
-	case "never":
-		pterm.DisableColor()
-	case "always":
-		pterm.EnableColor()
-	default: // auto, and any unrecognized value
-		if output == "console" {
-			pterm.EnableColor()
-		} else {
-			pterm.DisableColor()
-		}
+// LogTheme is the bezel theme called name; empty is bezel's default.
+func LogTheme(name string) (theme.Theme, error) {
+	t, err := theme.Lookup(name)
+	if err != nil {
+		return theme.Theme{}, fmt.Errorf("log theme: %w: run 'movelooper --list-themes' to see available themes", err)
 	}
+	return t, nil
 }
 
 func defaultLogFilePath() string {
@@ -160,25 +126,5 @@ const maxLogBytes = 10 << 20
 func rotateLog(path string, limit int64) {
 	if info, err := os.Stat(path); err == nil && info.Size() > limit {
 		_ = os.Rename(path, path+".1")
-	}
-}
-
-// parseLogLevel returns the pterm log level based on the string level
-func parseLogLevel(level string) pterm.LogLevel {
-	switch level {
-	case "trace":
-		return pterm.LogLevelTrace
-	case "debug":
-		return pterm.LogLevelDebug
-	case "info":
-		return pterm.LogLevelInfo
-	case "warn", "warning":
-		return pterm.LogLevelWarn
-	case "error":
-		return pterm.LogLevelError
-	case "fatal":
-		return pterm.LogLevelFatal
-	default:
-		return pterm.LogLevelInfo
 	}
 }

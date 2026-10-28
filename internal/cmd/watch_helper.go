@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -122,21 +123,21 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	}
 	defer release()
 
-	m.Logger.Info("starting watch mode", m.Logger.Args("stability_delay", m.Config.Watch.Delay.String()))
+	m.Logger.Info("starting watch mode", slog.String("stability_delay", m.Config.Watch.Delay.String()))
 
 	for _, name := range categoriesWithHooks(m.Categories) {
 		m.Logger.Warn("hooks are ignored in watch mode; they run only on the one-shot 'movelooper' command",
-			m.Logger.Args("category", name))
+			slog.String("category", name))
 	}
 
 	for _, cat := range m.Categories {
 		if cat.Destination.Action == models.ActionArchive {
 			m.Logger.Warn("action archive is not supported in watch mode; the category will be skipped",
-				m.Logger.Args("category", cat.Name))
+				slog.String("category", cat.Name))
 		}
 		if cat.Source.Recursive {
 			m.Logger.Warn("recursive is not supported in watch mode; only the top-level source directory is monitored",
-				m.Logger.Args("category", cat.Name))
+				slog.String("category", cat.Name))
 		}
 	}
 
@@ -159,7 +160,7 @@ func runWatch(ctx context.Context, m *models.Movelooper, opts WatchOptions) erro
 	go runEventLoop(ctx, m, watcher, cfg.tracker)
 	go runTickerLoop(ctx, m, cfg)
 
-	m.Logger.Info("watching for changes — press Ctrl+C to stop", m.Logger.Args("batch_id", cfg.batchID))
+	m.Logger.Info("watching for changes — press Ctrl+C to stop", slog.String("batch_id", cfg.batchID))
 
 	<-ctx.Done()
 	m.Logger.Info("shutting down watch mode")
@@ -174,9 +175,9 @@ func registerSources(m *models.Movelooper, watcher *fsnotify.Watcher) {
 		if seen[cat.Source.Path] {
 			continue
 		}
-		m.Logger.Info("monitoring directory", m.Logger.Args("path", cat.Source.Path))
+		m.Logger.Info("monitoring directory", slog.String("path", cat.Source.Path))
 		if err := watcher.Add(cat.Source.Path); err != nil {
-			m.Logger.Error("failed to watch directory", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
+			m.Logger.Error("failed to watch directory", slog.String("path", cat.Source.Path), slog.Any("error", err))
 		}
 		seen[cat.Source.Path] = true
 	}
@@ -192,14 +193,14 @@ func runEventLoop(ctx context.Context, m *models.Movelooper, watcher *fsnotify.W
 			}
 			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
 				if !tracker.touch(event.Name, time.Now()) {
-					m.Logger.Info("detected new file", m.Logger.Args("path", event.Name))
+					m.Logger.Info("detected new file", slog.String("path", event.Name))
 				}
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
 				return
 			}
-			m.Logger.Error("watcher error", m.Logger.Args("error", err.Error()))
+			m.Logger.Error("watcher error", slog.Any("error", err))
 		case <-ctx.Done():
 			return
 		}
@@ -233,7 +234,7 @@ func performInitialScan(ctx context.Context, m *models.Movelooper, tracker *file
 		// The scan is flat here, so there are no sub-directories to skip.
 		entries, _, err := scanner.WalkSource(ctx, src, autoExclude)
 		if err != nil {
-			m.Logger.Warn("failed to scan directory during initial scan", m.Logger.Args("path", cat.Source.Path, "error", err.Error()))
+			m.Logger.Warn("failed to scan directory during initial scan", slog.String("path", cat.Source.Path), slog.Any("error", err))
 			continue
 		}
 
@@ -265,7 +266,7 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchCo
 		if _, err := os.Stat(path); err != nil {
 			if !os.IsNotExist(err) {
 				m.Logger.Warn("failed to stat tracked file, skipping",
-					m.Logger.Args("path", path, "error", err.Error()))
+					slog.String("path", path), slog.Any("error", err))
 			}
 			delete(cfg.retries, path)
 			continue
@@ -280,13 +281,13 @@ func processPendingFiles(ctx context.Context, m *models.Movelooper, cfg *watchCo
 		cfg.retries[path]++
 		if cfg.retries[path] < maxWatchMoveRetries {
 			m.Logger.Warn("failed to move file, will retry",
-				m.Logger.Args("path", path, "attempt", cfg.retries[path], "error", err.Error()))
+				slog.String("path", path), slog.Int("attempt", cfg.retries[path]), slog.Any("error", err))
 			cfg.tracker.touch(path, time.Now())
 			continue
 		}
 		delete(cfg.retries, path)
 		m.Logger.Error("failed to move file, giving up until a new event re-tracks it",
-			m.Logger.Args("path", path, "attempts", maxWatchMoveRetries, "error", err.Error()))
+			slog.String("path", path), slog.Int("attempts", maxWatchMoveRetries), slog.Any("error", err))
 	}
 }
 
@@ -323,7 +324,7 @@ func attemptMoveFile(ctx context.Context, m *models.Movelooper, path string, sho
 		}
 		if showFiles {
 			m.Logger.Info("moving file",
-				m.Logger.Args("file", fileName, "to", resolveDestDir(cat, path), "category", cat.Name))
+				slog.String("file", fileName), slog.String("to", resolveDestDir(cat, path)), slog.String("category", cat.Name))
 		}
 		return moveFileToCategory(ctx, m, *cat, path, ext, batchID)
 	}

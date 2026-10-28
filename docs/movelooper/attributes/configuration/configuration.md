@@ -27,6 +27,7 @@ The following arguments are supported:
 | format | string | - | Log rendering format. 'pretty' is the human-readable console renderer; 'json' emits structured slog JSON lines for log aggregation. | No | pretty |
 | color | string | - | ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. Ignored when format is json. | No | auto |
 | max-width | int | - | Maximum width, in columns, for wrapping pretty log lines; 0 uses the terminal's width. Ignored when format is json. | No | 0 |
+| theme | string | - | Colour theme for the pretty format, by the same names as 'movelooper edit --theme' (run 'movelooper --list-themes'). Ignored when format is json. | No | default |
 
 ### watch
 

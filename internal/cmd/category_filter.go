@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
+	"log/slog"
 )
 
 // ParseCategoryNames splits a comma-separated category string into a slice of trimmed names.
@@ -27,7 +27,7 @@ func ParseCategoryNames(raw string) []string {
 
 // FilterCategories returns the categories to process; it keeps enabled ones by
 // default, includes disabled ones when requested, and errors on unknown names.
-func FilterCategories(all []*models.Category, names []string, includeDisabled bool, log logger.Logger) ([]*models.Category, error) {
+func FilterCategories(all []*models.Category, names []string, includeDisabled bool, log *slog.Logger) ([]*models.Category, error) {
 	if len(names) == 0 {
 		if includeDisabled {
 			return all, nil

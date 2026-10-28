@@ -92,7 +92,7 @@ func resolveBatchID(m *models.Movelooper, args []string) (batchID string, ok boo
 	if !stdinIsTerminal() {
 		return "", false, errors.New("no terminal to pick a batch on: pass a batch ID (see 'movelooper undo --list')")
 	}
-	selected, err := pickBatch(batches, m.History)
+	selected, err := pickBatch(batches, m.History, m.Theme)
 	if err != nil {
 		return "", false, fmt.Errorf("batch picker: %v", err)
 	}

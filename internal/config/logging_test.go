@@ -3,50 +3,19 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/knadh/koanf/v2"
-	"github.com/pterm/pterm"
+	"github.com/lucasassuncao/bezel/theme"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// testParseLogLevel defines the structure for test cases of the parseLogLevel function,
-// containing the input string and expected pterm.LogLevel.
-type testParseLogLevel struct {
-	name  string
-	input string
-	want  pterm.LogLevel
-}
-
-// testParseLogLevelTestCases defines a set of test cases for the parseLogLevel function,
-// covering all named levels, empty string, unknown string, and case-sensitive mismatch.
-var testParseLogLevelTestCases = []testParseLogLevel{
-	{"trace", "trace", pterm.LogLevelTrace},
-	{"debug", "debug", pterm.LogLevelDebug},
-	{"info", "info", pterm.LogLevelInfo},
-	{"warn", "warn", pterm.LogLevelWarn},
-	{"warning", "warning", pterm.LogLevelWarn},
-	{"error", "error", pterm.LogLevelError},
-	{"fatal", "fatal", pterm.LogLevelFatal},
-	{"empty defaults to info", "", pterm.LogLevelInfo},
-	{"unknown defaults to info", "unknown", pterm.LogLevelInfo},
-	{"INFO case sensitive falls to default", "INFO", pterm.LogLevelInfo},
-}
-
-// TestParseLogLevel tests the parseLogLevel function to ensure it correctly maps
-// log level strings to pterm.LogLevel values.
-func TestParseLogLevel(t *testing.T) {
-	t.Parallel()
-	for _, tt := range testParseLogLevelTestCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, parseLogLevel(tt.input))
-		})
-	}
-}
 
 // testLogWriterFactory defines the structure for test cases of the logWriterFactory function,
 // containing the output type and whether the result must be a consoleStrategy.
@@ -251,16 +220,20 @@ var testConfigureLoggerTestCases = []testConfigureLogger{
 		yaml: func(*testing.T) string { return "configuration:\n  logging:\n    output: syslog\n" },
 	},
 	{
-		name:       "show-caller from the flag",
-		yaml:       func(*testing.T) string { return "configuration:\n  logging:\n    output: console\n" },
+		name: "show-caller from the flag",
+		yaml: func(t *testing.T) string {
+			return "configuration:\n  logging:\n    output: file\n    file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
+		},
 		showCaller: true,
 		wantCaller: true,
+		wantCloser: true,
 	},
 	{
 		name: "the config key no longer turns it on",
-		yaml: func(*testing.T) string {
-			return "configuration:\n  logging:\n    output: console\n    show-caller: true\n"
+		yaml: func(t *testing.T) string {
+			return "configuration:\n  logging:\n    output: file\n    show-caller: true\n    file: " + filepath.Join(t.TempDir(), "app.log") + "\n"
 		},
+		wantCloser: true,
 	},
 }
 
@@ -272,18 +245,20 @@ func TestConfigureLogger(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			k := loadKoanfFromYAML(t, tt.yaml(t))
-			logger, closer, err := ConfigureLogger(k, "", tt.showCaller)
+			log, closer, err := ConfigureLogger(k, "", tt.showCaller, testTheme)
 			require.NoError(t, err)
-			assert.NotNil(t, logger)
-			if tt.wantCloser {
-				require.NotNil(t, closer)
-				assert.NoError(t, closer.Close())
-			} else {
+			require.NotNil(t, log)
+			assert.True(t, logger.Pretty(log), "the default format is the pretty logger")
+			log.Info("hello")
+			if !tt.wantCloser {
 				assert.Nil(t, closer)
+				return
 			}
-			pl, ok := logger.(*pterm.Logger)
-			require.True(t, ok, "expected pretty (pterm) logger for caller assertion")
-			assert.Equal(t, tt.wantCaller, pl.ShowCaller)
+			require.NotNil(t, closer)
+			require.NoError(t, closer.Close())
+			data, err := os.ReadFile(k.String("configuration.logging.file"))
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantCaller, strings.Contains(string(data), "logging_test.go:"), string(data))
 		})
 	}
 }
@@ -296,14 +271,13 @@ func TestConfigureLogger_JSONFormat(t *testing.T) {
 	yaml := "configuration:\n  logging:\n    output: file\n    level: info\n    format: json\n    file: " + logPath + "\n"
 	k := loadKoanfFromYAML(t, yaml)
 
-	log, closer, err := ConfigureLogger(k, "", false)
+	log, closer, err := ConfigureLogger(k, "", false, testTheme)
 	require.NoError(t, err)
 	require.NotNil(t, closer)
 
-	_, isPretty := log.(*pterm.Logger)
-	assert.False(t, isPretty, "json format should not use the pretty pterm logger")
+	assert.False(t, logger.Pretty(log), "json format should not use the pretty logger")
 
-	log.Info("hello", log.Args("k", "v"))
+	log.Info("hello", slog.String("k", "v"))
 	require.NoError(t, closer.Close())
 
 	data, err := os.ReadFile(logPath)
@@ -322,12 +296,12 @@ func TestConfigureLogger_FormatOverride(t *testing.T) {
 	yaml := "configuration:\n  logging:\n    output: file\n    format: pretty\n    file: " + logPath + "\n"
 	k := loadKoanfFromYAML(t, yaml)
 
-	log, closer, err := ConfigureLogger(k, "json", false)
+	log, closer, err := ConfigureLogger(k, "json", false, testTheme)
 	require.NoError(t, err)
 	require.NotNil(t, closer)
 	defer func() { require.NoError(t, closer.Close()) }()
 
-	_, isPretty := log.(*pterm.Logger)
+	isPretty := logger.Pretty(log)
 	assert.False(t, isPretty, "override to json should win over the configured pretty format")
 }
 
@@ -338,7 +312,7 @@ func TestConfigureLogger_JSONShowCaller(t *testing.T) {
 	logPath := filepath.Join(t.TempDir(), "app.log")
 	yaml := "configuration:\n  logging:\n    output: file\n    file: " + logPath + "\n"
 
-	log, closer, err := ConfigureLogger(loadKoanfFromYAML(t, yaml), "json", true)
+	log, closer, err := ConfigureLogger(loadKoanfFromYAML(t, yaml), "json", true, testTheme)
 	require.NoError(t, err)
 	log.Info("hello")
 	require.NoError(t, closer.Close())
@@ -350,29 +324,39 @@ func TestConfigureLogger_JSONShowCaller(t *testing.T) {
 	assert.Contains(t, entry, "source")
 }
 
-// TestConfigureLogger_MaxWidth verifies that an unset max-width hands pterm 0,
-// its terminal width, so a long path is not cut at a fixed 70 columns.
+// TestConfigureLogger_MaxWidth verifies that max-width wraps a long value,
+// and that unset leaves a file's lines whole: a file has no terminal width.
 func TestConfigureLogger_MaxWidth(t *testing.T) {
 	t.Parallel()
+	long := strings.Repeat("x/", 60)
 	for name, tc := range map[string]struct {
-		line string
-		want int
+		line  string
+		width int
 	}{
-		"unset uses the terminal": {"", 0},
-		"zero uses the terminal":  {"    max-width: 0\n", 0},
-		"a value caps the width":  {"    max-width: 120\n", 120},
+		"unset keeps lines whole": {"", 0},
+		"zero keeps lines whole":  {"    max-width: 0\n", 0},
+		"a value wraps the line":  {"    max-width: 60\n", 60},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			logPath := filepath.Join(t.TempDir(), "app.log")
 			yaml := "configuration:\n  logging:\n    output: file\n    file: " + logPath + "\n" + tc.line
-			log, closer, err := ConfigureLogger(loadKoanfFromYAML(t, yaml), "", false)
+			log, closer, err := ConfigureLogger(loadKoanfFromYAML(t, yaml), "", false, testTheme)
 			require.NoError(t, err)
-			defer func() { require.NoError(t, closer.Close()) }()
+			log.Info("m", slog.String("path", long))
+			require.NoError(t, closer.Close())
 
-			plog, ok := log.(*pterm.Logger)
-			require.True(t, ok, "pretty format uses the pterm logger")
-			assert.Equal(t, tc.want, plog.MaxWidth)
+			data, err := os.ReadFile(logPath)
+			require.NoError(t, err)
+			lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+			if tc.width == 0 {
+				assert.Len(t, lines, 2, "the message and one whole value line")
+				return
+			}
+			assert.Greater(t, len(lines), 2)
+			for _, l := range lines {
+				assert.LessOrEqual(t, utf8.RuneCountInString(l), tc.width, l)
+			}
 		})
 	}
 }
@@ -407,3 +391,23 @@ func TestRotateLog(t *testing.T) {
 
 	rotateLog(filepath.Join(dir, "missing.log"), 5)
 }
+
+// TestLogTheme verifies that a bezel theme is found by name, empty is the
+// default, and an unknown one fails with the hint to list them.
+func TestLogTheme(t *testing.T) {
+	t.Parallel()
+	got, err := LogTheme("grape")
+	require.NoError(t, err)
+	assert.Equal(t, theme.Grape, got)
+
+	got, err = LogTheme("")
+	require.NoError(t, err)
+	assert.Equal(t, theme.Default, got)
+
+	_, err = LogTheme("nope")
+	require.ErrorContains(t, err, `unknown theme "nope"`)
+	require.ErrorContains(t, err, "--list-themes")
+}
+
+// testTheme is the theme the pretty logger draws in across these tests.
+var testTheme = theme.Resolve(theme.Default, true)

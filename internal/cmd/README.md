@@ -17,7 +17,7 @@ Package cmd contains the command line interface commands for the Movelooper appl
 - [func ConfigCmd\(\) \*cobra.Command](<#ConfigCmd>)
 - [func ConfigurationPreset\(name string\) \*models.Configuration](<#ConfigurationPreset>)
 - [func EditCmd\(\) \*cobra.Command](<#EditCmd>)
-- [func FilterCategories\(all \[\]\*models.Category, names \[\]string, includeDisabled bool, log logger.Logger\) \(\[\]\*models.Category, error\)](<#FilterCategories>)
+- [func FilterCategories\(all \[\]\*models.Category, names \[\]string, includeDisabled bool, log \*slog.Logger\) \(\[\]\*models.Category, error\)](<#FilterCategories>)
 - [func ListOfCategoriesPresets\(\) \[\]string](<#ListOfCategoriesPresets>)
 - [func ListOfConfigurationPresets\(\) \[\]string](<#ListOfConfigurationPresets>)
 - [func ParseCategoryNames\(raw string\) \[\]string](<#ParseCategoryNames>)
@@ -36,6 +36,12 @@ Package cmd contains the command line interface commands for the Movelooper appl
 
 ```go
 var DefaultRepo = ""
+```
+
+<a name="ErrThemesListed"></a>ErrThemesListed ends a run that only browsed the themes; main treats it as success, since \-\-list\-themes replaces whatever the command would have done.
+
+```go
+var ErrThemesListed = errors.New("themes listed")
 ```
 
 <a name="GenerateCmd"></a>
@@ -227,7 +233,7 @@ func ConfigurationPreset(name string) *models.Configuration
 
 
 <a name="EditCmd"></a>
-## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L22>)
+## func [EditCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/edit.go#L21>)
 
 ```go
 func EditCmd() *cobra.Command
@@ -239,7 +245,7 @@ EditCmd returns the "edit" command, which opens an interactive TUI editor for th
 ## func [FilterCategories](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/category_filter.go#L30>)
 
 ```go
-func FilterCategories(all []*models.Category, names []string, includeDisabled bool, log logger.Logger) ([]*models.Category, error)
+func FilterCategories(all []*models.Category, names []string, includeDisabled bool, log *slog.Logger) ([]*models.Category, error)
 ```
 
 FilterCategories returns the categories to process; it keeps enabled ones by default, includes disabled ones when requested, and errors on unknown names.
@@ -272,7 +278,7 @@ func ParseCategoryNames(raw string) []string
 ParseCategoryNames splits a comma\-separated category string into a slice of trimmed names. Returns nil when raw is empty or contains only separators.
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L14>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L16>)
 
 ```go
 func RootCmd(m *models.Movelooper, version string) *cobra.Command
@@ -281,7 +287,7 @@ func RootCmd(m *models.Movelooper, version string) *cobra.Command
 RootCmd represents the base command when called without any subcommands
 
 <a name="SelfUpdateCmd"></a>
-## func [SelfUpdateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/selfupdate.go#L14>)
+## func [SelfUpdateCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/selfupdate.go#L15>)
 
 ```go
 func SelfUpdateCmd(currentVersion string) *cobra.Command
@@ -317,7 +323,7 @@ func WatchCmd(m *models.Movelooper) *cobra.Command
 WatchCmd defines the "watch" command to monitor directories and move files in real\-time
 
 <a name="MoveOptions"></a>
-## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root_helper.go#L47-L52>)
+## type [MoveOptions](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root_helper.go#L48-L53>)
 
 MoveOptions carries the CLI flags for the move command.
 

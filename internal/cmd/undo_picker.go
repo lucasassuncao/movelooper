@@ -46,6 +46,7 @@ var (
 // chosen. p swaps the list for a table of the files that batch would restore.
 type batchPicker struct {
 	sh       shell.Shell
+	base     theme.Theme // re-resolved once the terminal says dark or light
 	th       theme.Resolved
 	batches  []history.BatchSummary
 	list     list.Model[string]
@@ -57,7 +58,7 @@ type batchPicker struct {
 	offset     int
 }
 
-func newBatchPicker(batches []history.BatchSummary, hist *history.History) batchPicker {
+func newBatchPicker(batches []history.BatchSummary, hist *history.History, base theme.Theme) batchPicker {
 	reversed := slices.Clone(batches)
 	slices.Reverse(reversed)
 	rows := make([]list.Row[string], len(reversed))
@@ -71,8 +72,8 @@ func newBatchPicker(batches []history.BatchSummary, hist *history.History) batch
 	keys := list.DefaultKeys()
 	keys.Filter = key.NewBinding() // no filter: the keys stay what they were
 
-	th := theme.Resolve(theme.Default, true)
-	m := batchPicker{th: th, batches: reversed, hist: hist, list: list.New(rows, 0).WithKeys(keys)}
+	th := theme.Resolve(base, true)
+	m := batchPicker{base: base, th: th, batches: reversed, hist: hist, list: list.New(rows, 0).WithKeys(keys)}
 	m.sh = shell.New(shell.Config{Layout: layout.Fill("batches"), Theme: th, Title: "Select a batch to undo"})
 	m.sh = m.sh.SetActions(pickerListActions...)
 	return m
@@ -84,7 +85,7 @@ func (m batchPicker) Init() tea.Cmd { return tea.RequestBackgroundColor }
 func (m batchPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
-		m.th = theme.Resolve(theme.Default, msg.IsDark())
+		m.th = theme.Resolve(m.base, msg.IsDark())
 		m.sh = m.sh.SetTheme(m.th)
 		return m, nil
 	case tea.WindowSizeMsg:
@@ -200,8 +201,8 @@ func truncatePath(p string, maxW int) string {
 	return "…" + string(r[len(r)-(maxW-1):])
 }
 
-func pickBatch(batches []history.BatchSummary, hist *history.History) (string, error) {
-	final, err := tea.NewProgram(newBatchPicker(batches, hist)).Run()
+func pickBatch(batches []history.BatchSummary, hist *history.History, base theme.Theme) (string, error) {
+	final, err := tea.NewProgram(newBatchPicker(batches, hist, base)).Run()
 	if err != nil {
 		return "", err
 	}

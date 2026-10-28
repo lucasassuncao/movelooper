@@ -7,8 +7,8 @@ import (
 
 	"github.com/lucasassuncao/bezel/component/progress"
 	"github.com/lucasassuncao/bezel/theme"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 	"golang.org/x/term"
 )
 
@@ -19,7 +19,7 @@ func newArchiveProgress(m *models.Movelooper) func(done, total int) {
 	if !isInteractiveTerminal(m) {
 		return nil
 	}
-	return archiveBar(os.Stdout, theme.Resolve(theme.Default, theme.DarkTerminal()))
+	return archiveBar(os.Stdout, theme.Resolve(m.Theme, theme.DarkTerminal()))
 }
 
 // archiveBar redraws the bar in place on w with \r.
@@ -37,10 +37,10 @@ func archiveBar(w io.Writer, th theme.Resolved) func(done, total int) {
 }
 
 // isInteractiveTerminal reports whether it is safe to draw a progress bar: the
-// logger is the pretty (pterm) renderer — not the structured JSON logger — and
+// logger is the pretty renderer — not the structured JSON logger — and
 // stdout is a real terminal rather than a pipe or file.
 func isInteractiveTerminal(m *models.Movelooper) bool {
-	if _, pretty := m.Logger.(*pterm.Logger); !pretty {
+	if !logger.Pretty(m.Logger) {
 		return false
 	}
 	return term.IsTerminal(int(os.Stdout.Fd())) //#nosec G115 -- a stdout file descriptor always fits in an int

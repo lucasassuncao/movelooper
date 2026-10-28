@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	gpath "path"
@@ -233,11 +234,11 @@ func matchesName(m *models.MatchFilter, fileName string) bool {
 }
 
 // GenerateLogArgs generates log arguments for a given extension.
-func GenerateLogArgs(files []os.DirEntry, extension string) []interface{} {
-	logArgs := make([]interface{}, 0, len(files)*2)
+func GenerateLogArgs(files []os.DirEntry, extension string) []slog.Attr {
+	logArgs := make([]slog.Attr, 0, len(files))
 	for _, file := range files {
 		if HasExtension(file, extension) {
-			logArgs = append(logArgs, "name", file.Name())
+			logArgs = append(logArgs, slog.String("name", file.Name()))
 		}
 	}
 	return logArgs

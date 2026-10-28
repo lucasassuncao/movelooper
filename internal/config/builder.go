@@ -3,11 +3,14 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/knadh/koanf/v2"
+	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/history"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
@@ -17,6 +20,7 @@ type Option func(*options)
 type options struct {
 	configureLogger bool
 	formatOverride  string
+	themeOverride   string
 	showCaller      bool
 	loadConfig      bool
 	loadCategories  bool
@@ -33,6 +37,12 @@ func WithLogger() Option {
 // no-op, leaving the configured value in effect.
 func WithFormatOverride(format string) Option {
 	return func(o *options) { o.formatOverride = format }
+}
+
+// WithThemeOverride picks the pretty log's theme (e.g. from the --theme flag),
+// taking precedence over configuration.logging.theme unless empty.
+func WithThemeOverride(name string) Option {
+	return func(o *options) { o.themeOverride = name }
 }
 
 // WithShowCaller adds each log line's source location, from the hidden
@@ -82,12 +92,23 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 	}
 
 	if o.configureLogger {
-		logger, closer, err := ConfigureLogger(k, o.formatOverride, o.showCaller)
+		name := o.themeOverride
+		if name == "" {
+			name = k.String("configuration.logging.theme")
+		}
+		th, err := LogTheme(name)
 		if err != nil {
 			return fmt.Errorf("failed to configure logger: %w", err)
 		}
-		m.Logger = logger
+		resolved := theme.Resolve(th, theme.DarkTerminal())
+		log, closer, err := ConfigureLogger(k, o.formatOverride, o.showCaller, resolved)
+		if err != nil {
+			return fmt.Errorf("failed to configure logger: %w", err)
+		}
+		m.Logger = log
 		m.LogCloser = closer
+		m.Theme = th
+		m.Look = logger.NewLook(resolved, logger.Pretty(log))
 	}
 
 	if o.loadConfig {
@@ -95,7 +116,7 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 		m.Config = cfg
 		if err != nil && m.Logger != nil {
 			m.Logger.Warn("some configuration values could not be read; their defaults are used",
-				m.Logger.Args("error", err.Error()))
+				slog.Any("error", err))
 		}
 	}
 
@@ -118,14 +139,14 @@ func NewApp(m *models.Movelooper, configPath string, opts ...Option) (retErr err
 			histPath = defaultHistoryFilePath()
 		}
 		if hist, err := history.NewHistory(histPath, m.Config.History.Limit); err != nil {
-			m.Logger.Warn("failed to initialize history tracking", m.Logger.Args("error", err.Error()))
+			m.Logger.Warn("failed to initialize history tracking", slog.Any("error", err))
 		} else {
 			// Without the lock, a run overlapping another movelooper process can
 			// lose that process's history entries. It stays a warning rather than
 			// a failure, but the user has to hear about it.
 			hist.OnLockError = func(err error) {
 				m.Logger.Warn("history could not be locked; entries from a run happening at the same time may be lost",
-					m.Logger.Args("error", err.Error()))
+					slog.Any("error", err))
 			}
 			m.History = hist
 		}
@@ -163,18 +184,18 @@ func validateSourceDirs(m *models.Movelooper) {
 		}
 		if _, err := os.Stat(cat.Source.Path); os.IsNotExist(err) {
 			m.Logger.Warn("source directory does not exist",
-				m.Logger.Args("category", cat.Name, "path", cat.Source.Path))
+				slog.String("category", cat.Name), slog.String("path", cat.Source.Path))
 		}
 		if cat.Source.Recursive {
 			if cat.Source.MaxDepth < 0 {
 				m.Logger.Error("max-depth must be >= 0 (0 = unlimited)",
-					m.Logger.Args("category", cat.Name, "max-depth", cat.Source.MaxDepth))
+					slog.String("category", cat.Name), slog.Int("max_depth", cat.Source.MaxDepth))
 			}
 			for _, p := range cat.Source.ExcludePaths {
 				info, err := os.Stat(p)
 				if err != nil || !info.IsDir() {
 					m.Logger.Warn("exclude-path does not exist or is not a directory",
-						m.Logger.Args("category", cat.Name, "path", p))
+						slog.String("category", cat.Name), slog.String("path", p))
 				}
 			}
 		}

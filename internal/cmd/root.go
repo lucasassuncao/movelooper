@@ -2,8 +2,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/lucasassuncao/bezel/component/themebrowser"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
@@ -41,8 +43,10 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 			if format != "" && format != "pretty" && format != "json" {
 				return fmt.Errorf("invalid --format %q: must be \"pretty\" or \"json\"", format)
 			}
+			// The root's --theme, not the one edit and validate draw with.
+			themeName, _ := cmd.Root().PersistentFlags().GetString("theme")
 			showCaller, _ := cmd.Root().PersistentFlags().GetBool("show-caller")
-			return preRunHandler(m, configPath, format, showCaller)
+			return preRunHandler(m, configPath, format, themeName, showCaller)
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			if m.LogCloser != nil {
@@ -66,6 +70,8 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	_ = cmd.RegisterFlagCompletionFunc("format", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 		return []string{"pretty", "json"}, cobra.ShellCompDirectiveNoFileComp
 	})
+	cmd.PersistentFlags().Bool("list-themes", false, "Browse the available themes in a scrollable table (q quits)")
+	cmd.PersistentFlags().String("theme", "", "Log theme for the pretty format (run 'movelooper --list-themes'). Overrides configuration.logging.theme")
 	// A development aid, so --help leaves it out; every command still takes it.
 	cmd.PersistentFlags().Bool("show-caller", false, "Add the source location to every log line")
 	_ = cmd.PersistentFlags().MarkHidden("show-caller")
@@ -100,8 +106,32 @@ Use --dry-run for a preview without moving files, and --show-files to display fi
 	cmd.AddCommand(watchCmd, undoCmd, editCmd, validateCmd, configCmd, selfUpdateCmd, GenerateCmd)
 
 	cmd.SetHelpCommand(&cobra.Command{Hidden: true, GroupID: "utils"})
+	listThemesFirst(cmd)
 
 	return cmd
+}
+
+// ErrThemesListed ends a run that only browsed the themes; main treats it as
+// success, since --list-themes replaces whatever the command would have done.
+var ErrThemesListed = errors.New("themes listed")
+
+// listThemesFirst makes --list-themes open the theme browser from any command,
+// ahead of its setup, by wrapping every PersistentPreRunE in the tree.
+func listThemesFirst(c *cobra.Command) {
+	if pre := c.PersistentPreRunE; pre != nil {
+		c.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+			if list, _ := cmd.Root().PersistentFlags().GetBool("list-themes"); list {
+				if err := themebrowser.BrowseInTerminal(); err != nil {
+					return err
+				}
+				return ErrThemesListed
+			}
+			return pre(cmd, args)
+		}
+	}
+	for _, sub := range c.Commands() {
+		listThemesFirst(sub)
+	}
 }
 
 // isCompletionCommand reports whether cmd is one of cobra's completion commands
@@ -135,11 +165,12 @@ func categoryNameCompletion(cmd *cobra.Command, _ []string, _ string) ([]string,
 }
 
 // preRunHandler handles the necessary configuration before command execution.
-// formatOverride and showCaller come from the --format and --show-caller flags.
-func preRunHandler(m *models.Movelooper, configPath, formatOverride string, showCaller bool) error {
+// The overrides and showCaller come from --format, --theme and --show-caller.
+func preRunHandler(m *models.Movelooper, configPath, formatOverride, themeOverride string, showCaller bool) error {
 	return config.NewApp(m, configPath,
 		config.WithLogger(),
 		config.WithFormatOverride(formatOverride),
+		config.WithThemeOverride(themeOverride),
 		config.WithShowCaller(showCaller),
 		config.WithConfig(),
 		config.WithCategories(),

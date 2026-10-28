@@ -173,7 +173,7 @@ require.NoError(t, err)       // test cannot continue if this fails
 assert.Equal(t, want, got)    // collect all assertion failures, then report
 ```
 
-**Silent logger in tests.** Use the `newTestLogger()` helper (defined in `internal/fileops/fileops_test.go`) when a function requires a `*pterm.Logger`. It disables all output so test logs stay clean.
+**Silent logger in tests.** Use `logger.Discard()` when a function requires a `*slog.Logger`. It drops all output so test logs stay clean.
 
 **No mocks.** Tests hit real files and real functions. External state (filesystem, OS executable path) is controlled via `t.TempDir()` and carefully crafted inputs. This is intentional, mocks can mask real integration bugs.
 

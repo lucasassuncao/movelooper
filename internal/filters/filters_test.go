@@ -717,7 +717,7 @@ func TestMeetsAgeSizeFilters(t *testing.T) {
 }
 
 // testGenerateLogArgs defines the structure for test cases of the GenerateLogArgs function,
-// containing the files to create, the extension to filter by, and the expected argument count.
+// containing the files to create, the extension to filter by, and the expected attribute count.
 type testGenerateLogArgs struct {
 	name    string
 	files   []string
@@ -728,9 +728,9 @@ type testGenerateLogArgs struct {
 // testGenerateLogArgsTestCases defines a set of test cases for the GenerateLogArgs function,
 // covering extension match, no match, and all extension scenarios.
 var testGenerateLogArgsTestCases = []testGenerateLogArgs{
-	{"matches by extension", []string{"a.pdf", "b.pdf", "c.txt"}, "pdf", 4},
+	{"matches by extension", []string{"a.pdf", "b.pdf", "c.txt"}, "pdf", 2},
 	{"no match returns empty", []string{"file.txt"}, "pdf", 0},
-	{"all extension matches everything", []string{"a.pdf", "b.txt"}, "all", 4},
+	{"all extension matches everything", []string{"a.pdf", "b.txt"}, "all", 2},
 }
 
 // TestGenerateLogArgs tests the GenerateLogArgs function to ensure it correctly
@@ -749,8 +749,8 @@ func TestGenerateLogArgs(t *testing.T) {
 
 			args := GenerateLogArgs(entries, tt.ext)
 			assert.Len(t, args, tt.wantLen)
-			for i := 0; i < len(args)-1; i += 2 {
-				assert.Equal(t, "name", args[i])
+			for _, a := range args {
+				assert.Equal(t, "name", a.Key)
 			}
 		})
 	}

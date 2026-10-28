@@ -4,19 +4,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 
-	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
 )
 
 // HookContext carries the dependencies needed to execute hooks.
 type HookContext struct {
-	Log    logger.Logger
+	Log    *slog.Logger
 	Stdout io.Writer
 	Stderr io.Writer
 }
@@ -49,7 +49,7 @@ func RunHook(ctx context.Context, hook *models.CategoryHook, hctx HookContext, e
 			if hook.OnFailure == "abort" {
 				return fmt.Errorf("%s: %w", msg, err)
 			}
-			hctx.Log.Warn(msg, hctx.Log.Args("error", err.Error()))
+			hctx.Log.Warn(msg, slog.Any("error", err))
 		}
 	}
 	return nil

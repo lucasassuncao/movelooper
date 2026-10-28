@@ -48,7 +48,7 @@ Koanf is used only during startup. Once `AppBuilder.Build()` returns, the koanf 
 | `internal/scanner` | Walks a category's source directory and returns the files eligible for moving (`WalkSource`). |
 | `internal/archive` | Packs sets of files into zip or tar.gz archives. Config-agnostic: takes explicit (source, entry-name) pairs. |
 | `internal/content` | Detects a file's real MIME type from magic bytes, independent of extension. Wraps `gabriel-vasile/mimetype`. |
-| `internal/logger` | `Logger` interface (thin wrapper over `*pterm.Logger`). Lets non-`cmd` packages accept a logger without importing pterm directly. |
+| `internal/logger` | Builds the `*slog.Logger`: bezel's tree logger for `pretty`, slog's JSON handler for `json`. `Look` colours a message's parts in the log's theme. |
 | `internal/updater` | Self-update logic (GitHub releases). |
 | `internal/lockfile` | OS-level advisory locks on a sidecar file, released automatically when the process exits. Serializes history writes and single-instance `watch` across processes. |
 
@@ -188,7 +188,7 @@ YAML file
   └── config.ResolveImports      → merged YAML bytes (import: chaining)
   └── koanf.Load                 → in-memory key-value store
         │
-        ├── config.ConfigureLogger  → *pterm.Logger (Strategy: writerBuilder)
+        ├── config.ConfigureLogger  → *slog.Logger (Strategy: writerBuilder)
         ├── config.LoadConfig       → models.Configuration
         └── config.UnmarshalConfig  → []*models.Category
               └── validateCategory  → compileRegex, validateFilter, validateHooks

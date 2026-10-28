@@ -12,7 +12,7 @@ import (
 // go test captures stdout, so the bar is never drawn there.
 func TestNewDownloadProgress_NilOutsideATerminal(t *testing.T) {
 	t.Parallel()
-	assert.Nil(t, newDownloadProgress())
+	assert.Nil(t, newDownloadProgress(theme.Default))
 }
 
 func TestDownloadBar(t *testing.T) {

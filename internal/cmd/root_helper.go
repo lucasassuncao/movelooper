@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,10 +15,10 @@ import (
 	"github.com/lucasassuncao/movelooper/internal/filters"
 	"github.com/lucasassuncao/movelooper/internal/history"
 	"github.com/lucasassuncao/movelooper/internal/hooks"
+	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
 	"github.com/lucasassuncao/movelooper/internal/scanner"
 	"github.com/lucasassuncao/movelooper/internal/tokens"
-	"github.com/pterm/pterm"
 )
 
 // movedSet tracks absolute paths already claimed by a category in the current
@@ -123,7 +124,7 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 			break
 		}
 		m.Logger.Error("failed to process category",
-			m.Logger.Args("category", category.Name, "error", err.Error()))
+			slog.String("category", category.Name), slog.Any("error", err))
 		batch.stats.skipped++
 	}
 	if ctx.Err() != nil {
@@ -138,7 +139,7 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 		if err := histBuf.Flush(m.History); err != nil {
 			historyFailed = true
 			m.Logger.Error("failed to record history; this run cannot be undone",
-				m.Logger.Args("error", err.Error(), "files", histBuf.Len()))
+				slog.Any("error", err), slog.Int("files", histBuf.Len()))
 		}
 	}
 	// The batch ID is only worth printing when there is a batch to undo.
@@ -147,15 +148,18 @@ func runMove(ctx context.Context, m *models.Movelooper, opts MoveOptions) error 
 	switch {
 	case interrupted:
 		m.Logger.Warn("run interrupted",
-			m.Logger.Args("moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "batch_id", batch.batchID))
+			slog.Int("moved", stats.totalFiles), slog.String("size", formatBytes(stats.totalBytes)), slog.String("batch_id", batch.batchID))
 	case opts.DryRun:
 		m.Logger.Info("dry-run complete, no files were moved")
 	default:
-		args := []any{"moved", stats.totalFiles, "size", formatBytes(stats.totalBytes), "files_skipped", stats.filesSkipped, "categories_skipped", stats.skipped}
-		if undoable {
-			args = append(args, "batch_id", batch.batchID)
+		attrs := []slog.Attr{
+			slog.Int("moved", stats.totalFiles), slog.String("size", formatBytes(stats.totalBytes)),
+			slog.Int("files_skipped", stats.filesSkipped), slog.Int("categories_skipped", stats.skipped),
 		}
-		m.Logger.Info("run complete", m.Logger.Args(args...))
+		if undoable {
+			attrs = append(attrs, slog.String("batch_id", batch.batchID))
+		}
+		m.Logger.LogAttrs(context.Background(), slog.LevelInfo, "run complete", attrs...)
 	}
 
 	// Surface failures through the exit code so scripts and cron can detect them.
@@ -219,12 +223,12 @@ func hookEnv(category *models.Category, after *hookAfterVars) map[string]string 
 // commands instead: a preview touches nothing, and a hook is not bound to that.
 func runCategoryHook(ctx context.Context, m *models.Movelooper, category *models.Category, stage string, hook *models.CategoryHook, dryRun bool, after *hookAfterVars) error {
 	if dryRun {
-		args := make([]any, 0, len(hook.Run)*2)
+		attrs := make([]slog.Attr, 0, len(hook.Run))
 		for _, command := range hook.Run {
-			args = append(args, "command", command)
+			attrs = append(attrs, slog.String("command", command))
 		}
-		label := pterm.Cyan(fmt.Sprintf("[%s]", category.Name))
-		m.Logger.Info(fmt.Sprintf("%s would run the %s hook", label, stage), m.Logger.Args(args...))
+		label := m.Look.Category(category.Name)
+		m.Logger.LogAttrs(ctx, slog.LevelInfo, fmt.Sprintf("%s would run the %s hook", label, stage), attrs...)
 		return nil
 	}
 	env := hookEnv(category, after)
@@ -351,7 +355,7 @@ func processCategoryMove(ctx context.Context, m *models.Movelooper, category *mo
 func logSkippedDirs(m *models.Movelooper, categoryName string, skipped []scanner.SkippedDir) {
 	for _, s := range skipped {
 		m.Logger.Warn("skipping directory that could not be read",
-			m.Logger.Args("category", categoryName, "path", s.Path, "error", s.Err.Error()))
+			slog.String("category", categoryName), slog.String("path", s.Path), slog.Any("error", s.Err))
 	}
 }
 
@@ -364,7 +368,7 @@ func matchExtensionFiles(m *models.Movelooper, category *models.Category, candid
 	for _, fe := range candidates {
 		info, err := matchesCategory(category, fe, batch.moved, extension)
 		if err != nil {
-			m.Logger.Warn("skipping file: could not read metadata", m.Logger.Args("file", fe.Entry.Name(), "error", err.Error()))
+			m.Logger.Warn("skipping file: could not read metadata", slog.String("file", fe.Entry.Name()), slog.Any("error", err))
 			continue
 		}
 		if info != nil {
@@ -396,19 +400,19 @@ func logPreviewConflicts(m *models.Movelooper, category *models.Category, confli
 	if strategy == "" {
 		strategy = models.ConflictStrategyRename
 	}
-	args := make([]any, 0, len(conflicts)*2)
+	attrs := make([]slog.Attr, 0, len(conflicts))
 	for _, path := range conflicts {
-		args = append(args, "destination", path)
+		attrs = append(attrs, slog.String("destination", path))
 	}
-	label := pterm.Cyan(fmt.Sprintf("[%s]", category.Name))
+	label := m.Look.Category(category.Name)
 	header := fmt.Sprintf("%s %d destination file(s) already exist — conflict-strategy %q %s",
 		label, len(conflicts), strategy, conflictOutcomeText(strategy))
 
+	level := slog.LevelInfo
 	if strategy == models.ConflictStrategyOverwrite {
-		m.Logger.Warn(header, m.Logger.Args(args...))
-		return
+		level = slog.LevelWarn
 	}
-	m.Logger.Info(header, m.Logger.Args(args...))
+	m.Logger.LogAttrs(context.Background(), level, header, attrs...)
 }
 
 // conflictOutcomeText describes, in the dry-run preview, what a strategy will do
@@ -430,13 +434,13 @@ func conflictOutcomeText(strategy models.ConflictStrategy) string {
 }
 
 // logFileBlock logs a single "[category] header" entry listing all
-// source/destination pairs in args. It is a no-op when args is empty.
-func logFileBlock(m *models.Movelooper, categoryName, header string, args []any) {
-	if len(args) == 0 {
+// source/destination pairs in attrs. It is a no-op when attrs is empty.
+func logFileBlock(m *models.Movelooper, categoryName, header string, attrs []slog.Attr) {
+	if len(attrs) == 0 {
 		return
 	}
-	label := pterm.Cyan(fmt.Sprintf("[%s]", categoryName))
-	m.Logger.Info(fmt.Sprintf("%s %s", label, header), m.Logger.Args(args...))
+	label := m.Look.Category(categoryName)
+	m.Logger.LogAttrs(context.Background(), slog.LevelInfo, fmt.Sprintf("%s %s", label, header), attrs...)
 }
 
 // moveTotals aggregates the per-directory outcomes of moving one extension.
@@ -481,11 +485,11 @@ func moveMatchedFiles(ctx context.Context, m *models.Movelooper, category *model
 }
 
 // appendMovedDetails appends "source"/"destination" pairs for each moved file.
-func appendMovedDetails(args []any, details []fileops.MovedDetail) []any {
+func appendMovedDetails(attrs []slog.Attr, details []fileops.MovedDetail) []slog.Attr {
 	for _, d := range details {
-		args = append(args, "source", d.Source, "destination", d.Destination)
+		attrs = append(attrs, slog.String("source", d.Source), slog.String("destination", d.Destination))
 	}
-	return args
+	return attrs
 }
 
 // groupByDir groups FileEntries by their containing directory.
@@ -558,35 +562,35 @@ func actionVerbs(action models.Action) (pending, past string) {
 	}
 }
 
-// logPending logs a "files pending" summary. On the pretty (pterm) renderer it
+// logPending logs a "files pending" summary. On the pretty renderer it
 // uses WARN so pending categories stand out visually (and surface even when the
 // level is raised to warn); on the structured JSON logger it stays at INFO, so
 // normal operation does not show up as warnings in log aggregators.
-func logPending(m *models.Movelooper, message string, args ...[]pterm.LoggerArgument) {
-	if _, pretty := m.Logger.(*pterm.Logger); pretty {
-		m.Logger.Warn(message, args...)
-		return
+func logPending(m *models.Movelooper, message string, attrs ...slog.Attr) {
+	level := slog.LevelInfo
+	if logger.Pretty(m.Logger) {
+		level = slog.LevelWarn
 	}
-	m.Logger.Info(message, args...)
+	m.Logger.LogAttrs(context.Background(), level, message, attrs...)
 }
 
 // logExtensionResult logs a summary of files found for an extension. verb is the
 // pending action ("move", "copy", "link", "archive") so the message reads
 // "N files to <verb>".
-// The category and count are colorized via pterm; in JSON mode color is
-// disabled (see ConfigureLogger), so the structured message stays plain.
+// The category and count are painted by m.Look, which leaves them plain for
+// the JSON logger.
 func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName, extension, verb string, showFiles bool) {
-	category := pterm.Cyan(fmt.Sprintf("[%s]", categoryName))
+	category := m.Look.Category(categoryName)
 	count := len(files)
 	if count == 0 {
-		m.Logger.Info(fmt.Sprintf("%s %s %s found", category, pterm.Red("No"), fileNoun(extension, 0)))
+		m.Logger.Info(fmt.Sprintf("%s %s %s found", category, m.Look.None("No"), fileNoun(extension, 0)))
 		return
 	}
-	message := fmt.Sprintf("%s %s %s to %s", category, pterm.Green(fmt.Sprintf("%d", count)), fileNoun(extension, count), verb)
+	message := fmt.Sprintf("%s %s %s to %s", category, m.Look.Count(count), fileNoun(extension, count), verb)
 	if showFiles {
 		logArgs := filters.GenerateLogArgs(files, extension)
 		if len(logArgs) > 0 {
-			logPending(m, message, m.Logger.Args(logArgs...))
+			logPending(m, message, logArgs...)
 			return
 		}
 	}
@@ -598,13 +602,13 @@ func logExtensionResult(m *models.Movelooper, files []os.DirEntry, categoryName,
 // be logged as a single entry in dry-run mode. It also returns the planned
 // destinations that already exist on disk, which is the only way a preview can
 // tell the user that a conflict strategy is about to fire.
-func appendPlannedMoves(args []any, category *models.Category, matched []scanner.FileEntry) (planned []any, conflicts []string) {
+func appendPlannedMoves(attrs []slog.Attr, category *models.Category, matched []scanner.FileEntry) (planned []slog.Attr, conflicts []string) {
 	for _, fe := range matched {
 		src, dst, ok := resolvePlannedMove(category, fe)
 		if !ok {
 			continue
 		}
-		args = append(args, "source", src, "destination", dst)
+		attrs = append(attrs, slog.String("source", src), slog.String("destination", dst))
 		// Lstat only, never open: the preview must not touch anything, and it
 		// reports the same conflicts the run will see, dangling symlinks included.
 		// A rename template holding an unresolved {seq}/{sha256} placeholder simply
@@ -613,7 +617,7 @@ func appendPlannedMoves(args []any, category *models.Category, matched []scanner
 			conflicts = append(conflicts, dst)
 		}
 	}
-	return args, conflicts
+	return attrs, conflicts
 }
 
 // resolvePlannedMove reports where a file would land under the category's

@@ -8,7 +8,6 @@ import (
 	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/logger"
 	"github.com/lucasassuncao/movelooper/internal/models"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,12 +16,12 @@ func TestNewArchiveProgress_NilOutsideAnInteractiveTerminal(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	structured := &models.Movelooper{Logger: logger.NewSlog(&buf, "info", false)}
+	structured := &models.Movelooper{Logger: logger.NewJSON(&buf, "info", false)}
 	assert.False(t, isInteractiveTerminal(structured))
 	assert.Nil(t, newArchiveProgress(structured))
 
 	// go test captures stdout, so a pretty logger still is not on a terminal
-	pretty := &models.Movelooper{Logger: pterm.DefaultLogger.WithWriter(&buf)}
+	pretty := &models.Movelooper{Logger: logger.NewPretty(&buf, theme.Resolve(theme.Default, true), "info", false, "auto", 0)}
 	assert.False(t, isInteractiveTerminal(pretty))
 	assert.Nil(t, newArchiveProgress(pretty))
 }
