@@ -1,6 +1,9 @@
 <!-- markdownlint-disable MD033 -->
 <p align="center">
-  <img src="../movelooper2.png" alt="Movelooper logo" width="300" height="300">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../icons/movelooper_horizontal_on_dark.png">
+    <img src="../icons/movelooper_horizontal_on_light.png" alt="movelooper logo" width="60%">
+  </picture>
 </p>
 <!-- markdownlint-enable MD033 -->
 
