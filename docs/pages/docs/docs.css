@@ -1,0 +1,92 @@
+/* The docs: docsify's vue theme, recoloured to match the landing page. */
+:root {
+  --bg: #0f0d14;
+  --bg-raised: #17141f;
+  --bg-code: #1b1724;
+  --bg-inline: #1b1724;
+  --line: #2c2638;
+  --text: #e4e4e4;
+  --text-soft: #cfcad8;
+  --dim: #9a94a8;
+  --accent: #c39bff;
+  --theme-color: #c39bff;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+.sidebar > h1 .logo-light { display: none; }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #fbfaff;
+    --bg-raised: #f2eefa;
+    --bg-inline: #ece6f7;
+    --line: #ddd5ec;
+    --text: #1c1c1c;
+    --text-soft: #34303d;
+    --dim: #5d5670;
+    --accent: #5f00af;
+    --theme-color: #5f00af;
+    color-scheme: light;
+  }
+  .sidebar > h1 .logo-dark { display: none; }
+  .sidebar > h1 .logo-light { display: block; }
+}
+
+body { background: var(--bg); color: var(--text); }
+
+.sidebar, .sidebar-toggle { background: var(--bg-raised); border-right: 1px solid var(--line); }
+.sidebar > h1 { margin: 20px 16px 24px; }
+.sidebar > h1 img { height: 44px; margin: 0 auto; }
+.sidebar ul li a { color: var(--dim); font-size: 14px; }
+.sidebar ul li a:hover { color: var(--text); }
+.sidebar ul li.active > a { color: var(--accent); border-right-color: var(--accent); font-weight: 600; }
+.sidebar ul li strong { color: var(--text); font-family: var(--mono); font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
+.sidebar-toggle .sidebar-toggle-button span { background: var(--accent); }
+.search { border-bottom-color: var(--line) !important; }
+.search input { background: var(--bg-inline); color: var(--text); border-radius: 6px; }
+.search .matching-post { border-bottom-color: var(--line); }
+.search a { color: var(--dim); }
+
+.markdown-section { max-width: 860px; }
+.markdown-section h1, .markdown-section h2, .markdown-section h3, .markdown-section h4 {
+  color: var(--text); font-family: var(--mono); letter-spacing: -0.01em;
+}
+.markdown-section h1 { font-size: 2.1rem; }
+.markdown-section h2 { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.markdown-section p, .markdown-section li, .markdown-section td { color: var(--text-soft); }
+.markdown-section strong { color: var(--text); }
+.markdown-section a { color: var(--accent); }
+.markdown-section hr { border-color: var(--line); }
+.markdown-section blockquote { border-left-color: var(--accent); color: var(--dim); }
+
+/* Inline code follows the page; blocks stay dark, like a terminal. */
+.markdown-section code { font-family: var(--mono); background: var(--bg-inline); color: var(--text); border-radius: 4px; padding: 2px 5px; }
+.markdown-section pre { background: var(--bg-code); border: 1px solid var(--line); border-radius: 8px; }
+.markdown-section pre > code { background: var(--bg-code); color: #e4e4e4; }
+.markdown-section img { border-radius: 8px; border: 1px solid var(--line); }
+.markdown-section picture img { border: 0; border-radius: 0; }
+
+.markdown-section table { display: table; width: 100%; }
+.markdown-section tr { border-top-color: var(--line); }
+.markdown-section tr:nth-child(2n) { background: var(--bg-raised); }
+.markdown-section td, .markdown-section th { border-color: var(--line); }
+.markdown-section th { color: var(--text); }
+
+.markdown-section h2 > code, .markdown-section h3 > code { color: var(--accent); }
+/* The reference tables name a field in their first column. */
+.markdown-section td:first-child code { color: var(--accent); }
+.markdown-section iframe { border: 1px solid var(--line) !important; border-radius: 8px; }
+
+.markdown-section pre .token.keyword, .markdown-section pre .token.boolean { color: #c39bff; }
+.markdown-section pre .token.string { color: #87d787; }
+.markdown-section pre .token.comment { color: #7c7690; }
+.markdown-section pre .token.function { color: #87afff; }
+.markdown-section pre .token.number { color: #ffb86c; }
+.markdown-section pre .token.operator, .markdown-section pre .token.punctuation { color: #9a94a8; }
+.markdown-section pre .token.builtin, .markdown-section pre .token.class-name { color: #5fd7d7; }
+.markdown-section pre .token.key, .markdown-section pre .token.atrule { color: #5fd7d7; }
+
+.docsify-copy-code-button { background: #c39bff; color: #1c1c1c; font-family: var(--mono); }
+.github-corner svg { fill: var(--accent); color: var(--bg); }
+.app-nav a { color: var(--dim); }
