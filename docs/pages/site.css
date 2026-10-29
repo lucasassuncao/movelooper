@@ -3,6 +3,7 @@
   --bg: #0f0d14;
   --bg-raised: #17141f;
   --bg-code: #1b1724;
+  --bg-inline: #1b1724;
   --line: #2c2638;
   --text: #e4e4e4;
   --dim: #9a94a8;
@@ -18,20 +19,23 @@
   color-scheme: dark;
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #fbfaff;
-    --bg-raised: #f2eefa;
-    --bg-code: #1b1724;
-    --line: #ddd5ec;
-    --text: #1c1c1c;
-    --dim: #5d5670;
-    --accent: #5f00af;
-    --accent-strong: #4a0089;
-    --on-accent: #ffffff;
-    color-scheme: light;
-  }
+/* theme.js sets data-theme from the reader's pick or the OS; without it the page stays dark. */
+:root[data-theme="light"] {
+  --bg: #fbfaff;
+  --bg-raised: #f2eefa;
+  --bg-code: #1b1724;
+  --bg-inline: #ece6f7;
+  --line: #ddd5ec;
+  --text: #1c1c1c;
+  --dim: #5d5670;
+  --accent: #5f00af;
+  --accent-strong: #4a0089;
+  --on-accent: #ffffff;
+  color-scheme: light;
 }
+.logo-light { display: none; }
+[data-theme="light"] .logo-dark { display: none; }
+[data-theme="light"] .logo-light { display: block; }
 
 * { box-sizing: border-box; }
 
@@ -73,6 +77,13 @@ img { max-width: 100%; display: block; }
 .nav ul { display: flex; gap: 22px; list-style: none; margin: 0; padding: 0; font: 500 14px var(--mono); }
 .nav ul a { color: var(--dim); }
 .nav ul a:hover { color: var(--text); text-decoration: none; }
+.nav ul { align-items: center; }
+.theme-toggle {
+  font: 16px/1 var(--mono); cursor: pointer;
+  color: var(--dim); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px;
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--accent); }
 
 /* Hero */
 .hero { padding: 88px 0 40px; text-align: center; }
@@ -208,11 +219,11 @@ pre.tree { white-space: pre; }
 .feature h3 { margin: 0 0 10px; font: 700 16px var(--mono); }
 .feature h3 span { color: var(--accent); }
 .feature p { margin: 0; color: var(--dim); font-size: 15px; }
-.feature code, .sub code, .split code, .table td + td code {
+/* Inline code follows the page; the samples in pre.code keep their terminal colours. */
+.feature code, .sub code, .split li code, .table td + td code {
   font: 0.9em var(--mono); color: var(--text);
-  background: var(--bg-code); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px;
+  background: var(--bg-inline); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px;
 }
-:root:not([data-theme="dark"]) .feature code { color: inherit; }
 
 /* Closing call */
 .cta { margin: 96px auto 0; padding: 56px 24px; text-align: center; border-top: 1px solid var(--line); }

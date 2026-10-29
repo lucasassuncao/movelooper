@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/themes/vue.css">
   <link rel="stylesheet" href="docs.css">
+  <script src="../theme.js"></script>
 </head>
 <body>
   <div id="app"></div>
@@ -26,7 +27,31 @@
       subMaxLevel: 2,
       relativePath: true,
       search: { placeholder: "Search the docs", noData: "Nothing found", depth: 3 },
-      copyCode: { buttonText: "copy", successText: "copied" }
+      copyCode: { buttonText: "copy", successText: "copied" },
+      plugins: [
+        function (hook) {
+          // The switch sits under the logo; the README's <picture> answers to the OS,
+          // so its dark source is turned on or off to follow the page instead.
+          function follow() {
+            var dark = document.documentElement.dataset.theme !== "light";
+            document.querySelectorAll('.markdown-section picture source[media*="dark"]')
+              .forEach(function (s) { s.dataset.dark = ""; });
+            document.querySelectorAll(".markdown-section picture source[data-dark]")
+              .forEach(function (s) { s.media = dark ? "all" : "not all"; });
+          }
+          hook.mounted(function () {
+            var button = document.createElement("button");
+            button.className = "theme-toggle";
+            button.type = "button";
+            button.setAttribute("data-theme-toggle", "");
+            button.textContent = "◐ light / dark";
+            document.querySelector(".sidebar > h1").after(button);
+            new MutationObserver(follow).observe(document.documentElement,
+              { attributes: true, attributeFilter: ["data-theme"] });
+          });
+          hook.doneEach(follow);
+        }
+      ]
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/docsify.min.js"></script>

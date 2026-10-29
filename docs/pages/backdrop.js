@@ -108,7 +108,8 @@
   addEventListener("scroll", function () { if (still.matches) draw(0); }, { passive: true });
   document.addEventListener("visibilitychange", function () { if (!document.hidden) start(); });
   still.addEventListener("change", start);
-  matchMedia("(prefers-color-scheme: light)").addEventListener("change", function () { ink = colours(); });
+  new MutationObserver(function () { ink = colours(); if (still.matches) draw(0); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   resize();
   start();

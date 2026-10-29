@@ -14,24 +14,29 @@
   color-scheme: dark;
 }
 
-.sidebar > h1 .logo-light { display: none; }
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #fbfaff;
-    --bg-raised: #f2eefa;
-    --bg-inline: #ece6f7;
-    --line: #ddd5ec;
-    --text: #1c1c1c;
-    --text-soft: #34303d;
-    --dim: #5d5670;
-    --accent: #5f00af;
-    --theme-color: #5f00af;
-    color-scheme: light;
-  }
-  .sidebar > h1 .logo-dark { display: none; }
-  .sidebar > h1 .logo-light { display: block; }
+/* ../theme.js sets data-theme from the reader's pick or the OS. */
+:root[data-theme="light"] {
+  --bg: #fbfaff;
+  --bg-raised: #f2eefa;
+  --bg-inline: #ece6f7;
+  --line: #ddd5ec;
+  --text: #1c1c1c;
+  --text-soft: #34303d;
+  --dim: #5d5670;
+  --accent: #5f00af;
+  --theme-color: #5f00af;
+  color-scheme: light;
 }
+.sidebar > h1 .logo-light { display: none; }
+[data-theme="light"] .sidebar > h1 .logo-dark { display: none; }
+[data-theme="light"] .sidebar > h1 .logo-light { display: block; }
+
+.theme-toggle {
+  display: block; margin: -12px auto 16px; cursor: pointer;
+  font: 13px/1 var(--mono); color: var(--dim); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px;
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--accent); }
 
 body { background: var(--bg); color: var(--text); }
 
