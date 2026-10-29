@@ -2,7 +2,7 @@ module github.com/lucasassuncao/movelooper
 
 go 1.26.4
 
-toolchain go1.26.10
+toolchain go1.27.3
 
 require (
 	charm.land/bubbletea/v2 v2.1.0
@@ -13,9 +13,9 @@ require (
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
 	github.com/knadh/koanf/v2 v2.4.1
-	github.com/lucasassuncao/bezel v0.18.0
+	github.com/lucasassuncao/bezel v0.19.0
 	github.com/lucasassuncao/docgen v0.1.5
-	github.com/lucasassuncao/yedit v0.70.0
+	github.com/lucasassuncao/yedit v0.71.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	go.yaml.in/yaml/v3 v3.0.5

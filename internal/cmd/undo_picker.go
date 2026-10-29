@@ -70,10 +70,10 @@ func newBatchPicker(batches []history.BatchSummary, hist *history.History, base 
 		rows[i] = list.Row[string]{Label: label, Value: b.BatchID}
 	}
 	keys := list.DefaultKeys()
-	keys.Filter = key.NewBinding() // no filter: the keys stay what they were
+	keys.Filter = key.New() // no filter: the keys stay what they were
 
 	th := theme.Resolve(base, true)
-	m := batchPicker{base: base, th: th, batches: reversed, hist: hist, list: list.New(rows, 0).WithKeys(keys)}
+	m := batchPicker{base: base, th: th, batches: reversed, hist: hist, list: list.New(rows).WithKeys(keys)}
 	m.sh = shell.New(shell.Config{Layout: layout.Fill("batches"), Theme: th, Title: "Select a batch to undo"})
 	m.sh = m.sh.SetActions(pickerListActions...)
 	return m
@@ -129,7 +129,7 @@ func (m batchPicker) resize() batchPicker {
 }
 
 func (m batchPicker) chosen() string {
-	if r := m.list.Selected(); r != nil {
+	if r, ok := m.list.Selected(); ok {
 		return r.Value
 	}
 	return ""
