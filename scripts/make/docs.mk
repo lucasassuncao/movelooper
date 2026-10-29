@@ -10,9 +10,9 @@ docs: $(GOMARKDOC)
 
 # The Pages job in CI runs this too, so the local preview and the published site
 # are built from the same layout.
-## Assemble the docs site into ./site (docs/pages, the markdown and the demo gif)
+## Assemble the docs site into ./site (docs/pages, the markdown and the demo gifs)
 stage-docs:
-	@$(call script,stage-docs) docs examples/demo/demo.gif $(SITE_DIR)
+	@$(call script,stage-docs) docs examples/demo $(SITE_DIR)
 
 # docsify fetches the .md files at runtime, which browsers block on file://, so
 # the site needs a server.
@@ -24,7 +24,8 @@ serve-docs: $(CADDY) stage-docs
 
 # The tape types `movelooper`, so the binary built from this tree goes first on
 # PATH. Otherwise the recording would show whatever version is installed.
-## Record examples/demo/demo.gif with VHS (needs vhs, ttyd and ffmpeg on PATH)
+## Record examples/demo/demo.gif and edit.gif with VHS (needs vhs, ttyd and ffmpeg on PATH)
 demo:
 	@go build -o $(BUILD_DIR)/$(BINARY_NAME)$(EXE) .
 	@$(call script,record-tape) $(BUILD_DIR) examples/demo/demo.tape
+	@$(call script,record-tape) $(BUILD_DIR) examples/demo/edit.tape
