@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/lucasassuncao/bezel"
 	"github.com/lucasassuncao/bezel/component/list"
 	"github.com/lucasassuncao/bezel/component/table"
 	"github.com/lucasassuncao/bezel/draw"
@@ -89,12 +90,12 @@ func (m batchPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sh = m.sh.SetTheme(m.th)
 		return m, nil
 	case tea.WindowSizeMsg:
-		m.sh, _, _ = m.sh.Update(msg)
+		m.sh, _ = m.sh.Update(msg)
 		return m.resize(), nil
 	case overlay.CloseMsg, overlay.PushMsg:
-		var cmd tea.Cmd
-		m.sh, _, cmd = m.sh.Update(msg)
-		return m, cmd
+		var r bezel.Result
+		m.sh, r = m.sh.Update(msg)
+		return m, r.Cmd
 	case pickerPreviewMsg:
 		return m.openPreview(), nil
 	case pickerBackMsg:
@@ -109,9 +110,9 @@ func (m batchPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		// The shell runs the actions and, while the help is open, takes every key.
-		if sh, handled, cmd := m.sh.Update(msg); handled {
+		if sh, r := m.sh.Update(msg); r.Handled {
 			m.sh = sh
-			return m, cmd
+			return m, r.Cmd
 		}
 		if m.previewing {
 			return m.scrollPreview(msg), nil
