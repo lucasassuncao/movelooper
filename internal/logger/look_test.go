@@ -10,7 +10,7 @@ import (
 
 func TestLook_PaintsInTheTheme(t *testing.T) {
 	t.Parallel()
-	l := NewLook(theme.Resolve(theme.Default, true), true)
+	l := NewLook(theme.Resolve(theme.Default(), true), true)
 	for _, s := range []string{l.Category("images"), l.None("No"), l.Count(3)} {
 		assert.Contains(t, s, "\x1b[")
 	}
@@ -23,5 +23,5 @@ func TestLook_StaysPlainWhenOff(t *testing.T) {
 	var zero Look
 	assert.Equal(t, "[images]", zero.Category("images"))
 	assert.Equal(t, "No", zero.None("No"))
-	assert.Equal(t, "12", NewLook(theme.Resolve(theme.Default, true), false).Count(12))
+	assert.Equal(t, "12", NewLook(theme.Resolve(theme.Default(), true), false).Count(12))
 }

@@ -12,14 +12,14 @@ import (
 // go test captures stdout, so the bar is never drawn there.
 func TestNewDownloadProgress_NilOutsideATerminal(t *testing.T) {
 	t.Parallel()
-	assert.Nil(t, newDownloadProgress(theme.Default))
+	assert.Nil(t, newDownloadProgress(theme.Default()))
 }
 
 func TestDownloadBar(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	bar := downloadBar(&buf, theme.Resolve(theme.Default, true))
+	bar := downloadBar(&buf, theme.Resolve(theme.Default(), true))
 
 	bar(0, 0)
 	assert.Empty(t, buf.String(), "an unknown size draws nothing")

@@ -54,7 +54,7 @@ func TestNewJSON_AddsSource(t *testing.T) {
 func TestNewPretty_HangsArgsUnderTheMessage(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	l := NewPretty(&buf, theme.Resolve(theme.Default, true), "info", false, "never", 0)
+	l := NewPretty(&buf, theme.Resolve(theme.Default(), true), "info", false, "never", 0)
 	l.Info("moved", slog.String("file", "a.jpg"))
 	assert.Contains(t, buf.String(), "INFO  moved\n")
 	assert.Contains(t, buf.String(), "└─ file=a.jpg\n")
@@ -64,7 +64,7 @@ func TestNewPretty_HangsArgsUnderTheMessage(t *testing.T) {
 
 func TestNewPretty_ColoursOnlyWhenAsked(t *testing.T) {
 	t.Parallel()
-	th := theme.Resolve(theme.Default, true)
+	th := theme.Resolve(theme.Default(), true)
 	var on, off bytes.Buffer
 	NewPretty(&on, th, "info", false, "always", 0).Info("m")
 	NewPretty(&off, th, "info", false, "auto", 0).Info("m")

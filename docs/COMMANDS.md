@@ -88,7 +88,7 @@ Opens the configuration file in an interactive two-panel TUI editor. The left pa
 
 ```bash
 movelooper edit
-movelooper edit --theme grape
+movelooper edit --theme mint
 movelooper --list-themes
 movelooper edit --output /path/to/new.yaml
 movelooper edit --config /path/to/movelooper.yaml
@@ -129,7 +129,7 @@ movelooper validate
 movelooper validate --format table
 movelooper validate --format json --summary
 movelooper validate --strict
-movelooper validate --theme mario
+movelooper validate --theme mint
 movelooper validate --config /path/to/movelooper.yaml
 ```
 

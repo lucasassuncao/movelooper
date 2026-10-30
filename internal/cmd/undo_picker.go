@@ -178,9 +178,7 @@ func (m batchPicker) View() tea.View {
 			Body:  m.previewBody,
 		}}
 	}
-	v := tea.NewView(m.sh.View(panes))
-	v.AltScreen = true
-	return v
+	return m.sh.View(panes)
 }
 
 func (m batchPicker) previewBody(r layout.Rect) string {

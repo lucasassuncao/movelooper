@@ -51,7 +51,7 @@ var testBuildCases = []struct {
 	{
 		name: "WithThemeOverride takes a bezel theme",
 		yaml: minimalBuilderYAML,
-		opts: []Option{WithLogger(), WithThemeOverride("mario")},
+		opts: []Option{WithLogger(), WithThemeOverride("mint")},
 		check: func(t *testing.T, m *models.Movelooper) {
 			assert.NotNil(t, m.Logger)
 		},

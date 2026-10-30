@@ -396,13 +396,13 @@ func TestRotateLog(t *testing.T) {
 // default, and an unknown one fails with the hint to list them.
 func TestLogTheme(t *testing.T) {
 	t.Parallel()
-	got, err := LogTheme("grape")
+	got, err := LogTheme("mint")
 	require.NoError(t, err)
-	assert.Equal(t, theme.Grape, got)
+	assert.Equal(t, theme.Mint(), got)
 
 	got, err = LogTheme("")
 	require.NoError(t, err)
-	assert.Equal(t, theme.Default, got)
+	assert.Equal(t, theme.Default(), got)
 
 	_, err = LogTheme("nope")
 	require.ErrorContains(t, err, `unknown theme "nope"`)
@@ -410,4 +410,4 @@ func TestLogTheme(t *testing.T) {
 }
 
 // testTheme is the theme the pretty logger draws in across these tests.
-var testTheme = theme.Resolve(theme.Default, true)
+var testTheme = theme.Resolve(theme.Default(), true)

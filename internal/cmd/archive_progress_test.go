@@ -21,7 +21,7 @@ func TestNewArchiveProgress_NilOutsideAnInteractiveTerminal(t *testing.T) {
 	assert.Nil(t, newArchiveProgress(structured))
 
 	// go test captures stdout, so a pretty logger still is not on a terminal
-	pretty := &models.Movelooper{Logger: logger.NewPretty(&buf, theme.Resolve(theme.Default, true), "info", false, "auto", 0)}
+	pretty := &models.Movelooper{Logger: logger.NewPretty(&buf, theme.Resolve(theme.Default(), true), "info", false, "auto", 0)}
 	assert.False(t, isInteractiveTerminal(pretty))
 	assert.Nil(t, newArchiveProgress(pretty))
 }
@@ -30,7 +30,7 @@ func TestArchiveBar(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	bar := archiveBar(&buf, theme.Resolve(theme.Default, true))
+	bar := archiveBar(&buf, theme.Resolve(theme.Default(), true))
 
 	bar(0, 0)
 	assert.Empty(t, buf.String(), "an empty batch draws nothing")

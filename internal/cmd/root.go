@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lucasassuncao/bezel/component/themebrowser"
+	"github.com/lucasassuncao/bezel/theme"
 	"github.com/lucasassuncao/movelooper/internal/config"
 	"github.com/lucasassuncao/movelooper/internal/models"
 
@@ -121,7 +122,7 @@ func listThemesFirst(c *cobra.Command) {
 	if pre := c.PersistentPreRunE; pre != nil {
 		c.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 			if list, _ := cmd.Root().PersistentFlags().GetBool("list-themes"); list {
-				if err := themebrowser.BrowseInTerminal(); err != nil {
+				if err := themebrowser.BrowseInTerminal(theme.Default()); err != nil {
 					return err
 				}
 				return ErrThemesListed

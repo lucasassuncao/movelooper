@@ -278,7 +278,7 @@ func ParseCategoryNames(raw string) []string
 ParseCategoryNames splits a comma\-separated category string into a slice of trimmed names. Returns nil when raw is empty or contains only separators.
 
 <a name="RootCmd"></a>
-## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L16>)
+## func [RootCmd](<https://github.com/lucasassuncao/movelooper/blob/main/internal/cmd/root.go#L17>)
 
 ```go
 func RootCmd(m *models.Movelooper, version string) *cobra.Command

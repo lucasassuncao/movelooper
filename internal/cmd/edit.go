@@ -45,7 +45,7 @@ produce a new config from an existing one).`,
   movelooper edit
 
   # Edit with the Grape theme
-  movelooper edit --theme grape
+  movelooper edit --theme mint
 
   # Browse the available themes in a scrollable table
   movelooper --list-themes

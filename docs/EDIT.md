@@ -133,7 +133,7 @@ Useful for bootstrapping a new config or creating a category file for use with `
 ## Themes
 
 ```bash
-movelooper edit --theme grape
+movelooper edit --theme mint
 movelooper --list-themes        # see all available themes
 ```
 

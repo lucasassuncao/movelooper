@@ -13,9 +13,9 @@ require (
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
 	github.com/knadh/koanf/v2 v2.4.1
-	github.com/lucasassuncao/bezel v0.20.0
+	github.com/lucasassuncao/bezel v0.22.0
 	github.com/lucasassuncao/docgen v0.1.5
-	github.com/lucasassuncao/yedit v0.72.0
+	github.com/lucasassuncao/yedit v0.73.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	go.yaml.in/yaml/v3 v3.0.5

@@ -27,7 +27,7 @@ func newTestPicker(t *testing.T) batchPicker {
 		{Source: "/in/b.txt", Destination: "/out/b.txt", BatchID: "batch_new", Action: "move", Timestamp: now},
 		{Source: "/in/c.txt", Destination: "/out/c.txt", BatchID: "batch_new", Action: "move", Timestamp: now},
 	}))
-	p := newBatchPicker(hist.GetAllBatches(), hist, theme.Default)
+	p := newBatchPicker(hist.GetAllBatches(), hist, theme.Default())
 	m, _ := p.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
 	return m.(batchPicker)
 }
