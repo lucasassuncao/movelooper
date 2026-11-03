@@ -102,7 +102,7 @@ produce a new config from an existing one).`,
 				NoValidateOnSave:     noValidateOnSave,
 				SchemaRecursionDepth: config.MaxFilterNestingDepth - 1,
 				Validators:           append(slices.Clone(MovelooperValidators), importsResolve(saveTarget)),
-				AnimationDuration:    600 * time.Millisecond,
+				AnimationDuration:    150 * time.Millisecond, // as vivi slides its Command Reference
 				Trace: editor.Trace{
 					Dump:     dump || dumpPath != "",
 					DumpPath: dumpPath,
