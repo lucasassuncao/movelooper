@@ -1,4 +1,14 @@
 /* The docs: docsify's vue theme, recoloured to match the landing page. */
+
+/* Google's JetBrains Mono has no arrows, box drawing or shapes, so the boxes in
+   code blocks fell back to a narrower font. The full font, next in --mono, fills
+   just those in; under the same family name the browser would never ask it. */
+@font-face {
+  font-family: "JetBrains Mono Full";
+  src: url("https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@v2.304/fonts/webfonts/JetBrainsMono-Regular.woff2") format("woff2");
+  unicode-range: U+2190-21FF, U+2500-25FF, U+2700-27BF;
+}
+
 :root {
   --bg: #0f0d14;
   --bg-raised: #17141f;
@@ -10,7 +20,7 @@
   --dim: #9a94a8;
   --accent: #c39bff;
   --theme-color: #c39bff;
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --mono: "JetBrains Mono", "JetBrains Mono Full", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: dark;
 }
 

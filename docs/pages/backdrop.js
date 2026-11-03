@@ -82,7 +82,7 @@
           stadium(x + it.rw * 0.4, y + rh * 0.5, it.rw, rh);
         }
       } else {
-        ctx.font = it.size + "px 'JetBrains Mono', monospace";
+        ctx.font = it.size + "px 'JetBrains Mono', 'JetBrains Mono Full', monospace";
         ctx.fillText(it.glyph, x, y);
       }
     }
