@@ -37,7 +37,7 @@ Small fixes (typos, one-line corrections) can go straight to a pull request.
 
 ### PR checklist
 
-- [ ] `make all` passes locally (fmt, docs, lint, security, tests, vulnerability scans)
+- [ ] `make all` passes locally (fmt, docs, lint, security, tests)
 - [ ] New behaviour is covered by tests
 - [ ] `docs/dev/DESIGN.md` updated if a new architectural pattern or decision was introduced
 - [ ] Commit messages follow the project style (see below)

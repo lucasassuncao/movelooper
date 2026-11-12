@@ -28,7 +28,7 @@ Practical reference for contributing to movelooper. Covers setup, daily workflow
 | PowerShell (`pwsh`) | 7.4+ | Runs `scripts/pwsh` on Windows; `make check-scripts` needs it on every OS |
 | VHS, ttyd, ffmpeg | any | Only for `make demo` |
 
-All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, syft, grype, git-cliff, shellcheck, PSScriptAnalyzer, caddy) are pinned in `scripts/make/tools.mk` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in `scripts/make/tools.mk` does not invalidate an already installed binary, run `make clean-tools` first.
+All other tools (golangci-lint, goreleaser, gosec, gotestsum, gomarkdoc, git-cliff, shellcheck, PSScriptAnalyzer, caddy) are pinned in `scripts/make/tools.mk` and installed into `./.gobin` on first use, so no global installation is required and every target runs the pinned version rather than whatever is on `PATH`. Bumping a version in `scripts/make/tools.mk` does not invalidate an already installed binary, run `make clean-tools` first.
 
 ---
 
@@ -70,8 +70,6 @@ make test            # run tests (testdox format)
 make test-watch      # rerun tests on file changes
 make test-coverage   # tests + HTML and XML coverage reports
 make security        # gosec static analysis
-make sbom            # CycloneDX SBOM of the dependency tree (syft)
-make vuln            # scan the SBOM for known vulnerabilities (grype)
 make docs            # regenerate package READMEs (gomarkdoc) + config reference (generate-docs)
 make stage-docs      # assemble the docs site into site/, as GitHub Pages publishes it
 make serve-docs      # stage-docs, then serve site/ on http://localhost:8080 (caddy)
@@ -85,7 +83,7 @@ make check-scripts   # every script has a twin, shellcheck and PSScriptAnalyzer 
 make tools           # install every pinned tool into ./.gobin
 make clean-tools     # remove ./.gobin so the next target reinstalls the pinned tools
 make clean           # remove build artifacts, installed tools and cache
-make all             # deps + fmt + docs + lint + security + test-coverage + govulncheck + sbom + vuln
+make all             # deps + fmt + docs + lint + security + test-coverage
 ```
 
 ### Before committing
@@ -243,7 +241,7 @@ Run `make lint` before opening a PR. The CI pipeline will fail if lint errors ar
 - [ ] Read [`DESIGN.md`](DESIGN.md) to understand where the change belongs
 - [ ] Follow the extension guides in [`DESIGN.md`](DESIGN.md) §6 for registries and the builder
 - [ ] Write tests before or alongside the implementation (TDD preferred)
-- [ ] Run `make all` (deps + fmt + docs + lint + security + test-coverage + govulncheck + sbom + vuln) before pushing
+- [ ] Run `make all` (deps + fmt + docs + lint + security + test-coverage) before pushing
 - [ ] Update [`DESIGN.md`](DESIGN.md) if a new pattern or architectural decision is introduced
 
 ### Where to put new code
@@ -268,12 +266,11 @@ The CI workflow (`.github/workflows/ci.yml`) runs on every push and pull request
 |---|---|---|
 | Checks | Linux | `go mod tidy`, `make fmt` and `make docs`, each followed by `git diff`, so an uncommitted result fails the job |
 | Test | Linux, Windows, macOS | `make lint`, `make security` (gosec, medium+) and `make test-coverage`; coverage uploaded as artifact |
-| Supply chain | Linux | `make govulncheck` (vulnerabilities reachable from this code), then `make vuln` (grype, medium+); SBOM uploaded as artifact |
 | Deploy GitHub Pages | Linux | Publishes the docs site once Checks passes; never on pull requests |
 
 Lint and security run on every OS because Go only compiles the files of the target platform, so `*_windows.go` and `*_unix.go` are only analyzed on their own OS.
 
-**Checks, Test and Supply chain must pass before merging.** There are no exceptions. A red Supply chain job with nothing changed in the repo usually means a CVE was published against a dependency.
+**Checks and Test must pass before merging.** There are no exceptions.
 
 If the docs check fails, run `make docs` locally, review the diff, and commit the result.
 

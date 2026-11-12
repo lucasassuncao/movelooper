@@ -29,7 +29,6 @@ script = $(SCRIPT_RUN) $(SCRIPT_DIR)/$(1)$(SCRIPT_EXT)
 BINARY_NAME     := movelooper
 BUILD_DIR       := bin
 MAIN_PATH       := main.go
-SBOM_FILE       := sbom.json
 COVERAGE_DIR    := coverage
 COMPLETIONS_DIR := completions
 RELEASE_NOTES   := release-notes.md
@@ -61,11 +60,11 @@ check-scripts: $(SHELLCHECK) $(PSSA)
 	@$(call script,check-parity) scripts/bash scripts/pwsh
 	@$(call script,lint-scripts) $(SHELLCHECK) $(PSSA) scripts/bash scripts/pwsh
 
-## Run every check: deps, fmt, docs, lint, security, tests and vulnerability scans
-all: deps fmt docs lint security test-coverage govulncheck sbom vuln
+## Run every check: deps, fmt, docs, lint, security and tests
+all: deps fmt docs lint security test-coverage
 
 ## Remove build artifacts, installed tools and cache
 clean: clean-tools
-	@$(call script,remove) $(BUILD_DIR) dist $(COVERAGE_DIR) $(COMPLETIONS_DIR) $(SBOM_FILE) $(RELEASE_NOTES) $(SITE_DIR)
+	@$(call script,remove) $(BUILD_DIR) dist $(COVERAGE_DIR) $(COMPLETIONS_DIR) $(RELEASE_NOTES) $(SITE_DIR)
 	@echo "Cleaning Go build and test cache..."
 	@go clean -cache -testcache

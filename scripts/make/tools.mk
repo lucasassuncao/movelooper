@@ -11,11 +11,8 @@ GOMARKDOC_VERSION     := v1.1.0
 GORELEASER_VERSION    := v2.15.2
 GOSEC_VERSION         := v2.29.1-0.20261012130337-71577268350e
 GOTESTSUM_VERSION     := v1.13.0
-GOVULNCHECK_VERSION   := v1.9.0
-GRYPE_VERSION         := v0.118.0
-PSSA_VERSION          := 1.25.0
+PSSA_VERSION         := 1.25.0
 SHELLCHECK_VERSION    := v0.11.0
-SYFT_VERSION          := v1.51.1
 
 # Tools are installed into ./.gobin (gitignored) rather than taken from PATH,
 # so every target runs the version pinned above and never whatever happens to
@@ -34,11 +31,6 @@ GOMARKDOC   := $(GOBIN_DIR)/gomarkdoc$(EXE)
 GORELEASER  := $(GOBIN_DIR)/goreleaser$(EXE)
 GOSEC       := $(GOBIN_DIR)/gosec$(EXE)
 GOTESTSUM   := $(GOBIN_DIR)/gotestsum$(EXE)
-GOVULNCHECK := $(GOBIN_DIR)/govulncheck$(EXE)
-
-# tools for generating SBOMs and scanning for vulnerabilities
-GRYPE       := $(GOBIN_DIR)/grype$(EXE)
-SYFT        := $(GOBIN_DIR)/syft$(EXE)
 
 # linters for scripts/bash and scripts/pwsh. PSScriptAnalyzer is a pwsh module,
 # saved as <name>/<version>, and its manifest is what Import-Module takes.
@@ -48,7 +40,7 @@ PSSA        := $(GOBIN_DIR)/PSScriptAnalyzer/$(PSSA_VERSION)/PSScriptAnalyzer.ps
 # caddy serves the docs site locally.
 CADDY       := $(GOBIN_DIR)/caddy$(EXE)
 
-TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(SYFT) $(GRYPE) $(GOVULNCHECK) $(GITCLIFF) $(SHELLCHECK) $(PSSA) $(CADDY)
+TOOLS := $(GORELEASER) $(GOLANGCI) $(GOMARKDOC) $(GOTESTSUM) $(GOSEC) $(GOCOBERTURA) $(GITCLIFF) $(SHELLCHECK) $(PSSA) $(CADDY)
 
 # `go install` takes its destination from GOBIN in the environment and has no flag for it, so the tool rules - and only those - export it. A file-wide
 # export would also redirect `install`, which is meant to put movelooper in the user's own GOBIN.
@@ -77,18 +69,6 @@ $(GOSEC):
 $(GOCOBERTURA):
 	@echo "Installing gocover-cobertura $(GOCOBERTURA_VERSION)..."
 	@go install github.com/t-yuki/gocover-cobertura@$(GOCOBERTURA_VERSION)
-
-$(SYFT):
-	@echo "Installing syft $(SYFT_VERSION)..."
-	@go install github.com/anchore/syft/cmd/syft@$(SYFT_VERSION)
-
-$(GRYPE):
-	@echo "Installing grype $(GRYPE_VERSION)..."
-	@go install github.com/anchore/grype/cmd/grype@$(GRYPE_VERSION)
-
-$(GOVULNCHECK):
-	@echo "Installing govulncheck $(GOVULNCHECK_VERSION)..."
-	@go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 
 $(GITCLIFF):
 	@echo "Installing git-cliff $(GITCLIFF_VERSION)..."

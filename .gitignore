@@ -62,9 +62,6 @@ archived/
 # Pinned tools installed by the Makefile
 .gobin/
 
-# Generated SBOM
-sbom.json
-
 # demo sandbox, recreated by examples/demo/demo.tape on every run
 examples/demo/sandbox/
 
