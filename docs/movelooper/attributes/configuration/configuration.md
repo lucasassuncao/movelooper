@@ -25,8 +25,8 @@ The following arguments are supported:
 | level | string | - | Minimum severity level to emit. Lower levels produce more output; 'fatal' produces the least. | Yes | info |
 | file | string | directory | Path to the log file. Only used when output is 'file' or 'both'. Supports ~ for the home directory. | No | ~/movelooper.log |
 | format | string | - | Log rendering format. 'pretty' is the human-readable console renderer; 'json' emits structured slog JSON lines for log aggregation. | No | pretty |
-| color | string | - | ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. Ignored when format is json. | No | auto |
-| max-width | int | - | Maximum width, in columns, for wrapping pretty log lines; 0 uses the terminal's width. Ignored when format is json. | No | 0 |
+| color | string | - | ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. With output both, the file is never colored. Ignored when format is json. | No | auto |
+| max-width | string | - | Width, in columns, for wrapping pretty log lines: auto uses the terminal's width and leaves a file's lines whole; a number from 1 to 500 caps both (0 is auto too). Ignored when format is json. | No | auto |
 | theme | string | - | Colour theme for the pretty format, by the same names as 'movelooper edit --theme' (run 'movelooper --list-themes'). Ignored when format is json. | No | default |
 
 ### watch

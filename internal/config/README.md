@@ -126,7 +126,7 @@ func LoadConfig(k *koanf.Koanf) (models.Configuration, error)
 LoadConfig reads the application\-level settings from k, after InitConfig. The error names the values it could not read: the Configuration holds their defaults instead, so the error is a warning, never a reason to stop.
 
 <a name="LogTheme"></a>
-## func [LogTheme](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L83>)
+## func [LogTheme](<https://github.com/lucasassuncao/movelooper/blob/main/internal/config/logging.go#L98>)
 
 ```go
 func LogTheme(name string) (theme.Theme, error)

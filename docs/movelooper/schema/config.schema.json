@@ -501,7 +501,7 @@
           "properties": {
             "color": {
               "default": "auto",
-              "description": "ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. Ignored when format is json.",
+              "description": "ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. With output both, the file is never colored. Ignored when format is json.",
               "enum": [
                 "auto",
                 "always",
@@ -549,14 +549,13 @@
               "type": "string"
             },
             "max-width": {
-              "default": "0",
-              "description": "Maximum width, in columns, for wrapping pretty log lines; 0 uses the terminal's width. Ignored when format is json.",
+              "default": "auto",
+              "description": "Width, in columns, for wrapping pretty log lines: auto uses the terminal's width and leaves a file's lines whole; a number from 1 to 500 caps both (0 is auto too). Ignored when format is json.",
               "examples": [
-                "max-width: 120"
+                "max-width: auto"
               ],
-              "maximum": 500,
-              "minimum": 0,
-              "type": "integer"
+              "pattern": "^(auto|[0-9]|[1-9][0-9]|[1-4][0-9]{2}|500)$",
+              "type": "string"
             },
             "output": {
               "default": "console",

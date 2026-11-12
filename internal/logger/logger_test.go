@@ -72,6 +72,25 @@ func TestNewPretty_ColoursOnlyWhenAsked(t *testing.T) {
 	assert.NotContains(t, off.String(), "\x1b[", "a buffer is no terminal")
 }
 
+func TestNewPrettyBoth_ColoursOnlyTheConsole(t *testing.T) {
+	t.Parallel()
+	var console, file bytes.Buffer
+	l := NewPrettyBoth(&console, &file, theme.Resolve(theme.Default(), true), "info", false, "always", 0)
+	l.Info("\x1b[31mmoved\x1b[0m", slog.String("file", "a.jpg"))
+	assert.Contains(t, console.String(), "\x1b[")
+	assert.NotContains(t, file.String(), "\x1b[", "the message's own colour is stripped too")
+	assert.Contains(t, file.String(), "INFO  moved\n")
+	assert.Contains(t, file.String(), "└─ file=a.jpg\n")
+}
+
+func TestNewPrettyBoth_IsPretty(t *testing.T) {
+	t.Parallel()
+	var console, file bytes.Buffer
+	l := NewPrettyBoth(&console, &file, theme.Resolve(theme.Default(), true), "info", false, "never", 0)
+	assert.True(t, Pretty(l))
+	assert.True(t, Pretty(l.With(slog.String("k", "v"))), "a derived logger is still pretty")
+}
+
 func TestLevel(t *testing.T) {
 	t.Parallel()
 	for name, want := range map[string]slog.Level{

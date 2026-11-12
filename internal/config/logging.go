@@ -62,21 +62,36 @@ func logWriterFactory(output string) writerBuilder {
 // --show-caller) adds each line's source. The Closer is non-nil only when
 // writing to a file, and must be called on exit.
 func ConfigureLogger(k *koanf.Koanf, formatOverride string, showCaller bool, th theme.Resolved) (*slog.Logger, io.Closer, error) {
-	w, closer, err := logWriterFactory(k.String("configuration.logging.output")).Writer(k)
-	if err != nil {
-		return nil, nil, err
-	}
-
+	output := k.String("configuration.logging.output")
 	level := k.String("configuration.logging.level")
 	format := k.String("configuration.logging.format")
 	if formatOverride != "" {
 		format = formatOverride
 	}
+	color := k.String("configuration.logging.color")
+	width := 0 // auto: the terminal's width
+	if k.String("configuration.logging.max-width") != "auto" {
+		width = k.Int("configuration.logging.max-width")
+	}
+
+	// One handler per writer, not one on both: only stdout is a terminal to
+	// colour and fit, and the file stays plain text.
+	if format != "json" && output == "both" {
+		f, err := openLogFile(k)
+		if err != nil {
+			return nil, nil, err
+		}
+		return logger.NewPrettyBoth(os.Stdout, f, th, level, showCaller, color, width), f, nil
+	}
+
+	w, closer, err := logWriterFactory(output).Writer(k)
+	if err != nil {
+		return nil, nil, err
+	}
 	if format == "json" {
 		return logger.NewJSON(w, level, showCaller), closer, nil
 	}
-	color := k.String("configuration.logging.color")
-	return logger.NewPretty(w, th, level, showCaller, color, k.Int("configuration.logging.max-width")), closer, nil
+	return logger.NewPretty(w, th, level, showCaller, color, width), closer, nil
 }
 
 // LogTheme is the bezel theme called name; empty is bezel's default.

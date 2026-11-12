@@ -155,6 +155,24 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+// max-width is auto or a number of columns; both read without a warning.
+func TestLoadConfig_ReadsMaxWidthAutoOrNumber(t *testing.T) {
+	t.Parallel()
+	for value, want := range map[string]string{"auto": "auto", "120": "120", "0": "0"} {
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+			path := writeYAML(t, t.TempDir(), "cfg.yaml", "configuration:\n  logging:\n    max-width: "+value+"\n")
+			k := koanf.New(".")
+			require.NoError(t, InitConfig(k, path))
+
+			cfg, err := LoadConfig(k)
+
+			require.NoError(t, err)
+			assert.Equal(t, want, cfg.Logging.MaxWidth)
+		})
+	}
+}
+
 // A value of the wrong type used to vanish without a word, and a duration
 // written without a unit became nanoseconds: watch moved files at once.
 func TestLoadConfig_ReportsValuesItCouldNotRead(t *testing.T) {

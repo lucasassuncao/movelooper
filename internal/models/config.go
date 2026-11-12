@@ -47,7 +47,7 @@ type Logging struct {
 	File     string `yaml:"file" mapstructure:"file"`
 	Format   string `yaml:"format,omitempty" mapstructure:"format"`
 	Color    string `yaml:"color,omitempty" mapstructure:"color"`
-	MaxWidth int    `yaml:"max-width,omitempty" mapstructure:"max-width"`
+	MaxWidth string `yaml:"max-width,omitempty" mapstructure:"max-width"`
 	Theme    string `yaml:"theme,omitempty" mapstructure:"theme"`
 }
 
@@ -138,18 +138,17 @@ func (Logging) Metadata() map[string]any {
 			Example:      "format: pretty",
 		},
 		"color": meta{
-			Description:  "ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. Ignored when format is json.",
+			Description:  "ANSI color for the pretty format. 'auto' colors the console but not files; 'always'/'never' force it on or off. With output both, the file is never colored. Ignored when format is json.",
 			OneOf:        []string{"auto", "always", "never"},
 			EnablePicker: true,
 			Default:      "auto",
 			Example:      "color: auto",
 		},
 		"max-width": meta{
-			Description: "Maximum width, in columns, for wrapping pretty log lines; 0 uses the terminal's width. Ignored when format is json.",
-			Default:     "0",
-			Min:         "0",
-			Max:         "500",
-			Example:     "max-width: 120",
+			Description: "Width, in columns, for wrapping pretty log lines: auto uses the terminal's width and leaves a file's lines whole; a number from 1 to 500 caps both (0 is auto too). Ignored when format is json.",
+			Default:     "auto",
+			Pattern:     `^(auto|[0-9]|[1-9][0-9]|[1-4][0-9]{2}|500)$`,
+			Example:     "max-width: auto",
 		},
 		"theme": meta{
 			Description: "Colour theme for the pretty format, by the same names as 'movelooper edit --theme' (run 'movelooper --list-themes'). Ignored when format is json.",

@@ -335,6 +335,7 @@ func TestConfigureLogger_MaxWidth(t *testing.T) {
 	}{
 		"unset keeps lines whole": {"", 0},
 		"zero keeps lines whole":  {"    max-width: 0\n", 0},
+		"auto keeps lines whole":  {"    max-width: auto\n", 0},
 		"a value wraps the line":  {"    max-width: 60\n", 60},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -359,6 +360,25 @@ func TestConfigureLogger_MaxWidth(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestConfigureLogger_BothKeepsTheFilePlain verifies that output both colours
+// only the console: color always no longer writes ANSI into the log file.
+func TestConfigureLogger_BothKeepsTheFilePlain(t *testing.T) {
+	t.Parallel()
+	logPath := filepath.Join(t.TempDir(), "app.log")
+	yaml := "configuration:\n  logging:\n    output: both\n    color: always\n    file: " + logPath + "\n"
+	log, closer, err := ConfigureLogger(loadKoanfFromYAML(t, yaml), "", false, testTheme)
+	require.NoError(t, err)
+	require.NotNil(t, closer)
+	assert.True(t, logger.Pretty(log))
+	log.Info("hello", slog.String("k", "v"))
+	require.NoError(t, closer.Close())
+
+	data, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "\x1b[")
+	assert.Contains(t, string(data), "INFO  hello\n")
 }
 
 // loadKoanfFromYAML is a helper that writes yaml content to a temp file and loads it into koanf.

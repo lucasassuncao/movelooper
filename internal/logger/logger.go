@@ -44,13 +44,26 @@ func NewPretty(w io.Writer, th theme.Resolved, level string, addSource bool, col
 	return slog.New(h)
 }
 
+// NewPrettyBoth logs to console as NewPretty does, and the same lines to file
+// in plain text; a file wraps only at a width set, never at the terminal's.
+func NewPrettyBoth(console, file io.Writer, th theme.Resolved, level string, addSource bool, color string, width int) *slog.Logger {
+	return slog.New(slog.NewMultiHandler(
+		NewPretty(console, th, level, addSource, color, width).Handler(),
+		NewPretty(file, th, level, addSource, "never", width).Handler(),
+	))
+}
+
 // Discard drops every line, for tests and code paths that log nothing.
 func Discard() *slog.Logger { return slog.New(slog.DiscardHandler) }
 
-// Pretty reports whether l prints for people rather than as JSON.
+// Pretty reports whether l prints for people rather than as JSON. Only
+// NewPrettyBoth builds a MultiHandler.
 func Pretty(l *slog.Logger) bool {
-	_, ok := l.Handler().(bezellog.Handler)
-	return ok
+	switch l.Handler().(type) {
+	case bezellog.Handler, *slog.MultiHandler:
+		return true
+	}
+	return false
 }
 
 // Level maps the configured level name to its slog level; unknown is info.

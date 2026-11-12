@@ -407,7 +407,7 @@ type Defaults struct {
 ```
 
 <a name="Defaults.Metadata"></a>
-### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L206>)
+### func \(Defaults\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L205>)
 
 ```go
 func (Defaults) Metadata() map[string]any
@@ -429,7 +429,7 @@ type History struct {
 ```
 
 <a name="History.Metadata"></a>
-### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L183>)
+### func \(History\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L182>)
 
 ```go
 func (History) Metadata() map[string]any
@@ -470,7 +470,7 @@ type Logging struct {
     File     string `yaml:"file" mapstructure:"file"`
     Format   string `yaml:"format,omitempty" mapstructure:"format"`
     Color    string `yaml:"color,omitempty" mapstructure:"color"`
-    MaxWidth int    `yaml:"max-width,omitempty" mapstructure:"max-width"`
+    MaxWidth string `yaml:"max-width,omitempty" mapstructure:"max-width"`
     Theme    string `yaml:"theme,omitempty" mapstructure:"theme"`
 }
 ```
@@ -561,7 +561,7 @@ type Watch struct {
 ```
 
 <a name="Watch.Metadata"></a>
-### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L162>)
+### func \(Watch\) [Metadata](<https://github.com/lucasassuncao/movelooper/blob/main/internal/models/config.go#L161>)
 
 ```go
 func (Watch) Metadata() map[string]any

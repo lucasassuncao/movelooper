@@ -17,6 +17,7 @@ Package logger builds the app's \*slog.Logger: bezel's tree for people, or JSON 
 - [func Level\(level string\) slog.Level](<#Level>)
 - [func NewJSON\(w io.Writer, level string, addSource bool\) \*slog.Logger](<#NewJSON>)
 - [func NewPretty\(w io.Writer, th theme.Resolved, level string, addSource bool, color string, width int\) \*slog.Logger](<#NewPretty>)
+- [func NewPrettyBoth\(console, file io.Writer, th theme.Resolved, level string, addSource bool, color string, width int\) \*slog.Logger](<#NewPrettyBoth>)
 - [func Pretty\(l \*slog.Logger\) bool](<#Pretty>)
 - [type Look](<#Look>)
   - [func NewLook\(th theme.Resolved, on bool\) Look](<#NewLook>)
@@ -36,7 +37,7 @@ const (
 ```
 
 <a name="Discard"></a>
-## func [Discard](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L48>)
+## func [Discard](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L57>)
 
 ```go
 func Discard() *slog.Logger
@@ -45,7 +46,7 @@ func Discard() *slog.Logger
 Discard drops every line, for tests and code paths that log nothing.
 
 <a name="Level"></a>
-## func [Level](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L57>)
+## func [Level](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L70>)
 
 ```go
 func Level(level string) slog.Level
@@ -71,14 +72,23 @@ func NewPretty(w io.Writer, th theme.Resolved, level string, addSource bool, col
 
 NewPretty logs each message with its arguments as a tree under it, in th. color is "always", "never" or "auto" \(colour on a terminal\); width 0 wraps at the terminal's width.
 
+<a name="NewPrettyBoth"></a>
+## func [NewPrettyBoth](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L49>)
+
+```go
+func NewPrettyBoth(console, file io.Writer, th theme.Resolved, level string, addSource bool, color string, width int) *slog.Logger
+```
+
+NewPrettyBoth logs to console as NewPretty does, and the same lines to file in plain text; a file wraps only at a width set, never at the terminal's.
+
 <a name="Pretty"></a>
-## func [Pretty](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L51>)
+## func [Pretty](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/logger.go#L61>)
 
 ```go
 func Pretty(l *slog.Logger) bool
 ```
 
-Pretty reports whether l prints for people rather than as JSON.
+Pretty reports whether l prints for people rather than as JSON. Only NewPrettyBoth builds a MultiHandler.
 
 <a name="Look"></a>
 ## type [Look](<https://github.com/lucasassuncao/movelooper/blob/main/internal/logger/look.go#L12-L15>)

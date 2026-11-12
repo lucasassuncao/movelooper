@@ -12,8 +12,8 @@ Global settings grouped into four sub-sections: `logging`, `watch`, `history`, a
 | `level` | string | no | `info` | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal` |
 | `file` | string | no | - | Path to the log file (required when `output` is `file` or `both`). Past 10 MB it is renamed to `<file>.1`, replacing the older copy, and a new log starts |
 | `format` | string | no | `pretty` | `pretty` for the human console renderer; `json` for structured slog lines |
-| `color` | string | no | `auto` | ANSI color for `pretty`: `auto` (console only), `always`, `never`. Ignored for `json` |
-| `max-width` | int | no | `0` | Column width for wrapping `pretty` lines (0–500); `0` uses the terminal's width. Ignored for `json` |
+| `color` | string | no | `auto` | ANSI color for `pretty`: `auto` (console only), `always`, `never`. With `output: both` the file is never colored. Ignored for `json` |
+| `max-width` | `auto` or int | no | `auto` | Column width for wrapping `pretty` lines: `auto` uses the terminal's width and leaves a file's lines whole; a number (1–500) caps both (`0` is `auto` too). Ignored for `json` |
 | `theme` | string | no | `default` | Colour theme for `pretty`, by the names `movelooper --list-themes` shows. Ignored for `json` |
 
 The global `--format` flag overrides `format` for a single run: `movelooper --format json` forces structured JSON regardless of the configured value.
