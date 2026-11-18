@@ -61,12 +61,12 @@ github.com/knadh/koanf/providers/rawbytes v1.0.1 h1:JCQoly+djX23Okr8kqtS19R7UXKl
 github.com/knadh/koanf/providers/rawbytes v1.0.1/go.mod h1:KxwYJf1uezTKy6PBtfE+m725NGp4GPVA7XoNTJ/PtLo=
 github.com/knadh/koanf/v2 v2.4.1 h1:MK2JDkLy4UGzEUkW1CCCKQftd9+M+NX8hAZ2axbf/jo=
 github.com/knadh/koanf/v2 v2.4.1/go.mod h1:gRb40VRAbd4iJMYYD5IxZ6hfuopFcXBpc9bbQpZwo28=
-github.com/lucasassuncao/bezel v0.32.0 h1:gL/tWTUIqcvIZ2wFc+GYk9jZC9mJWnm4un+7th1PmFs=
-github.com/lucasassuncao/bezel v0.32.0/go.mod h1:ZnXec9ScnfqrMcc7L9wJnHtd96NNM+xlszQcr1kZy5E=
+github.com/lucasassuncao/bezel v0.35.0 h1:UBGfq4dTQOUgQ6+W6HiQ9zLswAg6Wl3Is40En+J+/1w=
+github.com/lucasassuncao/bezel v0.35.0/go.mod h1:ZnXec9ScnfqrMcc7L9wJnHtd96NNM+xlszQcr1kZy5E=
 github.com/lucasassuncao/docgen v0.1.5 h1:8PA28oHScTnlUj1YJ3yAg8Ewo6KmTJbw+r8R94eHJ3I=
 github.com/lucasassuncao/docgen v0.1.5/go.mod h1:S3yzYsezIwM5VL55UJazzjdFwWi/d4+E5yrhzbVFZjg=
-github.com/lucasassuncao/yedit v0.74.1 h1:LexPEkxkN4V9XDB4jxpjYQhUAMivQ+scka/+RoVFfTg=
-github.com/lucasassuncao/yedit v0.74.1/go.mod h1:zH+Z+CoaBvjLmbNBBUCra9RXp7Ji68pwE9qlhE61jMo=
+github.com/lucasassuncao/yedit v0.74.2 h1:4CFs4Q3uzKX04eL1mMazqvtXmuw27h8P9tG4OZI2GYg=
+github.com/lucasassuncao/yedit v0.74.2/go.mod h1:PNySpAS21d+JmAr9OLh6vZDDCFxBiegqZfvj8V5X0CI=
 github.com/lucasb-eyer/go-colorful v1.4.1 h1:1EO+WB73+EH8EVbzlrG3KLAfEypQWVHIBqlTf+2hNss=
 github.com/lucasb-eyer/go-colorful v1.4.1/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/mattn/go-runewidth v0.0.31 h1:1oCV4ReTlosDBc6rYRw5cL8S/4y8iv5oRl4SJ5IBgwo=
